@@ -1,0 +1,104 @@
+# ==============================
+# Unreal Engine .gitignore
+# ==============================
+
+# Visual Studio / Rider / VSCode files
+.vs/
+.vscode/
+.idea/
+*.opensdf
+*.sdf
+*.sln
+*.suo
+*.VC.db
+*.VC.opendb
+*.xcodeproj
+*.xcworkspace
+
+# Uncomment this if you're using Rider/VS and don't want to check in workspace files
+# *.sln
+
+# Compiled source
+*.pdb
+*.obj
+*.lib
+
+# Unreal Engine generated / cache folders
+Binaries/
+Build/
+DerivedDataCache/
+Intermediate/
+Saved/
+.vsconfig
+
+# Per-platform build artifacts
+*_BuiltData.uasset
+
+# Cache and intermediates for plugins
+Plugins/*/Binaries/
+Plugins/*/Intermediate/
+
+# Packaged builds
+Builds/
+
+# Automation / test results
+Saved/Automation/
+
+# Log files
+*.log
+
+# Crash reports
+Saved/Crashes/
+
+# Editor-generated ini backups
+Saved/Config/
+
+# Source control config that shouldn't be shared
+.p4ignore
+.p4config
+
+# OS-generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# Precompiled Assets
+SourceArt/**/*.png
+SourceArt/**/*.tga
+
+# Rider / JetBrains
+*.iml
+
+# Ignore Visual Studio Code files (redundant safety)
+*.code-workspace
+
+# Ignore packaged data (if you package builds into the project folder)
+Saved/StagedBuilds/
+Saved/Cooked/
+
+# Ignore generated project files (regenerate via "Generate Visual Studio project files")
+*.xcodeproj
+*.sln
+*.suo
+*.opensdf
+*.sdf
+*.VC.db
+*.VC.VC.opendb
+
+# Ignore backups
+*.bak
+*.tmp
+*.orig
+
+# Ignore Perforce and other VCS metadata that might accidentally be present
+.p4/
+
+# ==============================
+# Note: Do NOT ignore Content/ or Config/ (excluding Config/*.ini overrides above) —
+# those contain the actual game data that must be versioned.
+# ==============================
