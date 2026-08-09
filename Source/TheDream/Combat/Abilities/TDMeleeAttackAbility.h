@@ -7,14 +7,15 @@
 #include "TDMeleeAttackAbility.generated.h"
 
 class UAnimMontage;
+class UAbilityTask_MeleeTrace;
 class UGameplayEffect;
+class USkeletalMeshComponent;
 
 /**
  *  A single melee swing: play a montage, trace during its active frames, apply damage.
  *
- *  Light, Heavy and Charged Heavy are all expected to be Blueprint subclasses of this
- *  that differ only in their tuning values and montage, so the swing logic itself lives
- *  in one place. Everything a designer needs to change is exposed below.
+ *  The damage and trace values are virtual so a subclass can vary them per swing --
+ *  UTDChargedAttackAbility picks them from whichever branch the player's hold selected.
  */
 UCLASS(abstract)
 class UTDMeleeAttackAbility : public UTDGameplayAbility
@@ -27,7 +28,7 @@ public:
 
 protected:
 
-	/** Montage to play. Its Melee Window notify state defines the active frames. */
+	/** Montage to play. Its Melee Window notify states define the active frames. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Animation")
 	TObjectPtr<UAnimMontage> AttackMontage;
 
@@ -53,7 +54,20 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Trace")
 	bool bDrawDebugTrace = false;
 
-private:
+	/** Damage for the swing currently being thrown. Overridden when a swing has variants. */
+	virtual float GetAttackDamage() const { return Damage; }
+
+	/** Trace radius for the swing currently being thrown. Longer attacks reach further. */
+	virtual float GetAttackTraceRadius() const { return TraceRadius; }
+
+	/** The mesh carrying TraceSocket, or null if the avatar has none. */
+	USkeletalMeshComponent* FindAvatarMesh() const;
+
+	/** Starts tracing. The task idles until a Melee Window notify opens on the montage. */
+	UAbilityTask_MeleeTrace* StartMeleeTrace(float Radius);
+
+	/** Plays AttackMontage, optionally from a named section, and ends the ability when it finishes. */
+	bool StartAttackMontage(FName StartSection);
 
 	UFUNCTION()
 	void HandleTraceHit(const FHitResult& Hit);

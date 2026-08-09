@@ -12,38 +12,67 @@ void UTDMeleeAttackAbility::ActivateAbility(const FGameplayAbilitySpecHandle Han
 {
 	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
 
-	if (!CommitAbility(Handle, ActorInfo, ActivationInfo) || !AttackMontage)
+	if (!CommitAbility(Handle, ActorInfo, ActivationInfo))
 	{
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
 		return;
 	}
 
-	// Find the mesh that carries the trace socket.
-	USkeletalMeshComponent* MeshComponent = nullptr;
-	if (AActor* Avatar = ActorInfo ? ActorInfo->AvatarActor.Get() : nullptr)
+	StartMeleeTrace(GetAttackTraceRadius());
+
+	if (!StartAttackMontage(NAME_None))
 	{
-		MeshComponent = Avatar->IsA<ACharacter>()
-			? Cast<ACharacter>(Avatar)->GetMesh()
-			: Avatar->FindComponentByClass<USkeletalMeshComponent>();
+		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
+	}
+}
+
+USkeletalMeshComponent* UTDMeleeAttackAbility::FindAvatarMesh() const
+{
+	const FGameplayAbilityActorInfo* ActorInfo = GetCurrentActorInfo();
+	AActor* Avatar = ActorInfo ? ActorInfo->AvatarActor.Get() : nullptr;
+	if (!Avatar)
+	{
+		return nullptr;
 	}
 
+	if (ACharacter* Character = Cast<ACharacter>(Avatar))
+	{
+		return Character->GetMesh();
+	}
+
+	return Avatar->FindComponentByClass<USkeletalMeshComponent>();
+}
+
+UAbilityTask_MeleeTrace* UTDMeleeAttackAbility::StartMeleeTrace(float Radius)
+{
+	USkeletalMeshComponent* MeshComponent = FindAvatarMesh();
 	if (!MeshComponent)
 	{
-		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
-		return;
+		return nullptr;
 	}
 
-	// Tracing starts paused and is driven by the montage's Melee Window notify state.
-	UAbilityTask_MeleeTrace* TraceTask = UAbilityTask_MeleeTrace::MeleeTrace(this, MeshComponent, TraceSocket, TraceRadius, bDrawDebugTrace);
+	UAbilityTask_MeleeTrace* TraceTask = UAbilityTask_MeleeTrace::MeleeTrace(this, MeshComponent, TraceSocket, Radius, bDrawDebugTrace);
 	TraceTask->OnHit.AddDynamic(this, &UTDMeleeAttackAbility::HandleTraceHit);
 	TraceTask->ReadyForActivation();
 
-	UAbilityTask_PlayMontageAndWait* MontageTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(this, NAME_None, AttackMontage, MontagePlayRate);
+	return TraceTask;
+}
+
+bool UTDMeleeAttackAbility::StartAttackMontage(FName StartSection)
+{
+	if (!AttackMontage)
+	{
+		return false;
+	}
+
+	UAbilityTask_PlayMontageAndWait* MontageTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(this, NAME_None, AttackMontage, MontagePlayRate, StartSection);
 	MontageTask->OnCompleted.AddDynamic(this, &UTDMeleeAttackAbility::HandleMontageFinished);
 	MontageTask->OnBlendOut.AddDynamic(this, &UTDMeleeAttackAbility::HandleMontageFinished);
 	MontageTask->OnInterrupted.AddDynamic(this, &UTDMeleeAttackAbility::HandleMontageInterrupted);
 	MontageTask->OnCancelled.AddDynamic(this, &UTDMeleeAttackAbility::HandleMontageInterrupted);
 	MontageTask->ReadyForActivation();
+
+	return true;
 }
 
 void UTDMeleeAttackAbility::HandleTraceHit(const FHitResult& Hit)
@@ -68,8 +97,8 @@ void UTDMeleeAttackAbility::HandleTraceHit(const FHitResult& Hit)
 		return;
 	}
 
-	// Designers tune Damage as a positive number; the effect subtracts, so send it negative.
-	SpecHandle.Data->SetSetByCallerMagnitude(TDTags::Data_Damage, -Damage);
+	// Designers tune damage as a positive number; the effect subtracts, so send it negative.
+	SpecHandle.Data->SetSetByCallerMagnitude(TDTags::Data_Damage, -GetAttackDamage());
 
 	if (UAbilitySystemComponent* SourceASC = GetAbilitySystemComponentFromActorInfo())
 	{
