@@ -58,7 +58,9 @@ Build a high-precision combat prototype in Unreal Engine that prioritizes spacin
 - Favor clarity and tunability over clever architecture.
 
 ## Implementation Conventions
-- All combat content lives under `/Game/Combat/` (or `/Game/TheDream/Combat/`).
+- **Ownership rule:** everything authored for this project lives under `/Game/TheDream/`. Anything at `/Game/` root is Epic template or third-party content. Combat content therefore lives under `/Game/TheDream/Combat/` (`Abilities/`, `Effects/`, `Animations/`, `Input/`, `Characters/`, `Data/`).
+- C++ mirrors this: `Source/TheDream/Core/` (game mode, player controller, base character) and `Source/TheDream/Combat/` (`Abilities/`, `Attributes/`, `Tasks/`, `Notifies/`). Includes are written relative to the module root, e.g. `#include "Combat/Attributes/TDAttributeSet.h"`.
+- Never duplicate a World Partition level to make a new map — the external actor packages don't re-path and actors silently go missing. Use File → New Level → Empty.
 - Name assets clearly: `GA_LightAttack`, `GE_StaminaCost_Dodge`, `ABP_Combat`, etc.
 - Use data-driven values (curves, data assets, or simple constants) for timings, stamina costs, and windows so they can be tuned without code changes.
 - Every new system should be playable in PIE with a debug enemy or training dummy as soon as possible.

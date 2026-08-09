@@ -11,11 +11,16 @@
 			"AdditionalDependencies": [
 				"Engine",
 				"AIModule",
-				"UMG"
+				"UMG",
+				"GameplayAbilities"
 			]
 		}
 	],
 	"Plugins": [
+		{
+			"Name": "GameplayAbilities",
+			"Enabled": true
+		},
 		{
 			"Name": "ModelingToolsEditorMode",
 			"Enabled": true,

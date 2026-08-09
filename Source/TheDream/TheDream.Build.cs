@@ -18,26 +18,29 @@ public class TheDream : ModuleRules
 			"StateTreeModule",
 			"GameplayStateTreeModule",
 			"UMG",
-			"Slate"
+			"Slate",
+			"GameplayAbilities",
+			"GameplayTags",
+			"GameplayTasks"
 		});
 
 		PrivateDependencyModuleNames.AddRange(new string[] { });
 
+		// Project code includes relative to the module root, e.g.
+		// #include "Combat/Attributes/TDAttributeSet.h"
 		PublicIncludePaths.AddRange(new string[] {
-			"TheDream",
-			"TheDream/Variant_Platforming",
-			"TheDream/Variant_Platforming/Animation",
+			"TheDream"
+		});
+
+		// Epic's stock Variant_Combat sample uses bare cross-folder includes and
+		// needs these. Remove this block when Variant_Combat is deleted.
+		PublicIncludePaths.AddRange(new string[] {
 			"TheDream/Variant_Combat",
 			"TheDream/Variant_Combat/AI",
 			"TheDream/Variant_Combat/Animation",
 			"TheDream/Variant_Combat/Gameplay",
 			"TheDream/Variant_Combat/Interfaces",
-			"TheDream/Variant_Combat/UI",
-			"TheDream/Variant_SideScrolling",
-			"TheDream/Variant_SideScrolling/AI",
-			"TheDream/Variant_SideScrolling/Gameplay",
-			"TheDream/Variant_SideScrolling/Interfaces",
-			"TheDream/Variant_SideScrolling/UI"
+			"TheDream/Variant_Combat/UI"
 		});
 
 		// Uncomment if you are using Slate UI
