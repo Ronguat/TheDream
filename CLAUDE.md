@@ -51,8 +51,9 @@ Build a high-precision combat prototype in Unreal Engine that prioritizes spacin
 - Regen 25/s. Paused during defensive actions and for 1 s after.
 
 ## Technical Preferences
-- Prefer **Blueprints** for gameplay logic, abilities, animation notifies, and tuning so the designer can read and adjust them directly.
-- Use **C++** when it is clearly superior (new AttributeSets, custom AbilityTasks, shared base classes, or performance-critical code). When C++ is used, expose important values to Blueprint.
+- Prefer **C++** for core systems, characters, AttributeSets, Ability base classes, and any non-trivial logic. Keep the architecture clean and maintainable in code.
+- Expose all important tuning values (timings, costs, magnitudes, windows, etc.) to Blueprint via UPROPERTY so the designer can adjust them without recompiling.
+- Gameplay Abilities, Gameplay Effects, and animation notify logic can live in Blueprint when that makes iteration faster, but the underlying framework and shared logic should be C++.
 - **Gameplay Ability System (GAS) is preferred** for attacks, block, dodge, parry, stamina, hitstun, blockstun, and knockdown. Keep AttributeSets and GameplayEffects clean and data-driven.
 - Favor clarity and tunability over clever architecture.
 
