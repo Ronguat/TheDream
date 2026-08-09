@@ -3,14 +3,14 @@
 #include "Combat/Abilities/TDChargedAttackAbility.h"
 #include "AbilitySystemComponent.h"
 #include "Animation/AnimInstance.h"
+#include "Animation/AnimMontage.h"
 #include "Engine/World.h"
 #include "TimerManager.h"
 
 void UTDChargedAttackAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData)
 {
-	// Deliberately not Super: the base class starts tracing and plays the montage
-	// immediately, whereas the branch -- and therefore the trace radius -- is not known
-	// until the player releases.
+	// Deliberately not Super: the base class starts tracing immediately, whereas the
+	// branch -- and therefore the trace radius -- is unknown until the player releases.
 	UTDGameplayAbility::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
 
 	SelectedBranchIndex = INDEX_NONE;
@@ -26,17 +26,29 @@ void UTDChargedAttackAbility::ActivateAbility(const FGameplayAbilitySpecHandle H
 
 	HoldStartTime = World->GetTimeSeconds();
 
-	// The montage runs Windup -> Hold (looping); resolving redirects it to a branch.
 	if (!StartAttackMontage(WindupSection))
 	{
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
 		return;
 	}
 
+	FTimerManager& Timers = World->GetTimerManager();
+
+	// Reaching the coil point with the button still down slows the swing rather than
+	// letting it run on into the strike.
+	if (WindupAnimEndSeconds > 0.0f)
+	{
+		Timers.SetTimer(
+			HoldTimerHandle,
+			FTimerDelegate::CreateWeakLambda(this, [this]() { EnterHold(); }),
+			WindupAnimEndSeconds,
+			false);
+	}
+
 	// Holding forever would make the deepest attack free of risk, so it commits itself.
 	if (MaxHoldSeconds > 0.0f)
 	{
-		World->GetTimerManager().SetTimer(
+		Timers.SetTimer(
 			MaxHoldTimerHandle,
 			FTimerDelegate::CreateWeakLambda(this, [this]() { ResolveBranch(MaxHoldSeconds); }),
 			MaxHoldSeconds,
@@ -55,6 +67,16 @@ void UTDChargedAttackAbility::InputReleased(const FGameplayAbilitySpecHandle Han
 	}
 
 	ResolveBranch(World->GetTimeSeconds() - HoldStartTime);
+}
+
+void UTDChargedAttackAbility::EnterHold()
+{
+	if (bBranchResolved)
+	{
+		return;
+	}
+
+	SetMontagePlayRate(HoldPlayRate);
 }
 
 const FTDAttackBranch* UTDChargedAttackAbility::SelectBranch(float HeldSeconds) const
@@ -83,6 +105,7 @@ void UTDChargedAttackAbility::ResolveBranch(float HeldSeconds)
 
 	if (UWorld* World = GetWorld())
 	{
+		World->GetTimerManager().ClearTimer(HoldTimerHandle);
 		World->GetTimerManager().ClearTimer(MaxHoldTimerHandle);
 	}
 
@@ -103,26 +126,27 @@ void UTDChargedAttackAbility::ResolveBranch(float HeldSeconds)
 	}
 
 	// Radius is per branch, so tracing can only start once the branch is known. The task
-	// still idles until the branch section's Melee Window notify opens.
+	// still idles until the montage's Melee Window notify opens.
 	StartMeleeTrace(GetAttackTraceRadius());
 
-	const FGameplayAbilityActorInfo* ActorInfo = GetCurrentActorInfo();
-	UAnimInstance* AnimInstance = ActorInfo ? ActorInfo->GetAnimInstance() : nullptr;
-	if (!AnimInstance || !AttackMontage)
-	{
-		return;
-	}
+	// Back to full speed: the strike and its impact frames play identically for every
+	// branch, so hit timing reads the same to the defender no matter what was thrown.
+	SetMontagePlayRate(1.0f);
 
-	// Mid-windup, queue the branch as the next section so it flows at the section boundary
-	// with no visible pop. Already holding, jump straight there.
-	const FName CurrentSection = AnimInstance->Montage_GetCurrentSection(AttackMontage);
-	if (CurrentSection == WindupSection)
-	{
-		MontageSetNextSectionName(WindupSection, Branch->MontageSection);
-	}
-	else
+	// Only used once a branch earns a distinct strike animation.
+	if (Branch->MontageSection != NAME_None)
 	{
 		MontageJumpToSection(Branch->MontageSection);
+	}
+}
+
+void UTDChargedAttackAbility::SetMontagePlayRate(float PlayRate) const
+{
+	const FGameplayAbilityActorInfo* ActorInfo = GetCurrentActorInfo();
+	UAnimInstance* AnimInstance = ActorInfo ? ActorInfo->GetAnimInstance() : nullptr;
+	if (AnimInstance && AttackMontage && AnimInstance->Montage_IsPlaying(AttackMontage))
+	{
+		AnimInstance->Montage_SetPlayRate(AttackMontage, PlayRate);
 	}
 }
 
@@ -140,8 +164,12 @@ void UTDChargedAttackAbility::EndAbility(const FGameplayAbilitySpecHandle Handle
 {
 	if (UWorld* World = GetWorld())
 	{
+		World->GetTimerManager().ClearTimer(HoldTimerHandle);
 		World->GetTimerManager().ClearTimer(MaxHoldTimerHandle);
 	}
+
+	// A cancelled charge would otherwise leave the montage crawling at HoldPlayRate.
+	SetMontagePlayRate(1.0f);
 
 	// Must come off even on cancellation, or the character reads as mid-attack forever.
 	if (AppliedAttackTag.IsValid())

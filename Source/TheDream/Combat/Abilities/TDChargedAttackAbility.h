@@ -19,7 +19,13 @@ struct FTDAttackBranch
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Attack")
 	FGameplayTag AttackTag;
 
-	/** Montage section played when this branch is chosen. */
+	/**
+	 *  Optional distinct strike section for this branch.
+	 *
+	 *  Leave as None and the montage simply resumes from the windup, so every branch
+	 *  shares one strike and one set of impact frames. Set it once a branch earns its
+	 *  own animation -- a data change, no code change.
+	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Attack")
 	FName MontageSection = NAME_None;
 
@@ -38,16 +44,18 @@ struct FTDAttackBranch
 /**
  *  An attack whose identity is decided by how long the button is held.
  *
- *  Pressing starts a shared windup that is identical for every outcome, so the character
- *  commits instantly and the opponent cannot yet tell which attack is coming. Releasing
- *  during the windup gives the fastest branch; holding past it puts the character into a
- *  visible hold pose, which is the tell that makes the slower branches reactable.
+ *  Pressing starts a windup that is identical for every outcome, so the character commits
+ *  instantly and the opponent cannot yet tell which attack is coming. Releasing during the
+ *  windup gives the fastest branch; holding past it slows the montage to HoldPlayRate, and
+ *  that visible coil is the tell that makes the slower branches reactable.
  *
- *  WindupSeconds is therefore the most important number in the system: it is exactly how
- *  long an attack stays ambiguous, and it sets the whole reactability ladder.
+ *  There is deliberately one animation rather than one per branch. The attack's identity is
+ *  a *consequence* of how long the windup lasted, so it cannot be known in advance to pick
+ *  a clip; and sharing the strike means all three attacks land on the same impact frames,
+ *  which keeps hit timing predictable for the defender regardless of what was thrown.
  *
- *  Each branch section carries its own Melee Window notify, so tracing and damage work
- *  unchanged from the single-swing case -- only the numbers differ per branch.
+ *  WindupSeconds is the most important number in the system: it is exactly how long an
+ *  attack stays ambiguous, and it sets the whole reactability ladder.
  */
 UCLASS(abstract)
 class UTDChargedAttackAbility : public UTDMeleeAttackAbility
@@ -73,13 +81,28 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Charge", meta=(ClampMin="0.0"))
 	float MaxHoldSeconds = 0.5f;
 
-	/** Section played on activation. */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Charge")
-	FName WindupSection = FName("Windup");
+	/**
+	 *  Point in the montage where the swing is fully coiled and holding begins.
+	 *
+	 *  Distinct from WindupSeconds on purpose: this is an animation landmark, that is a
+	 *  design threshold. They need not match, and releasing between them is harmless.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Charge", meta=(ClampMin="0.0"))
+	float WindupAnimEndSeconds = 0.3f;
 
-	/** Looping section entered if the windup finishes while the button is still down. */
+	/**
+	 *  Play rate while the button is held past the coil point.
+	 *
+	 *  0 freezes on the coiled pose; a small value keeps it slowly winding, which reads as
+	 *  tension rather than as a hitch. Worth trying both -- it is the difference between
+	 *  looking stalled and looking loaded.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Charge", meta=(ClampMin="0.0", ClampMax="1.0"))
+	float HoldPlayRate = 0.1f;
+
+	/** Optional section played on activation. None starts the montage from the beginning. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Charge")
-	FName HoldSection = FName("Hold");
+	FName WindupSection = NAME_None;
 
 	/** Outcomes, ordered shortest hold first. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Charge")
@@ -90,16 +113,23 @@ protected:
 
 private:
 
-	/** Picks a branch from the hold duration, redirects the montage and starts tracing. */
+	/** Picks a branch from the hold duration, restores play rate and starts tracing. */
 	void ResolveBranch(float HeldSeconds);
 
 	/** The longest branch whose MinHoldSeconds has been reached. */
 	const FTDAttackBranch* SelectBranch(float HeldSeconds) const;
 
+	/** Slows the montage to HoldPlayRate if the button is still down at the coil point. */
+	void EnterHold();
+
+	/** Sets the montage's play rate, if one is playing. */
+	void SetMontagePlayRate(float PlayRate) const;
+
 	float HoldStartTime = 0.0f;
 	int32 SelectedBranchIndex = INDEX_NONE;
 	bool bBranchResolved = false;
 
+	FTimerHandle HoldTimerHandle;
 	FTimerHandle MaxHoldTimerHandle;
 	FGameplayTag AppliedAttackTag;
 };
