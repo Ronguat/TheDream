@@ -3,6 +3,7 @@
 #include "Combat/TDCombatCharacter.h"
 #include "Combat/Attributes/TDAttributeSet.h"
 #include "AbilitySystemComponent.h"
+#include "EnhancedInputComponent.h"
 
 ATDCombatCharacter::ATDCombatCharacter()
 {
@@ -60,10 +61,61 @@ void ATDCombatCharacter::InitialiseAbilitySystem()
 
 	for (const TSubclassOf<UGameplayAbility>& AbilityClass : DefaultAbilities)
 	{
-		if (AbilityClass)
+		if (!AbilityClass)
 		{
-			AbilitySystemComponent->GiveAbility(FGameplayAbilitySpec(AbilityClass, 1, INDEX_NONE, this));
+			continue;
 		}
+
+		// The spec carries the ability's own InputID so the ASC can route presses and
+		// releases to it directly. Abilities that are not input-driven keep INDEX_NONE.
+		int32 InputID = INDEX_NONE;
+		if (const UTDGameplayAbility* AbilityCDO = Cast<UTDGameplayAbility>(AbilityClass->GetDefaultObject()))
+		{
+			if (AbilityCDO->InputID != ETDAbilityInputID::None)
+			{
+				InputID = static_cast<int32>(AbilityCDO->InputID);
+			}
+		}
+
+		AbilitySystemComponent->GiveAbility(FGameplayAbilitySpec(AbilityClass, 1, InputID, this));
+	}
+}
+
+void ATDCombatCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
+{
+	Super::SetupPlayerInputComponent(PlayerInputComponent);
+
+	UEnhancedInputComponent* EnhancedInput = Cast<UEnhancedInputComponent>(PlayerInputComponent);
+	if (!EnhancedInput)
+	{
+		return;
+	}
+
+	for (const TPair<TObjectPtr<UInputAction>, ETDAbilityInputID>& Binding : AbilityInputActions)
+	{
+		if (!Binding.Key || Binding.Value == ETDAbilityInputID::None)
+		{
+			continue;
+		}
+
+		EnhancedInput->BindAction(Binding.Key, ETriggerEvent::Started, this, &ATDCombatCharacter::OnAbilityInputPressed, Binding.Value);
+		EnhancedInput->BindAction(Binding.Key, ETriggerEvent::Completed, this, &ATDCombatCharacter::OnAbilityInputReleased, Binding.Value);
+	}
+}
+
+void ATDCombatCharacter::OnAbilityInputPressed(ETDAbilityInputID InputID)
+{
+	if (AbilitySystemComponent)
+	{
+		AbilitySystemComponent->AbilityLocalInputPressed(static_cast<int32>(InputID));
+	}
+}
+
+void ATDCombatCharacter::OnAbilityInputReleased(ETDAbilityInputID InputID)
+{
+	if (AbilitySystemComponent)
+	{
+		AbilitySystemComponent->AbilityLocalInputReleased(static_cast<int32>(InputID));
 	}
 }
 

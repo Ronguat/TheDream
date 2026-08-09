@@ -5,10 +5,12 @@
 #include "CoreMinimal.h"
 #include "Core/TheDreamCharacter.h"
 #include "AbilitySystemInterface.h"
+#include "Combat/Abilities/TDGameplayAbility.h"
 #include "TDCombatCharacter.generated.h"
 
 class UAbilitySystemComponent;
 class UGameplayAbility;
+class UInputAction;
 class UTDAttributeSet;
 
 /**
@@ -57,10 +59,25 @@ protected:
 
 	virtual void BeginPlay() override;
 	virtual void PossessedBy(AController* NewController) override;
+	virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
 
 	/** Granted on spawn. Empty means this character cannot act (training dummy). */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Abilities")
 	TArray<TSubclassOf<UGameplayAbility>> DefaultAbilities;
+
+	/**
+	 *  Which input action activates which ability slot.
+	 *
+	 *  An ability is reached through its InputID rather than by tag lookup, so the ASC
+	 *  sees both the press and the release. Abilities can then wait on input release,
+	 *  which is what the hold that converts a Light into a Heavy needs.
+	 *
+	 *  Mapped actions must use a Down trigger (or no trigger at all), never Pressed --
+	 *  a Pressed trigger completes on the frame after the press, while the button is
+	 *  still held, so the release edge would be lost.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Input")
+	TMap<TObjectPtr<UInputAction>, ETDAbilityInputID> AbilityInputActions;
 
 	/** Starting and maximum health. Characters spawn at full. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Attributes", meta=(ClampMin="1.0"))
@@ -80,6 +97,9 @@ private:
 
 	/** Binds the actor info, seeds the attributes and grants DefaultAbilities. Safe to call twice. */
 	void InitialiseAbilitySystem();
+
+	void OnAbilityInputPressed(ETDAbilityInputID InputID);
+	void OnAbilityInputReleased(ETDAbilityInputID InputID);
 
 	bool bAbilitySystemInitialised = false;
 };
