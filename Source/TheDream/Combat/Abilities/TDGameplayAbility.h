@@ -4,24 +4,8 @@
 
 #include "CoreMinimal.h"
 #include "Abilities/GameplayAbility.h"
+#include "GameplayTagContainer.h"
 #include "TDGameplayAbility.generated.h"
-
-/**
- *  Identifies which input an ability activates from.
- *
- *  Granted specs carry this ID so input is routed through the ASC
- *  (AbilityLocalInputPressed / Released) rather than by tag lookup. That is what makes
- *  WaitInputRelease work, which the Heavy and Charged Heavy holds depend on.
- */
-UENUM(BlueprintType)
-enum class ETDAbilityInputID : uint8
-{
-	None			UMETA(DisplayName = "None"),
-	LightAttack		UMETA(DisplayName = "Light Attack"),
-	Block			UMETA(DisplayName = "Block"),
-	Dodge			UMETA(DisplayName = "Dodge"),
-	Parry			UMETA(DisplayName = "Parry")
-};
 
 /**
  *  Shared base for every combat ability in the project.
@@ -35,7 +19,18 @@ public:
 
 	UTDGameplayAbility();
 
-	/** Input this ability activates from. Read by ATDCombatCharacter when granting the spec. */
+	/**
+	 *  Input this ability answers to, e.g. InputTag.Attack.
+	 *
+	 *  Deliberately a separate namespace from the ability's own tags: the input is not
+	 *  the move. One press of InputTag.Attack will eventually resolve to Light, Heavy or
+	 *  Charged depending on how long it is held, and Block and Parry share a button.
+	 *
+	 *  Input is routed by tag rather than by an integer ID so that adding an ability is
+	 *  a content change. The character calls AbilitySpecInputPressed/Released, which sets
+	 *  Spec.InputPressed and forwards both edges to live instances -- that is what
+	 *  WaitInputRelease observes, and what the hold-to-Heavy conversion needs.
+	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Input")
-	ETDAbilityInputID InputID = ETDAbilityInputID::None;
+	FGameplayTag InputTag;
 };

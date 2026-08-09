@@ -5,7 +5,8 @@
 #include "CoreMinimal.h"
 #include "Core/TheDreamCharacter.h"
 #include "AbilitySystemInterface.h"
-#include "Combat/Abilities/TDGameplayAbility.h"
+#include "GameplayTagContainer.h"
+#include "GameplayAbilitySpec.h"
 #include "TDCombatCharacter.generated.h"
 
 class UAbilitySystemComponent;
@@ -66,18 +67,17 @@ protected:
 	TArray<TSubclassOf<UGameplayAbility>> DefaultAbilities;
 
 	/**
-	 *  Which input action activates which ability slot.
+	 *  Which input action drives which input tag, e.g. IA_LightAttack -> InputTag.Attack.
 	 *
-	 *  An ability is reached through its InputID rather than by tag lookup, so the ASC
-	 *  sees both the press and the release. Abilities can then wait on input release,
-	 *  which is what the hold that converts a Light into a Heavy needs.
+	 *  Abilities are matched by tag rather than by an integer ID, so granting a new
+	 *  ability to a button is a content change rather than a C++ enum edit and rebuild.
 	 *
 	 *  Mapped actions must use a Down trigger (or no trigger at all), never Pressed --
 	 *  a Pressed trigger completes on the frame after the press, while the button is
 	 *  still held, so the release edge would be lost.
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Input")
-	TMap<TObjectPtr<UInputAction>, ETDAbilityInputID> AbilityInputActions;
+	TMap<TObjectPtr<UInputAction>, FGameplayTag> AbilityInputActions;
 
 	/** Starting and maximum health. Characters spawn at full. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Attributes", meta=(ClampMin="1.0"))
@@ -98,8 +98,11 @@ private:
 	/** Binds the actor info, seeds the attributes and grants DefaultAbilities. Safe to call twice. */
 	void InitialiseAbilitySystem();
 
-	void OnAbilityInputPressed(ETDAbilityInputID InputID);
-	void OnAbilityInputReleased(ETDAbilityInputID InputID);
+	void OnAbilityInputPressed(FGameplayTag InputTag);
+	void OnAbilityInputReleased(FGameplayTag InputTag);
+
+	/** Handles of granted abilities whose InputTag matches, in activation order. */
+	void GatherAbilitiesForInput(const FGameplayTag& InputTag, TArray<FGameplayAbilitySpecHandle>& OutHandles) const;
 
 	bool bAbilitySystemInitialised = false;
 };

@@ -2,6 +2,7 @@
 
 #include "Combat/TDCombatCharacter.h"
 #include "Combat/Attributes/TDAttributeSet.h"
+#include "Combat/Abilities/TDGameplayAbility.h"
 #include "AbilitySystemComponent.h"
 #include "EnhancedInputComponent.h"
 
@@ -61,23 +62,12 @@ void ATDCombatCharacter::InitialiseAbilitySystem()
 
 	for (const TSubclassOf<UGameplayAbility>& AbilityClass : DefaultAbilities)
 	{
-		if (!AbilityClass)
+		if (AbilityClass)
 		{
-			continue;
+			// Input is matched against the ability's InputTag at press time, so the spec
+			// needs no input ID of its own.
+			AbilitySystemComponent->GiveAbility(FGameplayAbilitySpec(AbilityClass, 1, INDEX_NONE, this));
 		}
-
-		// The spec carries the ability's own InputID so the ASC can route presses and
-		// releases to it directly. Abilities that are not input-driven keep INDEX_NONE.
-		int32 InputID = INDEX_NONE;
-		if (const UTDGameplayAbility* AbilityCDO = Cast<UTDGameplayAbility>(AbilityClass->GetDefaultObject()))
-		{
-			if (AbilityCDO->InputID != ETDAbilityInputID::None)
-			{
-				InputID = static_cast<int32>(AbilityCDO->InputID);
-			}
-		}
-
-		AbilitySystemComponent->GiveAbility(FGameplayAbilitySpec(AbilityClass, 1, InputID, this));
 	}
 }
 
@@ -91,9 +81,9 @@ void ATDCombatCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputC
 		return;
 	}
 
-	for (const TPair<TObjectPtr<UInputAction>, ETDAbilityInputID>& Binding : AbilityInputActions)
+	for (const TPair<TObjectPtr<UInputAction>, FGameplayTag>& Binding : AbilityInputActions)
 	{
-		if (!Binding.Key || Binding.Value == ETDAbilityInputID::None)
+		if (!Binding.Key || !Binding.Value.IsValid())
 		{
 			continue;
 		}
@@ -103,19 +93,57 @@ void ATDCombatCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputC
 	}
 }
 
-void ATDCombatCharacter::OnAbilityInputPressed(ETDAbilityInputID InputID)
+void ATDCombatCharacter::GatherAbilitiesForInput(const FGameplayTag& InputTag, TArray<FGameplayAbilitySpecHandle>& OutHandles) const
 {
-	if (AbilitySystemComponent)
+	if (!AbilitySystemComponent || !InputTag.IsValid())
 	{
-		AbilitySystemComponent->AbilityLocalInputPressed(static_cast<int32>(InputID));
+		return;
+	}
+
+	// Collect handles rather than acting inside the loop: activating an ability can
+	// modify the spec list, and the specs would move underneath the iterator.
+	for (const FGameplayAbilitySpec& Spec : AbilitySystemComponent->GetActivatableAbilities())
+	{
+		const UTDGameplayAbility* Ability = Cast<UTDGameplayAbility>(Spec.Ability);
+		if (Ability && Ability->InputTag.MatchesTagExact(InputTag))
+		{
+			OutHandles.Add(Spec.Handle);
+		}
 	}
 }
 
-void ATDCombatCharacter::OnAbilityInputReleased(ETDAbilityInputID InputID)
+void ATDCombatCharacter::OnAbilityInputPressed(FGameplayTag InputTag)
 {
-	if (AbilitySystemComponent)
+	TArray<FGameplayAbilitySpecHandle> Handles;
+	GatherAbilitiesForInput(InputTag, Handles);
+
+	for (const FGameplayAbilitySpecHandle& Handle : Handles)
 	{
-		AbilitySystemComponent->AbilityLocalInputReleased(static_cast<int32>(InputID));
+		if (FGameplayAbilitySpec* Spec = AbilitySystemComponent->FindAbilitySpecFromHandle(Handle))
+		{
+			// Marks the spec as held and forwards the press to any live instance. This is
+			// the state WaitInputRelease reads, so holds keep working.
+			AbilitySystemComponent->AbilitySpecInputPressed(*Spec);
+
+			if (!Spec->IsActive())
+			{
+				AbilitySystemComponent->TryActivateAbility(Handle);
+			}
+		}
+	}
+}
+
+void ATDCombatCharacter::OnAbilityInputReleased(FGameplayTag InputTag)
+{
+	TArray<FGameplayAbilitySpecHandle> Handles;
+	GatherAbilitiesForInput(InputTag, Handles);
+
+	for (const FGameplayAbilitySpecHandle& Handle : Handles)
+	{
+		if (FGameplayAbilitySpec* Spec = AbilitySystemComponent->FindAbilitySpecFromHandle(Handle))
+		{
+			AbilitySystemComponent->AbilitySpecInputReleased(*Spec);
+		}
 	}
 }
 
