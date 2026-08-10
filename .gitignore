@@ -98,6 +98,11 @@ Saved/Cooked/
 # Ignore Perforce and other VCS metadata that might accidentally be present
 .p4/
 
+# Claude Code per-machine state. settings.json and any skills stay versioned so
+# the project's shared setup travels; only the local overrides are ignored.
+.claude/settings.local.json
+.claude/scheduled_tasks.lock
+
 # ==============================
 # Note: Do NOT ignore Content/ or Config/ (excluding Config/*.ini overrides above) —
 # those contain the actual game data that must be versioned.
