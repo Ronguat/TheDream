@@ -76,6 +76,74 @@ find GDHBundle -name "*.uasset" -printf "%p\n" | sed 's|\.uasset$||' | sort \
 It is a cache of an immutable purchase, so it does not drift in practice; regenerate only
 if the bundle is ever updated or extended.
 
+## Complete token vocabulary
+
+**This list is exhaustive.** It is every underscore-separated token appearing anywhere in
+any of the 6,576 asset names, with the number of assets containing it — directions
+(`Fw` `Bw` `L` `R` `FL` `FR` `BL` `BR`), `RM`/`IP`/`AS` and bare numbers stripped. Pack
+names, material tokens and bone names are left in rather than filtered, because filtering
+is what caused the errors this list exists to prevent.
+
+**If a word is not here, the bundle does not contain it. If it is here, it exists.** That is
+the whole point: absence is now checkable instead of inferred.
+
+```
+01ID(50) 02ID(50) A(1) ABP(21) ANS(16) AORouMet(1) ASAOMASK(20) ASAOPMASK(22) AddWeapon(3)
+Aim(24) AimFL(8) AimFR(8) AimFw(8) AirGrab(2) AnimStart(8) Archery(2) ArcheryAnimV1(356)
+Arrow(1) ArrowArm(2) Assassination1-13(4 each) Attack(58) Attack1(98) Attack10(48) Attack11(8)
+Attack12(8) Attack13(8) Attack14(4) Attack15(4) Attack16(4) Attack17(4) Attack2(66) Attack3(86)
+Attack4(88) Attack5(52) Attack6(102) Attack7(102) Attack8(88) Attack9(20) AttackCombo(2)
+AttackCombo1(192) AttackCombo10(190) AttackCombo11(38) AttackCombo12(42) AttackCombo13(26)
+AttackCombo14(18) AttackCombo15(26) AttackCombo16(4) AttackCombo17(18) AttackCombo18(18)
+AttackCombo19(18) AttackCombo2(224) AttackCombo20(26) AttackCombo21(4) AttackCombo22(18)
+AttackCombo23(12) AttackCombo3(172) AttackCombo4(172) AttackCombo5(204) AttackCombo6(184)
+AttackCombo7(216) AttackCombo8(182) AttackCombo9(238) BN(42) BP(37) Back(504) Base(1)
+BaseColor(1) BaseColorFallOff(11) Block(4) Block1(5) Block2(4) BlockConstant(3)
+BlockConstantHit(1) BlockCy(1) BlockDeath(3) BlockHit(4) BlockOnce(3) Blocking(1) Body(10)
+Bow(54) BowAnim(1) BuiltData(43) CA(11) CCRCCPlastic(42) CR(21) Character(2) CharacterSample(3)
+Charged(16) Chest(4) ChromaticCurve(11) Color(1) Compelte(4) Complete(1110) Counter(1) D(42)
+DEMO(24) Dagger(2) DarkWood(4) Dash(103) Dash1(8) Dash2(8) Dead(2) Death(48) Defence(6)
+Defence1(4) Defence2(4) Defense(10) Defense1(2) Defense2(3) DefenseEnd(1) DefenseStart(1)
+Deflect(5) Demo(2) Diffraction(11) DirectX(1) Dodge(54) Dodge1(5) Dodge2(5) End(242)
+FacingBw(2) FacingFw(48) Flip(18) FlipBL/BR/Bw/FL/FR/Fw/L/R(3 each) Gem(2) Gold(1) Grab(4)
+GreatSword(2) Haduken(3) Head(4) Heal(2) Heater(1) Heavy(1) Hit(69) Hit1(8) Hit2(8) HitDeath(4)
+Idle(39) Idle1(8) Idle2(8) Idle3(1) Jump(70) Jump1(3) Jump2(3) JumpCy(1) Katana(3) Kick(9)
+Kick1(6) Kick2(6) Kick3(3) Kick4(8) KnockDown(2) Land(3) LightSteel(4) LightWood(4) Logo(11)
+Loop(6) Loopable(160) M(45) MF(22) MI(42) ML(11) MSK(126) MSR(42) Mannequin(65) Manny(501)
+Metallic(1) Mirror(39) Montage(1) Move(72) MoveBL(4) MoveBR(4) MoveBw(4) MoveFL(4) MoveFR(4)
+MoveFw(4) MoveL(6) MoveR(6) MovingLoop(4) N(42) Normal(2) OnAir(1) PA(12) Parry(1)
+PostProcess(21) Procedural(11) Projectile(1) Puch(3) Punch(3) Punch1(9) Punch2(9) Punch3(3)
+Punch4(2) PunchCombo1(3) PunchCombo2(2) Quinn(451) React(526) Red(1) RemoveWeapon(3)
+Resurrection(2) Resurrection1(2) Resurrection2(2) RiggedBow(3) Rise1(5) Rise2(5) Rise3-9(2 each)
+Roll(84) Roll1(9) Roll2(8) Roughness(1) Run(593) Run1(64) Run2(64) RunCy(2) SK(12) SKM(36) SM(9)
+SampleCharacter(6) Shealth(1) Sheath(23) Sheath1(1) Sheath2(1) Shield(2) Shoryuken(4) Shoulder(4)
+Showcase(14) Showcase1(3) Simple(14) Spear(1) Squat(133) Squat1(23) Squat2(19) SquatAttack(4)
+Stage1(1080) Stage2(792) Stage3(342) Stage4(82) Stage5(20) Start(246) Steel(4) Stomachake(2)
+Style2(8) Sword(15) SwordShield(1) T(316) Tan(42) Throw1(6) Throw2(6) ThrowWeapon(1)
+ToPosition(28) ToPostition(2) TwoHanded(1) UE(11) Unshealth(1) Unsheath(21) Unsheath1(1)
+Unsheath2(1) UnsheathIP(1) Unshield(1) Up(2) V1(9) V2(9) Walk(609) WalkCy(2) White(1) anim(294)
+calf(84) clavicle(84) foot(84) hand(84) inside(1) lambert1(5) logo3layers(11) lowerarm(84)
+outside(1) pose(294) rbd(3) thigh(84) upperarm(84)
+```
+
+Pack-name tokens (`SwordAndShieldAnimV1`, `KatanaCombatAnimationV1`, and so on) are omitted
+above only because they identify the folder rather than the move; every other token is present.
+
+### Vendor typos — search both spellings
+
+The bundle contains genuine misspellings, so a *correct* search still misses assets:
+
+| Intended | Also appears as |
+|---|---|
+| `Complete` (1110) | **`Compelte`** (4) |
+| `Punch` | **`Puch`** (3) |
+| `Sheath` / `Unsheath` | **`Shealth`** (1) / **`Unshealth`** (1) |
+| `ToPosition` (28) | **`ToPostition`** (2) |
+| `Defense` (10) | `Defence` (6) — both spellings used, in different packs |
+
+`Defence`/`Defense` is the dangerous one: it is not a typo but a genuine split, so searching
+one spelling silently halves the results.
+
 ## Move vocabulary
 
 What each archetype can actually *do*, which is the question worth answering quickly. The
