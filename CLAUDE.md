@@ -107,6 +107,7 @@ Deliberately **not** kept: per-system design docs. Local rationale belongs in he
 - After making changes, briefly list the assets created or modified and the key values set.
 - **Commit and push whenever a notable contribution is finished**, without waiting to be asked. The bar is a coherent, verified unit of work — not every file edit, and not a half-finished slice. Pending *tuning* questions do not block a push; pending *correctness* verification does.
 - **Instrument before theorising.** When behaviour is wrong and the cause is not obvious, enable a trace before proposing an explanation, and prefer an experiment that manipulates the suspected cause over one that only observes it. See `Docs/Working-In-Unreal.md`.
+- **If you edited this file during a session, re-read all of it before finishing.** Edits made hours apart contradict each other easily. Check for stale claims and for rationale that belongs in `Docs/Combat/Decisions.md` — this file states rules and current facts, not arguments. Do not delete lines you did not write without asking: most of them are scar tissue from something that went wrong once.
 
 ## Current Focus
 1. ~~Light → Heavy → Charged Heavy with correct input timing and basic montages.~~ **Done 2026-08-09**, verified in play. Offense still lacks the light string, knockdown, and block-safety.
