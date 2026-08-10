@@ -100,7 +100,9 @@ float ATDDebugHUD::DrawCombatantPanel(ATDCombatCharacter* Character, float X, fl
 	DrawLabelledBar(TEXT("HP"), Character->GetHealthPercent(), Character->GetHealth(), Character->GetMaxHealth(), HealthColor, X, CursorY, Scale);
 	CursorY += LineHeight;
 
-	DrawLabelledBar(TEXT("SP"), Character->GetStaminaPercent(), Character->GetStamina(), Character->GetMaxStamina(), StaminaColor, X, CursorY, Scale);
+	const bool bExhausted = Character->IsExhausted();
+	DrawLabelledBar(TEXT("SP"), Character->GetStaminaPercent(), Character->GetStamina(), Character->GetMaxStamina(),
+		bExhausted ? ExhaustedStaminaColor : StaminaColor, X, CursorY, Scale);
 
 	// The pause outlives the action that caused it by StaminaRegenPauseSeconds, and the tag
 	// line cannot show that tail -- State.StaminaRegenPaused has already come off by then.

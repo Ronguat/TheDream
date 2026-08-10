@@ -221,6 +221,10 @@ void ATDCombatCharacter::InitialiseAbilitySystem()
 		// root motion has since carried us.
 		DebugAutoAttackHomeTransform = GetActorTransform();
 
+		// Reset when the swing actually finishes rather than on a fixed delay: attack length
+		// varies by tier, and a delay long enough for a charged attack would be most of the gap.
+		AbilitySystemComponent->OnAbilityEnded.AddUObject(this, &ATDCombatCharacter::HandleDebugAutoAttackEnded);
+
 		GetWorldTimerManager().SetTimer(
 			DebugAutoAttackTimerHandle,
 			this,
@@ -231,21 +235,38 @@ void ATDCombatCharacter::InitialiseAbilitySystem()
 	}
 }
 
+void ATDCombatCharacter::ReturnToDebugAutoAttackHome()
+{
+	if (!bDebugAutoAttackResetPosition)
+	{
+		return;
+	}
+
+	// Teleported rather than swept: a swept move would be blocked by whatever the attacker has
+	// walked into, which is exactly the state being undone.
+	SetActorTransform(DebugAutoAttackHomeTransform, false, nullptr, ETeleportType::TeleportPhysics);
+
+	// Root motion leaves velocity behind; without this the attacker slides away from home
+	// immediately after being put back.
+	if (UCharacterMovementComponent* Movement = GetCharacterMovement())
+	{
+		Movement->StopMovementImmediately();
+	}
+}
+
+void ATDCombatCharacter::HandleDebugAutoAttackEnded(const FAbilityEndedData& EndedData)
+{
+	// The interesting reset: it puts the attacker home for the whole gap between swings, so it
+	// idles where it was placed instead of wherever its last lunge left it.
+	ReturnToDebugAutoAttackHome();
+}
+
 void ATDCombatCharacter::DebugAutoAttackPress()
 {
-	if (bDebugAutoAttackResetPosition)
-	{
-		// Teleported rather than swept: a swept move would be blocked by whatever the attacker
-		// has walked into, which is exactly the state being undone.
-		SetActorTransform(DebugAutoAttackHomeTransform, false, nullptr, ETeleportType::TeleportPhysics);
-
-		// Root motion leaves velocity behind; without this the attacker slides away from home
-		// immediately after being put back.
-		if (UCharacterMovementComponent* Movement = GetCharacterMovement())
-		{
-			Movement->StopMovementImmediately();
-		}
-	}
+	// Belt and braces. The post-attack reset normally leaves nothing to do here, but an ability
+	// that is cancelled or interrupted may never end cleanly, and this preserves the guarantee
+	// that every swing starts from an identical transform.
+	ReturnToDebugAutoAttackHome();
 
 	OnAbilityInputPressed(DebugAutoAttackInputTag);
 

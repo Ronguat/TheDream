@@ -76,6 +76,17 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category="Debug|Colours")
 	FLinearColor StaminaColor = FLinearColor(0.9f, 0.75f, 0.1f, 1.0f);
 
+	/**
+	 *  Fill colour for the stamina bar while State.Exhausted is applied.
+	 *
+	 *  Exhaustion is otherwise only legible by spotting a tag in the tag line, which is
+	 *  exactly the wrong amount of work for the one state that explains why an input just
+	 *  refused. Draining the colour out of the bar says "this resource is not yours right
+	 *  now" without needing to be read.
+	 */
+	UPROPERTY(EditDefaultsOnly, Category="Debug|Colours")
+	FLinearColor ExhaustedStaminaColor = FLinearColor(0.45f, 0.45f, 0.45f, 1.0f);
+
 	UPROPERTY(EditDefaultsOnly, Category="Debug|Colours")
 	FLinearColor BackgroundColor = FLinearColor(0.0f, 0.0f, 0.0f, 0.5f);
 

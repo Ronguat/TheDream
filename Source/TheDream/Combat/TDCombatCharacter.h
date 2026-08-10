@@ -15,6 +15,7 @@ class UGameplayAbility;
 class UGameplayEffect;
 class UInputAction;
 class UTDAttributeSet;
+struct FAbilityEndedData;
 
 /**
  *  Base class for anything that can fight: the player and the training dummy alike.
@@ -183,15 +184,18 @@ protected:
 	float DebugAutoAttackHoldSeconds = 0.1f;
 
 	/**
-	 *  Snap back to the spawn transform before each auto-attack. Debug only.
+	 *  Snap the auto-attacker back to its spawn transform. Debug only.
 	 *
 	 *  Attack montages carry root motion, so an attacker on a loop walks itself across the
 	 *  level -- ours reached the edge of the map. Resetting is deliberately preferred over
 	 *  zeroing AnimRootMotionTranslationScale: suppressing the lunge would shorten the
 	 *  dummy's effective reach, and reach is exactly what spacing tests measure.
 	 *
-	 *  Applied *before* the swing rather than after, so every attack begins from an
-	 *  identical transform and repeated measurements are comparable.
+	 *  Fires when the swing *ends*, so the attacker spends the gap between attacks sitting
+	 *  where it was placed rather than wherever its last lunge left it -- which is what makes
+	 *  it pleasant to stand in front of. It also fires before each swing, which is normally a
+	 *  no-op but covers an ability that was cancelled and so never ended cleanly; between them
+	 *  every attack is guaranteed to start from an identical transform.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat|Debug")
 	bool bDebugAutoAttackResetPosition = true;
@@ -232,6 +236,12 @@ private:
 	/** Presses the debug attack input, then releases it DebugAutoAttackHoldSeconds later. */
 	void DebugAutoAttackPress();
 	void DebugAutoAttackRelease();
+
+	/** Teleports back to DebugAutoAttackHomeTransform and kills leftover velocity. No-op if disabled. */
+	void ReturnToDebugAutoAttackHome();
+
+	/** Bound to the ASC so the attacker returns home the moment a swing finishes. */
+	void HandleDebugAutoAttackEnded(const FAbilityEndedData& EndedData);
 
 	/** Adds StaminaRegenPerSecond * delta, unless suppressed or already full. */
 	void TickStaminaRegen(float DeltaSeconds);
