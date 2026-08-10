@@ -40,17 +40,13 @@ reasonably second-guess. Skip it for anything the code says plainly on its own.
 - **Does an aborted attack cost anything?** Cancelling into block currently costs only the
   time spent. If feinting into guard turns out to be too cheap to punish, a stamina cost on
   the cancel is the obvious lever — but it should not be added pre-emptively.
-- **Is dodge displacement authored or driven?** Root motion reads better; code-driven
-  displacement is tunable, and spacing is the top feel goal. Narrowed rather than settled by
-  the library: every dodge clip available is root motion and none is in place, so authored
-  displacement is the default unless we switch root motion off on the montage and drive it.
-- **Is there a forward dodge, or is forward evasion a roll?** The animation library contains
-  no forward dodge in any of its 6,576 assets — dodges are backward and lateral only, while
-  rolls cover all eight directions. That is a convention worth taking seriously rather than
-  working around: a roll is longer and more committal than a sidestep, so "forward evade"
-  may deserve to be a different move with a different risk profile. Options are to use a
-  roll for forward, to drop forward dodge and make dodge purely a retreat/lateral tool, or
-  to build both. `ETDDodgeDirection` currently assumes four symmetrical directions.
+- **Does a roll's length make dodge too committal?** Settled in principle (rolls for
+  everything, root motion) but unjudged in play. The knobs are `IFrameSeconds` and the
+  recovery tail after it; the thing to watch is whether dodge still functions as a reaction
+  or becomes something you have to predict with.
+- **Should the debug auto-attack move, or only swing?** A dummy that attacks on a timer from
+  a fixed spot tests i-frames but not spacing, and spacing is the top feel goal. Adequate for
+  the dodge slice; inadequate for judging whiff punish later.
 
 ---
 
@@ -69,6 +65,50 @@ concludes the log is wrong rather than merely old. Add a row whenever a name cha
 | `LogTDCoil` | `LogTDCombatTiming`, behind the `TD.DebugCombatTiming` cvar. |
 
 ---
+
+## 2026-08-10 — Sword and shield, rolls for every evade, root motion first
+
+**The melee archetype is sword and shield.** It is the largest set in the library (1,046
+assets) and the only stance with a shield, which is what makes block's 180° forward coverage
+read as a thing the character is doing rather than a rule the game is enforcing. Reach also
+grows, which serves spacing — the top feel goal — and incidentally makes i-frames less
+fiddly to test.
+
+Chosen over staying unarmed, which was free but leaves block unmotivated and reach short,
+and over one-handed sword, which ships **no evasive animations at all** — a mismatch on
+precisely the move being built next.
+
+The cost is real and lands on offense, which is currently verified and working: new attack
+clips mean re-authoring the montage, re-placing the `Release Window` notify by hand (notifies
+cannot be placed programmatically) and updating `ReleaseStartSeconds` to match. This is why
+the swap is its own slice rather than something folded into the dodge work — the timing model
+is the most expensive thing in the project to re-verify, and it should not be disturbed
+halfway through building something else.
+
+Note also that the library has **no shield mesh at all**, so the shield is a placeholder
+primitive until one is sourced. That is a prop gap and does not affect the animations.
+
+**Every evade is a roll, in all eight directions.** The library has no forward dodge in any
+archetype, while rolls cover all eight — so the choice was between mixing two move types
+under one button or committing to one. One move type wins: a dodge that is a sidestep in
+four directions and a roll in the other four would need different i-frame windows, different
+durations and different punish profiles depending on which way you pressed, which is a lot of
+hidden complexity for a defensive option that has to be read instantly.
+
+The accepted cost is that a roll is longer and more committal than a sidestep. That is a
+tuning problem — `IFrameSeconds` and the recovery tail after it are exactly the knobs for it
+— and it is arguably the right shape anyway, since dodge costs half the stamina bar and
+ought to feel like a commitment.
+
+**The mechanic keeps the name Dodge.** The tags, input and ability are all `Dodge`
+(`InputTag.Dodge`, `State.Dodging`, `UTDDodgeAbility`); "roll" is what the animation is, not
+what the move is. Renaming would churn the spec, the ini and the code to describe a clip.
+
+**Displacement stays authored, via root motion.** Every dodge and roll in the library is
+root motion and none is in place, so this is the default rather than a preference. Root
+motion can be switched off on the montage and displacement driven in code without new
+assets, so the cheaper experiment runs first; revisit if the distance proves untunable
+against spacing.
 
 ## 2026-08-10 — The focus-return frame hitch reproduces; it is a trigger, not an anomaly
 

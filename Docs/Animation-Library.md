@@ -49,10 +49,13 @@ AS_<PackName>_<Move>[_<Direction>][_<Qualifier>][_RM]
 ```
 
 - **Direction** is one of `Fw` `Bw` `L` `R` `FL` `FR` `BL` `BR`.
-- **`_RM` means root motion.** Its absence means the clip is in place. The bundle is split
-  roughly evenly: 2,774 root-motion against 2,545 in-place.
+- **`_RM` is root motion and `_IP` is in place.** Both are stated explicitly — 2,774 against
+  2,450 — so never infer "in place" from the absence of `_RM`. 95 clips carry the marker
+  mid-name rather than at the end (archery is `..._IP_Bow`), so match the token, not the
+  suffix.
 - **Qualifiers** modify a variant, e.g. `_FacingFw` on a backward dodge that keeps facing
-  forward, or `_Stage1` / `_Complete` on the pieces of a multi-part combo.
+  forward, `_Stage1` / `_Complete` on the pieces of a multi-part combo, or `_React` on a
+  version that includes the recipient's reaction.
 
 So finding candidates is a `find` away, and asking for a preview is only needed to choose
 between clips that are already the right kind.
@@ -72,6 +75,11 @@ These are facts about the bundle, checked across all 6,576 assets, not impressio
 - **`OneHandSword` has no evasive animations at all.** If the project moves to a one-handed
   sword archetype, its dodges have to come from another folder — most plausibly
   `SwordShield`, which is the nearest stance.
+- **There is no shield mesh anywhere in the bundle.** Not one, across all 6,576 assets, even
+  though `SwordShield` is the largest archetype in it. The only weapon prop shipped for that
+  set is `SwordShield/DEMO/StaticMesh/SM_Sword`. The animations are a sword-and-shield
+  *stance*; the shield itself has to come from elsewhere or be a placeholder primitive. This
+  is a prop gap, not an animation gap — nothing about the clips depends on it.
 
 ## Getting an animation into this project
 
