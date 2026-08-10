@@ -75,11 +75,25 @@ These are facts about the bundle, checked across all 6,576 assets, not impressio
 - **`OneHandSword` has no evasive animations at all.** If the project moves to a one-handed
   sword archetype, its dodges have to come from another folder — most plausibly
   `SwordShield`, which is the nearest stance.
-- **There is no shield mesh anywhere in the bundle.** Not one, across all 6,576 assets, even
-  though `SwordShield` is the largest archetype in it. The only weapon prop shipped for that
-  set is `SwordShield/DEMO/StaticMesh/SM_Sword`. The animations are a sword-and-shield
-  *stance*; the shield itself has to come from elsewhere or be a placeholder primitive. This
-  is a prop gap, not an animation gap — nothing about the clips depends on it.
+- **Props do not follow the `SM_` / `SKM_` naming convention, so do not search by prefix.**
+  `SwordShield/DEMO/StaticMesh/` holds both `SM_Sword` *and* `Shield_Heater` — the shield
+  carries no prefix at all. A prefix-filtered search for shield meshes returned nothing and
+  produced a confidently wrong claim here that the bundle contained no shield, corrected only
+  because a migrate dependency list showed otherwise. Match on substring; the animations are
+  regularly named, the props are not.
+
+## Props and reference worth knowing about
+
+`GDHBundle/SwordShield/DEMO/` carries more than animations, and it is the archetype this
+project uses:
+
+- `StaticMesh/SM_Sword` and `StaticMesh/Shield_Heater` — the actual props, with materials
+  (`M_Sword`, `LightSteel`, `DarkWood`, `LightWood`).
+- `Blueprint/BP_CharacterSample_SwordShield` — the pack's own rigged sample. Worth opening
+  as a **reference for socket placement** rather than as something to inherit from; it shows
+  where they expect the sword and shield to attach.
+- `BP_ANS_Sheath` / `BP_ANS_Unsheath` — sheathing notify states, unused for now but relevant
+  if weapon swapping ever comes into scope.
 
 ## Getting an animation into this project
 
