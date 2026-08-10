@@ -98,6 +98,13 @@ Confirmed traps:
 - **TMap keys** *(reported once)* — setting a map property logs `added key ... not found
   in map after import` while the entry is in fact correct at runtime. Misleading, not
   fatal.
+- **`AssetTools.delete` leaves the `.uasset` on disk** *(confirmed 2026-08-10)* — it
+  returns true, force-deletes the object from memory and drops it from the asset
+  registry, so `find_assets` stops listing it. The file is untouched, with its original
+  timestamp. The next editor start rescans the directory and the asset comes back.
+  `AssetTools.exists` still returns true, so it is the check that catches this; a registry
+  query is the one that agrees with the lie. **Delete the file on disk as well** (`git rm`,
+  since Content is tracked) and confirm with a directory listing.
 
 ## Not scriptable at all
 

@@ -14,12 +14,20 @@ reasonably second-guess. Skip it for anything the code says plainly on its own.
 
 ## Open questions
 
-- **Does the 250 / 500 / 1000 ms windup ladder feel right?** Untested — this is the
-  whole reason the prototype exists. The alternative on the table was a faster
-  250 / 500 ladder (roughly Divine Knockout vs. New World feel). All thresholds are
-  per-branch `EditDefaultsOnly` floats, so trying another ladder is a Blueprint edit.
-- **What should `CoilPlayRate` actually be?** A slow creep was chosen over a hard freeze
-  (see below), but the value is a guess. The thing to judge is "loaded" vs. "stalled".
+- **Does the 250 / 500 / 750 ms ladder hold up once there is something to fight?**
+  Playtested 2026-08-09 and judged good in isolation — nothing felt wrong about the three
+  tiers or about escalating between them. But that verdict was reached against a training
+  dummy, which cannot test either of the things the ladder exists to serve: spacing and
+  whiff punish. Treat it as provisionally answered and re-ask once block, dodge and parry
+  exist. The alternative still on the table is a faster 250 / 500 ladder (roughly Divine
+  Knockout vs. New World feel); all thresholds are per-branch `EditDefaultsOnly` floats,
+  so trying another is a Blueprint edit.
+- **How far should the coil be allowed to creep?** A slow creep was chosen over a hard
+  freeze (see below). The creep's *rate* is no longer a choice — it is derived from the
+  distance still to cover and the time left before the deepest branch commits — so the
+  knob is `CoilEndSeconds`, how far it may creep, rather than a rate. Closer to where the
+  coil begins reads as a hold; further reads as one continuous wind-up. The current value
+  is a guess, and the thing to judge is still "loaded" vs. "stalled".
 - **Should all three attacks share identical impact frames?** They no longer do. The
   coil advances the animation while held, so the gap between commit and first active
   frame shrinks the longer you charge. This may read correctly — a wound-up attack
@@ -30,6 +38,35 @@ reasonably second-guess. Skip it for anything the code says plainly on its own.
   alternative.
 
 ---
+
+## Retired names
+
+Dated entries are never rewritten, so they still name things the code has since dropped.
+This table is the bridge; without it a reader greps for a name, finds nothing, and
+concludes the log is wrong rather than merely old. Add a row whenever a name changes.
+
+| Entries say | Code now |
+|---|---|
+| `CoilPlayRate` | Derived at runtime from distance and time remaining. The authored knob is `CoilEndSeconds`. |
+| `CoilCeilingSeconds` | `CoilEndSeconds` |
+| `CoilStartSeconds` | `Branches[0].HoldUntilSeconds` — the coil begins exactly where the light stops being available, so it is one number, not two. |
+| `WindupSeconds`, `MinHoldSeconds`, `MaxHoldSeconds` | Per-branch `HoldUntilSeconds` (the input boundary) and `ReleaseAtSeconds` (when the hitbox goes live). |
+| `LogTDCoil` | `LogTDCombatTiming`, behind the `TD.DebugCombatTiming` cvar. |
+
+---
+
+## 2026-08-10 — The GA_LightAttack fallback is removed
+
+`GA_LightAttack` was left on disk unreferenced when `GA_Attack` replaced it, as insurance
+in case the branch model did not work out. It did work out and has been playtested, so the
+fallback now insures against a system that is verified — which git history already does,
+and better. Keeping a second ability answering `InputTag.Attack` also keeps the original
+bug within reach: granting both fires both on one press.
+
+`UTDMeleeAttackAbility` stays. It is the abstract base `UTDChargedAttackAbility` derives
+from and carries the montage, trace and damage plumbing; only the Blueprint went.
+
+Supersedes the closing note of "One ability with three branches, not three abilities".
 
 ## 2026-08-09 — Branches are described by when they hit; every play rate is derived
 
