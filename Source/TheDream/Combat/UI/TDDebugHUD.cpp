@@ -6,6 +6,9 @@
 #include "Engine/Canvas.h"
 #include "EngineUtils.h"
 
+/** Vertical gap between stacked rows in a panel, on top of BarHeight. */
+static constexpr float TDPanelLineSpacing = 6.0f;
+
 static TAutoConsoleVariable<int32> CVarTDDebugHUD(
 	TEXT("TD.DebugHUD"),
 	1,
@@ -27,11 +30,20 @@ void ATDDebugHUD::DrawHUD()
 		return;
 	}
 
-	// The local player, pinned to the corner where it is always readable.
+	// The local player, pinned to the bottom centre: during a fight the eye is on the
+	// character, not the corner, and stamina is read mid-exchange rather than glanced at.
 	ATDCombatCharacter* LocalCharacter = Cast<ATDCombatCharacter>(GetOwningPawn());
 	if (LocalCharacter)
 	{
-		DrawCombatantPanel(LocalCharacter, ScreenPadding.X, ScreenPadding.Y, 1.0f, false);
+		// Space for the tag line is reserved whether or not tags are present, so the bars
+		// hold still instead of hopping down the screen each time a state tag clears.
+		const float LineHeight = BarHeight + TDPanelLineSpacing;
+		const float PanelHeight = LineHeight * (bShowGameplayTags ? 3.0f : 2.0f);
+
+		const float PanelX = ((static_cast<float>(Canvas->SizeX) - BarWidth) * 0.5f) + ScreenPadding.X;
+		const float PanelY = static_cast<float>(Canvas->SizeY) - ScreenPadding.Y - PanelHeight;
+
+		DrawCombatantPanel(LocalCharacter, PanelX, PanelY, 1.0f, false);
 	}
 
 	if (!bShowRemoteCharacters)
@@ -75,7 +87,7 @@ float ATDDebugHUD::DrawCombatantPanel(ATDCombatCharacter* Character, float X, fl
 		return 0.0f;
 	}
 
-	const float LineHeight = (BarHeight + 6.0f) * Scale;
+	const float LineHeight = (BarHeight + TDPanelLineSpacing) * Scale;
 	float CursorY = Y;
 
 	if (bShowName)

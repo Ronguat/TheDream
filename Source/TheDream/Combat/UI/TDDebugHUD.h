@@ -35,9 +35,14 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category="Debug|Layout", meta=(ClampMin="4.0"))
 	float BarHeight = 16.0f;
 
-	/** Top-left corner of the local player's panel. */
+	/**
+	 *  Offset of the local player's panel, which is anchored bottom-centre.
+	 *
+	 *  X nudges it sideways from the centre and is normally 0; Y is the gap above the
+	 *  bottom edge.
+	 */
 	UPROPERTY(EditDefaultsOnly, Category="Debug|Layout")
-	FVector2D ScreenPadding = FVector2D(40.0f, 40.0f);
+	FVector2D ScreenPadding = FVector2D(0.0f, 40.0f);
 
 	/** Scale applied to panels drawn above other characters. */
 	UPROPERTY(EditDefaultsOnly, Category="Debug|Layout", meta=(ClampMin="0.1"))
