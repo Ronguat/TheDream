@@ -37,23 +37,13 @@ reasonably second-guess. Skip it for anything the code says plainly on its own.
   rather than solved; revisit if it causes a real misread. "Active" is the standard
   alternative.
 
-These three gate the defense slice and should be settled before it starts, not during:
-
-- **Stamina is a prerequisite of defense, not its successor.** `CLAUDE.md`'s focus list
-  puts the stamina economy last, but dodge costs 50 and blocking drains, so block and
-  dodge cannot be built as specified without at least costs and regen. Either the minimum
-  economy folds into the defense slice, or defense ships with free actions that cannot be
-  judged — because the cost *is* the design.
-- **Do block and parry share a button?** "2026-08-09 — Ability input is routed by gameplay
-  tag" says they will; `CLAUDE.md` specs block as hold-RMB and parry as MB4 or LAlt+RMB.
-  Those are different designs. Sharing one `InputTag` and resolving by hold duration reuses
-  machinery that already works, but it makes parry cost a tap-vs-hold discrimination the
-  spec never asked for, on the most timing-critical defensive option.
-- **How does "cancel attack startup into block" work against `State.Attacking`?** That tag
-  is activation-blocking, so a block ability simply cannot activate mid-windup as things
-  stand. It needs an explicit cancel path, not a tag exception — and the boundary of "still
-  startup" has to be defined, since letting it run later than the coil would erase the
-  commitment the whole windup model is built on.
+- **Does an aborted attack cost anything?** Cancelling into block currently costs only the
+  time spent. If feinting into guard turns out to be too cheap to punish, a stamina cost on
+  the cancel is the obvious lever — but it should not be added pre-emptively.
+- **Is dodge displacement authored or driven?** Root motion reads better; code-driven
+  displacement is tunable, and spacing is the top feel goal. Deferred until there is a real
+  dodge animation to judge, and kept open by asking for root-motion clips, since root motion
+  can be switched off but cannot be synthesised.
 
 ---
 
@@ -72,6 +62,42 @@ concludes the log is wrong rather than merely old. Add a row whenever a name cha
 | `LogTDCoil` | `LogTDCombatTiming`, behind the `TD.DebugCombatTiming` cvar. |
 
 ---
+
+## 2026-08-10 — The four questions gating defense, settled
+
+**Block and parry keep separate buttons.** Block is hold-RMB, parry is MB4 or LAlt+RMB, and
+each is active on the frame it is pressed. This supersedes the closing line of "2026-08-09 —
+Ability input is routed by gameplay tag", which anticipated that they would share one;
+`InputTag.Block` and `InputTag.Parry` were already authored separately in
+`DefaultGameplayTags.ini`, so the shared-button claim was the outlier rather than the plan.
+
+The tap-versus-hold resolution that works for the attack ladder does not transfer, and why
+is worth keeping. An attack can defer its identity because a windup is playing either way,
+so nothing is lost while the branch is undecided. Defense has no such runway: block must be
+guarding on the frame it is pressed, and parry must open its window on the frame it is
+pressed. Any scheme that waits to see which one you meant has already spent the time that
+made pressing it worthwhile. Light/heavy/charged are a ladder of commitment; block and parry
+are two different reactions to the same instant.
+
+**An attack can be cancelled into block until it commits, not until it coils.** Punishment
+is meant to attach to committing to a move, not to having wound one up. The commit
+checkpoint is already the instant the attack resolves, so ending the cancel window there
+reuses a boundary the model has rather than inventing a second one.
+
+The alternative considered was ending it when the coil starts, on the grounds that a 700 ms
+charge abortable on reaction makes the most committal attack the safest. What defuses that:
+the cancel is into **block only** — never into another attack, a dodge, or a free action —
+so an aborted charge has spent up to 700 ms achieving nothing and ends up holding a guard
+that drains stamina. That is a real cost; it is simply not a punish.
+
+**The minimum stamina economy ships with the first defensive feature**, rather than after
+all three. Dodge costs 50 of a 100 pool, so without costs, regen and the regen pause there
+is nothing to judge — the cost *is* the design. Exhaustion is deferred until a second
+defensive action exists to be locked out of: with only dodge built, "exhausted" and "not
+enough stamina to dodge" are one state wearing two names.
+
+**Dodge is the first defensive feature**, being the most self-contained of the three, and
+building it is what forces the stamina economy into existence.
 
 ## 2026-08-10 — The GA_LightAttack fallback is removed
 
