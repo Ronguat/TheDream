@@ -206,6 +206,14 @@ These are facts about the bundle, checked across all 6,576 assets, not impressio
 - **`OneHandSword` has no evasive animations at all.** If the project moves to a one-handed
   sword archetype, its dodges have to come from another folder — most plausibly
   `SwordShield`, which is the nearest stance.
+- **`_RM` in a filename does not mean root motion is switched on.** It means root motion is
+  *baked into the clip*; `bEnableRootMotion` on the asset is **false** out of the box, so a
+  clip named `_RM` moves nothing until that is enabled. Checked on
+  `AS_SwordAndShieldAnimV1_Roll_Fw_RM`, which also reports `RootMotionRootLock: RefPose`.
+  Anything relying on authored displacement has to set this per clip.
+- **The Manny skeleton has `weapon_r` and `weapon_l` bones.** For attaching a sword and
+  shield these are better than adding a socket to `hand_r`, since they are animated as part
+  of the rig and the pack's clips were authored against them.
 - **Parry is thin but it exists.** Six clips in the whole bundle: `SwordShield` has exactly
   one, `SwordShieldAnimV3/Animation/RM/AS_SwordSwordAnimV3_Block1_Parry_RM`, and `Katana` has
   five (`Deflect`, `Deflect_Complete`, `Deflect_Block`, `Deflect_Block_Heavy`,
@@ -244,11 +252,25 @@ same UE mannequin, but they are different *assets*, and Unreal binds an AnimSequ
 skeleton by path. So a naive migrate lands a duplicate skeleton in the project, and clips
 bound to the wrong one will not play on our character.
 
-*(Unverified — the fix has not been exercised yet.)* The intended resolutions, cheapest
-first: mark the two skeletons as **compatible skeletons**, which is the UE5 feature built
-for exactly this and avoids duplicating anything; or migrate, reassign the clips to our
-skeleton, and delete the duplicate. Confirm the bone hierarchies actually match before
-trusting either — the names agreeing is not proof.
+**The fix, exercised and confirmed on 2026-08-10** *(confirmed)*. Both skeletons were
+compared bone by bone first: **161 bones each, identical in order and as sets, zero
+differences** — they are the same UE5 Manny skeleton at two paths. Names agreeing is not
+proof; that comparison is, and it is worth redoing for any future archetype.
+
+Then one property, not 642 reassignments:
+
+```
+/Game/Characters/Mannequins/Meshes/SK_Mannequin  →  CompatibleSkeletons
+    += /Game/GDHBundle/SwordShield/DEMO/Characters_SwordShield/Mannequins/Meshes/SK_Mannequin
+```
+
+Direction matters: the *consumer's* skeleton lists the skeletons whose animations it can
+play, so the entry goes on **our** skeleton and points at theirs. Note this edits Epic
+template content, which is acceptable but worth knowing when reading a diff.
+
+`set_properties` returning true means nothing here — see the trap above. It was verified by
+confirming the `.uasset` on disk was rewritten, that the binary physically contains the
+`GDHBundle` reference, and that git saw the file change.
 
 Migrate only what a slice needs. The discipline is the same one that applied when
 animations were bought individually; it has just moved from purchasing to what enters the

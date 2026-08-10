@@ -41,9 +41,13 @@ reasonably second-guess. Skip it for anything the code says plainly on its own.
   time spent. If feinting into guard turns out to be too cheap to punish, a stamina cost on
   the cancel is the obvious lever — but it should not be added pre-emptively.
 - **Does a roll's length make dodge too committal?** Settled in principle (rolls for
-  everything, root motion) but unjudged in play. The knobs are `IFrameSeconds` and the
-  recovery tail after it; the thing to watch is whether dodge still functions as a reaction
-  or becomes something you have to predict with.
+  everything, root motion) but unjudged in play — and now with a number attached: the
+  forward roll is **0.9 s**, against the 0.5 s `DodgeSeconds` default that was guessed
+  before any clip existed. That is nearly twice as long, and longer than the charged
+  attack's entire 0.75 s windup, so a dodge thrown on reaction may not recover before the
+  next attack lands. The knobs are `IFrameSeconds`, the recovery tail after it, and the
+  montage play rate if the clip simply needs to be faster. Watch whether dodge still
+  functions as a reaction or becomes something you have to predict with.
 - **Should the debug auto-attack move, or only swing?** A dummy that attacks on a timer from
   a fixed spot tests i-frames but not spacing, and spacing is the top feel goal. Adequate for
   the dodge slice; inadequate for judging whiff punish later.
