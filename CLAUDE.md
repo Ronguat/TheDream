@@ -26,12 +26,25 @@ Build a high-precision combat prototype in Unreal Engine that prioritizes spacin
 
 ## Core Combat Rules (must respect)
 
+### Combat Vocabulary
+Attack phases, used consistently in code, comments and discussion:
+- **Windup** — everything before the attack can deal damage.
+- **Release** — the period during which the attack deals damage. Marked on a montage by the `Release Window` notify state (`UAnimNotifyState_MeleeWindow`).
+- **Recovery** — from the end of the damaging phase to the end of the attack.
+- **Coil** — *not* a fourth phase. It is a sub-state of windup: the portion slowed while waiting for the commit checkpoint, and it exists as visual feedback. Its tuning values are named `Coil*` rather than after a phase.
+
+Note that "release" also names the button coming up, via GAS's `InputReleased`. Bare "release" always means the damaging phase; the button edge is always written as *input release*.
+
 ### Offense (Melee)
-- **Light**: Tap LMB. 2–4 hit string (weapon dependent). First hit safe on block; subsequent hits are not. Any hit in the string guarantees the rest. Last hit knocks down but has heavy endlag. Minimal stamina damage. Unreactable.
-- **Heavy**: Hold LMB 250–500 ms. Single hit. Safe on block, punishable on whiff. Knocks down. Higher range, moderate stamina damage. Barely reactable.
-- **Charged Heavy**: Hold LMB 500 ms+. Single hit. Breaks block, heavy endlag, knocks down. Highest range. Very reactable.
+**Windup length is preset, never resolved at the instant the button comes up.** One press starts a windup with checkpoints at 250 / 500 / 1000 ms. At each checkpoint, if LMB is still held the attack escalates to the next tier and continues to the next checkpoint; if it has already been let go, the attack commits there at whatever tier it reached. Still held at the last checkpoint, it commits anyway. Releasing early inside a band changes nothing — this is what stops a 251 ms heavy from dominating light. See `Docs/Combat/Decisions.md`.
+
+- **Light**: input released before 250 ms. 250 ms windup. 2–4 hit string (weapon dependent). First hit safe on block; subsequent hits are not. Any hit in the string guarantees the rest. Last hit knocks down but has heavy endlag. Minimal stamina damage. Unreactable.
+- **Heavy**: held past 250 ms. 500 ms windup. Single hit. Safe on block, punishable on whiff. Knocks down. Higher range, moderate stamina damage. Reactable off the coil, but tight.
+- **Charged Heavy**: held past 500 ms. 1000 ms windup. Single hit. Breaks block, heavy endlag, knocks down. Highest range. Clearly reactable.
 - Any light in a chain can be held to convert into a heavy.
 - Some heavies can chain into further heavies; never into lights.
+
+The ladder above is design intent and is **untested** — current tuning lives in `GA_Attack`'s `Branches` array, which is authoritative for the values actually in play.
 
 ### Defense
 - **Block** (hold RMB): 180° forward. Drains stamina (heavies drain more; charged heavies exhaust if blocked). Can cancel attack startup into block.
@@ -67,7 +80,15 @@ Build a high-precision combat prototype in Unreal Engine that prioritizes spacin
 - Use data-driven values (curves, data assets, or simple constants) for timings, stamina costs, and windows so they can be tuned without code changes.
 - Every new system should be playable in PIE with a debug enemy or training dummy as soon as possible.
 
+## Project Documentation
+Two files carry knowledge the code cannot. Read them before working in their area; keep them true in the same commit that makes them wrong.
+- **`Docs/Working-In-Unreal.md`** — how to drive the editor and its MCP toolset without losing work: which writes silently do nothing, when Live Coding is safe versus needing a full editor-closed rebuild, what is not scriptable at all, and the standing regression checks for combat changes. Read before writing assets or C++.
+- **`Docs/Combat/Decisions.md`** — dated log of combat decisions, the reasoning behind them, and the questions still open. Append an entry whenever a gameplay choice is made that a future reader could reasonably second-guess; never rewrite an entry to match new code, supersede it with a new one.
+
+Deliberately **not** kept: per-system design docs. Local rationale belongs in header comments, which are read at the moment the code is; a doc that describes a system drifts out of sync and then gets trusted over the code.
+
 ## Working Rules
+- **Combat and gameplay work is deliberate, not vibed.** Minimize assumptions and state the reasoning, even when it is slower. If a gameplay question has more than one defensible answer, raise it rather than picking one quietly — and record the choice in `Docs/Combat/Decisions.md`. Unprompted initiative is welcome for debug and tooling conveniences (adding a readout to the debug HUD, say); it is not welcome for anything that changes how the game plays.
 - Always propose a short plan before creating or modifying multiple assets.
 - Work in small, verifiable vertical slices. After each slice, stop and wait for feedback.
 - Never delete assets or change project settings without explicit approval.
