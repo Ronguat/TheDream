@@ -7,8 +7,14 @@
 #include "Engine/TimerHandle.h"
 #include "TDChargedAttackAbility.generated.h"
 
+struct FGameplayEventData;
+
 /**
- *  One outcome of a held attack: how long its windup runs, and how hard it hits.
+ *  One outcome of a held attack, described by when it hits rather than by how it plays.
+ *
+ *  Every timing here is in real seconds from the press. The play rates that produce them
+ *  are derived at runtime from the montage's measured position, never authored -- see
+ *  UTDChargedAttackAbility.
  */
 USTRUCT(BlueprintType)
 struct FTDAttackBranch
@@ -22,30 +28,49 @@ struct FTDAttackBranch
 	/**
 	 *  Optional distinct release animation for this branch.
 	 *
-	 *  Leave as None and the montage simply plays on from the windup, so every branch
-	 *  shares one release. Setting it buys readability at the direct cost of this
-	 *  branch's ambiguity -- a defender who can recognise the animation no longer has
-	 *  to wait out the coil to know what is coming.
+	 *  Leave as None and every branch shares one release. Setting it buys readability at
+	 *  the direct cost of this branch's ambiguity -- a defender who can recognise the
+	 *  animation no longer has to wait out the coil to know what is coming.
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Attack")
 	FName MontageSection = NAME_None;
 
 	/**
-	 *  How long this branch's windup lasts, measured from the press.
+	 *  Hold past this and the attack escalates to the next branch instead.
 	 *
-	 *  Doubles as the checkpoint this branch is escalated away from: still holding when
-	 *  it elapses and the attack becomes the next branch instead, taking on that
-	 *  branch's longer windup.
+	 *  This is the input boundary, not the attack's speed. Releasing any time before it
+	 *  produces this branch, and produces it identically -- the windup runs its full
+	 *  length either way, and that fixed cost is what stops a fractionally-held heavy
+	 *  from dominating the light.
 	 *
-	 *  Releasing early does not shorten it. The windup always runs its full length, and
-	 *  that fixed cost is the whole point -- resolving at the moment of release let a
-	 *  251 ms hold produce a heavy that came out at 251 ms, which left the light with no
-	 *  reason to exist.
+	 *  The first branch's value is also when the coil begins, because "no longer a light"
+	 *  and "the defender can see what this is" are the same instant by construction.
 	 *
-	 *  Branches must be ordered shortest windup first.
+	 *  Branches must be ordered shortest first.
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Attack", meta=(ClampMin="0.0"))
-	float WindupSeconds = 0.25f;
+	float HoldUntilSeconds = 0.2f;
+
+	/**
+	 *  When this branch's hitbox goes live, measured from the press.
+	 *
+	 *  The headline number for an attack: it is what a defender has to react to and what
+	 *  an attacker feels. Must be greater than HoldUntilSeconds -- the gap between them is
+	 *  the runway the montage needs to travel from the coil into the strike.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Attack", meta=(ClampMin="0.0"))
+	float ReleaseAtSeconds = 0.25f;
+
+	/**
+	 *  How long the hitbox stays live.
+	 *
+	 *  Authored rather than inherited from whatever play rate the windup happened to end
+	 *  on. Without it a branch that has to hurry into its strike gets a correspondingly
+	 *  brief hitbox, and one that crawls in gets an absurdly long one, purely as a side
+	 *  effect of the windup maths.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Attack", meta=(ClampMin="0.01"))
+	float ReleaseSeconds = 0.09f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Attack", meta=(ClampMin="0.0"))
 	float Damage = 15.0f;
@@ -58,19 +83,35 @@ struct FTDAttackBranch
 /**
  *  An attack whose identity is decided by how long the button is held.
  *
- *  Each branch's WindupSeconds is a checkpoint. Still holding when one elapses and the
- *  attack escalates to the next branch and its longer windup; already released and the
- *  attack commits there, at whatever branch it had reached. The last branch commits
- *  whether or not the button is still down. Releasing anywhere inside a band changes
- *  nothing, which is what makes the windups preset rather than dynamic.
+ *  Branches are described by *when they hit*, and every play rate is derived from that at
+ *  runtime. Three phases, in order:
+ *
+ *   - Windup, shared and identical for all branches, played fast enough that the quickest
+ *     branch reaches its strike exactly on time. That rate is set by the fastest branch,
+ *     which means the light needs no acceleration at commit at all -- it runs one
+ *     continuous rate from press to impact.
+ *   - Coil, beginning the instant the light is no longer available. This is the tell, and
+ *     it is also the mechanism that makes the slower branches slower: they are not sped
+ *     up later, they are held back here.
+ *   - Release, stretched to the branch's authored ReleaseSeconds so the hitbox lasts as
+ *     long as it should rather than as long as the windup arithmetic left over.
+ *
+ *  Recovery is deliberately unmanaged; whatever time is left simply plays out.
+ *
+ *  Two rules the implementation exists to enforce. **Every rate is computed from the
+ *  montage's measured position, never from where it was assumed to be** -- the timer that
+ *  starts the coil fires a frame or two late, and a rate derived from the assumed start
+ *  compounds that error until the coil overruns the release window and the attack silently
+ *  stops dealing damage. And **the montage is never stopped**: a stopped montage banks the
+ *  time it sits still and spends it in one frame on resume, skipping the release window
+ *  and firing every frame of root motion at once.
  *
  *  There is deliberately one animation rather than one per branch. The attack's identity
- *  is a *consequence* of how long its windup lasted, so it cannot be known in advance to
- *  pick a clip -- and more importantly, sharing it means the defender cannot tell the
- *  branches apart until the coil appears. Reactability is measured from that tell, not
- *  from the press, so the shared windup is what keeps the reaction window short.
+ *  is a consequence of how long its windup lasted, so it cannot be known in advance to
+ *  pick a clip -- and sharing it means the defender cannot tell the branches apart until
+ *  the coil appears. Reactability is measured from that tell, not from the press.
  *
- *  See Docs/Combat/Decisions.md for the reasoning behind both.
+ *  See Docs/Combat/Decisions.md for the reasoning behind all of it.
  */
 UCLASS(abstract)
 class UTDChargedAttackAbility : public UTDMeleeAttackAbility
@@ -86,42 +127,33 @@ public:
 protected:
 
 	/**
-	 *  Point in the montage where the swing is fully coiled and the coil begins.
+	 *  Montage position at which the Release Window notify opens.
 	 *
-	 *  An animation landmark, deliberately distinct from any branch's WindupSeconds,
-	 *  which are design thresholds. They need not line up, and a branch that commits
-	 *  before this point simply never coils -- which is exactly why the light has no
-	 *  tell.
+	 *  Unavoidably duplicated from the notify's placement on the timeline, because a
+	 *  montage's notifies cannot be read back and the windup rate has to be known at
+	 *  activation, before any notify has fired. The ability checks itself against the
+	 *  real thing when the window opens and warns if they have drifted apart.
 	 */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Coil", meta=(ClampMin="0.0"))
-	float CoilStartSeconds = 0.3f;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Timing", meta=(ClampMin="0.0"))
+	float ReleaseStartSeconds = 0.36f;
 
 	/**
-	 *  Montage position the coil creeps toward and will not pass.
+	 *  Montage position the coil creeps toward and arrives at as the deepest branch commits.
 	 *
-	 *  Uncapped, a long hold walks the montage into its own release window and the attack
-	 *  fires with part of its active frames already spent. Keep this just short of the
-	 *  first frame of the Release Window notify.
+	 *  The coil's tuning knob: closer to where the coil begins reads as more of a hold,
+	 *  further reads as a continuous wind-up. **Must stay below ReleaseStartSeconds.** If
+	 *  the coil reaches the release window before the attack commits, the window opens
+	 *  before there is a trace listening for it and the attack deals no damage at all.
 	 */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Coil", meta=(ClampMin="0.0"))
-	float CoilCeilingSeconds = 0.35f;
-
-	/**
-	 *  Play rate while coiling.
-	 *
-	 *  0 freezes on the coiled pose; a small value keeps it slowly winding, which reads
-	 *  as tension rather than as a hitch. The difference between looking stalled and
-	 *  looking loaded.
-	 */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Coil", meta=(ClampMin="0.0", ClampMax="1.0"))
-	float CoilPlayRate = 0.1f;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Timing", meta=(ClampMin="0.0"))
+	float CoilEndSeconds = 0.35f;
 
 	/** Optional section played on activation. None starts the montage from the beginning. */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Windup")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Timing")
 	FName WindupSection = NAME_None;
 
-	/** Outcomes, ordered shortest windup first. */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Windup")
+	/** Outcomes, ordered shortest first. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Timing")
 	TArray<FTDAttackBranch> Branches;
 
 	virtual float GetAttackDamage() const override;
@@ -135,23 +167,38 @@ private:
 	/** Escalates to the next branch if the button is still down, otherwise commits. */
 	void HandleCheckpoint();
 
-	/** Locks in the selected branch: applies its tag, starts tracing, leaves the coil. */
-	void CommitAttack();
-
-	/** Slows the montage once the swing is fully coiled, and caps how far it may creep. */
+	/** Starts the coil from wherever the montage actually is, aimed at CoilEndSeconds. */
 	void EnterCoil();
 
-	void ClearAllTimers();
+	/** Locks in the selected branch: applies its tag, starts tracing, aims at its release. */
+	void CommitAttack();
 
-	/** Sets the montage's play rate, if one is playing. */
+	/** Stretches the release window to the selected branch's ReleaseSeconds. */
+	UFUNCTION()
+	void HandleReleaseWindowBegan(FGameplayEventData Payload);
+
+	/**
+	 *  Shared windup rate: fast enough that the first branch reaches ReleaseStartSeconds
+	 *  exactly on its ReleaseAtSeconds. Everything slower is produced by the coil holding
+	 *  it back, never by a later branch accelerating.
+	 */
+	float ComputeWindupPlayRate() const;
+
+	/** Real seconds since this activation. */
+	float GetElapsedSeconds() const;
+
+	/** Montage playhead position in seconds, or -1 if there is nothing to read. */
+	float GetMontagePosition() const;
+
+	/** Sets the montage's play rate, if one is playing. Never called with 0. */
 	void SetMontagePlayRate(float PlayRate) const;
 
 	int32 SelectedBranchIndex = 0;
 	bool bAttackCommitted = false;
 	bool bInputHeld = true;
+	bool bCoiling = false;
+	float ActivationWorldTime = 0.0f;
 
 	FTimerHandle CheckpointTimerHandle;
-	FTimerHandle CoilTimerHandle;
-	FTimerHandle CoilCeilingTimerHandle;
 	FGameplayTag AppliedAttackTag;
 };

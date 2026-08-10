@@ -31,6 +31,42 @@ reasonably second-guess. Skip it for anything the code says plainly on its own.
 
 ---
 
+## 2026-08-09 — Branches are described by when they hit; every play rate is derived
+
+A branch authors `ReleaseAtSeconds` (when its hitbox goes live), `HoldUntilSeconds` (the
+input boundary) and `ReleaseSeconds` (how long the hitbox lasts). Nothing authors a play
+rate. Windup, coil, commit and release rates are all computed at runtime from the
+montage's **measured** position.
+
+The key inversion: **the shared windup runs at whatever rate the *fastest* branch needs**
+— `ReleaseStartSeconds / Branches[0].ReleaseAtSeconds`, currently 1.44 — and slower
+branches are produced by the coil holding them back, never by a later branch accelerating
+to catch up. Authoring a per-branch commit rate was tried first and worked, but it made
+the light visibly snap mid-swing and silently halved its active window, because a rate
+chosen for the windup carried on through the release.
+
+Deriving from measured position rather than assumed position is not a detail. Two separate
+bugs came from assuming: a coil rate computed from where the coil was *meant* to start
+overran the release window, so the notify fired before any trace existed and the charged
+attack dealt no damage at all while still applying its tag.
+
+Costs accepted, in rough order of how much they matter:
+
+- **Timing lands within about one frame, biased late** — measured 253 / 509 / 769 against
+  targets of 250 / 500 / 750. The release notify is detected on a frame boundary, so it
+  can only ever be late.
+- **A true freeze is now impossible.** Zero is floored out of every rate. If a design ever
+  wants a genuinely held pose it needs a different mechanism, not a play rate.
+- **`ReleaseStartSeconds` duplicates the notify's placement**, because notifies cannot be
+  read off a montage and the windup rate is needed before any notify fires. The ability
+  compares itself to reality when the window opens and warns on drift — mitigated, not
+  prevented.
+- **`CoilEndSeconds` must stay below `ReleaseStartSeconds`** and nothing enforces it at
+  author time. Violating it reproduces the silent no-damage bug exactly.
+- **Play rates are no longer readable from the asset.** What the montage actually does is
+  a computation, which costs debuggability; the temporary `LogTDCoil` output is the
+  substitute.
+
 ## 2026-08-09 — Reactability is measured from the tell, not from the press
 
 A 500 ms heavy windup looks reactable if you read the number on its own. It is not,

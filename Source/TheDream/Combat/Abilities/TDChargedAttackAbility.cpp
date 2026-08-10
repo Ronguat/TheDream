@@ -1,11 +1,33 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Combat/Abilities/TDChargedAttackAbility.h"
+#include "Combat/TDGameplayTags.h"
+#include "Abilities/Tasks/AbilityTask_WaitGameplayEvent.h"
 #include "AbilitySystemComponent.h"
 #include "Animation/AnimInstance.h"
 #include "Animation/AnimMontage.h"
 #include "Engine/World.h"
 #include "TimerManager.h"
+
+// TEMPORARY diagnostics while the timing model is being verified. Remove once settled.
+DEFINE_LOG_CATEGORY_STATIC(LogTDCoil, Log, All);
+
+namespace
+{
+	/** Play rate floor. Zero would stop the montage, which banks time and then spends it in one frame. */
+	constexpr float TDMinPlayRate = 0.01f;
+
+	/** How far the notify may sit from ReleaseStartSeconds before it is worth complaining about. */
+	constexpr float TDReleaseStartTolerance = 0.03f;
+
+	/** The rate actually in force on the montage, so a rate that failed to apply is visible. */
+	float ActualMontageRate(const FGameplayAbilityActorInfo* ActorInfo, UAnimMontage* Montage)
+	{
+		UAnimInstance* AnimInstance = ActorInfo ? ActorInfo->GetAnimInstance() : nullptr;
+		const FAnimMontageInstance* Instance = (AnimInstance && Montage) ? AnimInstance->GetActiveInstanceForMontage(Montage) : nullptr;
+		return Instance ? Instance->GetPlayRate() : -1.0f;
+	}
+}
 
 void UTDChargedAttackAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData)
 {
@@ -16,6 +38,7 @@ void UTDChargedAttackAbility::ActivateAbility(const FGameplayAbilitySpecHandle H
 	SelectedBranchIndex = 0;
 	bAttackCommitted = false;
 	bInputHeld = true;
+	bCoiling = false;
 	AppliedAttackTag = FGameplayTag();
 
 	UWorld* World = GetWorld();
@@ -25,29 +48,26 @@ void UTDChargedAttackAbility::ActivateAbility(const FGameplayAbilitySpecHandle H
 		return;
 	}
 
+	ActivationWorldTime = World->GetTimeSeconds();
+
 	if (!StartAttackMontage(WindupSection))
 	{
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
 		return;
 	}
 
-	// The coil is an animation landmark, so it is scheduled off the montage rather than
-	// off any branch. A branch that commits before it never coils, and therefore never
-	// gives the defender a tell.
-	if (CoilStartSeconds > 0.0f)
-	{
-		World->GetTimerManager().SetTimer(
-			CoilTimerHandle,
-			FTimerDelegate::CreateWeakLambda(this, [this]() { EnterCoil(); }),
-			CoilStartSeconds,
-			false);
-	}
-	else
-	{
-		EnterCoil();
-	}
+	// The shared windup runs at whatever rate the *fastest* branch needs. Slower branches
+	// are made slower by the coil holding them back, not by this being slow.
+	const float WindupRate = ComputeWindupPlayRate();
+	SetMontagePlayRate(WindupRate);
 
-	ScheduleCheckpoint(Branches[0].WindupSeconds);
+	// applied should match wanted. If it reads 1.000 the montage was not yet playing when
+	// the rate was set, and the whole windup is running at the wrong speed.
+	UE_LOG(LogTDCoil, Log, TEXT("[%.3f] ACTIVATE   pos=%.4f windupRate wanted=%.3f applied=%.3f"),
+		World->GetTimeSeconds(), GetMontagePosition(), WindupRate,
+		ActualMontageRate(GetCurrentActorInfo(), AttackMontage));
+
+	ScheduleCheckpoint(Branches[0].HoldUntilSeconds);
 }
 
 void UTDChargedAttackAbility::InputReleased(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo)
@@ -68,8 +88,10 @@ void UTDChargedAttackAbility::ScheduleCheckpoint(float DelaySeconds)
 		return;
 	}
 
-	// A branch with a zero-length windup is due the moment it is selected.
-	if (DelaySeconds <= 0.0f)
+	// Measured against activation rather than chained, so a late timer cannot push every
+	// subsequent checkpoint further out.
+	const float Remaining = DelaySeconds - GetElapsedSeconds();
+	if (Remaining <= 0.0f)
 	{
 		HandleCheckpoint();
 		return;
@@ -78,7 +100,7 @@ void UTDChargedAttackAbility::ScheduleCheckpoint(float DelaySeconds)
 	World->GetTimerManager().SetTimer(
 		CheckpointTimerHandle,
 		FTimerDelegate::CreateWeakLambda(this, [this]() { HandleCheckpoint(); }),
-		DelaySeconds,
+		Remaining,
 		false);
 }
 
@@ -91,14 +113,24 @@ void UTDChargedAttackAbility::HandleCheckpoint()
 
 	const int32 NextIndex = SelectedBranchIndex + 1;
 
-	// Still holding escalates to the next branch and its longer windup. The deepest
-	// branch has nothing to escalate to, so holding forever commits it anyway -- an
-	// attack that could be held indefinitely would be free of risk.
+	// Still holding escalates to the next branch. The deepest branch has nothing to
+	// escalate to, so holding forever commits it anyway -- an attack that could be held
+	// indefinitely would be free of risk.
 	if (bInputHeld && Branches.IsValidIndex(NextIndex))
 	{
-		const float RemainingWindup = Branches[NextIndex].WindupSeconds - Branches[SelectedBranchIndex].WindupSeconds;
 		SelectedBranchIndex = NextIndex;
-		ScheduleCheckpoint(FMath::Max(RemainingWindup, 0.0f));
+
+		// Leaving the first branch behind is exactly the moment the attack stops being a
+		// light, which is the moment it earns a tell.
+		if (!bCoiling)
+		{
+			EnterCoil();
+		}
+
+		UE_LOG(LogTDCoil, Log, TEXT("[%.3f] ESCALATE   -> branch %d  pos=%.4f"),
+			GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f, NextIndex, GetMontagePosition());
+
+		ScheduleCheckpoint(Branches[NextIndex].HoldUntilSeconds);
 		return;
 	}
 
@@ -107,41 +139,30 @@ void UTDChargedAttackAbility::HandleCheckpoint()
 
 void UTDChargedAttackAbility::EnterCoil()
 {
-	if (bAttackCommitted)
+	bCoiling = true;
+
+	// Measured, not assumed. The checkpoint timer fires a frame or two late, so the
+	// montage is always a little past where the maths would have put it; deriving the
+	// rate from the assumed position compounds that error across the whole coil until it
+	// overruns the release window.
+	const float CurrentPosition = GetMontagePosition();
+	const float CoilDistance = CoilEndSeconds - CurrentPosition;
+	const float CoilDuration = Branches.Last().HoldUntilSeconds - GetElapsedSeconds();
+
+	if (CurrentPosition < 0.0f || CoilDistance <= 0.0f || CoilDuration <= 0.0f)
 	{
+		// Nowhere to creep to, or no time to do it in. Carrying on at the windup rate is
+		// a poor swing; stopping would be far worse, so there is no zero-rate branch here.
+		UE_LOG(LogTDCoil, Warning, TEXT("Coil skipped: pos=%.4f distance=%.4f duration=%.4f"),
+			CurrentPosition, CoilDistance, CoilDuration);
 		return;
 	}
 
-	SetMontagePlayRate(CoilPlayRate);
+	const float CoilRate = FMath::Max(CoilDistance / CoilDuration, TDMinPlayRate);
+	SetMontagePlayRate(CoilRate);
 
-	// A frozen coil cannot creep anywhere, so it needs no ceiling.
-	UWorld* World = GetWorld();
-	if (!World || CoilPlayRate <= 0.0f)
-	{
-		return;
-	}
-
-	// Creeping without a ceiling walks the montage into its own release window, and the
-	// attack then fires with part of its active frames already spent. Long holds are the
-	// only ones that ever reach the cap.
-	const float CreepSeconds = CoilCeilingSeconds - CoilStartSeconds;
-	if (CreepSeconds <= 0.0f)
-	{
-		SetMontagePlayRate(0.0f);
-		return;
-	}
-
-	World->GetTimerManager().SetTimer(
-		CoilCeilingTimerHandle,
-		FTimerDelegate::CreateWeakLambda(this, [this]()
-		{
-			if (!bAttackCommitted)
-			{
-				SetMontagePlayRate(0.0f);
-			}
-		}),
-		CreepSeconds / CoilPlayRate,
-		false);
+	UE_LOG(LogTDCoil, Log, TEXT("[%.3f] COIL START pos=%.4f rate=%.3f (derived)"),
+		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f, CurrentPosition, CoilRate);
 }
 
 void UTDChargedAttackAbility::CommitAttack()
@@ -152,13 +173,15 @@ void UTDChargedAttackAbility::CommitAttack()
 	}
 	bAttackCommitted = true;
 
-	ClearAllTimers();
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(CheckpointTimerHandle);
+	}
 
 	const FTDAttackBranch& Branch = Branches[SelectedBranchIndex];
 
 	// Surfaces the chosen attack on the debug HUD and lets other systems react to it.
-	// This tag is the intended way to confirm which branch was thrown -- reading it back
-	// beats inferring the answer from the animation.
+	// Reading this tag back is the intended way to confirm which branch was thrown.
 	if (Branch.AttackTag.IsValid())
 	{
 		if (UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo())
@@ -168,12 +191,34 @@ void UTDChargedAttackAbility::CommitAttack()
 		}
 	}
 
-	// Radius is per branch, so tracing can only start once the branch is known. The task
-	// still idles until the montage's Release Window notify opens.
+	// Radius is per branch, so tracing can only start once the branch is known. Starting
+	// it here is also what guarantees a listener exists before the window opens -- which
+	// is why CoilEndSeconds must stay below ReleaseStartSeconds.
 	StartMeleeTrace(GetAttackTraceRadius());
 
-	// Out of the coil at full speed.
-	SetMontagePlayRate(1.0f);
+	// The window's own length is only knowable once the notify fires, so the ability waits
+	// for it rather than duplicating the timeline.
+	if (UAbilityTask_WaitGameplayEvent* WaitTask = UAbilityTask_WaitGameplayEvent::WaitGameplayEvent(this, TDTags::Event_Melee_WindowBegin, nullptr, true, true))
+	{
+		WaitTask->EventReceived.AddDynamic(this, &UTDChargedAttackAbility::HandleReleaseWindowBegan);
+		WaitTask->ReadyForActivation();
+	}
+
+	// Carry the montage from wherever it actually is into the strike, arriving exactly on
+	// this branch's ReleaseAtSeconds. For the fastest branch this works out to the windup
+	// rate it was already running, so the light never changes pace at all.
+	const float CurrentPosition = GetMontagePosition();
+	const float Distance = ReleaseStartSeconds - CurrentPosition;
+	const float Remaining = Branch.ReleaseAtSeconds - GetElapsedSeconds();
+	const float CommitRate = (Distance > 0.0f && Remaining > 0.0f)
+		? FMath::Max(Distance / Remaining, TDMinPlayRate)
+		: 1.0f;
+
+	SetMontagePlayRate(CommitRate);
+
+	UE_LOG(LogTDCoil, Log, TEXT("[%.3f] COMMIT     branch %d (%s) pos=%.4f rate=%.3f targetRelease=%.3f"),
+		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f, SelectedBranchIndex,
+		*Branch.AttackTag.ToString(), CurrentPosition, CommitRate, Branch.ReleaseAtSeconds);
 
 	// Only used once a branch earns a distinct release animation.
 	if (Branch.MontageSection != NAME_None)
@@ -182,15 +227,61 @@ void UTDChargedAttackAbility::CommitAttack()
 	}
 }
 
-void UTDChargedAttackAbility::ClearAllTimers()
+void UTDChargedAttackAbility::HandleReleaseWindowBegan(FGameplayEventData Payload)
 {
-	if (UWorld* World = GetWorld())
+	if (!Branches.IsValidIndex(SelectedBranchIndex))
 	{
-		FTimerManager& Timers = World->GetTimerManager();
-		Timers.ClearTimer(CheckpointTimerHandle);
-		Timers.ClearTimer(CoilTimerHandle);
-		Timers.ClearTimer(CoilCeilingTimerHandle);
+		return;
 	}
+
+	const FTDAttackBranch& Branch = Branches[SelectedBranchIndex];
+	const float ActualStart = GetMontagePosition();
+
+	// ReleaseStartSeconds is hand-copied from the notify's placement, so it can silently
+	// drift if the montage is re-authored. This is the only moment the truth is available.
+	if (ActualStart >= 0.0f && FMath::Abs(ActualStart - ReleaseStartSeconds) > TDReleaseStartTolerance)
+	{
+		UE_LOG(LogTDCoil, Warning,
+			TEXT("Release Window opened at %.4f but ReleaseStartSeconds is %.4f. Update it to match the notify."),
+			ActualStart, ReleaseStartSeconds);
+	}
+
+	// The notify reports its own length, so the window can be stretched to the authored
+	// duration without anyone maintaining a copy of the timeline.
+	const float WindowLength = Payload.EventMagnitude;
+	if (WindowLength <= 0.0f || Branch.ReleaseSeconds <= 0.0f)
+	{
+		return;
+	}
+
+	const float ReleaseRate = FMath::Max(WindowLength / Branch.ReleaseSeconds, TDMinPlayRate);
+	SetMontagePlayRate(ReleaseRate);
+
+	UE_LOG(LogTDCoil, Log, TEXT("[%.3f] RELEASE    pos=%.4f windowLen=%.4f rate=%.3f (want %.3fs)"),
+		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f, ActualStart, WindowLength, ReleaseRate, Branch.ReleaseSeconds);
+}
+
+float UTDChargedAttackAbility::ComputeWindupPlayRate() const
+{
+	if (Branches.Num() == 0 || Branches[0].ReleaseAtSeconds <= 0.0f || ReleaseStartSeconds <= 0.0f)
+	{
+		return 1.0f;
+	}
+
+	return FMath::Max(ReleaseStartSeconds / Branches[0].ReleaseAtSeconds, TDMinPlayRate);
+}
+
+float UTDChargedAttackAbility::GetElapsedSeconds() const
+{
+	const UWorld* World = GetWorld();
+	return World ? World->GetTimeSeconds() - ActivationWorldTime : 0.0f;
+}
+
+float UTDChargedAttackAbility::GetMontagePosition() const
+{
+	const FGameplayAbilityActorInfo* ActorInfo = GetCurrentActorInfo();
+	UAnimInstance* AnimInstance = ActorInfo ? ActorInfo->GetAnimInstance() : nullptr;
+	return (AnimInstance && AttackMontage) ? AnimInstance->Montage_GetPosition(AttackMontage) : -1.0f;
 }
 
 void UTDChargedAttackAbility::SetMontagePlayRate(float PlayRate) const
@@ -199,7 +290,7 @@ void UTDChargedAttackAbility::SetMontagePlayRate(float PlayRate) const
 	UAnimInstance* AnimInstance = ActorInfo ? ActorInfo->GetAnimInstance() : nullptr;
 	if (AnimInstance && AttackMontage && AnimInstance->Montage_IsPlaying(AttackMontage))
 	{
-		AnimInstance->Montage_SetPlayRate(AttackMontage, PlayRate);
+		AnimInstance->Montage_SetPlayRate(AttackMontage, FMath::Max(PlayRate, TDMinPlayRate));
 	}
 }
 
@@ -215,9 +306,12 @@ float UTDChargedAttackAbility::GetAttackTraceRadius() const
 
 void UTDChargedAttackAbility::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled)
 {
-	ClearAllTimers();
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(CheckpointTimerHandle);
+	}
 
-	// A cancelled attack would otherwise leave the montage crawling at CoilPlayRate.
+	// A cancelled attack would otherwise leave the montage crawling at the coil rate.
 	SetMontagePlayRate(1.0f);
 
 	// Must come off even on cancellation, or the character reads as mid-attack forever.
