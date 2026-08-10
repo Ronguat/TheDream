@@ -40,14 +40,11 @@ reasonably second-guess. Skip it for anything the code says plainly on its own.
 - **Does an aborted attack cost anything?** Cancelling into block currently costs only the
   time spent. If feinting into guard turns out to be too cheap to punish, a stamina cost on
   the cancel is the obvious lever — but it should not be added pre-emptively.
-- **Does a roll's length make dodge too committal?** Settled in principle (rolls for
-  everything, root motion) but unjudged in play — and now with a number attached: the
-  forward roll is **0.9 s**, against the 0.5 s `DodgeSeconds` default that was guessed
-  before any clip existed. That is nearly twice as long, and longer than the charged
-  attack's entire 0.75 s windup, so a dodge thrown on reaction may not recover before the
-  next attack lands. The knobs are `IFrameSeconds`, the recovery tail after it, and the
-  montage play rate if the clip simply needs to be faster. Watch whether dodge still
-  functions as a reaction or becomes something you have to predict with.
+- **Is the roll's authored travel distance right for our spacing?** Play rate fixes the
+  0.9 s length (see the entry below) but it does **not** change how far the roll goes — a
+  faster roll covers the same ground in less time. If the distance itself is wrong, the knob
+  is `AnimRootMotionTranslationScale` on the montage task, not the rate. Unjudgeable until
+  it is in play, and it matters because spacing is the top feel goal.
 - **Should the debug auto-attack move, or only swing?** A dummy that attacks on a timer from
   a fixed spot tests i-frames but not spacing, and spacing is the top feel goal. Adequate for
   the dodge slice; inadequate for judging whiff punish later.
@@ -69,6 +66,27 @@ concludes the log is wrong rather than merely old. Add a row whenever a name cha
 | `LogTDCoil` | `LogTDCombatTiming`, behind the `TD.DebugCombatTiming` cvar. |
 
 ---
+
+## 2026-08-10 — The dodge authors its duration and derives the play rate
+
+The roll clips are 0.9 s; `DodgeSeconds` was guessed at 0.5 s before any clip existed. Rather
+than accept the clip's length or re-cut the animation, the montage is played at whatever rate
+makes the authored duration true — `MontageLength / DodgeSeconds`.
+
+This is deliberately the same shape as the attack ladder, where a branch authors *when it
+hits* and every play rate is derived at runtime. The alternative — treating the clip's length
+as authoritative and tuning the design around it — inverts that, and would make the animation
+the balance authority for the second time in this project. It was rejected for i-frames
+earlier today for the same reason.
+
+Two consequences worth stating plainly:
+
+- **Rate changes duration, not distance.** A roll played at 1.8× covers the same ground in
+  half the time. If the *travel* is wrong for our spacing, the knob is
+  `AnimRootMotionTranslationScale`, which is a separate decision and still open.
+- A large enough rate multiplier will read as fast-forwarded rather than snappy. If the
+  number needed turns out to be extreme, that is evidence the roll is the wrong clip for a
+  reactive defensive option, not evidence that the rate needs raising further.
 
 ## 2026-08-10 — Sword and shield, rolls for every evade, root motion first
 

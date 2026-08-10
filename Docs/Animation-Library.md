@@ -60,6 +60,29 @@ AS_<PackName>_<Move>[_<Direction>][_<Qualifier>][_RM]
 So finding candidates is a `find` away, and asking for a preview is only needed to choose
 between clips that are already the right kind.
 
+## What is in the library vs. what is in this project
+
+**These are different sets, and confusing them is the obvious way to waste time.** The index
+and vocabulary below describe the **library** — everything available to migrate. Only a
+subset has actually been brought into this repository.
+
+| | Assets | Where |
+|---|---:|---|
+| Library (available to migrate) | 6,576 | `AnimLibrary`, not in this repo |
+| **Migrated into this project** | **715** | `/Game/GDHBundle/` |
+
+Migrated so far, as of 2026-08-10 — `SwordShield` only:
+
+- `SwordShieldAnimV1/Animation/RM` (152) and `IP` (135)
+- `SwordShieldAnimV3/Animation/RM` (189) and `IP` (166)
+- `DEMO/` dependencies (~70): the Manny skeleton and mesh, materials, textures, and the
+  `SM_Sword` and `Shield_Heater` props
+- **Not migrated:** `SwordShieldAnimV2`, and every other archetype
+
+So: if a clip appears in the index but not under `/Game/GDHBundle/` in this project, it
+exists and needs migrating — it is not missing. Check with
+`find Content/GDHBundle -iname "*<term>*"` before assuming either way.
+
 ## The complete index
 
 `Docs/Animation-Library-Index.tsv` lists every one of the 6,576 assets —
