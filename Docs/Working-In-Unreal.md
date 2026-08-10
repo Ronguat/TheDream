@@ -11,13 +11,20 @@ the behaviour; an unverified claim in here is worse than an absent one.
 
 ## Before you start
 
-**The editor must be running for the toolset to work.** `unreal-mcp` is an HTTP server
-hosted by the in-editor plugin (`127.0.0.1:8000`, see `.mcp.json`), so it is up only
-while the editor is. Closing the editor takes the tools down with it.
+**Open the editor before starting Claude Code.** `unreal-mcp` is an HTTP server hosted by
+the in-editor plugin (`127.0.0.1:8000`, see `.mcp.json`), so it exists only while the
+editor is running. Two cases behave differently, and conflating them has caused a wrong
+correction in this file already:
 
-Reconnection works: on 2026-08-09 the editor was closed for a full rebuild and reopened
-mid-session, and the tools resumed with no session restart. Expect a short delay while
-the server comes back; `/mcp` forces a reconnect if it does not.
+- **Editor not running at Claude Code startup** *(reported twice)* — the tools never
+  register for that entire session. Opening the editor afterwards starts the server, but
+  the toolset stays absent and no search finds it. Restart Claude Code.
+- **Editor closed and reopened mid-session** *(confirmed)* — fine. On 2026-08-09 the
+  editor was closed for a full rebuild and reopened, and the tools resumed with no
+  session restart. Expect a brief delay while the server reconnects; `/mcp` forces it.
+
+The distinction is registration versus connection: tool schemas are picked up once, at
+session start, and the live connection can drop and re-establish afterwards.
 
 If asset writes are needed, confirm the tools actually respond before promising any.
 
