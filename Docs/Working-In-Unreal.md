@@ -104,6 +104,14 @@ Confirmed traps:
 - **TMap keys** *(reported once)* — setting a map property logs `added key ... not found
   in map after import` while the entry is in fact correct at runtime. Misleading, not
   fatal.
+- **`AssetTools.save_assets` can reject a path that demonstrably exists** *(reported once,
+  2026-08-10)* — it failed with `Asset does not exist:
+  /Game/TheDream/Combat/Abilities/GA_Attack` while `exists` returned true, `find_assets`
+  listed that exact path, and the `.uasset` was on disk. Both the package form and the
+  `Package.Object` form failed. `is_dirty` failed the same way on the same path, and the
+  same call had succeeded earlier in the session. **Passing an empty list — save every dirty
+  asset — works**, so use that as the fallback. Note it also saves anything else left dirty,
+  which is worth a `git status` afterwards to see what actually got written.
 - **A GameplayEffect's inline tag containers cannot be written** *(confirmed 2026-08-10)* —
   `inheritableOwnedTagsContainer` and `ongoingTagRequirements` are present in reflection and
   accept a write without error, but read back **empty**. UE 5.8 has moved this behaviour to
