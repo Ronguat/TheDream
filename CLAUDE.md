@@ -109,6 +109,7 @@ Deliberately **not** kept: per-system design docs. Local rationale belongs in he
 - Never delete assets or change project settings without explicit approval.
 - When implementing an attack or defensive move, include the relevant input binding, montage/notify windows, stamina cost, and at least a basic success/failure outcome.
 - Prefer clarity and tunability over cleverness.
+- **Visual consistency beats arbitrary endpoints chosen for hypothetical feel.** An animation plays in full across the mechanical duration it belongs to; it is *fitted* to that duration, never cut down to hit a number nobody has felt yet. This does not soften "the animation is not the balance authority" — mechanics still author the timing — it says the fix for a bad-feeling number is to change the number, not to hide it by trimming the clip. Deviate only when play shows it is necessary, never in anticipation.
 - After making changes, briefly list the assets created or modified and the key values set.
 - **Commit and push whenever a notable contribution is finished**, without waiting to be asked. The bar is a coherent, verified unit of work — not every file edit, and not a half-finished slice. Pending *tuning* questions do not block a push; pending *correctness* verification does.
 - **Every commit you author gets the `Co-Authored-By` trailer, without exception.** A trailer that is present only sometimes makes its absence ambiguous, which is worse than never using one; six commits on 2026-08-09 lost it late in a long session. Do not automate it with a hook — a hook cannot tell who wrote a change, so it would falsely claim the ones you did not.
@@ -117,13 +118,18 @@ Deliberately **not** kept: per-system design docs. Local rationale belongs in he
 - **If you edited this file during a session, re-read all of it before finishing.** Edits made hours apart contradict each other easily. Check for stale claims and for rationale that belongs in `Docs/Combat-Decisions.md` — this file states rules and current facts, not arguments. Do not delete lines you did not write without asking: most of them are scar tissue from something that went wrong once.
 
 ## Current Focus
+
+**Order agreed 2026-08-10.** Every item here gets done — only the sequence was in question. Items
+1–3 are ordered by dependency, not preference; the rest is judgement and may be revisited.
+
 1. ~~Light → Heavy → Charged Heavy with correct input timing and basic montages.~~ **Done 2026-08-09**, verified in play. Offense still lacks the light string, knockdown, and block-safety.
-2. **Block, Dodge, and Parry with stamina costs.** In progress.
-   - **Dodge** — built, wired and **verified in play 2026-08-10**: eight-way, root-motion rolls, i-frames for its full duration, cost applied rather than gated, cancels an attack before its commit checkpoint. Still has **no montage** (`AM_Dodge` needs authoring by hand; eight sections named `Fw FR R BR Bw BL L FL`), and `DodgeSeconds` at 0.5 was judged too long on first contact — retune before authoring the montage.
-   - **Stamina economy** — regen, the post-action pause and exhaustion, in C++ on `ATDCombatCharacter`. **Verified in play 2026-08-10**, including exact costs, exhaustion entry at 0 and release at full.
-   - **Block and Parry** — unbuilt. `SwordShield` has a full `Defense` start/loop/end set; parry has exactly one clip in the archetype and no failed-parry variant.
-3. Simple hit reaction + knockdown on the dummy. `SwordShieldAnimV3` has standalone `Hit` and `Death` clips; no get-up set in this archetype.
-4. Recovery and punish windows — currently unmanaged; every attack's recovery is whatever is left of its montage.
-5. The 2–4 hit light string.
-6. **Input buffering.** Without it a press during a committed action is dropped, which is indistinguishable from unresponsiveness — so it confounds every timing verdict. Should land before the ladder is tuned as a whole.
-7. The sword-and-shield archetype swap for offense — decided 2026-08-10 but not started. Needs new attack montages, the `Release Window` notify re-placed by hand, `ReleaseStartSeconds` updated, and the sword and shield attached to the `weapon_r` / `weapon_l` bones.
+2. **Dodge.** Mechanically complete and **verified in play 2026-08-10**: eight-way, i-frames for its full duration, cost applied rather than gated, cancels an attack before its commit checkpoint, refused while airborne, `DodgeSeconds` 0.4. The **stamina economy** shipped with it and is verified too — regen, the post-action pause, exhaustion entering at 0 and releasing at full. Remaining: author `AM_Dodge` from the eight `Dash_*` clips, sections named `Fw FR R BR Bw BL L FL`.
+3. **Camera-relative movement** — the character faces the camera rather than its own input direction. **This blocks any real test of the dodge.** `ResolveDodgeDirection` measures input against actor facing, and `bOrientRotationToMovement` means the actor already faces its input, so it resolves to `Fw` in steady state and `Bw` only via the stationary fallback. Across every dodge logged on 2026-08-10, no other direction ever fired: six of eight are currently unreachable.
+4. **Dodge travel distance** — `AnimRootMotionTranslationScale`. Deliberately after item 3, because judging it now means judging one direction and guessing about seven, and travel is what feeds spacing.
+5. **The sword-and-shield attack swap.** Needs new attack montages, the `Release Window` notify re-placed **by hand** (not scriptable), `ReleaseStartSeconds` updated per branch, and the sword and shield attached to the `weapon_r` / `weapon_l` bones. The most expensive slice in the project — choose the light clips with the string (item 8) in mind, or those notifies get placed twice.
+6. **Block, and the blockstun that arrives with it.** Blockstun disables offense and parry for a duration set by the attack blocked; it is the first stun state in the project and pulls in the plumbing hitstun will also need. `SwordShield` has a full `Defense` start/loop/end set.
+7. **Input buffering.** Before the light string, not after: strings are where dropped inputs hurt most, and until this exists every timing verdict is confounded by presses that never registered.
+8. **The 2–4 hit light string.**
+9. **Parry.** `SwordShield` has exactly one parry clip and no failed-parry variant; Katana's richer `Deflect` set is the wrong stance.
+10. Simple hit reaction + knockdown on the dummy. `SwordShieldAnimV3` has standalone `Hit` and `Death` clips; no get-up set in this archetype.
+11. Recovery and punish windows — currently unmanaged; every attack's recovery is whatever is left of its montage.

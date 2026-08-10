@@ -41,11 +41,10 @@ reasonably second-guess. Skip it for anything the code says plainly on its own.
   time spent. If feinting into guard turns out to be too cheap to punish, a stamina cost on
   the cancel is the obvious lever — but it should not be added pre-emptively.
 - **Does a 2.25× roll read as snappy or as fast-forwarded?** `DodgeSeconds` is 0.4 against 0.9 s
-  source clips (see the entry below), so the derived play rate is 2.25×. Unanswerable until
-  `AM_Dodge` exists. If it reads sped-up, the lever is **trimming each montage section** to just
-  the usable evasive portion rather than raising `DodgeSeconds` back up — a 0.6 s section at the
-  same 0.4 s dodge is 1.5×. Decide that while authoring the montage, not after, because it is the
-  difference between eight sections you keep and eight you re-cut.
+  source clips, so the derived play rate is 2.25×. Unanswerable until `AM_Dodge` exists, and it is
+  being built with **whole, untrimmed clips** per the entry below — so this question is now asked
+  honestly rather than pre-empted. If it does read sped-up, the first lever is `DodgeSeconds`
+  itself, not the clip.
 - **Input buffering is a prerequisite for judging any of this fairly.** Raised 2026-08-10 while
   testing the dodge. Without it, an input pressed during a committed action is simply dropped,
   which is indistinguishable from the action feeling unresponsive — so every timing verdict is
@@ -88,6 +87,73 @@ concludes the log is wrong rather than merely old. Add a row whenever a name cha
 | `LogTDCoil` | `LogTDCombatTiming`, behind the `TD.DebugCombatTiming` cvar. |
 
 ---
+
+## 2026-08-10 — The evade is a dash, not a roll; the roll choice came from an incomplete search
+
+`AM_Dodge` is built from the eight `AS_SwordAndShieldAnimV1_Dash_*_RM` clips. This supersedes
+"Sword and shield, rolls for every evade" below.
+
+**The original entry was wrong by omission, not by reasoning.** It argued that the library has no
+forward `Dodge` in any archetype while `Roll` covers all eight, so committing to rolls avoided
+mixing two move types under one button. Every word of that is true. It simply never checked
+`Dash`, which also covers all eight directions in the same pack, and was sitting migrated in the
+project the whole time. The user found it. The constraint that supposedly forced rolls never
+actually discriminated between the candidates.
+
+The full set, all eight-directional and all already migrated:
+
+| Clips | Length | Play rate at `DodgeSeconds` 0.4 |
+|---|---|---|
+| `SwordAndShieldAnimV1_Dash` | 0.733 s | **1.83×** |
+| `SwordSwordAnimV3_Dash` | 0.833 s | 1.92× |
+| `SwordAndShieldAnimV1_Roll` | 0.900 s | 2.25× |
+| `SwordSwordAnimV3_Flip` | 0.967 s | 2.42× |
+
+Length is the smaller argument. The larger one is that **the move type should match the duration
+that play actually settled on.** 0.4 s was reached by feel, twice, before any animation existed —
+and a full body roll compressed into 0.4 s is a complete rotation in under half a second, which
+would read as frantic at any multiplier. A dash is natively a quick reactive evade, so at 0.4 s it
+is being asked to do roughly what it already does.
+
+The counter-argument is real and is being set aside rather than refuted: the earlier entry held
+that a roll's commitment suits a move costing half the stamina bar, and that rolls are the genre's
+readable idiom for i-frames. If the dash proves too weightless for a 50-stamina cost, that is a
+finding, and the rolls are one montage away.
+
+Root motion was enabled on all eight dashes, since like every `_RM` clip in the bundle they ship
+with it off. Verified on disk rather than by read-back.
+
+**The transferable lesson is about when this was catchable.** It was raised at the last cheap
+moment — `AM_Dodge` had exactly one segment in it. The same question a day later costs rebuilding
+eight sections. A decision recorded with confident reasoning is not the same as a decision whose
+alternatives were actually enumerated, and this log cannot tell those apart on its own.
+
+## 2026-08-10 — Animations play whole; visual consistency beats hypothetical feel
+
+`AM_Dodge` is built from **entire, untrimmed roll clips**, so the animation and `DodgeSeconds`
+line up exactly. At 0.4 s against 0.9 s clips that means a 2.25× play rate, and 2.25× is accepted
+rather than engineered away.
+
+This supersedes advice I gave twice earlier the same day, that the sections should be trimmed to
+their "usable evasive portion" to keep the multiplier down. That was wrong in a specific and
+instructive way: it proposed cutting the animation to hit a play rate nobody had looked at yet,
+on a guess about how 2.25× would read. Trimming a clip to a hand-picked endpoint is not neutral —
+it silently makes the *animator's* midpoint the design, and it does so before anyone has seen the
+baseline it is supposedly fixing.
+
+**The rule, stated generally: an animation plays in full across the mechanical duration it
+belongs to.** It is fitted to that duration, never cut down to hit a number that has not been
+felt. If the result feels wrong, change the duration — that is a single authored number with a
+derived rate behind it — rather than hiding the problem inside the asset.
+
+This does not weaken "the animation is not the balance authority", which still holds and is why
+`DodgeSeconds` is authored and the rate derived. The two are complements: **mechanics decide how
+long, the animation gets all of that time.** What is forbidden is the third option, where a clip
+is quietly reshaped so a number stops being questioned.
+
+The practical consequence: judge the baseline first, then deviate only if play demands it. Travel
+distance is deliberately left alone for the same reason — it is unjudgeable until there is
+something on screen to judge.
 
 ## 2026-08-10 — The dodge is 0.4 s, judged before it had an animation
 
