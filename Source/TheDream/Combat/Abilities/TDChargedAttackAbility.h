@@ -111,7 +111,7 @@ struct FTDAttackBranch
  *  pick a clip -- and sharing it means the defender cannot tell the branches apart until
  *  the coil appears. Reactability is measured from that tell, not from the press.
  *
- *  See Docs/Combat/Decisions.md for the reasoning behind all of it.
+ *  See Docs/Combat-Decisions.md for the reasoning behind all of it.
  */
 UCLASS(abstract)
 class UTDChargedAttackAbility : public UTDMeleeAttackAbility
