@@ -82,8 +82,11 @@ protected:
 	/**
 	 *  Applied to self on spawn and never removed -- the always-on effects.
 	 *
-	 *  This is where stamina regen lives: an infinite periodic effect that is suppressed by
-	 *  a tag rather than reapplied, so nothing has to remember to switch it back on.
+	 *  Stamina regen is deliberately *not* here. It was an infinite periodic effect until
+	 *  2026-08-10 and is now orchestrated in C++ below, because the economy is a small state
+	 *  machine -- regen, a pause that outlives the action causing it, and a timed exhaustion
+	 *  lockout -- and expressing that across effects needs tag components that cannot be
+	 *  scripted in UE 5.8. Currently empty; kept for effects that genuinely are always-on.
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Abilities")
 	TArray<TSubclassOf<UGameplayEffect>> DefaultEffects;
@@ -121,10 +124,6 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Stamina", meta=(ClampMin="0.0"))
 	float StaminaRegenPauseSeconds = 1.0f;
 
-	/** How long Exhausted lasts once stamina reaches zero. */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Stamina", meta=(ClampMin="0.0"))
-	float ExhaustionSeconds = 4.0f;
-
 	/**
 	 *  Present while a defensive action is running, via that ability's owned tags.
 	 *
@@ -137,8 +136,13 @@ protected:
 	/**
 	 *  Applied when stamina reaches zero, and what defensive abilities block on.
 	 *
+	 *  **Cleared when stamina reaches Max again, not on a timer.** Recovery is the thing that
+	 *  ends exhaustion, so the punishment scales with how empty you ran yourself rather than
+	 *  being a flat sentence -- and there is no second number that can disagree with the bar.
+	 *
 	 *  Regen deliberately continues while exhausted -- exhaustion is a lockout on acting,
-	 *  not on recovering, and stopping regen too would make it unescapable.
+	 *  not on recovering. That is now load-bearing rather than merely humane: regen is the
+	 *  only thing that can end it, so suppressing regen here would make it permanent.
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Stamina")
 	FGameplayTag ExhaustedTag;
@@ -177,6 +181,20 @@ protected:
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat|Debug", meta=(ClampMin="0.0"))
 	float DebugAutoAttackHoldSeconds = 0.1f;
+
+	/**
+	 *  Snap back to the spawn transform before each auto-attack. Debug only.
+	 *
+	 *  Attack montages carry root motion, so an attacker on a loop walks itself across the
+	 *  level -- ours reached the edge of the map. Resetting is deliberately preferred over
+	 *  zeroing AnimRootMotionTranslationScale: suppressing the lunge would shorten the
+	 *  dummy's effective reach, and reach is exactly what spacing tests measure.
+	 *
+	 *  Applied *before* the swing rather than after, so every attack begins from an
+	 *  identical transform and repeated measurements are comparable.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat|Debug")
+	bool bDebugAutoAttackResetPosition = true;
 
 public:
 
@@ -218,7 +236,7 @@ private:
 	/** Adds StaminaRegenPerSecond * delta, unless suppressed or already full. */
 	void TickStaminaRegen(float DeltaSeconds);
 
-	/** Applies ExhaustedTag and schedules its removal. */
+	/** Applies ExhaustedTag. Removed only once stamina is back to Max -- there is no timer. */
 	void EnterExhaustion();
 	void ExitExhaustion();
 
@@ -228,7 +246,6 @@ private:
 	float RegenSuppressedUntil = 0.0f;
 
 	bool bExhausted = false;
-	FTimerHandle ExhaustionTimerHandle;
 
 	bool bAbilitySystemInitialised = false;
 
@@ -237,4 +254,7 @@ private:
 
 	FTimerHandle DebugAutoAttackTimerHandle;
 	FTimerHandle DebugAutoAttackReleaseTimerHandle;
+
+	/** Where the auto-attacker started, captured once, so each swing begins from the same spot. */
+	FTransform DebugAutoAttackHomeTransform;
 };

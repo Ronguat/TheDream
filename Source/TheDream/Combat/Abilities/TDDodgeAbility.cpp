@@ -47,14 +47,9 @@ void UTDDodgeAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, c
 {
 	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
 
-	// Pays the stamina cost. Failing here is the "not enough stamina to dodge" case, so it
-	// must run before anything observable happens.
-	if (!CommitAbility(Handle, ActorInfo, ActivationInfo))
-	{
-		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
-		return;
-	}
-
+	// The stamina cost is already paid -- Super applied EffectOnStart. There is deliberately
+	// no commit check here: a dodge is never refused for want of stamina, it empties the bar
+	// and exhausts you. See Docs/Combat-Decisions.md, "Costs are paid, not required".
 	UWorld* World = GetWorld();
 	if (!World)
 	{

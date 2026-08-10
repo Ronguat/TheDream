@@ -17,8 +17,15 @@
 /**
  *  Core combat attributes shared by every combatant.
  *
- *  Health and Stamina are always clamped to [0, Max]. Raising or lowering a Max
- *  attribute scales its current value to preserve the same ratio.
+ *  Health and Stamina are clamped to [0, Max] in *both* the base and current value.
+ *  Both are needed and they catch different writes: PreAttributeChange guards the current
+ *  value, PreAttributeBaseChange guards direct base writes such as
+ *  ApplyModToAttribute, and PostGameplayEffectExecute guards instant effects. Missing the
+ *  base clamp is not cosmetic -- stamina regen drove the base to 105 while the bar read a
+ *  clamped 100, so the spendable pool silently exceeded the bar and a dodge from "full"
+ *  left 55 rather than 50.
+ *
+ *  Raising or lowering a Max attribute scales its current value to preserve the same ratio.
  */
 UCLASS()
 class UTDAttributeSet : public UAttributeSet
@@ -31,6 +38,7 @@ public:
 
 	//~ Begin UAttributeSet interface
 	virtual void PreAttributeChange(const FGameplayAttribute& Attribute, float& NewValue) override;
+	virtual void PreAttributeBaseChange(const FGameplayAttribute& Attribute, float& NewValue) const override;
 	virtual void PostGameplayEffectExecute(const FGameplayEffectModCallbackData& Data) override;
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	//~ End UAttributeSet interface

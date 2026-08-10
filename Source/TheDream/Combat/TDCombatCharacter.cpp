@@ -5,6 +5,7 @@
 #include "Combat/Abilities/TDGameplayAbility.h"
 #include "AbilitySystemComponent.h"
 #include "EnhancedInputComponent.h"
+#include "GameFramework/CharacterMovementComponent.h"
 #include "GameplayEffect.h"
 #include "TimerManager.h"
 
@@ -77,9 +78,20 @@ bool ATDCombatCharacter::IsStaminaRegenPaused() const
 
 void ATDCombatCharacter::HandleStaminaChanged(const FOnAttributeChangeData& Data)
 {
-	if (!bExhausted && Data.NewValue <= 0.0f)
+	if (!bExhausted)
 	{
-		EnterExhaustion();
+		if (Data.NewValue <= 0.0f)
+		{
+			EnterExhaustion();
+		}
+		return;
+	}
+
+	// Recovery ends exhaustion, not a clock. Regen is the only thing that can get here, which
+	// is why it must keep running while exhausted -- see ExhaustedTag.
+	if (Data.NewValue >= GetMaxStamina())
+	{
+		ExitExhaustion();
 	}
 }
 
@@ -90,16 +102,6 @@ void ATDCombatCharacter::EnterExhaustion()
 	if (AbilitySystemComponent && ExhaustedTag.IsValid())
 	{
 		AbilitySystemComponent->AddLooseGameplayTag(ExhaustedTag);
-	}
-
-	if (UWorld* World = GetWorld())
-	{
-		World->GetTimerManager().SetTimer(
-			ExhaustionTimerHandle,
-			this,
-			&ATDCombatCharacter::ExitExhaustion,
-			FMath::Max(ExhaustionSeconds, 0.01f),
-			false);
 	}
 }
 
@@ -169,8 +171,8 @@ void ATDCombatCharacter::InitialiseAbilitySystem()
 
 	// Actor info is rebound on every possession, but seeding must happen once. A pawn
 	// possessed after BeginPlay would otherwise be granted every ability a second time and
-	// stack a second copy of every DefaultEffect -- and for an infinite regen effect, that
-	// means permanently doubled regen rather than a visible one-off error.
+	// stack a second copy of every DefaultEffect -- and for an infinite effect, that means a
+	// permanently doubled magnitude rather than a visible one-off error.
 	if (bDefaultsApplied)
 	{
 		return;
@@ -215,6 +217,10 @@ void ATDCombatCharacter::InitialiseAbilitySystem()
 
 	if (bDebugAutoAttack && DebugAutoAttackInputTag.IsValid())
 	{
+		// Captured before the first swing, so it is the placed transform rather than wherever
+		// root motion has since carried us.
+		DebugAutoAttackHomeTransform = GetActorTransform();
+
 		GetWorldTimerManager().SetTimer(
 			DebugAutoAttackTimerHandle,
 			this,
@@ -227,6 +233,20 @@ void ATDCombatCharacter::InitialiseAbilitySystem()
 
 void ATDCombatCharacter::DebugAutoAttackPress()
 {
+	if (bDebugAutoAttackResetPosition)
+	{
+		// Teleported rather than swept: a swept move would be blocked by whatever the attacker
+		// has walked into, which is exactly the state being undone.
+		SetActorTransform(DebugAutoAttackHomeTransform, false, nullptr, ETeleportType::TeleportPhysics);
+
+		// Root motion leaves velocity behind; without this the attacker slides away from home
+		// immediately after being put back.
+		if (UCharacterMovementComponent* Movement = GetCharacterMovement())
+		{
+			Movement->StopMovementImmediately();
+		}
+	}
+
 	OnAbilityInputPressed(DebugAutoAttackInputTag);
 
 	if (DebugAutoAttackHoldSeconds <= 0.0f)

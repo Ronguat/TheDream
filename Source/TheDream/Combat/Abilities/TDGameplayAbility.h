@@ -59,14 +59,18 @@ protected:
 	TSubclassOf<UGameplayEffect> EffectOnStart;
 
 	/**
-	 *  Applied to self as this ability ends, however it ends.
+	 *  Applied to self as this ability ends, however it ends. **Currently unset on every
+	 *  ability** -- a general hook, not a mechanism anything depends on.
 	 *
-	 *  Exists for the stamina regen pause. The design suppresses regen *during* a defensive
-	 *  action and for one second *after*; the during half is just the ability's own owned
-	 *  tags, but the after half outlives the ability and so has nowhere else to live.
+	 *  It was added for the stamina regen pause and no longer carries it. The pause is now
+	 *  entirely on ATDCombatCharacter: while State.StaminaRegenPaused is present the resume
+	 *  time keeps being pushed forward, so the one-second tail falls out of the tag coming
+	 *  off and needs nothing applied at the end. That is the more robust half of the reason
+	 *  -- an ability that is cancelled or interrupted cannot fail to apply something it no
+	 *  longer applies.
 	 *
-	 *  Applied on cancellation too, deliberately: an interrupted dodge should not refund
-	 *  the pause, or being hit out of a defensive action would be a way to regen faster.
+	 *  If something does use this later: it is applied on cancellation too, deliberately, so
+	 *  that being hit out of a defensive action can never be a way to skip its cost.
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Effects")
 	TSubclassOf<UGameplayEffect> EffectOnEnd;

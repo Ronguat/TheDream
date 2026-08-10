@@ -71,9 +71,9 @@ Timings land within about a frame, biased late. `GA_Attack`'s `Branches` array i
 - Max 100.
 - Dodge = 50.
 - Blocking drains based on attack + blocking weapon.
-- 0 stamina → Exhausted (no defensive actions or jump) for 4 s. **Regen continues while exhausted** — it locks out acting, not recovering.
+- 0 stamina → Exhausted (no defensive actions or jump) **until stamina refills to 100**, not for a fixed duration. Stamina floors at 0, so there is no overspending and every exhaustion is identical — dodging at 3 and dodging at 50 both land on exactly 0. Re-emptying the bar the moment you recover is allowed. **Regen continues while exhausted** — it locks out acting, not recovering, and is the only thing that can end it, so nothing may suppress regen here. Reasoning in `Docs/Combat-Decisions.md`.
 - Regen 25/s. Paused during defensive actions and for 1 s after, measured from when the action ends.
-- **Costs are paid, not required.** No action is ever refused for want of stamina: dodging at 30 works, empties the bar and exhausts you. Never use GAS's `CostGameplayEffectClass`, which gates activation; costs are applied via `UTDGameplayAbility::EffectOnStart`. An input that silently does nothing is the worst feedback available, being indistinguishable from a dropped input.
+- **Costs are paid, not required.** No action is ever refused for want of stamina: dodging at 30 works, empties the bar and exhausts you. Never use GAS's `CostGameplayEffectClass`, which gates activation, and do not call `CommitAbility` — checking a cost is the gate. Costs are applied via `UTDGameplayAbility::EffectOnStart`. An input that silently does nothing is the worst feedback available, being indistinguishable from a dropped input.
 - Regen, the pause and exhaustion are orchestrated in C++ on `ATDCombatCharacter`, not by GameplayEffects — see `Docs/Combat-Decisions.md`.
 
 ## Technical Preferences
@@ -118,10 +118,11 @@ Deliberately **not** kept: per-system design docs. Local rationale belongs in he
 ## Current Focus
 1. ~~Light → Heavy → Charged Heavy with correct input timing and basic montages.~~ **Done 2026-08-09**, verified in play. Offense still lacks the light string, knockdown, and block-safety.
 2. **Block, Dodge, and Parry with stamina costs.** In progress.
-   - **Dodge** — built and wired 2026-08-10: eight-way, root-motion rolls, i-frames for its full duration, cost applied rather than gated. **Not yet verified in play, and it has no montage yet** (`AM_Dodge` needs authoring by hand; eight sections named `Fw FR R BR Bw BL L FL`).
-   - **Stamina economy** — regen, the post-action pause and exhaustion are built in C++ on `ATDCombatCharacter`. **Never run.**
+   - **Dodge** — built, wired and **verified in play 2026-08-10**: eight-way, root-motion rolls, i-frames for its full duration, cost applied rather than gated, cancels an attack before its commit checkpoint. Still has **no montage** (`AM_Dodge` needs authoring by hand; eight sections named `Fw FR R BR Bw BL L FL`), and `DodgeSeconds` at 0.5 was judged too long on first contact — retune before authoring the montage.
+   - **Stamina economy** — regen, the post-action pause and exhaustion, in C++ on `ATDCombatCharacter`. **Verified in play 2026-08-10**, including exact costs, exhaustion entry at 0 and release at full.
    - **Block and Parry** — unbuilt. `SwordShield` has a full `Defense` start/loop/end set; parry has exactly one clip in the archetype and no failed-parry variant.
 3. Simple hit reaction + knockdown on the dummy. `SwordShieldAnimV3` has standalone `Hit` and `Death` clips; no get-up set in this archetype.
 4. Recovery and punish windows — currently unmanaged; every attack's recovery is whatever is left of its montage.
 5. The 2–4 hit light string.
-6. The sword-and-shield archetype swap for offense — decided 2026-08-10 but not started. Needs new attack montages, the `Release Window` notify re-placed by hand, `ReleaseStartSeconds` updated, and the sword and shield attached to the `weapon_r` / `weapon_l` bones.
+6. **Input buffering.** Without it a press during a committed action is dropped, which is indistinguishable from unresponsiveness — so it confounds every timing verdict. Should land before the ladder is tuned as a whole.
+7. The sword-and-shield archetype swap for offense — decided 2026-08-10 but not started. Needs new attack montages, the `Release Window` notify re-placed by hand, `ReleaseStartSeconds` updated, and the sword and shield attached to the `weapon_r` / `weapon_l` bones.

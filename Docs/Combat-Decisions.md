@@ -40,6 +40,20 @@ reasonably second-guess. Skip it for anything the code says plainly on its own.
 - **Does an aborted attack cost anything?** Cancelling into block currently costs only the
   time spent. If feinting into guard turns out to be too cheap to punish, a stamina cost on
   the cancel is the obvious lever — but it should not be added pre-emptively.
+- **`DodgeSeconds` at 0.5 is too long.** First verdict from actually playing it, 2026-08-10:
+  well outside the range muscle memory expects from a dodge. Worth recording precisely because
+  of *when* it was judged — there is no montage yet, so this is a reaction to the pure mechanical
+  duration (the lockout and the i-frame window), with no animation to blame or to hide behind.
+  That is a cleaner signal than it will ever be again. `DodgeSeconds` is authored and the play
+  rate derives from it, so trying another value is one number; the thing not to do is compensate
+  by speeding the animation up and leaving the duration alone. Retune before authoring `AM_Dodge`,
+  so the montage is built against a duration that is roughly right.
+- **Input buffering is a prerequisite for judging any of this fairly.** Raised 2026-08-10 while
+  testing the dodge. Without it, an input pressed during a committed action is simply dropped,
+  which is indistinguishable from the action feeling unresponsive — so every timing verdict is
+  currently confounded by inputs that never registered. It is not part of the defense slice, but
+  it should land before the ladder is tuned as a whole, or the tuning will be fitted to a
+  handicap.
 - **Is the roll's authored travel distance right for our spacing?** Play rate fixes the
   0.9 s length (see the entry below) but it does **not** change how far the roll goes — a
   faster roll covers the same ground in less time. If the distance itself is wrong, the knob
@@ -48,6 +62,16 @@ reasonably second-guess. Skip it for anything the code says plainly on its own.
 - **Should the debug auto-attack move, or only swing?** A dummy that attacks on a timer from
   a fixed spot tests i-frames but not spacing, and spacing is the top feel goal. Adequate for
   the dodge slice; inadequate for judging whiff punish later.
+- **Can exhaustion still fail to fire for an action paid at exactly 0?** The delegate only
+  fires on a *change*, so a cost applied at exactly 0 stamina changes nothing and cannot
+  retrigger. Unreachable today — exhaustion now ends only at full, and every defensive action
+  is locked out until then, so you cannot be at zero and un-exhausted. **Block may make it
+  reachable**, because `ActivationBlockedTags` gates activation and not continuation: a block
+  held through zero keeps draining and keeps `State.StaminaRegenPaused` applied, which would
+  stall recovery and therefore stall the exit condition. Check it when block is built.
+  (The related worry that exhaustion "does not scale with overspend" is closed rather than
+  fixed: stamina floors at 0, so overspending does not exist and every exhaustion is the same
+  length by design.)
 
 ---
 
@@ -66,6 +90,104 @@ concludes the log is wrong rather than merely old. Add a row whenever a name cha
 | `LogTDCoil` | `LogTDCombatTiming`, behind the `TD.DebugCombatTiming` cvar. |
 
 ---
+
+## 2026-08-10 — Exhaustion ends at full, and the bar was lying about the pool
+
+Two changes from the first play session, one design and one bug they exposed together.
+
+**Exhaustion now lasts until stamina reaches Max, not four seconds.** This supersedes the flat
+`ExhaustionSeconds` in "Costs are paid, not required" below.
+
+**Every exhaustion is identical, and that is the intended shape.** Stamina floors at 0, so
+overspending does not exist as a concept: dodging at 50 and dodging at 3 both land on exactly 0
+and recover at the same rate. An earlier draft of this entry claimed the change made the
+punishment scale with how empty you ran yourself — it does not, and could not without letting
+stamina go negative. That alternative was raised and rejected: a cost that does not appear on
+the bar is invisible state, which is exactly how the base-value bug below stayed hidden.
+
+What ending on recovery buys is the **exit condition, not the duration — and not protection of
+any kind**. The old timer released you at roughly 62 stamina, the new rule releases you at 100,
+and under either one you are free to spend straight back down to 0 and exhaust yourself again.
+That is the system saying yes and stamina deciding; a rule that prevented it would contradict
+"costs are paid, not required" directly. An earlier draft of this entry sold the change as
+stopping exactly that, which was both factually wrong — nothing blocks a dodge the instant
+`State.Exhausted` clears — and the wrong shape for this design.
+
+The actual gain is that the exit state is *uniform and knowable* rather than an accident of
+arithmetic. 62 was never a designed number; it was whatever `ExhaustionSeconds` and
+`StaminaRegenPerSecond` happened to produce together. Retune regen to 10/s and that same four
+second timer returns you at about 25 — exhaustion would hand back a bar nearly as empty as it
+found you, and nothing would announce that the mechanic had stopped working. Ending at Max is
+invariant to both numbers. It costs about 5.5 s rather than 4 s, and it removes a second number
+that can disagree with the bar. `ExhaustionSeconds` is deleted rather than kept as a floor: nothing
+refills stamina instantly, so a floor would be an unreachable branch, and this morning's cleanup
+is the argument against leaving those lying around.
+
+The consequence to hold onto: **regen continuing during exhaustion is now load-bearing, not
+merely humane.** It was previously a kindness that stopped exhaustion being inescapable; it is
+now the only mechanism that can end it. Anything that suppresses regen while exhausted makes
+exhaustion permanent. Block is the obvious future hazard, since a held block keeps
+`State.StaminaRegenPaused` applied and `ActivationBlockedTags` gates activation rather than
+continuation.
+
+**The bug: attribute *base* values were never clamped.** Regen ticks through
+`ApplyModToAttribute`, which writes the base value, and only `PreAttributeChange` was
+overridden — which guards the current value. So the base climbed past Max unbounded while the
+bar read a correctly clamped 100. Measured live at base **105.33** against a displayed 100.
+
+This is worth recording because of how it presented rather than what it was. The reported
+symptom was "two dodges reach zero but do not exhaust, and a third dodge is wrongly allowed",
+which reads as a bug in the exhaustion rule. It was not: the pool genuinely held more than the
+bar showed, two dodges left a fraction rather than zero, and the HUD's `%.0f` rendered that
+fraction as "0". Every layer was behaving correctly on the value it was given. It also means
+the standing check "a dodge from full reads exactly 50" would have failed — it would have read
+55.33 — so the check was right and had simply never been run.
+
+`PreAttributeBaseChange` now clamps alongside the other two. All three are needed and they
+catch different writes: current values, direct base writes, and instant effects.
+
+**The debug auto-attacker resets to its spawn transform before each swing.** Attack montages
+carry root motion, so a dummy attacking on a loop walked itself to the edge of the map. Zeroing
+`AnimRootMotionTranslationScale` was rejected: suppressing the lunge shortens the dummy's
+effective reach, and reach is the thing spacing tests measure — it would have quietly made the
+open question about the dummy's mobility worse. Resetting *before* the swing rather than after
+also means every attack starts from an identical transform, so repeated measurements compare.
+
+**`TD.DebugCombatTiming` now defaults to on.** Every real bug in the timing model was found by
+measuring, and this session added one more found by reading `baseValue`. It costs nothing when
+nothing is attacking, and the standing advice to reach for it early is better served by not
+having to reach at all. Turn it off when combat stops being the thing under test.
+
+## 2026-08-10 — `CommitAbility` is gone from every ability
+
+Removing `CostGameplayEffectClass` left the call that *checks* it in place. All three combat
+abilities still opened with `if (!CommitAbility(...)) { EndAbility(...); return; }`, and the
+dodge's carried a comment describing the gate as live: *"Failing here is the 'not enough
+stamina to dodge' case."* That is precisely the behaviour the entry below reversed.
+
+The calls were provably inert — `CommitCheck` tests cost and cooldown, and every ability has
+both set to `None`, verified on the CDOs before removing anything. So this changes nothing at
+runtime. It is worth doing anyway because the residue was a loaded trap: `Docs/Working-In-Unreal.md`
+lists "an action that silently does nothing at low stamina means `CostGameplayEffectClass` has
+crept back in" as a standing regression check, and a `CommitAbility` call sitting in
+`ActivateAbility` under a comment endorsing the gate is the most likely way for it to creep.
+Deleting the call makes the gate unrepresentable rather than merely unused — the same move as
+collapsing three hold thresholds into one per-branch number so a threshold could not sit inside
+a band.
+
+**`EffectOnEnd` is now an unused hook.** It was added to carry the second half of the regen
+pause; that half now falls out of `RegenSuppressedUntil` on the character being pushed forward
+while the tag is present, so nothing needs applying when an ability ends. The property is kept
+rather than deleted — it is a reasonable general hook and removing a `UPROPERTY` is a reflection
+change — but its comment now says plainly that nothing sets it, because a doc comment claiming a
+property carries a mechanism it no longer carries is exactly the drift this log exists to catch.
+
+Two smaller corrections in the same pass. `DefaultEffects` was documented as "where stamina
+regen lives" months after `GE_StaminaRegen` was deleted and regen moved into C++ forty lines
+below it. And `GA_Dodge` had an empty `AbilityTags` while `GA_Attack` carries `Ability.Attack`;
+the dodge now carries `Ability.Defend.Dodge` there too. `AbilityTags` is what
+`CancelAbilitiesWithTag` and `BlockAbilitiesWithTag` match on, so an ability that cannot be
+named cannot be cancelled — which block and parry will almost certainly want to do.
 
 ## 2026-08-10 — Costs are paid, not required; the system says yes and stamina decides
 

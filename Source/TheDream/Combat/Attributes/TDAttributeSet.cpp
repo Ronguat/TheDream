@@ -36,6 +36,23 @@ void UTDAttributeSet::PreAttributeChange(const FGameplayAttribute& Attribute, fl
 	}
 }
 
+void UTDAttributeSet::PreAttributeBaseChange(const FGameplayAttribute& Attribute, float& NewValue) const
+{
+	Super::PreAttributeBaseChange(Attribute, NewValue);
+
+	// Guards writes that go straight to the base value -- ApplyModToAttribute, which is how
+	// stamina regen ticks. PreAttributeChange does not see these, so without this the base
+	// value climbs past Max unbounded while the current value reads correctly clamped.
+	if (Attribute == GetHealthAttribute())
+	{
+		NewValue = FMath::Clamp(NewValue, 0.0f, GetMaxHealth());
+	}
+	else if (Attribute == GetStaminaAttribute())
+	{
+		NewValue = FMath::Clamp(NewValue, 0.0f, GetMaxStamina());
+	}
+}
+
 void UTDAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCallbackData& Data)
 {
 	Super::PostGameplayEffectExecute(Data);

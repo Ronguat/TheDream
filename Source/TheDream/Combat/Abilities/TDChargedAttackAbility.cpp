@@ -40,7 +40,7 @@ void UTDChargedAttackAbility::ActivateAbility(const FGameplayAbilitySpecHandle H
 	AppliedAttackTag = FGameplayTag();
 
 	UWorld* World = GetWorld();
-	if (!CommitAbility(Handle, ActorInfo, ActivationInfo) || !World || Branches.Num() == 0)
+	if (!World || Branches.Num() == 0)
 	{
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
 		return;

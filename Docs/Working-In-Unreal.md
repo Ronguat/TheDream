@@ -124,6 +124,25 @@ Confirmed traps:
   even the modifier's attribute path — write fine, so a partially-configured effect is the
   likely outcome if you do not check. **Adding a GEComponent is not scriptable**; it needs a
   human in the details panel. Read tag containers back after writing them, always.
+- **A placed actor can hold stale `EditDefaultsOnly` values that silently override its Blueprint**
+  *(confirmed 2026-08-10)* — the placed `TrainingDummy` in `L_CombatTest` read
+  `DefaultAbilities: []`, `StaminaRegenPausedTag: None` and `ExhaustedTag: None` while the
+  Blueprint CDO held the correct values, so at runtime it was granted **no abilities at all** and
+  could not attack. The instance was showing the *C++ class defaults*, which is the signature:
+  the actor was placed before the Blueprint authored those values, and the old values serialized
+  into the level as overrides.
+
+  What makes it nasty is that it is unreachable. `EditDefaultsOnly` properties are not editable
+  on an instance, so the details panel does not show them and `ObjectTools.reset_properties`
+  fails on exactly those names while succeeding on `EditAnywhere` ones in the same call — which
+  is also the cheapest way to *confirm* this diagnosis. **The fix is to delete the placed actor
+  and re-place it from the Blueprint**; fresh serialization inherits the CDO. Note the transform
+  and label first.
+
+  It hides for a long time, because a dummy only needs to *receive* damage until the first slice
+  that needs it to act. Whenever a placed actor behaves as though its Blueprint were empty, read
+  the instance and the CDO separately and compare — `GetGrantedAbilities` returning `[]` against
+  a populated `DefaultAbilities` is the tell.
 - **`AssetTools.delete` is inconsistent about removing the `.uasset` from disk**
   *(confirmed 2026-08-10, both ways)* — deleting `GA_LightAttack` cleared the registry and
   left the file untouched with its original timestamp, which would have resurrected the
@@ -173,8 +192,13 @@ Once the stamina economy is involved, add:
 - **Regen resumes at the right moment** — suppressed for the action's duration *plus*
   `StaminaRegenPauseSeconds` measured from when it ended, then 25/s.
 - **Exhaustion triggers at zero and releases**: `State.Exhausted` appears, defensive actions
-  and jump refuse for 4 s, and it clears. Regen must *continue* while exhausted; if it does
-  not, exhaustion is inescapable.
+  and jump refuse, and it clears **when stamina reaches Max** — not on a timer. Regen must
+  *continue* while exhausted; it is the only thing that can end it, so if it does not,
+  exhaustion is permanent rather than merely long.
+- **Attribute base values are clamped, not just current values.** Read `baseValue` as well as
+  `currentValue` from `GetAttributeValues`. A base that has drifted above Max is invisible on
+  the bar and makes every cost read wrong — stamina base reached 105 against a displayed 100,
+  so a dodge from "full" left 55 instead of 50, and two dodges never reached zero.
 - **Costs never gate.** Dodging below the cost must still work and empty the bar. If an
   action silently does nothing at low stamina, `CostGameplayEffectClass` has crept back in.
 

@@ -12,12 +12,6 @@ void UTDMeleeAttackAbility::ActivateAbility(const FGameplayAbilitySpecHandle Han
 {
 	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
 
-	if (!CommitAbility(Handle, ActorInfo, ActivationInfo))
-	{
-		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
-		return;
-	}
-
 	StartMeleeTrace(GetAttackTraceRadius());
 
 	// A plain swing has no derived timing, so it plays at the montage's authored speed.

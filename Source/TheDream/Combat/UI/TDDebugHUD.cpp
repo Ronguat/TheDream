@@ -101,6 +101,14 @@ float ATDDebugHUD::DrawCombatantPanel(ATDCombatCharacter* Character, float X, fl
 	CursorY += LineHeight;
 
 	DrawLabelledBar(TEXT("SP"), Character->GetStaminaPercent(), Character->GetStamina(), Character->GetMaxStamina(), StaminaColor, X, CursorY, Scale);
+
+	// The pause outlives the action that caused it by StaminaRegenPauseSeconds, and the tag
+	// line cannot show that tail -- State.StaminaRegenPaused has already come off by then.
+	// This is the only readout of when regen actually resumes.
+	if (Character->IsStaminaRegenPaused())
+	{
+		DrawText(TEXT("regen paused"), TextColor, X + (BarWidth * Scale) + (6.0f * Scale), CursorY, nullptr, Scale);
+	}
 	CursorY += LineHeight;
 
 	if (bShowGameplayTags)

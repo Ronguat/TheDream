@@ -233,7 +233,11 @@ These are facts about the bundle, checked across all 6,576 assets, not impressio
   *baked into the clip*; `bEnableRootMotion` on the asset is **false** out of the box, so a
   clip named `_RM` moves nothing until that is enabled. Checked on
   `AS_SwordAndShieldAnimV1_Roll_Fw_RM`, which also reports `RootMotionRootLock: RefPose`.
-  Anything relying on authored displacement has to set this per clip.
+  Anything relying on authored displacement has to set this per clip. **Our eight
+  `SwordAndShieldAnimV1_Roll_*_RM` clips already have it enabled** — done in `67f4ace` when the
+  dodge was built — so re-reading them returns `true` and does not contradict this. The claim
+  describes what the bundle ships, not what our migrated copies now hold; any *newly* migrated
+  clip still needs the flag set.
 - **The Manny skeleton has `weapon_r` and `weapon_l` bones.** For attaching a sword and
   shield these are better than adding a socket to `hand_r`, since they are animated as part
   of the rig and the pack's clips were authored against them.
