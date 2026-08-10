@@ -40,6 +40,17 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Damage", meta=(ClampMin="0.0"))
 	float Damage = 15.0f;
 
+	/**
+	 *  A target carrying any of these takes no damage from this attack -- i-frames.
+	 *
+	 *  **Leaving this empty silently disables invulnerability**, which looks exactly like
+	 *  a dodge that does not work. It is the far half of a contract whose near half is
+	 *  UTDDodgeAbility::IFrameTag, and nothing enforces that the two agree, so both have
+	 *  to be checked together whenever either moves. Currently State.Dodging.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Damage")
+	FGameplayTagContainer TargetImmunityTags;
+
 	/** Socket swept for hits. hand_r suits unarmed; a weapon socket replaces it later. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Trace")
 	FName TraceSocket = FName("hand_r");

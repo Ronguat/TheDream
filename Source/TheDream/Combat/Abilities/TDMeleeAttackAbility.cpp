@@ -92,6 +92,13 @@ void UTDMeleeAttackAbility::HandleTraceHit(const FHitResult& Hit)
 		return;
 	}
 
+	// I-frames. Checked here rather than on the defender because this is the only place
+	// that knows a hit was resolved at all -- a dodge cannot refuse damage it never sees.
+	if (!TargetImmunityTags.IsEmpty() && TargetASC->HasAnyMatchingGameplayTags(TargetImmunityTags))
+	{
+		return;
+	}
+
 	FGameplayEffectSpecHandle SpecHandle = MakeOutgoingGameplayEffectSpec(DamageEffectClass, GetAbilityLevel());
 	if (!SpecHandle.IsValid())
 	{

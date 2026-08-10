@@ -91,9 +91,10 @@ Timings land within about a frame, biased late. `GA_Attack`'s `Branches` array i
 - Every new system should be playable in PIE with a debug enemy or training dummy as soon as possible.
 
 ## Project Documentation
-Two files carry knowledge the code cannot. Read them before working in their area; keep them true in the same commit that makes them wrong.
+Three files carry knowledge the code cannot. Read them before working in their area; keep them true in the same commit that makes them wrong.
 - **`Docs/Working-In-Unreal.md`** — how to drive the editor and its MCP toolset without losing work: which writes silently do nothing, when Live Coding is safe versus needing a full editor-closed rebuild, what is not scriptable at all, and the standing regression checks for combat changes. Read before writing assets or C++.
 - **`Docs/Combat-Decisions.md`** — dated log of combat decisions, the reasoning behind them, and the questions still open. Append an entry whenever a gameplay choice is made that a future reader could reasonably second-guess; never rewrite an entry to match new code, supersede it with a new one.
+- **`Docs/Animation-Library.md`** — where animations come from, the naming convention that makes 5,319 of them searchable, what the library does *not* contain, and how to migrate one in without dragging a duplicate skeleton behind it. Read before asking for or importing any animation.
 
 Deliberately **not** kept: per-system design docs. Local rationale belongs in header comments, which are read at the moment the code is; a doc that describes a system drifts out of sync and then gets trusted over the code.
 

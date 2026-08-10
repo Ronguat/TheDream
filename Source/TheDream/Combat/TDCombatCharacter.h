@@ -7,10 +7,12 @@
 #include "AbilitySystemInterface.h"
 #include "GameplayTagContainer.h"
 #include "GameplayAbilitySpec.h"
+#include "Engine/TimerHandle.h"
 #include "TDCombatCharacter.generated.h"
 
 class UAbilitySystemComponent;
 class UGameplayAbility;
+class UGameplayEffect;
 class UInputAction;
 class UTDAttributeSet;
 
@@ -67,6 +69,15 @@ protected:
 	TArray<TSubclassOf<UGameplayAbility>> DefaultAbilities;
 
 	/**
+	 *  Applied to self on spawn and never removed -- the always-on effects.
+	 *
+	 *  This is where stamina regen lives: an infinite periodic effect that is suppressed by
+	 *  a tag rather than reapplied, so nothing has to remember to switch it back on.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Abilities")
+	TArray<TSubclassOf<UGameplayEffect>> DefaultEffects;
+
+	/**
 	 *  Which input action drives which input tag, e.g. IA_LightAttack -> InputTag.Attack.
 	 *
 	 *  Abilities are matched by tag rather than by an integer ID, so granting a new
@@ -87,6 +98,33 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Attributes", meta=(ClampMin="1.0"))
 	float StartingMaxStamina = 100.0f;
 
+	/**
+	 *  Debug only: throw DebugAttackInputTag on a loop, so the dummy can be defended against.
+	 *
+	 *  Defensive work is unjudgeable against a target that never attacks -- i-frames, block
+	 *  coverage and parry windows all need something incoming to be measured against. This
+	 *  is deliberately the crudest thing that produces one, and is off by default.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat|Debug")
+	bool bDebugAutoAttack = false;
+
+	/** Input the auto-attack presses, normally InputTag.Attack. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat|Debug")
+	FGameplayTag DebugAutoAttackInputTag;
+
+	/** Seconds between one auto-attack starting and the next. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat|Debug", meta=(ClampMin="0.1"))
+	float DebugAutoAttackInterval = 3.0f;
+
+	/**
+	 *  How long the auto-attack holds the button, which selects the tier it throws.
+	 *
+	 *  The hold thresholds live on GA_Attack's Branches, so this is how you aim the dummy
+	 *  at a light, a heavy or a charged: 0.1 for light, 0.3 for heavy, 0.8 for charged.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat|Debug", meta=(ClampMin="0.0"))
+	float DebugAutoAttackHoldSeconds = 0.1f;
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Combat")
 	TObjectPtr<UAbilitySystemComponent> AbilitySystemComponent;
 
@@ -104,5 +142,15 @@ private:
 	/** Handles of granted abilities whose InputTag matches, in activation order. */
 	void GatherAbilitiesForInput(const FGameplayTag& InputTag, TArray<FGameplayAbilitySpecHandle>& OutHandles) const;
 
+	/** Presses the debug attack input, then releases it DebugAutoAttackHoldSeconds later. */
+	void DebugAutoAttackPress();
+	void DebugAutoAttackRelease();
+
 	bool bAbilitySystemInitialised = false;
+
+	/** Attributes, abilities and effects are seeded once, even though actor info is not. */
+	bool bDefaultsApplied = false;
+
+	FTimerHandle DebugAutoAttackTimerHandle;
+	FTimerHandle DebugAutoAttackReleaseTimerHandle;
 };

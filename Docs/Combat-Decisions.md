@@ -41,9 +41,16 @@ reasonably second-guess. Skip it for anything the code says plainly on its own.
   time spent. If feinting into guard turns out to be too cheap to punish, a stamina cost on
   the cancel is the obvious lever — but it should not be added pre-emptively.
 - **Is dodge displacement authored or driven?** Root motion reads better; code-driven
-  displacement is tunable, and spacing is the top feel goal. Deferred until there is a real
-  dodge animation to judge, and kept open by asking for root-motion clips, since root motion
-  can be switched off but cannot be synthesised.
+  displacement is tunable, and spacing is the top feel goal. Narrowed rather than settled by
+  the library: every dodge clip available is root motion and none is in place, so authored
+  displacement is the default unless we switch root motion off on the montage and drive it.
+- **Is there a forward dodge, or is forward evasion a roll?** The animation library contains
+  no forward dodge in any of its 6,576 assets — dodges are backward and lateral only, while
+  rolls cover all eight directions. That is a convention worth taking seriously rather than
+  working around: a roll is longer and more committal than a sidestep, so "forward evade"
+  may deserve to be a different move with a different risk profile. Options are to use a
+  roll for forward, to drop forward dodge and make dodge purely a retreat/lateral tool, or
+  to build both. `ETDDodgeDirection` currently assumes four symmetrical directions.
 
 ---
 

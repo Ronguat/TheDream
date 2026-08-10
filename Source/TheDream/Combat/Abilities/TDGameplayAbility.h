@@ -37,4 +37,21 @@ public:
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Input")
 	FGameplayTag InputTag;
+
+	virtual void EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled) override;
+
+protected:
+
+	/**
+	 *  Applied to self as this ability ends, however it ends.
+	 *
+	 *  Exists for the stamina regen pause. The design suppresses regen *during* a defensive
+	 *  action and for one second *after*; the during half is just the ability's own owned
+	 *  tags, but the after half outlives the ability and so has nowhere else to live.
+	 *
+	 *  Applied on cancellation too, deliberately: an interrupted dodge should not refund
+	 *  the pause, or being hit out of a defensive action would be a way to regen faster.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Effects")
+	TSubclassOf<UGameplayEffect> EffectOnEnd;
 };

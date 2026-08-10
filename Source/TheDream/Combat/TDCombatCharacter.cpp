@@ -5,6 +5,8 @@
 #include "Combat/Abilities/TDGameplayAbility.h"
 #include "AbilitySystemComponent.h"
 #include "EnhancedInputComponent.h"
+#include "GameplayEffect.h"
+#include "TimerManager.h"
 
 ATDCombatCharacter::ATDCombatCharacter()
 {
@@ -55,6 +57,16 @@ void ATDCombatCharacter::InitialiseAbilitySystem()
 		return;
 	}
 
+	// Actor info is rebound on every possession, but seeding must happen once. A pawn
+	// possessed after BeginPlay would otherwise be granted every ability a second time and
+	// stack a second copy of every DefaultEffect -- and for an infinite regen effect, that
+	// means permanently doubled regen rather than a visible one-off error.
+	if (bDefaultsApplied)
+	{
+		return;
+	}
+	bDefaultsApplied = true;
+
 	AbilitySystemComponent->SetNumericAttributeBase(UTDAttributeSet::GetMaxHealthAttribute(), StartingMaxHealth);
 	AbilitySystemComponent->SetNumericAttributeBase(UTDAttributeSet::GetHealthAttribute(), StartingMaxHealth);
 	AbilitySystemComponent->SetNumericAttributeBase(UTDAttributeSet::GetMaxStaminaAttribute(), StartingMaxStamina);
@@ -69,6 +81,59 @@ void ATDCombatCharacter::InitialiseAbilitySystem()
 			AbilitySystemComponent->GiveAbility(FGameplayAbilitySpec(AbilityClass, 1, INDEX_NONE, this));
 		}
 	}
+
+	FGameplayEffectContextHandle Context = AbilitySystemComponent->MakeEffectContext();
+	Context.AddSourceObject(this);
+
+	for (const TSubclassOf<UGameplayEffect>& EffectClass : DefaultEffects)
+	{
+		if (!EffectClass)
+		{
+			continue;
+		}
+
+		const FGameplayEffectSpecHandle SpecHandle = AbilitySystemComponent->MakeOutgoingSpec(EffectClass, 1, Context);
+		if (SpecHandle.IsValid())
+		{
+			AbilitySystemComponent->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data.Get());
+		}
+	}
+
+	if (bDebugAutoAttack && DebugAutoAttackInputTag.IsValid())
+	{
+		GetWorldTimerManager().SetTimer(
+			DebugAutoAttackTimerHandle,
+			this,
+			&ATDCombatCharacter::DebugAutoAttackPress,
+			DebugAutoAttackInterval,
+			true,
+			DebugAutoAttackInterval);
+	}
+}
+
+void ATDCombatCharacter::DebugAutoAttackPress()
+{
+	OnAbilityInputPressed(DebugAutoAttackInputTag);
+
+	if (DebugAutoAttackHoldSeconds <= 0.0f)
+	{
+		DebugAutoAttackRelease();
+		return;
+	}
+
+	// Held rather than tapped, because how long the button stays down is what selects the
+	// tier -- releasing immediately would make the dummy incapable of anything but a light.
+	GetWorldTimerManager().SetTimer(
+		DebugAutoAttackReleaseTimerHandle,
+		this,
+		&ATDCombatCharacter::DebugAutoAttackRelease,
+		DebugAutoAttackHoldSeconds,
+		false);
+}
+
+void ATDCombatCharacter::DebugAutoAttackRelease()
+{
+	OnAbilityInputReleased(DebugAutoAttackInputTag);
 }
 
 void ATDCombatCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
