@@ -72,6 +72,12 @@ editor once and stay in it for the whole content pass.
 
 ## Editing assets through the toolset
 
+**Verify against the artefact, not the tool's return value.** Two of these tools have now
+reported success while changing nothing that mattered, in different ways. Whatever the
+write was meant to produce — a value some system actually reads, a file gone from disk —
+check *that*, and prefer a check that does not go back through the API that did the
+writing. A read-back through the same layer can confirm a write that never landed.
+
 **`ObjectTools.set_properties` can return true, and `get_properties` can read the value
 back intact, while the write accomplishes nothing** *(reported once, twice in one
 session)*. Round-trip verification is the obvious check and it is not sufficient — the

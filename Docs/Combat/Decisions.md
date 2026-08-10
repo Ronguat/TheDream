@@ -37,6 +37,24 @@ reasonably second-guess. Skip it for anything the code says plainly on its own.
   rather than solved; revisit if it causes a real misread. "Active" is the standard
   alternative.
 
+These three gate the defense slice and should be settled before it starts, not during:
+
+- **Stamina is a prerequisite of defense, not its successor.** `CLAUDE.md`'s focus list
+  puts the stamina economy last, but dodge costs 50 and blocking drains, so block and
+  dodge cannot be built as specified without at least costs and regen. Either the minimum
+  economy folds into the defense slice, or defense ships with free actions that cannot be
+  judged — because the cost *is* the design.
+- **Do block and parry share a button?** "2026-08-09 — Ability input is routed by gameplay
+  tag" says they will; `CLAUDE.md` specs block as hold-RMB and parry as MB4 or LAlt+RMB.
+  Those are different designs. Sharing one `InputTag` and resolving by hold duration reuses
+  machinery that already works, but it makes parry cost a tap-vs-hold discrimination the
+  spec never asked for, on the most timing-critical defensive option.
+- **How does "cancel attack startup into block" work against `State.Attacking`?** That tag
+  is activation-blocking, so a block ability simply cannot activate mid-windup as things
+  stand. It needs an explicit cancel path, not a tag exception — and the boundary of "still
+  startup" has to be defined, since letting it run later than the coil would erase the
+  commitment the whole windup model is built on.
+
 ---
 
 ## Retired names
