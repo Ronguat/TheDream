@@ -67,6 +67,61 @@ concludes the log is wrong rather than merely old. Add a row whenever a name cha
 
 ---
 
+## 2026-08-10 — Costs are paid, not required; the system says yes and stamina decides
+
+**No action is ever refused for want of stamina.** Dodging at 30 stamina works, empties the
+bar and exhausts you. It does not silently fail.
+
+This replaces GAS's `CostGameplayEffectClass`, which is a *gate* — checked in
+`CanActivateAbility`, refusing the activation if the cost cannot be met — with an
+`EffectOnStart` on the shared ability base that simply applies. The distinction is the whole
+design: this combat is meant to be free-flowing and responsive, with **stamina management as
+what unlocks the system's potential rather than what prevents you using it**. An input that
+does nothing is the worst possible feedback, because it is indistinguishable from a dropped
+input.
+
+That only works if overspending is punished, which is why exhaustion could not be deferred
+to last as originally planned. Until it existed there was no downside to anything.
+
+**Exhaustion is a lockout on acting, not on recovering.** At zero stamina `State.Exhausted`
+is applied for 4 s, blocking defensive actions and jump — but regen keeps running throughout.
+Stopping regen too would make exhaustion inescapable rather than punishing.
+
+**Any defensive action cancels an attack, not just block.** This supersedes the reading in
+"2026-08-10 — The four questions gating defense, settled", which took `CLAUDE.md`'s "can
+cancel attack startup into block" literally and wired dodge to be *blocked* by
+`State.Attacking`. The boundary is unchanged — cancel until the attack commits, never after
+— but it is now stated once, by a `State.Attacking.Committed` tag applied at the commit
+checkpoint, which defensive abilities block on instead of `State.Attacking`. Adding block and
+parry needs no new cancel logic.
+
+## 2026-08-10 — The stamina economy is orchestrated in C++, not by GameplayEffects
+
+Regen, its pause, and exhaustion live on `ATDCombatCharacter` rather than in a periodic
+GameplayEffect with tag requirements.
+
+**This is not a move away from GAS.** Attributes, tags and the ASC are unchanged, and the
+AttributeSet was always C++ — GAS *is* a C++ framework. What moved is only the orchestration.
+The framing of "GAS or C++" as alternatives was a mistake in the discussion that led here;
+the real axis is what is *authored in a details panel* versus what is *code*.
+
+The reason is concrete: UE 5.8 expresses a GameplayEffect's tag behaviour through
+`gEComponents`, which cannot be scripted, and the inline containers accept writes while
+reading back empty. So every tag-gated effect needs a human in the editor. The economy is
+also a small state machine — a pause that outlives the action causing it, a timed lockout —
+which is clearer as fifty lines of C++ than as three effects and their components.
+
+Consequences accepted:
+
+- The regen rate, pause and exhaustion duration are now `UPROPERTY`s on the character rather
+  than effect assets. Still designer-tunable per Blueprint, but no longer swappable per
+  effect, which would matter if different characters ever needed different economies.
+- Regen watches for the pause tag rather than abilities telling it to stop. That is
+  deliberate: an ability that is cancelled or interrupted cannot leave regen suppressed
+  forever, because nothing is holding a flag it might fail to clear.
+- `GE_StaminaRegen` and `GE_StaminaRegenPause` were deleted rather than left unused, since an
+  effect that looks live and is not is worse than no effect at all.
+
 ## 2026-08-10 — I-frames last exactly as long as the dodge
 
 `CLAUDE.md` says the dodge "grants i-frames for the duration", and it is now built that way:

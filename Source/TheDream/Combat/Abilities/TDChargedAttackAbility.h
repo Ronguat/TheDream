@@ -152,6 +152,18 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Timing")
 	FName WindupSection = NAME_None;
 
+	/**
+	 *  Applied the instant the attack commits, and removed when it ends.
+	 *
+	 *  This is the boundary every defensive action cancels *before* and none cancels after.
+	 *  A defensive ability blocks on this rather than on State.Attacking, which is present
+	 *  from the press: blocking on State.Attacking would forbid cancelling a windup, and
+	 *  blocking on nothing would let a committed swing be erased. Stating it once here beats
+	 *  each defensive ability knowing when an attack became irrevocable.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Timing")
+	FGameplayTag CommittedTag;
+
 	/** Outcomes, ordered shortest first. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Timing")
 	TArray<FTDAttackBranch> Branches;

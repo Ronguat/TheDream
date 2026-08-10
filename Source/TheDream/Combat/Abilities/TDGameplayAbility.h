@@ -38,9 +38,25 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Input")
 	FGameplayTag InputTag;
 
+	virtual void ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData) override;
 	virtual void EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled) override;
 
 protected:
+
+	/**
+	 *  Applied to self the moment this ability activates. **This is how costs are paid.**
+	 *
+	 *  Deliberately not GAS's CostGameplayEffectClass, which is a *gate* -- it is checked in
+	 *  CanActivateAbility and refuses the activation if the cost cannot be met. This design
+	 *  wants the opposite: every action is always available, and stamina is the consequence
+	 *  of taking it rather than the permission to. Dodging at 30 stamina should work, empty
+	 *  the bar and exhaust you; it should not silently do nothing.
+	 *
+	 *  Applied unconditionally on activation, so anything that must not be charged when an
+	 *  activation subsequently fails should not use this.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Effects")
+	TSubclassOf<UGameplayEffect> EffectOnStart;
 
 	/**
 	 *  Applied to self as this ability ends, however it ends.

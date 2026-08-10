@@ -58,9 +58,20 @@ public:
 	UFUNCTION(BlueprintPure, Category="Combat|Attributes")
 	float GetStaminaPercent() const;
 
+	/** True while stamina regen is suppressed, whether by an action or the tail after one. */
+	UFUNCTION(BlueprintPure, Category="Combat|Stamina")
+	bool IsStaminaRegenPaused() const;
+
+	UFUNCTION(BlueprintPure, Category="Combat|Stamina")
+	bool IsExhausted() const { return bExhausted; }
+
 protected:
 
 	virtual void BeginPlay() override;
+	virtual void Tick(float DeltaSeconds) override;
+
+	/** Blocked while exhausted, per the design: no defensive actions and no jump. */
+	virtual void Jump() override;
 	virtual void PossessedBy(AController* NewController) override;
 	virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
 
@@ -89,6 +100,48 @@ protected:
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Input")
 	TMap<TObjectPtr<UInputAction>, FGameplayTag> AbilityInputActions;
+
+	/**
+	 *  Stamina regained per second, while regen is running at all.
+	 *
+	 *  Driven here rather than by a periodic GameplayEffect because the economy is a small
+	 *  state machine -- regen, a pause that outlives the action causing it, and an
+	 *  exhaustion lockout -- and expressing that across effects means tag components that
+	 *  cannot be scripted. Attributes and tags are still GAS; only the orchestration is here.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Stamina", meta=(ClampMin="0.0"))
+	float StaminaRegenPerSecond = 25.0f;
+
+	/**
+	 *  How long regen stays suppressed *after* the last defensive action ends.
+	 *
+	 *  Measured from the end, not the start, so it is a genuine tax on acting rather than
+	 *  something a long action absorbs for free.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Stamina", meta=(ClampMin="0.0"))
+	float StaminaRegenPauseSeconds = 1.0f;
+
+	/** How long Exhausted lasts once stamina reaches zero. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Stamina", meta=(ClampMin="0.0"))
+	float ExhaustionSeconds = 4.0f;
+
+	/**
+	 *  Present while a defensive action is running, via that ability's owned tags.
+	 *
+	 *  Regen watches for this rather than each ability telling it to stop, so an ability
+	 *  that is cancelled or interrupted cannot leave regen suppressed forever.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Stamina")
+	FGameplayTag StaminaRegenPausedTag;
+
+	/**
+	 *  Applied when stamina reaches zero, and what defensive abilities block on.
+	 *
+	 *  Regen deliberately continues while exhausted -- exhaustion is a lockout on acting,
+	 *  not on recovering, and stopping regen too would make it unescapable.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Stamina")
+	FGameplayTag ExhaustedTag;
 
 	/** Starting and maximum health. Characters spawn at full. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Attributes", meta=(ClampMin="1.0"))
@@ -161,6 +214,21 @@ private:
 	/** Presses the debug attack input, then releases it DebugAutoAttackHoldSeconds later. */
 	void DebugAutoAttackPress();
 	void DebugAutoAttackRelease();
+
+	/** Adds StaminaRegenPerSecond * delta, unless suppressed or already full. */
+	void TickStaminaRegen(float DeltaSeconds);
+
+	/** Applies ExhaustedTag and schedules its removal. */
+	void EnterExhaustion();
+	void ExitExhaustion();
+
+	void HandleStaminaChanged(const struct FOnAttributeChangeData& Data);
+
+	/** World time before which regen stays suppressed. Pushed out while an action runs. */
+	float RegenSuppressedUntil = 0.0f;
+
+	bool bExhausted = false;
+	FTimerHandle ExhaustionTimerHandle;
 
 	bool bAbilitySystemInitialised = false;
 

@@ -182,6 +182,16 @@ void UTDChargedAttackAbility::CommitAttack()
 
 	const FTDAttackBranch& Branch = Branches[SelectedBranchIndex];
 
+	// Past this point the attack can no longer be cancelled into a defensive action. Applied
+	// before anything else here so nothing can observe a committed attack that is not marked.
+	if (CommittedTag.IsValid())
+	{
+		if (UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo())
+		{
+			ASC->AddLooseGameplayTag(CommittedTag);
+		}
+	}
+
 	// Surfaces the chosen attack on the debug HUD and lets other systems react to it.
 	// Reading this tag back is the intended way to confirm which branch was thrown.
 	if (Branch.AttackTag.IsValid())
@@ -318,15 +328,23 @@ void UTDChargedAttackAbility::EndAbility(const FGameplayAbilitySpecHandle Handle
 	// A cancelled attack would otherwise leave the montage crawling at the coil rate.
 	SetMontagePlayRate(1.0f);
 
-	// Must come off even on cancellation, or the character reads as mid-attack forever.
-	if (AppliedAttackTag.IsValid())
+	// Must come off even on cancellation, or the character reads as mid-attack forever --
+	// and a leaked CommittedTag would silently forbid every future defensive action.
+	if (UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo())
 	{
-		if (UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo())
+		if (AppliedAttackTag.IsValid())
 		{
 			ASC->RemoveLooseGameplayTag(AppliedAttackTag);
 		}
-		AppliedAttackTag = FGameplayTag();
+		// Guarded on bAttackCommitted, not just on the tag being set: an attack cancelled
+		// during its windup never applied it, and removing an absent loose tag decrements
+		// a count that is already zero.
+		if (bAttackCommitted && CommittedTag.IsValid())
+		{
+			ASC->RemoveLooseGameplayTag(CommittedTag);
+		}
 	}
+	AppliedAttackTag = FGameplayTag();
 
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }

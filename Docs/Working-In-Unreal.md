@@ -98,9 +98,12 @@ Confirmed traps:
   `/Script/TheDream.TDAttributeSet:Health` when correct, empty string when broken.
 - **Object references need the full path** *(confirmed)* — `/Game/Path/Asset.Asset`, not
   `/Game/Path/Asset`. This one at least errors rather than failing silently.
-- **Array edits** *(reported once)* — changing an existing element and adding one in the
-  same call can fail on ambiguous insertion points. Set the array to `[]` first, then
-  write the full desired contents.
+- **Array edits** *(confirmed 2026-08-10)* — changing an existing element and adding one in
+  the same call fails with `ArrayAdd: elements changed alongside the size change; insertion
+  points are ambiguous`. It errors rather than failing silently, and it aborts only that
+  property while others in the same call still apply — so a partial write is the likely
+  state afterwards. **Set the container to empty first, then write the full contents**, as
+  two calls. Applies to `FGameplayTagContainer` too, where the array is `gameplayTags`.
 - **TMap keys** *(reported once)* — setting a map property logs `added key ... not found
   in map after import` while the entry is in fact correct at runtime. Misleading, not
   fatal.
@@ -121,13 +124,15 @@ Confirmed traps:
   even the modifier's attribute path — write fine, so a partially-configured effect is the
   likely outcome if you do not check. **Adding a GEComponent is not scriptable**; it needs a
   human in the details panel. Read tag containers back after writing them, always.
-- **`AssetTools.delete` leaves the `.uasset` on disk** *(confirmed 2026-08-10)* — it
-  returns true, force-deletes the object from memory and drops it from the asset
-  registry, so `find_assets` stops listing it. The file is untouched, with its original
-  timestamp. The next editor start rescans the directory and the asset comes back.
-  `AssetTools.exists` still returns true, so it is the check that catches this; a registry
-  query is the one that agrees with the lie. **Delete the file on disk as well** (`git rm`,
-  since Content is tracked) and confirm with a directory listing.
+- **`AssetTools.delete` is inconsistent about removing the `.uasset` from disk**
+  *(confirmed 2026-08-10, both ways)* — deleting `GA_LightAttack` cleared the registry and
+  left the file untouched with its original timestamp, which would have resurrected the
+  asset on the next directory rescan; `exists` still returned true while `find_assets` no
+  longer listed it. Deleting `GE_StaminaRegen` and `GE_StaminaRegenPause` the same day
+  removed both from disk properly. The difference was not identified — the deleted assets
+  differed in age, in whether they had ever been loaded, and in whether they were committed.
+  **So always check the directory afterwards** and `git rm` only what is actually still
+  there. Never assume either outcome.
 
 ## Not scriptable at all
 
@@ -156,9 +161,22 @@ standing set for combat work:
 - Abilities still grant
 - Abilities end cleanly (`bIsActive: false` at rest)
 - **No stuck state tags** — `State.Attacking` is activation-blocking, so a leaked copy
-  silently disables all future attacks
+  silently disables all future attacks. `State.Attacking.Committed` and `State.Dodging` are
+  worse: a leaked `Committed` forbids every future defensive action, and a leaked
+  `State.Dodging` leaves the character permanently invulnerable.
 - Template locomotion still works, whenever input code was touched
 - `LogAbilitySystem` is free of new warnings
+
+Once the stamina economy is involved, add:
+
+- **Stamina lands on exact values.** A dodge from full reads exactly 50, not "about half".
+- **Regen resumes at the right moment** — suppressed for the action's duration *plus*
+  `StaminaRegenPauseSeconds` measured from when it ended, then 25/s.
+- **Exhaustion triggers at zero and releases**: `State.Exhausted` appears, defensive actions
+  and jump refuse for 4 s, and it clears. Regen must *continue* while exhausted; if it does
+  not, exhaustion is inescapable.
+- **Costs never gate.** Dodging below the cost must still work and empty the bar. If an
+  action silently does nothing at low stamina, `CostGameplayEffectClass` has crept back in.
 
 Most of this is checkable without UI via `AbilitySystemInspectorToolset`
 (`GetAttributeValues`, `GetGrantedAbilities`, `GetActiveTags`) against the `UEDPIE_0_`

@@ -17,6 +17,116 @@ ATDCombatCharacter::ATDCombatCharacter()
 	AbilitySystemComponent->SetReplicationMode(EGameplayEffectReplicationMode::Mixed);
 
 	AttributeSet = CreateDefaultSubobject<UTDAttributeSet>(TEXT("AttributeSet"));
+
+	// Stamina regen runs per frame rather than on a timer, so the bar moves smoothly
+	// instead of stepping.
+	PrimaryActorTick.bCanEverTick = true;
+}
+
+void ATDCombatCharacter::Tick(float DeltaSeconds)
+{
+	Super::Tick(DeltaSeconds);
+
+	// Attributes are authority-only state; clients see regen by replication.
+	if (HasAuthority())
+	{
+		TickStaminaRegen(DeltaSeconds);
+	}
+}
+
+void ATDCombatCharacter::TickStaminaRegen(float DeltaSeconds)
+{
+	UWorld* World = GetWorld();
+	if (!World || !AbilitySystemComponent || StaminaRegenPerSecond <= 0.0f)
+	{
+		return;
+	}
+
+	// While an action is running the resume time keeps being pushed forward, which is what
+	// makes the pause measure from when the action *ends* without anyone tracking that.
+	if (StaminaRegenPausedTag.IsValid() && AbilitySystemComponent->HasMatchingGameplayTag(StaminaRegenPausedTag))
+	{
+		RegenSuppressedUntil = World->GetTimeSeconds() + StaminaRegenPauseSeconds;
+		return;
+	}
+
+	if (World->GetTimeSeconds() < RegenSuppressedUntil || GetStamina() >= GetMaxStamina())
+	{
+		return;
+	}
+
+	AbilitySystemComponent->ApplyModToAttribute(
+		UTDAttributeSet::GetStaminaAttribute(),
+		EGameplayModOp::Additive,
+		StaminaRegenPerSecond * DeltaSeconds);
+}
+
+bool ATDCombatCharacter::IsStaminaRegenPaused() const
+{
+	const UWorld* World = GetWorld();
+	if (!World)
+	{
+		return false;
+	}
+
+	const bool bActionRunning = AbilitySystemComponent && StaminaRegenPausedTag.IsValid()
+		&& AbilitySystemComponent->HasMatchingGameplayTag(StaminaRegenPausedTag);
+
+	return bActionRunning || World->GetTimeSeconds() < RegenSuppressedUntil;
+}
+
+void ATDCombatCharacter::HandleStaminaChanged(const FOnAttributeChangeData& Data)
+{
+	if (!bExhausted && Data.NewValue <= 0.0f)
+	{
+		EnterExhaustion();
+	}
+}
+
+void ATDCombatCharacter::EnterExhaustion()
+{
+	bExhausted = true;
+
+	if (AbilitySystemComponent && ExhaustedTag.IsValid())
+	{
+		AbilitySystemComponent->AddLooseGameplayTag(ExhaustedTag);
+	}
+
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().SetTimer(
+			ExhaustionTimerHandle,
+			this,
+			&ATDCombatCharacter::ExitExhaustion,
+			FMath::Max(ExhaustionSeconds, 0.01f),
+			false);
+	}
+}
+
+void ATDCombatCharacter::ExitExhaustion()
+{
+	if (!bExhausted)
+	{
+		return;
+	}
+	bExhausted = false;
+
+	if (AbilitySystemComponent && ExhaustedTag.IsValid())
+	{
+		AbilitySystemComponent->RemoveLooseGameplayTag(ExhaustedTag);
+	}
+}
+
+void ATDCombatCharacter::Jump()
+{
+	// Deliberately silent. Exhaustion is communicated by the tag and the empty bar; a
+	// failed jump that plays nothing reads as the lockout it is.
+	if (bExhausted)
+	{
+		return;
+	}
+
+	Super::Jump();
 }
 
 UAbilitySystemComponent* ATDCombatCharacter::GetAbilitySystemComponent() const
@@ -98,6 +208,10 @@ void ATDCombatCharacter::InitialiseAbilitySystem()
 			AbilitySystemComponent->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data.Get());
 		}
 	}
+
+	// Bound after seeding, so the initial fill to full does not read as a change to zero.
+	AbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(UTDAttributeSet::GetStaminaAttribute())
+		.AddUObject(this, &ATDCombatCharacter::HandleStaminaChanged);
 
 	if (bDebugAutoAttack && DebugAutoAttackInputTag.IsValid())
 	{
