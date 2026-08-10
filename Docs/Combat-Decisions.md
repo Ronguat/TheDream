@@ -40,14 +40,12 @@ reasonably second-guess. Skip it for anything the code says plainly on its own.
 - **Does an aborted attack cost anything?** Cancelling into block currently costs only the
   time spent. If feinting into guard turns out to be too cheap to punish, a stamina cost on
   the cancel is the obvious lever — but it should not be added pre-emptively.
-- **`DodgeSeconds` at 0.5 is too long.** First verdict from actually playing it, 2026-08-10:
-  well outside the range muscle memory expects from a dodge. Worth recording precisely because
-  of *when* it was judged — there is no montage yet, so this is a reaction to the pure mechanical
-  duration (the lockout and the i-frame window), with no animation to blame or to hide behind.
-  That is a cleaner signal than it will ever be again. `DodgeSeconds` is authored and the play
-  rate derives from it, so trying another value is one number; the thing not to do is compensate
-  by speeding the animation up and leaving the duration alone. Retune before authoring `AM_Dodge`,
-  so the montage is built against a duration that is roughly right.
+- **Does a 2.25× roll read as snappy or as fast-forwarded?** `DodgeSeconds` is 0.4 against 0.9 s
+  source clips (see the entry below), so the derived play rate is 2.25×. Unanswerable until
+  `AM_Dodge` exists. If it reads sped-up, the lever is **trimming each montage section** to just
+  the usable evasive portion rather than raising `DodgeSeconds` back up — a 0.6 s section at the
+  same 0.4 s dodge is 1.5×. Decide that while authoring the montage, not after, because it is the
+  difference between eight sections you keep and eight you re-cut.
 - **Input buffering is a prerequisite for judging any of this fairly.** Raised 2026-08-10 while
   testing the dodge. Without it, an input pressed during a committed action is simply dropped,
   which is indistinguishable from the action feeling unresponsive — so every timing verdict is
@@ -90,6 +88,27 @@ concludes the log is wrong rather than merely old. Add a row whenever a name cha
 | `LogTDCoil` | `LogTDCombatTiming`, behind the `TD.DebugCombatTiming` cvar. |
 
 ---
+
+## 2026-08-10 — The dodge is 0.4 s, judged before it had an animation
+
+`DodgeSeconds` went 0.5 → 0.3 → 0.4 in one sitting, settling at 0.4. 0.5 was a guess made before
+any clip existed; 0.3 overshot.
+
+**What makes this verdict unusually trustworthy is when it was taken.** There is still no
+`AM_Dodge`, so the judgement was made against the pure mechanical duration — the lockout and the
+i-frame window — with no animation to blame or to hide behind. Once a montage exists that signal
+is gone for good, because a dodge that feels wrong can then always be read as the animation's
+fault. Retuning before authoring was deliberate for exactly this reason, and it is worth
+repeating for block and parry: **judge the timing naked, then build the animation to fit it.**
+
+The order also protects the model. The play rate derives from `DodgeSeconds`, so had the montage
+been authored first, the tempting fix for "this feels too long" would have been to speed the clip
+up and leave the duration alone — which is the animation quietly becoming the balance authority,
+the thing this project has now rejected three times.
+
+The consequence to carry into authoring: 0.4 s against 0.9 s clips is a **2.25× play rate**. That
+is inside the range the earlier entry warned about, and the lever if it reads fast-forwarded is
+trimming the sections, not raising the duration back up. See the open question above.
 
 ## 2026-08-10 — No dodging in the air, and why it keys off state where the jump keys off action
 

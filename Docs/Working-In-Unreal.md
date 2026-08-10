@@ -125,10 +125,43 @@ verifications — the return value, the read-back, and the file on disk — were
 running game used the old value, which makes this strictly worse than the trap above: there is
 no cheap check that catches it. Only play does.
 
+**Reproduced deliberately the same day, on a second and much older property.** `DodgeSeconds` was
+changed 0.5 → 0.3 through `set_properties`, read back as 0.30000001, and confirmed changed on
+disk; PIE was then started in that same session and the ability's own trace reported
+`want=0.500s` on **eleven consecutive dodges**. This was run specifically to challenge the rule
+after the first observation, and it confirmed it instead — and rules out the tempting narrowing
+that only *newly added* properties are affected. `bBlockedWhileAirborne` was new in its build;
+`DodgeSeconds` had existed for days. Both failed identically.
+
+Note what made the second test conclusive where feel would not have been: the `DODGE` trace
+prints `want=<DodgeSeconds>` as the *running ability* reads it. Judging a 0.2s difference by hand
+is exactly the kind of thing a person will talk themselves into either way. Where a value drives
+behaviour, print the value.
+
 The mechanism was not proven. The likely candidate is Blueprint reinstancing rebuilding the CDO
 from serialized data and discarding the in-memory write, which would explain why the value
 survived to disk but not to runtime. Do not treat that explanation as settled; treat the rule as
 settled.
+
+**The cheap way out:** set the value in the editor's details panel by hand. *(confirmed
+2026-08-10)* `DodgeSeconds` was changed 0.3 → 0.4 that way and the very next PIE session reported
+`want=0.400s`, with **no editor restart** — MCP stayed connected throughout, so the editor
+demonstrably never went down.
+
+That is the precise difference, and it is worth stating as a contrast because the two look
+identical from outside:
+
+| Change made by | Takes effect after |
+|---|---|
+| Details panel | the next **PIE** restart |
+| `set_properties` | the next **editor** restart — a PIE restart is not enough |
+
+The PIE-restart-is-not-enough half is not an assumption: the eleven dodges that reported
+`want=0.500s` were in a PIE session started *after* the `set_properties` write.
+
+So reserve `set_properties` for cases where a human edit is impractical, prefer the panel for
+anything a designer would touch anyway, and restart the editor before trusting a programmatic
+write.
 
 This cost a false bug investigation — an hour spent believing the airborne check was broken when
 it was correct from the moment it was written. The tell, in hindsight: *the same code behaved
