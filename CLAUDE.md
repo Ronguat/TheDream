@@ -107,8 +107,12 @@ Deliberately **not** kept: per-system design docs. Local rationale belongs in he
 - When implementing an attack or defensive move, include the relevant input binding, montage/notify windows, stamina cost, and at least a basic success/failure outcome.
 - Prefer clarity and tunability over cleverness.
 - After making changes, briefly list the assets created or modified and the key values set.
+- **Commit and push whenever a notable contribution is finished, without waiting to be asked.** The bar is a coherent, verified unit of work — a slice wired up and checked, a rename with its referencers confirmed, a system built and compiling clean. Not every file edit, and not a half-finished slice. Pending *tuning* questions do not block a push; pending *correctness* verification does.
+- **Instrument before theorising.** Every real bug in the attack timing system was found by measuring, and reasoning from first principles mis-diagnosed several of them confidently. When behaviour is wrong and the cause is not obvious, add or enable a trace before proposing an explanation — and prefer an experiment that manipulates the suspected cause over one that merely observes it.
 
 ## Current Focus
-1. Player can perform Light → Heavy → Charged Heavy with correct input timing and basic montages.
-2. Block, Dodge, and Parry are functional with stamina costs.
+1. ~~Player can perform Light → Heavy → Charged Heavy with correct input timing and basic montages.~~ **Done 2026-08-09.** Hitboxes land at 250 / 500 / 750 ms, verified in play. Still missing from offense: the 2–4 hit light string (currently one hit), knockdown, and block-safety properties — the last of which needs a defender first.
+2. **Block, Dodge, and Parry with stamina costs.** The highest-leverage next slice. Precise spacing and whiff punish is the top feel goal, and neither can be judged without someone to punish you — offense is currently a timing exercise against a dummy that cannot answer.
 3. Simple hit reaction + knockdown on the dummy.
+4. Recovery and punish windows. Deliberately unmanaged so far: every attack's recovery is whatever is left of its montage. An attack that cannot be punished is not really tuned, however precise its startup.
+5. The 2–4 hit light string, then the stamina economy (the attribute exists; costs, regen and exhaustion do not).

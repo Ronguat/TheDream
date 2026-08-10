@@ -133,3 +133,24 @@ standing set for combat work:
 Most of this is checkable without UI via `AbilitySystemInspectorToolset`
 (`GetAttributeValues`, `GetGrantedAbilities`, `GetActiveTags`) against the `UEDPIE_0_`
 actors while PIE runs — ask for the session to be left running rather than stopped.
+
+**Those calls are separate round-trips, so a snapshot can straddle a state change.** An
+ability reading `bIsActive: false` alongside a live `State.Attacking` looks exactly like a
+leaked tag and is usually just sampling skew. Take several samples before believing one.
+
+## Diagnosing timing
+
+`TD.DebugCombatTiming 1` turns on a per-attack trace of the attack phase model: windup
+rate wanted versus applied, coil start and derived rate, commit position and target, and
+each release window edge with the montage position it fired at. Off by default, costs
+nothing when off.
+
+**Reach for it early.** Every real bug in that system was found by measuring, and
+reasoning about play rates on paper mis-diagnosed several of them confidently — including
+one case where the "fix" was applied to a claim that had not actually been falsified.
+Where possible, prefer an experiment that *manipulates* the suspected cause (moving the
+symptom onto a branch that currently works) over one that merely observes it.
+
+Two warnings on that category are deliberately ungated, because both describe an attack
+that silently stops dealing damage rather than crashing: a skipped coil, and a
+`ReleaseStartSeconds` that has drifted from the Release Window notify it is copied from.
