@@ -81,6 +81,13 @@ if the bundle is ever updated or extended.
 What each archetype can actually *do*, which is the question worth answering quickly. The
 number is how many clips share that move name across directions, `RM`/`IP` and qualifiers.
 
+> **This table reads only the first token after the pack name, so it is blind to
+> qualifiers.** `AS_..._Block1_Parry_RM` is counted under `Block1`, and the parry is
+> invisible. That blind spot already produced one confidently wrong claim here — that the
+> bundle contained no parry animation, when `SwordShield` has one. **Never conclude
+> something is absent from this table.** Use it to find what exists; grep
+> `Animation-Library-Index.tsv` for a substring before claiming anything does not.
+
 **`SwordShield` — the archetype this project uses:**
 
 | Move | Clips | Why it matters |
@@ -131,12 +138,12 @@ These are facts about the bundle, checked across all 6,576 assets, not impressio
 - **`OneHandSword` has no evasive animations at all.** If the project moves to a one-handed
   sword archetype, its dodges have to come from another folder — most plausibly
   `SwordShield`, which is the nearest stance.
-- **There is no parry animation in `SwordShield`, or anywhere else under that name.** No
-  `Parry`, no `Riposte`. The only deflect-shaped clips in all 6,576 assets are `Katana`'s
-  `Deflect`(5). Since parry is the third component of the defense focus item, it will have
-  to be built from `Block1`/`Block2` — which are block-impact reactions and may read
-  correctly for a successful parry — or borrowed from `Katana` and accepted as a stance
-  mismatch. Worth resolving before the parry slice starts, not during it.
+- **Parry is thin but it exists.** Six clips in the whole bundle: `SwordShield` has exactly
+  one, `SwordShieldAnimV3/Animation/RM/AS_SwordSwordAnimV3_Block1_Parry_RM`, and `Katana` has
+  five (`Deflect`, `Deflect_Complete`, `Deflect_Block`, `Deflect_Block_Heavy`,
+  `Deflect_Counter`). One clip is enough for a parry that has a single success animation, so
+  this is not a blocker — but there is no whiff or failed-parry variant in our archetype, and
+  Katana's richer set is the wrong stance. Worth knowing before the parry slice, not during.
 - **Props do not follow the `SM_` / `SKM_` naming convention, so do not search by prefix.**
   `SwordShield/DEMO/StaticMesh/` holds both `SM_Sword` *and* `Shield_Heater` — the shield
   carries no prefix at all. A prefix-filtered search for shield meshes returned nothing and
