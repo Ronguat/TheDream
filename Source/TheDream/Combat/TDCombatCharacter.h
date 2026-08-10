@@ -125,6 +125,22 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat|Debug", meta=(ClampMin="0.0"))
 	float DebugAutoAttackHoldSeconds = 0.1f;
 
+public:
+
+	/**
+	 *  Free-form line drawn under this character's bars by ATDDebugHUD. Debug only.
+	 *
+	 *  For per-activation detail that is not worth a gameplay tag -- which way a dodge
+	 *  resolved, which parry window is open. Tags answer "is this state on"; this answers
+	 *  "with what values", without every variation needing a tag of its own. Set it when an
+	 *  ability starts and clear it when the ability ends, or it will outlive what it
+	 *  describes.
+	 */
+	UPROPERTY(Transient, BlueprintReadWrite, Category="Combat|Debug")
+	FString DebugStatusLine;
+
+protected:
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Combat")
 	TObjectPtr<UAbilitySystemComponent> AbilitySystemComponent;
 

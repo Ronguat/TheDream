@@ -9,25 +9,40 @@
 
 class UAnimMontage;
 
-/** Which way the dodge went. Chosen from movement input, and picks a montage section. */
+/**
+ *  Which way the dodge went. Chosen from movement input, and picks a montage section.
+ *
+ *  Eight directions rather than four because WASD produces diagonals naturally, and the
+ *  source clips exist for all eight. The names match the animation pack's own direction
+ *  codes deliberately -- the montage's section names are these strings, so a section maps
+ *  1:1 onto the clip it was built from and a mistake is visible by reading.
+ */
 UENUM(BlueprintType)
 enum class ETDDodgeDirection : uint8
 {
-	Forward,
-	Backward,
-	Left,
-	Right
+	Fw,
+	FR,
+	R,
+	BR,
+	Bw,
+	BL,
+	L,
+	FL
 };
 
 /**
  *  A directional evade that costs stamina and grants invulnerability.
  *
- *  Two durations, deliberately separate. **The i-frame window is not the dodge's length.**
- *  Tying invulnerability to however long a clip happens to run makes the animation the
- *  balance authority, and it is the wrong one -- the recovery tail of a dodge is meant to
- *  be a window in which you can be punished, which is exactly what "invulnerable for the
- *  whole thing" removes. IFrameSeconds is therefore authored, and should stay shorter
- *  than DodgeSeconds.
+ *  **One duration, not two.** The i-frames last exactly as long as the dodge, so there is
+ *  no second number to keep in step and no way to express invulnerability outlasting the
+ *  move. An earlier version authored them separately, which made "0.3 inside 0.5" a pair
+ *  of numbers whose relationship nothing explained.
+ *
+ *  So a whiffed dodge is never *directly* punishable. Its cost is the stamina and being
+ *  unable to act, and spam is bounded by the stamina economy rather than by a vulnerable
+ *  tail. If dodge later proves too safe, the honest fix is a recovery window authored in
+ *  absolute time -- not a fraction, since what makes recovery punishable is how it compares
+ *  to an attack's startup, and that does not scale when the dodge is retuned.
  *
  *  Direction is resolved from movement input, falling back to backward when stationary,
  *  because a neutral dodge that goes nowhere reads as a flinch rather than an evade.
@@ -51,24 +66,20 @@ protected:
 	/**
 	 *  How long the dodge lasts end to end, including the part you can be punished in.
 	 *
-	 *  Only used while there is no montage. Once DodgeMontage is set the montage's own
-	 *  length ends the ability instead, so this stops being read.
+	 *  **Authoritative, and the montage is made to fit it** -- the section's play rate is
+	 *  derived as SectionLength / DodgeSeconds, exactly as the attack ladder derives every
+	 *  rate from authored timings. The source rolls run 0.9s, which was never a design
+	 *  decision, and letting a clip's length set a defensive option's commitment would make
+	 *  the animation the balance authority.
+	 *
+	 *  Note this changes duration, not distance: a roll played faster covers the same
+	 *  ground in less time. Travel is AnimRootMotionTranslationScale, not this.
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Dodge", meta=(ClampMin="0.01"))
 	float DodgeSeconds = 0.5f;
 
 	/**
-	 *  How long the character is untouchable, measured from activation.
-	 *
-	 *  Should stay below DodgeSeconds -- the difference is the recovery a whiffed dodge is
-	 *  punished in. Setting the two equal makes dodge strictly safe, which removes the cost
-	 *  the whole defensive economy is built on.
-	 */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Dodge", meta=(ClampMin="0.0"))
-	float IFrameSeconds = 0.3f;
-
-	/**
-	 *  Applied while the i-frames are live, and read by attackers to skip the hit.
+	 *  Applied for the whole dodge, and read by attackers to skip the hit.
 	 *
 	 *  Must match the tag the attacking ability treats as immunity
 	 *  (UTDMeleeAttackAbility::TargetImmunityTags). They are two halves of one contract,
@@ -77,26 +88,29 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Dodge")
 	FGameplayTag IFrameTag;
 
-	/** Optional until the dodge animations land. Sections are named after ETDDodgeDirection. */
+	/**
+	 *  Optional. Its sections must be named exactly for ETDDodgeDirection: Fw, FR, R, BR,
+	 *  Bw, BL, L, FL. A missing section warns and plays from the montage start rather than
+	 *  failing silently.
+	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Dodge")
 	TObjectPtr<UAnimMontage> DodgeMontage;
 
 	/** Direction the current dodge resolved to. Exposed so the debug HUD can show it. */
 	UPROPERTY(BlueprintReadOnly, Category="Combat|Dodge")
-	ETDDodgeDirection DodgeDirection = ETDDodgeDirection::Backward;
+	ETDDodgeDirection DodgeDirection = ETDDodgeDirection::Bw;
 
 private:
 
 	/** Movement input relative to the character's facing, or Backward when stationary. */
 	ETDDodgeDirection ResolveDodgeDirection() const;
 
-	/** Removes the i-frame tag. Separate from ability end so recovery can be vulnerable. */
+	/** Removes the i-frame tag. Idempotent, because EndAbility can run more than once. */
 	void EndIFrames();
 
 	UFUNCTION()
 	void HandleDodgeFinished();
 
-	FTimerHandle IFrameTimerHandle;
 	FTimerHandle DodgeTimerHandle;
 	bool bIFramesActive = false;
 };

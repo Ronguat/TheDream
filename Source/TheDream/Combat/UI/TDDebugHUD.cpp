@@ -35,10 +35,11 @@ void ATDDebugHUD::DrawHUD()
 	ATDCombatCharacter* LocalCharacter = Cast<ATDCombatCharacter>(GetOwningPawn());
 	if (LocalCharacter)
 	{
-		// Space for the tag line is reserved whether or not tags are present, so the bars
-		// hold still instead of hopping down the screen each time a state tag clears.
+		// Space for the tag and status lines is reserved whether or not they have anything
+		// in them, so the bars hold still instead of hopping down the screen every time a
+		// state tag clears or an ability ends.
 		const float LineHeight = BarHeight + TDPanelLineSpacing;
-		const float PanelHeight = LineHeight * (bShowGameplayTags ? 3.0f : 2.0f);
+		const float PanelHeight = LineHeight * (bShowGameplayTags ? 4.0f : 3.0f);
 
 		const float PanelX = ((static_cast<float>(Canvas->SizeX) - BarWidth) * 0.5f) + ScreenPadding.X;
 		const float PanelY = static_cast<float>(Canvas->SizeY) - ScreenPadding.Y - PanelHeight;
@@ -112,10 +113,17 @@ float ATDDebugHUD::DrawCombatantPanel(ATDCombatCharacter* Character, float X, fl
 			if (!OwnedTags.IsEmpty())
 			{
 				DrawText(OwnedTags.ToStringSimple(), TextColor, X, CursorY, nullptr, Scale);
-				CursorY += LineHeight;
 			}
+			CursorY += LineHeight;
 		}
 	}
+
+	// Whatever the active ability chose to say about itself, if anything.
+	if (!Character->DebugStatusLine.IsEmpty())
+	{
+		DrawText(Character->DebugStatusLine, TextColor, X, CursorY, nullptr, Scale);
+	}
+	CursorY += LineHeight;
 
 	return CursorY - Y;
 }

@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Combat/Abilities/TDDodgeAbility.h"
+#include "Combat/TDCombatCharacter.h"
+#include "Combat/TDCombatDebug.h"
 #include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
 #include "AbilitySystemComponent.h"
 #include "Animation/AnimMontage.h"
@@ -16,12 +18,28 @@ namespace
 	{
 		switch (Direction)
 		{
-		case ETDDodgeDirection::Forward:  return FName("Forward");
-		case ETDDodgeDirection::Backward: return FName("Backward");
-		case ETDDodgeDirection::Left:     return FName("Left");
-		case ETDDodgeDirection::Right:    return FName("Right");
+		case ETDDodgeDirection::Fw: return FName("Fw");
+		case ETDDodgeDirection::FR: return FName("FR");
+		case ETDDodgeDirection::R:  return FName("R");
+		case ETDDodgeDirection::BR: return FName("BR");
+		case ETDDodgeDirection::Bw: return FName("Bw");
+		case ETDDodgeDirection::BL: return FName("BL");
+		case ETDDodgeDirection::L:  return FName("L");
+		case ETDDodgeDirection::FL: return FName("FL");
 		}
 		return NAME_None;
+	}
+
+	/**
+	 *  Eight 45-degree sectors, centred on the cardinals so straight input never lands on a
+	 *  boundary. Enum order is clockwise from forward, which is what makes this a lookup
+	 *  rather than a second switch.
+	 */
+	ETDDodgeDirection DirectionForAngle(float SignedDegrees)
+	{
+		const int32 Sector = FMath::RoundToInt(SignedDegrees / 45.0f);
+		const int32 Index = ((Sector % 8) + 8) % 8;
+		return static_cast<ETDDodgeDirection>(Index);
 	}
 }
 
@@ -46,33 +64,63 @@ void UTDDodgeAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, c
 
 	DodgeDirection = ResolveDodgeDirection();
 
-	if (IFrameTag.IsValid() && IFrameSeconds > 0.0f)
+	if (ATDCombatCharacter* Character = Cast<ATDCombatCharacter>(GetAvatarActorFromActorInfo()))
+	{
+		Character->DebugStatusLine = FString::Printf(TEXT("Dodge %s  %.2fs  invulnerable"),
+			*SectionForDirection(DodgeDirection).ToString(), DodgeSeconds);
+	}
+
+	// No timer: the i-frames are the ability. EndAbility takes the tag off, and since
+	// DodgeSeconds is what ends the ability, the two cannot drift apart.
+	if (IFrameTag.IsValid())
 	{
 		if (UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo())
 		{
 			ASC->AddLooseGameplayTag(IFrameTag);
 			bIFramesActive = true;
 		}
-
-		World->GetTimerManager().SetTimer(
-			IFrameTimerHandle,
-			FTimerDelegate::CreateWeakLambda(this, [this]() { EndIFrames(); }),
-			IFrameSeconds,
-			false);
 	}
 
-	// No montage yet, so the ability is timed rather than animation-driven. When the dodge
-	// animations land, setting DodgeMontage takes over ending it and DodgeSeconds falls out
-	// of use -- the montage becomes the authority on length, as it is for attacks.
 	if (DodgeMontage)
 	{
-		UAbilityTask_PlayMontageAndWait* MontageTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(this, NAME_None, DodgeMontage, 1.0f, SectionForDirection(DodgeDirection));
-		MontageTask->OnCompleted.AddDynamic(this, &UTDDodgeAbility::HandleDodgeFinished);
-		MontageTask->OnBlendOut.AddDynamic(this, &UTDDodgeAbility::HandleDodgeFinished);
+		const FName Section = SectionForDirection(DodgeDirection);
+		const int32 SectionIndex = DodgeMontage->GetSectionIndex(Section);
+
+		// Derived from the *section*, not the montage: an eight-section montage's total
+		// length is eight rolls, and dividing by that would play each one at a crawl.
+		float PlayRate = 1.0f;
+		if (SectionIndex != INDEX_NONE)
+		{
+			const float SectionLength = DodgeMontage->GetSectionLength(SectionIndex);
+			if (SectionLength > 0.0f && DodgeSeconds > 0.0f)
+			{
+				PlayRate = FMath::Max(SectionLength / DodgeSeconds, 0.01f);
+			}
+		}
+		else
+		{
+			// Ungated: a mistyped section name plays the wrong roll at the wrong speed,
+			// which reads as a tuning problem rather than the authoring error it is.
+			UE_LOG(LogTDCombatTiming, Warning,
+				TEXT("Dodge montage %s has no section '%s'; playing from the start at rate 1."),
+				*DodgeMontage->GetName(), *Section.ToString());
+		}
+
+		UAbilityTask_PlayMontageAndWait* MontageTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(this, NAME_None, DodgeMontage, PlayRate, Section);
+
+		// Deliberately not ending the ability on completion. DodgeSeconds is the authority,
+		// and a montage whose sections chain into the next one would otherwise decide the
+		// dodge's length by how the asset happens to be linked.
 		MontageTask->OnInterrupted.AddDynamic(this, &UTDDodgeAbility::HandleDodgeFinished);
 		MontageTask->OnCancelled.AddDynamic(this, &UTDDodgeAbility::HandleDodgeFinished);
 		MontageTask->ReadyForActivation();
-		return;
+
+		// rate x DodgeSeconds should equal the section's authored length. If it does not,
+		// the section resolved to something other than the roll that was intended.
+		TD_TIMING_LOG(TEXT("[%.3f] DODGE      dir=%s section=%s sectionLen=%.3f rate=%.3f want=%.3fs"),
+			World->GetTimeSeconds(), *UEnum::GetValueAsString(DodgeDirection), *Section.ToString(),
+			(SectionIndex != INDEX_NONE) ? DodgeMontage->GetSectionLength(SectionIndex) : -1.0f,
+			PlayRate, DodgeSeconds);
 	}
 
 	World->GetTimerManager().SetTimer(
@@ -89,7 +137,7 @@ ETDDodgeDirection UTDDodgeAbility::ResolveDodgeDirection() const
 	const UCharacterMovementComponent* Movement = Character ? Character->GetCharacterMovement() : nullptr;
 	if (!Movement)
 	{
-		return ETDDodgeDirection::Backward;
+		return ETDDodgeDirection::Bw;
 	}
 
 	// The frame's input, not the current velocity: velocity still carries the previous
@@ -102,7 +150,7 @@ ETDDodgeDirection UTDDodgeAbility::ResolveDodgeDirection() const
 	{
 		// Standing still dodges backward. A neutral dodge that goes nowhere reads as a
 		// flinch, and backward is the direction that buys spacing.
-		return ETDDodgeDirection::Backward;
+		return ETDDodgeDirection::Bw;
 	}
 
 	Input.Normalize();
@@ -111,12 +159,8 @@ ETDDodgeDirection UTDDodgeAbility::ResolveDodgeDirection() const
 	const float ForwardDot = FVector::DotProduct(Input, Facing.Vector());
 	const float RightDot = FVector::DotProduct(Input, FRotationMatrix(Facing).GetUnitAxis(EAxis::Y));
 
-	if (FMath::Abs(ForwardDot) >= FMath::Abs(RightDot))
-	{
-		return (ForwardDot >= 0.0f) ? ETDDodgeDirection::Forward : ETDDodgeDirection::Backward;
-	}
-
-	return (RightDot >= 0.0f) ? ETDDodgeDirection::Right : ETDDodgeDirection::Left;
+	// Signed angle from facing: 0 is forward, +90 right, -90 left, 180 back.
+	return DirectionForAngle(FMath::RadiansToDegrees(FMath::Atan2(RightDot, ForwardDot)));
 }
 
 void UTDDodgeAbility::EndIFrames()
@@ -142,13 +186,19 @@ void UTDDodgeAbility::EndAbility(const FGameplayAbilitySpecHandle Handle, const 
 {
 	if (UWorld* World = GetWorld())
 	{
-		World->GetTimerManager().ClearTimer(IFrameTimerHandle);
 		World->GetTimerManager().ClearTimer(DodgeTimerHandle);
 	}
 
 	// Must come off even when the dodge is cancelled, or a cancelled dodge leaves the
 	// character permanently invulnerable -- the defensive equivalent of a stuck State tag.
 	EndIFrames();
+
+	// Cleared here for the same reason: a status line that outlives its ability describes
+	// something that is no longer happening, which is worse than showing nothing.
+	if (ATDCombatCharacter* Character = Cast<ATDCombatCharacter>(GetAvatarActorFromActorInfo()))
+	{
+		Character->DebugStatusLine.Reset();
+	}
 
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }

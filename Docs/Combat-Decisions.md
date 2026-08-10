@@ -67,6 +67,29 @@ concludes the log is wrong rather than merely old. Add a row whenever a name cha
 
 ---
 
+## 2026-08-10 — I-frames last exactly as long as the dodge
+
+`CLAUDE.md` says the dodge "grants i-frames for the duration", and it is now built that way:
+one number, `DodgeSeconds`, with no separate i-frame window.
+
+The rejected alternative was mine, and it had been built before anyone questioned it — an
+authored `IFrameSeconds` of 0.3 inside a 0.5 s dodge, leaving a vulnerable recovery tail. It
+was defensible on feel-goal grounds ("clear punish opportunities") but it was not in the
+spec, and more damningly the two numbers had no stated relationship. 0.3 and 0.5 were both
+guesses, and nothing said what made either right or what should happen to one if the other
+moved.
+
+So a whiffed dodge is **not directly punishable**. Its cost is 50 stamina and being unable
+to act for the duration, and spam is bounded by the stamina economy rather than by
+vulnerability. This is a real design position, not a simplification: it says the risk of
+dodging is resource commitment, not exposure.
+
+If dodge proves too safe in play, the fix is a recovery window authored in **absolute time**
+and i-frames derived as `DodgeSeconds - RecoverySeconds` — never a fraction. What makes
+recovery punishable is how it compares to an attack's startup, and a fraction silently
+shrinks the punish window below anything usable whenever the dodge is retuned faster. That
+is the same reasoning that keeps the attack ladder in absolute milliseconds.
+
 ## 2026-08-10 — The dodge authors its duration and derives the play rate
 
 The roll clips are 0.9 s; `DodgeSeconds` was guessed at 0.5 s before any clip existed. Rather
