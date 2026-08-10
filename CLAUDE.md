@@ -36,15 +36,25 @@ Attack phases, used consistently in code, comments and discussion:
 Note that "release" also names the button coming up, via GAS's `InputReleased`. Bare "release" always means the damaging phase; the button edge is always written as *input release*.
 
 ### Offense (Melee)
-**Windup length is preset, never resolved at the instant the button comes up.** One press starts a windup with checkpoints at 250 / 500 / 1000 ms. At each checkpoint, if LMB is still held the attack escalates to the next tier and continues to the next checkpoint; if it has already been let go, the attack commits there at whatever tier it reached. Still held at the last checkpoint, it commits anyway. Releasing early inside a band changes nothing — this is what stops a 251 ms heavy from dominating light. See `Docs/Combat/Decisions.md`.
+**An attack is defined by when it hits, not by how it plays.** Each tier authors the moment its hitbox goes live and the input boundary you must release before to get it. Every play rate is derived from those at runtime. Two numbers per tier:
 
-**Reactability is measured from the tell, not from the start of the attack.** Every branch shares an identical windup, so the defender cannot tell which attack is coming until the coil appears. The window that matters is coil → damaging, not press → damaging. This is why the branches share one animation, and why a 500 ms heavy is still barely reactable: reacting to it means first ruling out a light, which cannot be done before the coil.
+| | Release before | Hitbox live |
+|---|---|---|
+| Light | 200 ms | **250 ms** |
+| Heavy | 450 ms | **500 ms** |
+| Charged Heavy | (held past 450 ms) | **750 ms** |
 
-- **Light**: input released before 250 ms. 250 ms windup. 2–4 hit string (weapon dependent). First hit safe on block; subsequent hits are not. Any hit in the string guarantees the rest. Last hit knocks down but has heavy endlag. Minimal stamina damage. Unreactable — it never coils, so there is no tell at all.
-- **Heavy**: held past 250 ms. 500 ms windup. Single hit. Safe on block, punishable on whiff. Knocks down. Higher range, moderate stamina damage. Barely reactable — roughly 240 ms from coil to damaging.
-- **Charged Heavy**: held past 500 ms. 1000 ms windup. Single hit. Breaks block, heavy endlag, knocks down. Highest range. Very reactable — the coil holds long past the point a heavy would have committed.
+**Windup length is preset, never resolved at the instant the button comes up.** Hold past a boundary and the attack escalates to the next tier and its later hitbox; release before it and the attack still takes its full time to arrive. Releasing early inside a band changes nothing — this is what stops a fractionally-held heavy from dominating light. The cost is real dead time: let go at 260 ms and nothing visible happens until the heavy commits.
+
+**Reactability is measured from the tell, not from the start of the attack.** Every branch shares an identical windup, so the defender cannot tell which attack is coming until the coil appears — currently at 200 ms, when the light stops being possible. The window that matters is coil → damaging, not press → damaging. This is why the branches share one animation.
+
+- **Light**: input released before 200 ms, hits at 250 ms. 2–4 hit string (weapon dependent) — *not yet built; currently a single hit*. First hit safe on block; subsequent hits are not. Any hit in the string guarantees the rest. Last hit knocks down but has heavy endlag. Minimal stamina damage. Unreactable — it never coils, so there is no tell at all.
+- **Heavy**: held past 200 ms, hits at 500 ms. Single hit. Safe on block, punishable on whiff. Knocks down. Higher range, moderate stamina damage. **Currently ~300 ms from coil to damaging, which is more reactable than intended** — a faster light drags the tell earlier. Buying the ambiguity back means pushing the heavy's hitbox later; deferred until the whole ladder is tuned together.
+- **Charged Heavy**: held past 450 ms, hits at 750 ms. Single hit. Breaks block, heavy endlag, knocks down. Highest range. Very reactable — the coil holds long past the point a heavy would have committed.
 - Any light in a chain can be held to convert into a heavy.
 - Some heavies can chain into further heavies; never into lights.
+
+Timings land within about a frame of target, biased late. `GA_Attack`'s `Branches` array is authoritative for the values actually in play.
 
 The ladder above is design intent and is **untested** — current tuning lives in `GA_Attack`'s `Branches` array, which is authoritative for the values actually in play.
 

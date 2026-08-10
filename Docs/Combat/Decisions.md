@@ -66,6 +66,12 @@ Costs accepted, in rough order of how much they matter:
 - **Play rates are no longer readable from the asset.** What the montage actually does is
   a computation, which costs debuggability; the temporary `LogTDCoil` output is the
   substitute.
+- **A long enough frame hitch skips an attack's windup entirely.** Observed once when
+  clicking into the PIE window returned focus: a single frame advanced 0.333s, carrying
+  the montage to 0.48 and firing the release window's begin and end 9ms apart, before the
+  attack had even committed. Harmless in the editor, but an attack that arrives with no
+  windup is a fairness problem if it can ever happen in play. Not worth chasing yet;
+  worth remembering that nothing currently clamps a frame delta.
 
 ## 2026-08-09 — Reactability is measured from the tell, not from the press
 
