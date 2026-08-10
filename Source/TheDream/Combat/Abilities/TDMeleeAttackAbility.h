@@ -32,9 +32,6 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Animation")
 	TObjectPtr<UAnimMontage> AttackMontage;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Animation", meta=(ClampMin="0.1"))
-	float MontagePlayRate = 1.0f;
-
 	/** Applied to each actor hit. Expects a Data.Damage SetByCaller magnitude on Health. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Damage")
 	TSubclassOf<UGameplayEffect> DamageEffectClass;
@@ -66,8 +63,15 @@ protected:
 	/** Starts tracing. The task idles until a Melee Window notify opens on the montage. */
 	UAbilityTask_MeleeTrace* StartMeleeTrace(float Radius);
 
-	/** Plays AttackMontage, optionally from a named section, and ends the ability when it finishes. */
-	bool StartAttackMontage(FName StartSection);
+	/**
+	 *  Plays AttackMontage, optionally from a named section, and ends the ability when it finishes.
+	 *
+	 *  PlayRate is passed rather than authored because a derived rate has to be in force from
+	 *  the montage's first frame. Setting it after the montage starts leaves a window in which
+	 *  the swing runs at the wrong speed, and the whole timing model is built on the montage's
+	 *  measured position.
+	 */
+	bool StartAttackMontage(FName StartSection, float PlayRate);
 
 	UFUNCTION()
 	void HandleTraceHit(const FHitResult& Hit);

@@ -48,19 +48,21 @@ void UTDChargedAttackAbility::ActivateAbility(const FGameplayAbilitySpecHandle H
 
 	ActivationWorldTime = World->GetTimeSeconds();
 
-	if (!StartAttackMontage(WindupSection))
+	// The shared windup runs at whatever rate the *fastest* branch needs. Slower branches
+	// are made slower by the coil holding them back, not by this being slow.
+	//
+	// Handed to the montage as it starts rather than set immediately afterwards, so there
+	// is no window -- however brief -- in which the windup is running at the wrong speed.
+	const float WindupRate = ComputeWindupPlayRate();
+
+	if (!StartAttackMontage(WindupSection, WindupRate))
 	{
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
 		return;
 	}
 
-	// The shared windup runs at whatever rate the *fastest* branch needs. Slower branches
-	// are made slower by the coil holding them back, not by this being slow.
-	const float WindupRate = ComputeWindupPlayRate();
-	SetMontagePlayRate(WindupRate);
-
-	// applied should match wanted. If it reads 1.000 the montage was not yet playing when
-	// the rate was set, and the whole windup is running at the wrong speed.
+	// applied should match wanted. If it reads 1.000 the montage task did not honour the
+	// rate it was given, and the whole windup is running at the wrong speed.
 	TD_TIMING_LOG(TEXT("[%.3f] ACTIVATE   pos=%.4f windupRate wanted=%.3f applied=%.3f"),
 		World->GetTimeSeconds(), GetMontagePosition(), WindupRate,
 		ActualMontageRate(GetCurrentActorInfo(), AttackMontage));

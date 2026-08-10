@@ -20,7 +20,8 @@ void UTDMeleeAttackAbility::ActivateAbility(const FGameplayAbilitySpecHandle Han
 
 	StartMeleeTrace(GetAttackTraceRadius());
 
-	if (!StartAttackMontage(NAME_None))
+	// A plain swing has no derived timing, so it plays at the montage's authored speed.
+	if (!StartAttackMontage(NAME_None, 1.0f))
 	{
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
 	}
@@ -58,14 +59,14 @@ UAbilityTask_MeleeTrace* UTDMeleeAttackAbility::StartMeleeTrace(float Radius)
 	return TraceTask;
 }
 
-bool UTDMeleeAttackAbility::StartAttackMontage(FName StartSection)
+bool UTDMeleeAttackAbility::StartAttackMontage(FName StartSection, float PlayRate)
 {
 	if (!AttackMontage)
 	{
 		return false;
 	}
 
-	UAbilityTask_PlayMontageAndWait* MontageTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(this, NAME_None, AttackMontage, MontagePlayRate, StartSection);
+	UAbilityTask_PlayMontageAndWait* MontageTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(this, NAME_None, AttackMontage, PlayRate, StartSection);
 	MontageTask->OnCompleted.AddDynamic(this, &UTDMeleeAttackAbility::HandleMontageFinished);
 	MontageTask->OnBlendOut.AddDynamic(this, &UTDMeleeAttackAbility::HandleMontageFinished);
 	MontageTask->OnInterrupted.AddDynamic(this, &UTDMeleeAttackAbility::HandleMontageInterrupted);
