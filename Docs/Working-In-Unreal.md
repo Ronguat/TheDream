@@ -104,6 +104,15 @@ Confirmed traps:
 - **TMap keys** *(reported once)* — setting a map property logs `added key ... not found
   in map after import` while the entry is in fact correct at runtime. Misleading, not
   fatal.
+- **A GameplayEffect's inline tag containers cannot be written** *(confirmed 2026-08-10)* —
+  `inheritableOwnedTagsContainer` and `ongoingTagRequirements` are present in reflection and
+  accept a write without error, but read back **empty**. UE 5.8 has moved this behaviour to
+  `gEComponents` (`UTargetTagsGameplayEffectComponent`,
+  `UTargetTagRequirementsGameplayEffectComponent`), and the inline properties are vestigial.
+  Numeric and enum properties on the same asset — `durationPolicy`, `period`, `modifiers`,
+  even the modifier's attribute path — write fine, so a partially-configured effect is the
+  likely outcome if you do not check. **Adding a GEComponent is not scriptable**; it needs a
+  human in the details panel. Read tag containers back after writing them, always.
 - **`AssetTools.delete` leaves the `.uasset` on disk** *(confirmed 2026-08-10)* — it
   returns true, force-deletes the object from memory and drops it from the asset
   registry, so `find_assets` stops listing it. The file is untouched, with its original

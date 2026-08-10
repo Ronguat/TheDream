@@ -84,6 +84,13 @@ to act for the duration, and spam is bounded by the stamina economy rather than 
 vulnerability. This is a real design position, not a simplification: it says the risk of
 dodging is resource commitment, not exposure.
 
+There is precedent for this working. Divine Knockout and New World both shipped dodges whose
+cost was resource and commitment rather than exposure. New World's problem was not the model
+but its erosion — accumulating enough ways to reduce or refund a dodge's cost that players
+became uncatchable. That is a failure of *degree*, so it is recorded as something to watch as
+the economy grows, **not** as a rule against ever discounting a dodge. Divine Knockout avoided
+the question entirely by putting dodge on a flat 3-second cooldown.
+
 If dodge proves too safe in play, the fix is a recovery window authored in **absolute time**
 and i-frames derived as `DodgeSeconds - RecoverySeconds` — never a fraction. What makes
 recovery punishable is how it compares to an attack's startup, and a fraction silently
