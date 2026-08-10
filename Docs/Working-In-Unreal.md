@@ -40,10 +40,20 @@ every Blueprint parented to it fails to load. It surfaces as
 `Failed to load Class /Script/... as Parent for BlueprintGeneratedClass` — which looks
 like asset corruption, not a build problem, and it shows up sessions later.
 
-Live Coding is only safe for `.cpp` bodies with no reflection change (temporary logging
-is the ideal case). **Anything touching reflection — new classes, new or renamed
-`UPROPERTY`s, new module dependencies — needs a full editor-closed rebuild.** New module
-dependencies cannot be Live Coded at all; it refuses outright.
+Live Coding is *at best* safe for `.cpp` bodies with no reflection change. **Anything
+touching reflection — new classes, new or renamed `UPROPERTY`s, new module dependencies —
+needs a full editor-closed rebuild.** New module dependencies cannot be Live Coded at all;
+it refuses outright.
+
+**Live Coding crashed the editor on 2026-08-09** *(reported once)* on exactly the change
+it is supposed to handle best: adding `UE_LOG` statements and two file-static helpers to
+two `.cpp` files, no reflection touched, triggered just after stopping PIE. A `patch_0`
+exe and pdb were left in `Binaries\Win64`, so the compile appears to have succeeded and
+the crash came during injection. Nothing was lost — source, assets and git were all
+intact after restarting.
+
+Treat Live Coding as a convenience that can cost you the editor, not as the cheap path.
+If the change matters or the editor holds unsaved work, prefer the full rebuild.
 
 State up front, before starting, whether a change touches a header. That single fact
 decides whether the editor has to close, and it is easy to lose track of mid-discussion.
