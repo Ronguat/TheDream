@@ -40,8 +40,27 @@ public:
 
 	virtual void ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData) override;
 	virtual void EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled) override;
+	virtual bool CanActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayTagContainer* SourceTags = nullptr, const FGameplayTagContainer* TargetTags = nullptr, FGameplayTagContainer* OptionalRelevantTags = nullptr) const override;
 
 protected:
+
+	/**
+	 *  Refuse activation while the avatar is falling.
+	 *
+	 *  Keyed to the airborne *state*, not to having jumped, so it also covers walking off a
+	 *  ledge -- the question is what is physically possible, not what you chose to do. That is
+	 *  deliberately the opposite of the jump's regen pause, which keys on the action precisely
+	 *  because it is charging you for a choice.
+	 *
+	 *  A flag on the shared base rather than a check inside one ability, so block and parry can
+	 *  adopt the same rule with a checkbox if they want it. Left off by default: an air attack
+	 *  is a legitimate thing to want later, and this should not quietly forbid one.
+	 *
+	 *  Once input buffering exists this should arguably become a *defer* rather than a refusal,
+	 *  so a dodge pressed just before landing fires on landing instead of vanishing.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Activation")
+	bool bBlockedWhileAirborne = false;
 
 	/**
 	 *  Applied to self the moment this ability activates. **This is how costs are paid.**

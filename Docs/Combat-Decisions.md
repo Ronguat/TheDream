@@ -91,6 +91,60 @@ concludes the log is wrong rather than merely old. Add a row whenever a name cha
 
 ---
 
+## 2026-08-10 — No dodging in the air, and why it keys off state where the jump keys off action
+
+Found in play: you could dodge while airborne. Not intended, so `GA_Dodge` now refuses to
+activate while falling.
+
+**This keys on the airborne *state*, not on having jumped** — so it also stops a dodge after
+walking off a ledge. That is deliberately the opposite of the jump's regen pause immediately
+below, which keys on the *action* and lets a ledge-walk cost nothing. The two look inconsistent
+side by side and are not, because they answer different questions. The regen pause is a **cost**,
+so it should only attach to something you chose to do; falling because you walked off a ledge is
+not a choice and should not be billed. The dodge block is about what is **physically coherent** —
+a ground roll in mid-air is nonsense however you got up there.
+
+Implemented as `bBlockedWhileAirborne` on the shared ability base rather than a check inside the
+dodge, so block and parry can adopt it with a checkbox when those exist. Left **off** by default:
+an air attack is a legitimate thing to want later and this should not quietly forbid one.
+
+Worth flagging against the "costs are paid, not required" rule, which this does *not* violate:
+that rule is about stamina never refusing an action, not about state never refusing one. Dodging
+is already blocked by `State.Attacking.Committed`, `State.Dodging` and `State.Exhausted`, and
+being airborne is another such state. It also does not fall foul of "an input that silently does
+nothing is the worst feedback available", because unlike an empty stamina bar, being in the air
+is unmistakably legible to the player.
+
+**Once input buffering exists this should probably become a defer rather than a refusal**, so a
+dodge pressed just before landing fires on landing instead of vanishing. That is the shape that
+makes the rule feel like timing rather than like a wall, and it is noted on the property.
+
+## 2026-08-10 — Jumping is taxed in recovery, not in bar
+
+Jumping costs no stamina and never will, but it suppresses regen from the launch until 0.5 s
+after landing.
+
+This is a third category the economy did not previously have. Defensive actions **cost**
+stamina and pause regen; jumping only pauses. So a jump is never refused, never contributes to
+exhaustion, and cannot be the thing that empties you — but spamming it holds the bar flat, which
+matters precisely because the bar is what unlocks the defensive options. The cost of jumping is
+paid in *when you get your stamina back*, not in how much you have.
+
+Its tail is 0.5 s against a defensive action's 1 s, deliberately. A jump is a weaker commitment
+than a dodge and should not be taxed as heavily; giving it its own number rather than sharing
+`StaminaRegenPauseSeconds` is what keeps that adjustable.
+
+**The pause is keyed to the jump action, not to being airborne**, and the distinction is the
+whole rule. Walking off a ledge is not something you did, so it costs nothing — driving this
+off `IsFalling()` would have taxed falling itself, which is both unintuitive and exploitable in
+the wrong direction (it would discourage using terrain). For the same reason it hooks
+`OnJumped`, the actual launch, rather than `Jump()`, which only records a button press: a press
+that never becomes a jump — held against a ceiling, or pressed while already falling — must not
+charge for something that did not happen.
+
+Note this makes jumping while exhausted doubly locked: it is already refused by
+`State.Exhausted`, so the pause cannot extend an exhaustion it is not allowed to start.
+
 ## 2026-08-10 — Exhaustion ends at full, and the bar was lying about the pool
 
 Two changes from the first play session, one design and one bug they exposed together.

@@ -58,12 +58,41 @@ If the change matters or the editor holds unsaved work, prefer the full rebuild.
 State up front, before starting, whether a change touches a header. That single fact
 decides whether the editor has to close, and it is easy to lose track of mid-discussion.
 
-```
-& "C:\Program Files (x86)\UE_5.8\Engine\Build\BatchFiles\Build.bat" TheDreamEditor Win64 Development -project="<path>\TheDream.uproject" -waitmutex
+**Build from Bash, not PowerShell** *(confirmed 2026-08-10)*. Every PowerShell tool call
+rewrites `HKCU\Console\%SystemRoot%_System32_WindowsPowerShell_v1.0_powershell.exe`, clobbering
+the user's console font: it writes `FaceName` (forced to Lucida Console) without writing
+`FontSize`, so both the face and the size reset. It is not the build or `dotnet` that does it —
+a bare `Get-ItemProperty` reproduced it — so it is the tool invocation itself, every time.
+
+`Build.bat` cannot be called from Git Bash: the space in `C:\Program Files (x86)` survives every
+quoting form tried, including `cmd //c` with an explicitly quoted path. Skip the batch file and
+call UnrealBuildTool directly, which is all `Build.bat` does after its lock and dotnet lookup.
+Use the **bundled** dotnet — the system one tops out at .NET 9 and UBT needs 10:
+
+```bash
+cd "/c/Program Files (x86)/UE_5.8/Engine/Source" && \
+"/c/Program Files (x86)/UE_5.8/Engine/Binaries/ThirdParty/DotNet/10.0/win-x64/dotnet.exe" \
+  "C:/Program Files (x86)/UE_5.8/Engine/Binaries/DotNET/UnrealBuildTool/UnrealBuildTool.dll" \
+  TheDreamEditor Win64 Development \
+  -project="C:/Users/rross/Documents/Unreal Projects/TheDream/TheDream.uproject" -waitmutex
 ```
 
+The CWD matters: UBT must run from `Engine/Source`.
+
 Roughly 15–30s incremental. **Verify by confirming `Binaries\Win64\UnrealEditor-TheDream.dll`
-is newer than every source file** — not merely that the build reported success.
+is newer than every source file** — not merely that the build reported success. From Bash:
+
+```bash
+# Empty output means the DLL is newer than every source. This is the check.
+find Source \( -name "*.cpp" -o -name "*.h" \) -newer Binaries/Win64/UnrealEditor-TheDream.dll -print
+ls Binaries/Win64/UnrealEditor-TheDream.patch_* 2>/dev/null || echo "no patch files"
+```
+
+Use `-newer` rather than eyeballing timestamps. Two things make a manual comparison lie, and both
+were hit within an hour of writing this down: `ls` and `find -printf %T` report in **different
+timezones** here (local vs UTC, a six hour gap), and a `%TH:%TM:%TS` format omits the **date**, so
+a file from yesterday reads as newer than a binary built minutes ago. `-newer` compares mtimes
+directly and is immune to both.
 `UnrealEditor-TheDream.patch_*` files accumulate from Live Coding runs; sweep them after
 a full rebuild so the binary state is unambiguous.
 
@@ -82,6 +111,28 @@ writing. A read-back through the same layer can confirm a write that never lande
 back intact, while the write accomplishes nothing** *(reported once, twice in one
 session)*. Round-trip verification is the obvious check and it is not sufficient — the
 write lands, just somewhere nothing reads.
+
+**A Blueprint CDO property set this way is not live in the current editor session**
+*(confirmed 2026-08-10)*. `bBlockedWhileAirborne` was set on `GA_Dodge`'s CDO, read back true,
+saved, and confirmed changed on disk by `git status` — and PIE ignored it completely, twice, in
+a clean session started afterwards. The editor was then closed for an unrelated rebuild, and on
+reopening the same asset and *functionally identical code* the rule worked immediately. Nothing
+about the logic changed between the two runs; only the restart did.
+
+So the practical rule: **after setting a property on a Blueprint CDO, restart the editor (or
+recompile the Blueprint) before believing anything you see in PIE.** All three of the obvious
+verifications — the return value, the read-back, and the file on disk — were green while the
+running game used the old value, which makes this strictly worse than the trap above: there is
+no cheap check that catches it. Only play does.
+
+The mechanism was not proven. The likely candidate is Blueprint reinstancing rebuilding the CDO
+from serialized data and discarding the in-memory write, which would explain why the value
+survived to disk but not to runtime. Do not treat that explanation as settled; treat the rule as
+settled.
+
+This cost a false bug investigation — an hour spent believing the airborne check was broken when
+it was correct from the moment it was written. The tell, in hindsight: *the same code behaved
+differently across an editor restart with no rebuild in between.* That is never a logic bug.
 When configuring an asset type for the first time, **diff it against a known-good asset
 of the same type.** Comparing `IMC_Combat` against the stock `IMC_Default` is what
 exposed the input bug; nothing about our own asset looked wrong in isolation.

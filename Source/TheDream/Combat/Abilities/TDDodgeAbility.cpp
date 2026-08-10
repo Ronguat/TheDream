@@ -117,6 +117,14 @@ void UTDDodgeAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, c
 			(SectionIndex != INDEX_NONE) ? DodgeMontage->GetSectionLength(SectionIndex) : -1.0f,
 			PlayRate, DodgeSeconds);
 	}
+	else
+	{
+		// Traced even with no montage. The montage is optional and is currently unset, so
+		// gating the only record that a dodge happened on having one made the ability
+		// invisible to the trace exactly while it was the thing under test.
+		TD_TIMING_LOG(TEXT("[%.3f] DODGE      dir=%s want=%.3fs (no montage)"),
+			World->GetTimeSeconds(), *UEnum::GetValueAsString(DodgeDirection), DodgeSeconds);
+	}
 
 	World->GetTimerManager().SetTimer(
 		DodgeTimerHandle,

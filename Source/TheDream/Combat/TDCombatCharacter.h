@@ -73,6 +73,12 @@ protected:
 
 	/** Blocked while exhausted, per the design: no defensive actions and no jump. */
 	virtual void Jump() override;
+
+	/** The actual launch, as opposed to Jump() which only records the press. Starts the regen pause. */
+	virtual void OnJumped_Implementation() override;
+
+	/** Ends the jump's regen pause, leaving JumpRegenPauseSeconds of tail behind it. */
+	virtual void Landed(const FHitResult& Hit) override;
 	virtual void PossessedBy(AController* NewController) override;
 	virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
 
@@ -124,6 +130,20 @@ protected:
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Stamina", meta=(ClampMin="0.0"))
 	float StaminaRegenPauseSeconds = 1.0f;
+
+	/**
+	 *  How long regen stays suppressed after *landing* from a jump.
+	 *
+	 *  Jumping costs no stamina but is not free: regen is suppressed from the moment of the
+	 *  jump until this long after landing, so height and airtime are paid for in recovery
+	 *  rather than in bar. Separate from StaminaRegenPauseSeconds because a jump is a weaker
+	 *  commitment than a defensive action and should not be taxed as heavily.
+	 *
+	 *  Keyed to the jump *action*, never to being airborne -- walking off a ledge is not
+	 *  something you did, and costs nothing.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Stamina", meta=(ClampMin="0.0"))
+	float JumpRegenPauseSeconds = 0.5f;
 
 	/**
 	 *  Present while a defensive action is running, via that ability's owned tags.
@@ -200,6 +220,16 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat|Debug")
 	bool bDebugAutoAttackResetPosition = true;
 
+	/**
+	 *  Extra delay after the attack ability ends before the reset fires. Debug only.
+	 *
+	 *  The ability ends when its montage blends out, which is noticeably earlier than the
+	 *  swing looks finished, so resetting on that edge alone snaps the attacker home
+	 *  mid-follow-through. This waits for the animation to actually read as over.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat|Debug", meta=(ClampMin="0.0"))
+	float DebugAutoAttackResetDelaySeconds = 0.35f;
+
 public:
 
 	/**
@@ -252,8 +282,11 @@ private:
 
 	void HandleStaminaChanged(const struct FOnAttributeChangeData& Data);
 
-	/** World time before which regen stays suppressed. Pushed out while an action runs. */
+	/** World time before which regen stays suppressed. Pushed out while a suppressor is active. */
 	float RegenSuppressedUntil = 0.0f;
+
+	/** True between an actual jump launch and landing. Never set by merely falling. */
+	bool bJumpRegenPauseActive = false;
 
 	bool bExhausted = false;
 
@@ -264,6 +297,7 @@ private:
 
 	FTimerHandle DebugAutoAttackTimerHandle;
 	FTimerHandle DebugAutoAttackReleaseTimerHandle;
+	FTimerHandle DebugAutoAttackResetTimerHandle;
 
 	/** Where the auto-attacker started, captured once, so each swing begins from the same spot. */
 	FTransform DebugAutoAttackHomeTransform;

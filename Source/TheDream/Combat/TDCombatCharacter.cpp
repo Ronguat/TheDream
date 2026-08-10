@@ -43,15 +43,28 @@ void ATDCombatCharacter::TickStaminaRegen(float DeltaSeconds)
 		return;
 	}
 
-	// While an action is running the resume time keeps being pushed forward, which is what
-	// makes the pause measure from when the action *ends* without anyone tracking that.
+	const float Now = World->GetTimeSeconds();
+	bool bSuppressorActive = false;
+
+	// While a suppressor is active the resume time keeps being pushed forward, which is what
+	// makes each pause measure from when its cause *ends* without anyone tracking that. Taking
+	// the max rather than assigning lets two overlap without the shorter cutting the longer short.
 	if (StaminaRegenPausedTag.IsValid() && AbilitySystemComponent->HasMatchingGameplayTag(StaminaRegenPausedTag))
 	{
-		RegenSuppressedUntil = World->GetTimeSeconds() + StaminaRegenPauseSeconds;
-		return;
+		RegenSuppressedUntil = FMath::Max(RegenSuppressedUntil, Now + StaminaRegenPauseSeconds);
+		bSuppressorActive = true;
 	}
 
-	if (World->GetTimeSeconds() < RegenSuppressedUntil || GetStamina() >= GetMaxStamina())
+	// Set at the jump's launch and cleared on landing, so the pause spans the whole airborne
+	// period plus its tail. Deliberately not driven by IsFalling(): walking off a ledge is not
+	// an action and costs nothing.
+	if (bJumpRegenPauseActive)
+	{
+		RegenSuppressedUntil = FMath::Max(RegenSuppressedUntil, Now + JumpRegenPauseSeconds);
+		bSuppressorActive = true;
+	}
+
+	if (bSuppressorActive || Now < RegenSuppressedUntil || GetStamina() >= GetMaxStamina())
 	{
 		return;
 	}
@@ -73,7 +86,7 @@ bool ATDCombatCharacter::IsStaminaRegenPaused() const
 	const bool bActionRunning = AbilitySystemComponent && StaminaRegenPausedTag.IsValid()
 		&& AbilitySystemComponent->HasMatchingGameplayTag(StaminaRegenPausedTag);
 
-	return bActionRunning || World->GetTimeSeconds() < RegenSuppressedUntil;
+	return bActionRunning || bJumpRegenPauseActive || World->GetTimeSeconds() < RegenSuppressedUntil;
 }
 
 void ATDCombatCharacter::HandleStaminaChanged(const FOnAttributeChangeData& Data)
@@ -129,6 +142,26 @@ void ATDCombatCharacter::Jump()
 	}
 
 	Super::Jump();
+}
+
+void ATDCombatCharacter::OnJumped_Implementation()
+{
+	Super::OnJumped_Implementation();
+
+	// Hooked here rather than in Jump(), which only records the button press. A press that
+	// never becomes a launch -- held against a ceiling, or pressed while already falling --
+	// must not pause regen, or the pause would be charging for something that did not happen.
+	bJumpRegenPauseActive = true;
+}
+
+void ATDCombatCharacter::Landed(const FHitResult& Hit)
+{
+	Super::Landed(Hit);
+
+	// Clearing the flag is the whole job: the last airborne tick already pushed
+	// RegenSuppressedUntil to JumpRegenPauseSeconds ahead, so the tail measures from here.
+	// Landing after walking off a ledge clears a flag that was never set, which is the point.
+	bJumpRegenPauseActive = false;
 }
 
 UAbilitySystemComponent* ATDCombatCharacter::GetAbilitySystemComponent() const
@@ -258,11 +291,35 @@ void ATDCombatCharacter::HandleDebugAutoAttackEnded(const FAbilityEndedData& End
 {
 	// The interesting reset: it puts the attacker home for the whole gap between swings, so it
 	// idles where it was placed instead of wherever its last lunge left it.
-	ReturnToDebugAutoAttackHome();
+	//
+	// Delayed, because the ability ends when its montage blends out rather than when the swing
+	// looks finished -- resetting on that edge alone visibly snaps the attacker home in the
+	// middle of its follow-through.
+	if (!bDebugAutoAttackResetPosition)
+	{
+		return;
+	}
+
+	if (DebugAutoAttackResetDelaySeconds <= 0.0f)
+	{
+		ReturnToDebugAutoAttackHome();
+		return;
+	}
+
+	GetWorldTimerManager().SetTimer(
+		DebugAutoAttackResetTimerHandle,
+		this,
+		&ATDCombatCharacter::ReturnToDebugAutoAttackHome,
+		DebugAutoAttackResetDelaySeconds,
+		false);
 }
 
 void ATDCombatCharacter::DebugAutoAttackPress()
 {
+	// A pending delayed reset must not survive into the next swing, or it would snap the
+	// attacker home mid-attack. The reset below covers the same ground immediately.
+	GetWorldTimerManager().ClearTimer(DebugAutoAttackResetTimerHandle);
+
 	// Belt and braces. The post-attack reset normally leaves nothing to do here, but an ability
 	// that is cancelled or interrupted may never end cleanly, and this preserves the guarantee
 	// that every swing starts from an identical transform.
