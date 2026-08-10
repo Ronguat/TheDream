@@ -31,6 +31,27 @@ reasonably second-guess. Skip it for anything the code says plainly on its own.
 
 ---
 
+## 2026-08-09 — Reactability is measured from the tell, not from the press
+
+A 500 ms heavy windup looks reactable if you read the number on its own. It is not,
+because reacting to a heavy first requires knowing it is *not* a light, and nothing
+distinguishes them until the coil appears. The window a defender actually gets is coil →
+damaging: roughly 240 ms for the heavy, which sits right at the edge of human reaction.
+The charged attack is genuinely reactable because its coil holds long past the point a
+heavy would have committed, which is itself the tell.
+
+Consequences worth holding onto:
+
+- Lengthening a windup does **not** by itself make an attack more reactable. Moving
+  `CoilStartSeconds` earlier does, and so does giving a branch its own animation.
+- The shared windup is not only an authoring convenience — it is the mechanism that keeps
+  the reaction window short. Giving a branch a distinct `MontageSection` later buys
+  readability at the direct cost of that branch's ambiguity.
+- The light is unreactable because it never coils at all, not because it is fast.
+
+This corrects a wrong edit to CLAUDE.md made the same day, which downgraded the heavy to
+"reactable" purely on the size of the number.
+
 ## 2026-08-09 — Documentation: a decision log, not per-system design docs
 
 Per-system design docs were considered and rejected. Header comments in this codebase

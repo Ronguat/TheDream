@@ -10,11 +10,12 @@
 void UTDChargedAttackAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData)
 {
 	// Deliberately not Super: the base class starts tracing immediately, whereas the
-	// branch -- and therefore the trace radius -- is unknown until the player releases.
+	// branch -- and therefore the trace radius -- is unknown until the attack commits.
 	UTDGameplayAbility::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
 
-	SelectedBranchIndex = INDEX_NONE;
-	bBranchResolved = false;
+	SelectedBranchIndex = 0;
+	bAttackCommitted = false;
+	bInputHeld = true;
 	AppliedAttackTag = FGameplayTag();
 
 	UWorld* World = GetWorld();
@@ -24,119 +25,171 @@ void UTDChargedAttackAbility::ActivateAbility(const FGameplayAbilitySpecHandle H
 		return;
 	}
 
-	HoldStartTime = World->GetTimeSeconds();
-
 	if (!StartAttackMontage(WindupSection))
 	{
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
 		return;
 	}
 
-	FTimerManager& Timers = World->GetTimerManager();
-
-	// Reaching the coil point with the button still down slows the swing rather than
-	// letting it run on into the strike.
-	if (WindupAnimEndSeconds > 0.0f)
+	// The coil is an animation landmark, so it is scheduled off the montage rather than
+	// off any branch. A branch that commits before it never coils, and therefore never
+	// gives the defender a tell.
+	if (CoilStartSeconds > 0.0f)
 	{
-		Timers.SetTimer(
-			HoldTimerHandle,
-			FTimerDelegate::CreateWeakLambda(this, [this]() { EnterHold(); }),
-			WindupAnimEndSeconds,
+		World->GetTimerManager().SetTimer(
+			CoilTimerHandle,
+			FTimerDelegate::CreateWeakLambda(this, [this]() { EnterCoil(); }),
+			CoilStartSeconds,
 			false);
 	}
-
-	// Holding forever would make the deepest attack free of risk, so it commits itself.
-	if (MaxHoldSeconds > 0.0f)
+	else
 	{
-		Timers.SetTimer(
-			MaxHoldTimerHandle,
-			FTimerDelegate::CreateWeakLambda(this, [this]() { ResolveBranch(MaxHoldSeconds); }),
-			MaxHoldSeconds,
-			false);
+		EnterCoil();
 	}
+
+	ScheduleCheckpoint(Branches[0].WindupSeconds);
 }
 
 void UTDChargedAttackAbility::InputReleased(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo)
 {
 	Super::InputReleased(Handle, ActorInfo, ActivationInfo);
 
-	const UWorld* World = GetWorld();
+	// Deliberately does not commit anything. The windup runs its preset length either
+	// way; the pending checkpoint reads this and decides whether to escalate or commit.
+	// Letting go early is what selects the branch, not what fires it.
+	bInputHeld = false;
+}
+
+void UTDChargedAttackAbility::ScheduleCheckpoint(float DelaySeconds)
+{
+	UWorld* World = GetWorld();
 	if (!World)
 	{
 		return;
 	}
 
-	ResolveBranch(World->GetTimeSeconds() - HoldStartTime);
+	// A branch with a zero-length windup is due the moment it is selected.
+	if (DelaySeconds <= 0.0f)
+	{
+		HandleCheckpoint();
+		return;
+	}
+
+	World->GetTimerManager().SetTimer(
+		CheckpointTimerHandle,
+		FTimerDelegate::CreateWeakLambda(this, [this]() { HandleCheckpoint(); }),
+		DelaySeconds,
+		false);
 }
 
-void UTDChargedAttackAbility::EnterHold()
+void UTDChargedAttackAbility::HandleCheckpoint()
 {
-	if (bBranchResolved)
+	if (bAttackCommitted)
 	{
 		return;
 	}
 
-	SetMontagePlayRate(HoldPlayRate);
+	const int32 NextIndex = SelectedBranchIndex + 1;
+
+	// Still holding escalates to the next branch and its longer windup. The deepest
+	// branch has nothing to escalate to, so holding forever commits it anyway -- an
+	// attack that could be held indefinitely would be free of risk.
+	if (bInputHeld && Branches.IsValidIndex(NextIndex))
+	{
+		const float RemainingWindup = Branches[NextIndex].WindupSeconds - Branches[SelectedBranchIndex].WindupSeconds;
+		SelectedBranchIndex = NextIndex;
+		ScheduleCheckpoint(FMath::Max(RemainingWindup, 0.0f));
+		return;
+	}
+
+	CommitAttack();
 }
 
-const FTDAttackBranch* UTDChargedAttackAbility::SelectBranch(float HeldSeconds) const
+void UTDChargedAttackAbility::EnterCoil()
 {
-	const FTDAttackBranch* Best = nullptr;
-
-	for (const FTDAttackBranch& Branch : Branches)
+	if (bAttackCommitted)
 	{
-		if (HeldSeconds >= Branch.MinHoldSeconds && (!Best || Branch.MinHoldSeconds >= Best->MinHoldSeconds))
+		return;
+	}
+
+	SetMontagePlayRate(CoilPlayRate);
+
+	// A frozen coil cannot creep anywhere, so it needs no ceiling.
+	UWorld* World = GetWorld();
+	if (!World || CoilPlayRate <= 0.0f)
+	{
+		return;
+	}
+
+	// Creeping without a ceiling walks the montage into its own release window, and the
+	// attack then fires with part of its active frames already spent. Long holds are the
+	// only ones that ever reach the cap.
+	const float CreepSeconds = CoilCeilingSeconds - CoilStartSeconds;
+	if (CreepSeconds <= 0.0f)
+	{
+		SetMontagePlayRate(0.0f);
+		return;
+	}
+
+	World->GetTimerManager().SetTimer(
+		CoilCeilingTimerHandle,
+		FTimerDelegate::CreateWeakLambda(this, [this]()
 		{
-			Best = &Branch;
-		}
-	}
-
-	// A release faster than the shortest branch still has to produce a swing.
-	return Best ? Best : &Branches[0];
+			if (!bAttackCommitted)
+			{
+				SetMontagePlayRate(0.0f);
+			}
+		}),
+		CreepSeconds / CoilPlayRate,
+		false);
 }
 
-void UTDChargedAttackAbility::ResolveBranch(float HeldSeconds)
+void UTDChargedAttackAbility::CommitAttack()
 {
-	if (bBranchResolved)
+	if (bAttackCommitted || !Branches.IsValidIndex(SelectedBranchIndex))
 	{
 		return;
 	}
-	bBranchResolved = true;
+	bAttackCommitted = true;
 
-	if (UWorld* World = GetWorld())
-	{
-		World->GetTimerManager().ClearTimer(HoldTimerHandle);
-		World->GetTimerManager().ClearTimer(MaxHoldTimerHandle);
-	}
+	ClearAllTimers();
 
-	const FTDAttackBranch* Branch = SelectBranch(HeldSeconds);
-	SelectedBranchIndex = Branches.IndexOfByPredicate([Branch](const FTDAttackBranch& Candidate)
-	{
-		return &Candidate == Branch;
-	});
+	const FTDAttackBranch& Branch = Branches[SelectedBranchIndex];
 
 	// Surfaces the chosen attack on the debug HUD and lets other systems react to it.
-	if (Branch->AttackTag.IsValid())
+	// This tag is the intended way to confirm which branch was thrown -- reading it back
+	// beats inferring the answer from the animation.
+	if (Branch.AttackTag.IsValid())
 	{
 		if (UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo())
 		{
-			AppliedAttackTag = Branch->AttackTag;
+			AppliedAttackTag = Branch.AttackTag;
 			ASC->AddLooseGameplayTag(AppliedAttackTag);
 		}
 	}
 
 	// Radius is per branch, so tracing can only start once the branch is known. The task
-	// still idles until the montage's Melee Window notify opens.
+	// still idles until the montage's Release Window notify opens.
 	StartMeleeTrace(GetAttackTraceRadius());
 
-	// Back to full speed: the strike and its impact frames play identically for every
-	// branch, so hit timing reads the same to the defender no matter what was thrown.
+	// Out of the coil at full speed.
 	SetMontagePlayRate(1.0f);
 
-	// Only used once a branch earns a distinct strike animation.
-	if (Branch->MontageSection != NAME_None)
+	// Only used once a branch earns a distinct release animation.
+	if (Branch.MontageSection != NAME_None)
 	{
-		MontageJumpToSection(Branch->MontageSection);
+		MontageJumpToSection(Branch.MontageSection);
+	}
+}
+
+void UTDChargedAttackAbility::ClearAllTimers()
+{
+	if (UWorld* World = GetWorld())
+	{
+		FTimerManager& Timers = World->GetTimerManager();
+		Timers.ClearTimer(CheckpointTimerHandle);
+		Timers.ClearTimer(CoilTimerHandle);
+		Timers.ClearTimer(CoilCeilingTimerHandle);
 	}
 }
 
@@ -162,13 +215,9 @@ float UTDChargedAttackAbility::GetAttackTraceRadius() const
 
 void UTDChargedAttackAbility::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled)
 {
-	if (UWorld* World = GetWorld())
-	{
-		World->GetTimerManager().ClearTimer(HoldTimerHandle);
-		World->GetTimerManager().ClearTimer(MaxHoldTimerHandle);
-	}
+	ClearAllTimers();
 
-	// A cancelled charge would otherwise leave the montage crawling at HoldPlayRate.
+	// A cancelled attack would otherwise leave the montage crawling at CoilPlayRate.
 	SetMontagePlayRate(1.0f);
 
 	// Must come off even on cancellation, or the character reads as mid-attack forever.

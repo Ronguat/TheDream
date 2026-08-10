@@ -45,6 +45,6 @@ void UAnimNotifyState_MeleeWindow::NotifyEnd(USkeletalMeshComponent* MeshComp, U
 #if WITH_EDITOR
 FString UAnimNotifyState_MeleeWindow::GetNotifyName_Implementation() const
 {
-	return TEXT("Melee Window");
+	return TEXT("Release Window");
 }
 #endif

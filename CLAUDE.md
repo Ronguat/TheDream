@@ -38,9 +38,11 @@ Note that "release" also names the button coming up, via GAS's `InputReleased`. 
 ### Offense (Melee)
 **Windup length is preset, never resolved at the instant the button comes up.** One press starts a windup with checkpoints at 250 / 500 / 1000 ms. At each checkpoint, if LMB is still held the attack escalates to the next tier and continues to the next checkpoint; if it has already been let go, the attack commits there at whatever tier it reached. Still held at the last checkpoint, it commits anyway. Releasing early inside a band changes nothing — this is what stops a 251 ms heavy from dominating light. See `Docs/Combat/Decisions.md`.
 
-- **Light**: input released before 250 ms. 250 ms windup. 2–4 hit string (weapon dependent). First hit safe on block; subsequent hits are not. Any hit in the string guarantees the rest. Last hit knocks down but has heavy endlag. Minimal stamina damage. Unreactable.
-- **Heavy**: held past 250 ms. 500 ms windup. Single hit. Safe on block, punishable on whiff. Knocks down. Higher range, moderate stamina damage. Reactable off the coil, but tight.
-- **Charged Heavy**: held past 500 ms. 1000 ms windup. Single hit. Breaks block, heavy endlag, knocks down. Highest range. Clearly reactable.
+**Reactability is measured from the tell, not from the start of the attack.** Every branch shares an identical windup, so the defender cannot tell which attack is coming until the coil appears. The window that matters is coil → damaging, not press → damaging. This is why the branches share one animation, and why a 500 ms heavy is still barely reactable: reacting to it means first ruling out a light, which cannot be done before the coil.
+
+- **Light**: input released before 250 ms. 250 ms windup. 2–4 hit string (weapon dependent). First hit safe on block; subsequent hits are not. Any hit in the string guarantees the rest. Last hit knocks down but has heavy endlag. Minimal stamina damage. Unreactable — it never coils, so there is no tell at all.
+- **Heavy**: held past 250 ms. 500 ms windup. Single hit. Safe on block, punishable on whiff. Knocks down. Higher range, moderate stamina damage. Barely reactable — roughly 240 ms from coil to damaging.
+- **Charged Heavy**: held past 500 ms. 1000 ms windup. Single hit. Breaks block, heavy endlag, knocks down. Highest range. Very reactable — the coil holds long past the point a heavy would have committed.
 - Any light in a chain can be held to convert into a heavy.
 - Some heavies can chain into further heavies; never into lights.
 
