@@ -44,19 +44,17 @@ Note that "release" also names the button coming up, via GAS's `InputReleased`. 
 | Heavy | 450 ms | **500 ms** |
 | Charged Heavy | (held past 450 ms) | **750 ms** |
 
-**Windup length is preset, never resolved at the instant the button comes up.** Hold past a boundary and the attack escalates to the next tier and its later hitbox; release before it and the attack still takes its full time to arrive. Releasing early inside a band changes nothing — this is what stops a fractionally-held heavy from dominating light. The cost is real dead time: let go at 260 ms and nothing visible happens until the heavy commits.
+Two rules the model depends on:
+- **Windup length is preset.** Releasing early inside a band changes nothing — the attack still takes its full time to arrive. The cost is real dead time, and it is what stops a fractionally-held heavy from dominating light.
+- **Reactability is measured from the tell, not from the press.** All tiers share one windup, so the defender's window is coil → damaging. Lengthening a windup does not by itself make an attack more reactable; moving the coil earlier does.
 
-**Reactability is measured from the tell, not from the start of the attack.** Every branch shares an identical windup, so the defender cannot tell which attack is coming until the coil appears — currently at 200 ms, when the light stops being possible. The window that matters is coil → damaging, not press → damaging. This is why the branches share one animation.
-
-- **Light**: input released before 200 ms, hits at 250 ms. 2–4 hit string (weapon dependent) — *not yet built; currently a single hit*. First hit safe on block; subsequent hits are not. Any hit in the string guarantees the rest. Last hit knocks down but has heavy endlag. Minimal stamina damage. Unreactable — it never coils, so there is no tell at all.
-- **Heavy**: held past 200 ms, hits at 500 ms. Single hit. Safe on block, punishable on whiff. Knocks down. Higher range, moderate stamina damage. **Currently ~300 ms from coil to damaging, which is more reactable than intended** — a faster light drags the tell earlier. Buying the ambiguity back means pushing the heavy's hitbox later; deferred until the whole ladder is tuned together.
-- **Charged Heavy**: held past 450 ms, hits at 750 ms. Single hit. Breaks block, heavy endlag, knocks down. Highest range. Very reactable — the coil holds long past the point a heavy would have committed.
+- **Light**: released before 200 ms, hits at 250 ms. 2–4 hit string (weapon dependent) — *not yet built; currently a single hit*. First hit safe on block; subsequent hits are not. Any hit in the string guarantees the rest. Last hit knocks down but has heavy endlag. Minimal stamina damage. Unreactable — it never coils, so there is no tell at all.
+- **Heavy**: held past 200 ms, hits at 500 ms. Single hit. Safe on block, punishable on whiff. Knocks down. Higher range, moderate stamina damage. *Currently ~300 ms coil → damaging, more reactable than intended; deferred until the ladder is tuned as a whole.*
+- **Charged Heavy**: held past 450 ms, hits at 750 ms. Single hit. Breaks block, heavy endlag, knocks down. Highest range. Very reactable.
 - Any light in a chain can be held to convert into a heavy.
 - Some heavies can chain into further heavies; never into lights.
 
-Timings land within about a frame of target, biased late. `GA_Attack`'s `Branches` array is authoritative for the values actually in play.
-
-The ladder above is design intent and is **untested** — current tuning lives in `GA_Attack`'s `Branches` array, which is authoritative for the values actually in play.
+Timings land within about a frame, biased late. `GA_Attack`'s `Branches` array is authoritative for live values; the reasoning behind the model is in `Docs/Combat/Decisions.md`.
 
 ### Defense
 - **Block** (hold RMB): 180° forward. Drains stamina (heavies drain more; charged heavies exhaust if blocked). Can cancel attack startup into block.
@@ -107,12 +105,12 @@ Deliberately **not** kept: per-system design docs. Local rationale belongs in he
 - When implementing an attack or defensive move, include the relevant input binding, montage/notify windows, stamina cost, and at least a basic success/failure outcome.
 - Prefer clarity and tunability over cleverness.
 - After making changes, briefly list the assets created or modified and the key values set.
-- **Commit and push whenever a notable contribution is finished, without waiting to be asked.** The bar is a coherent, verified unit of work — a slice wired up and checked, a rename with its referencers confirmed, a system built and compiling clean. Not every file edit, and not a half-finished slice. Pending *tuning* questions do not block a push; pending *correctness* verification does.
-- **Instrument before theorising.** Every real bug in the attack timing system was found by measuring, and reasoning from first principles mis-diagnosed several of them confidently. When behaviour is wrong and the cause is not obvious, add or enable a trace before proposing an explanation — and prefer an experiment that manipulates the suspected cause over one that merely observes it.
+- **Commit and push whenever a notable contribution is finished**, without waiting to be asked. The bar is a coherent, verified unit of work — not every file edit, and not a half-finished slice. Pending *tuning* questions do not block a push; pending *correctness* verification does.
+- **Instrument before theorising.** When behaviour is wrong and the cause is not obvious, enable a trace before proposing an explanation, and prefer an experiment that manipulates the suspected cause over one that only observes it. See `Docs/Working-In-Unreal.md`.
 
 ## Current Focus
-1. ~~Player can perform Light → Heavy → Charged Heavy with correct input timing and basic montages.~~ **Done 2026-08-09.** Hitboxes land at 250 / 500 / 750 ms, verified in play. Still missing from offense: the 2–4 hit light string (currently one hit), knockdown, and block-safety properties — the last of which needs a defender first.
-2. **Block, Dodge, and Parry with stamina costs.** The highest-leverage next slice. Precise spacing and whiff punish is the top feel goal, and neither can be judged without someone to punish you — offense is currently a timing exercise against a dummy that cannot answer.
+1. ~~Light → Heavy → Charged Heavy with correct input timing and basic montages.~~ **Done 2026-08-09**, verified in play. Offense still lacks the light string, knockdown, and block-safety.
+2. **Block, Dodge, and Parry with stamina costs.** Highest leverage: spacing and whiff punish are the top feel goals, and neither is judgeable against a dummy that cannot fight back.
 3. Simple hit reaction + knockdown on the dummy.
-4. Recovery and punish windows. Deliberately unmanaged so far: every attack's recovery is whatever is left of its montage. An attack that cannot be punished is not really tuned, however precise its startup.
+4. Recovery and punish windows — currently unmanaged; every attack's recovery is whatever is left of its montage.
 5. The 2–4 hit light string, then the stamina economy (the attribute exists; costs, regen and exhaustion do not).
