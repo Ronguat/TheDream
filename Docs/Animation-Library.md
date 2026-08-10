@@ -60,6 +60,62 @@ AS_<PackName>_<Move>[_<Direction>][_<Qualifier>][_RM]
 So finding candidates is a `find` away, and asking for a preview is only needed to choose
 between clips that are already the right kind.
 
+## The complete index
+
+`Docs/Animation-Library-Index.tsv` lists every one of the 6,576 assets —
+`Archetype`, `Asset`, `ContentPath` — so the library remains searchable even on a machine
+where it is not installed. Grep it rather than reading it.
+
+Regenerate with, from `AnimLibrary/Content`:
+
+```bash
+find GDHBundle -name "*.uasset" -printf "%p\n" | sed 's|\.uasset$||' | sort \
+  | awk -F'/' '{n=split($0,p,"/"); printf "%s\t%s\t/Game/%s\n", $2, p[n], $0}'
+```
+
+It is a cache of an immutable purchase, so it does not drift in practice; regenerate only
+if the bundle is ever updated or extended.
+
+## Move vocabulary
+
+What each archetype can actually *do*, which is the question worth answering quickly. The
+number is how many clips share that move name across directions, `RM`/`IP` and qualifiers.
+
+**`SwordShield` — the archetype this project uses:**
+
+| Move | Clips | Why it matters |
+|---|---:|---|
+| `Attack1`–`Attack10` | 12–72 each | Offense. Heavily varied, so tier selection is a judgement call needing preview. |
+| `Defense` / `DefenseStart` / `DefenseEnd` | 10 / 1 / 1 | **Block.** A start-loop-end structure, exactly what a held guard needs. |
+| `Block1` / `Block2` | 4 / 3 | Block impact reactions — and the nearest thing to a parry (see gaps). |
+| `Roll` | 8 | All eight directions. The evade this project uses. |
+| `Dodge` | 10 | Backward and lateral only, no forward. |
+| `Flip` / `Dash` | 16 / 16 | Unused so far. |
+| `Hit` / `Death` | 5 / 5 | Hit reactions and knockdown, for focus item 3. |
+| `Walk` / `Run` | 192 / 192 | Full directional locomotion set. |
+| `Idle1` / `Idle2` | 3 / 3 | |
+| `Sheath` / `Unsheath` | 3 / 3 | Only relevant if weapon swapping comes into scope. |
+
+**Everything else, in brief:**
+
+- `Unarmed` — `AttackCombo1`–`10`, `Punch1`–`4`, `Kick1`–`4`, `Roll`, `Dodge`, `Defense1/2`,
+  `Block1/2`, `BlockHit`, `KnockDown`, `Rise1/2`, `Grab`, `Throw1/2`, plus novelty
+  (`Shoryuken`, `Haduken`). The only archetype with an explicit `KnockDown` *and* `Rise`.
+- `DaggerCombatAnimationV1` — the largest move vocabulary: `AttackCombo1`–`23`,
+  `Assassination1`–`13`, `Defence1/2`, `Roll1/2`, `Dodge1/2`, `Rise1`–`9`, `Throw1/2`.
+- `Spear` — `Attack1`–`13` plus `AttackCombo1`–`10`, and the fullest block set anywhere:
+  `Block`, `BlockOnce`, `BlockConstant`, `BlockConstantHit`, `BlockHit`, `BlockDeath`.
+- `TwoHandSword` — `AttackCombo1`–`11`, `Block`/`BlockOnce`/`BlockConstant`/`BlockHit`/`BlockCy`,
+  `Roll`(18), `Dodge`(10), `Resurrection`.
+- `DualSword` — `AttackCombo1`–`10`, a full block set, `Shield`/`Unshield`, `Death`.
+- `GreatSword` — `AttackCombo1`–`10`, `Defence`(6), `Resurrection1/2`.
+- `Katana` — `AttackCombo1`–`11`, and **`Deflect`(5), the only parry-shaped clips in the
+  entire bundle**.
+- `OneHandSword` — `AttackCombo1`–`10` and little else; no evades, no block, no defense.
+- `SpellCombatAnimV1` — `Attack1`–`17`, `Heal`. Out of scope.
+- `ArcheryCombatAnimV1` — aim-directional attacks, `Squat`(98), `Flip` in eight directions.
+  Out of scope.
+
 ## Known gaps and what they imply
 
 These are facts about the bundle, checked across all 6,576 assets, not impressions:
@@ -75,6 +131,12 @@ These are facts about the bundle, checked across all 6,576 assets, not impressio
 - **`OneHandSword` has no evasive animations at all.** If the project moves to a one-handed
   sword archetype, its dodges have to come from another folder — most plausibly
   `SwordShield`, which is the nearest stance.
+- **There is no parry animation in `SwordShield`, or anywhere else under that name.** No
+  `Parry`, no `Riposte`. The only deflect-shaped clips in all 6,576 assets are `Katana`'s
+  `Deflect`(5). Since parry is the third component of the defense focus item, it will have
+  to be built from `Block1`/`Block2` — which are block-impact reactions and may read
+  correctly for a successful parry — or borrowed from `Katana` and accepted as a stance
+  mismatch. Worth resolving before the parry slice starts, not during it.
 - **Props do not follow the `SM_` / `SKM_` naming convention, so do not search by prefix.**
   `SwordShield/DEMO/StaticMesh/` holds both `SM_Sword` *and* `Shield_Heater` — the shield
   carries no prefix at all. A prefix-filtered search for shield meshes returned nothing and
