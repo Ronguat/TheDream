@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Combat/Abilities/TDChargedAttackAbility.h"
+#include "Combat/TDCombatDebug.h"
 #include "Combat/TDGameplayTags.h"
 #include "Abilities/Tasks/AbilityTask_WaitGameplayEvent.h"
 #include "AbilitySystemComponent.h"
@@ -8,9 +9,6 @@
 #include "Animation/AnimMontage.h"
 #include "Engine/World.h"
 #include "TimerManager.h"
-
-// TEMPORARY diagnostics while the timing model is being verified. Remove once settled.
-DEFINE_LOG_CATEGORY_STATIC(LogTDCoil, Log, All);
 
 namespace
 {
@@ -63,7 +61,7 @@ void UTDChargedAttackAbility::ActivateAbility(const FGameplayAbilitySpecHandle H
 
 	// applied should match wanted. If it reads 1.000 the montage was not yet playing when
 	// the rate was set, and the whole windup is running at the wrong speed.
-	UE_LOG(LogTDCoil, Log, TEXT("[%.3f] ACTIVATE   pos=%.4f windupRate wanted=%.3f applied=%.3f"),
+	TD_TIMING_LOG(TEXT("[%.3f] ACTIVATE   pos=%.4f windupRate wanted=%.3f applied=%.3f"),
 		World->GetTimeSeconds(), GetMontagePosition(), WindupRate,
 		ActualMontageRate(GetCurrentActorInfo(), AttackMontage));
 
@@ -127,7 +125,7 @@ void UTDChargedAttackAbility::HandleCheckpoint()
 			EnterCoil();
 		}
 
-		UE_LOG(LogTDCoil, Log, TEXT("[%.3f] ESCALATE   -> branch %d  pos=%.4f"),
+		TD_TIMING_LOG(TEXT("[%.3f] ESCALATE   -> branch %d  pos=%.4f"),
 			GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f, NextIndex, GetMontagePosition());
 
 		ScheduleCheckpoint(Branches[NextIndex].HoldUntilSeconds);
@@ -153,7 +151,9 @@ void UTDChargedAttackAbility::EnterCoil()
 	{
 		// Nowhere to creep to, or no time to do it in. Carrying on at the windup rate is
 		// a poor swing; stopping would be far worse, so there is no zero-rate branch here.
-		UE_LOG(LogTDCoil, Warning, TEXT("Coil skipped: pos=%.4f distance=%.4f duration=%.4f"),
+		// Ungated: a coil that never runs means a held attack races into its own release
+		// window, which reads as an attack that simply does nothing.
+		UE_LOG(LogTDCombatTiming, Warning, TEXT("Coil skipped: pos=%.4f distance=%.4f duration=%.4f"),
 			CurrentPosition, CoilDistance, CoilDuration);
 		return;
 	}
@@ -161,7 +161,7 @@ void UTDChargedAttackAbility::EnterCoil()
 	const float CoilRate = FMath::Max(CoilDistance / CoilDuration, TDMinPlayRate);
 	SetMontagePlayRate(CoilRate);
 
-	UE_LOG(LogTDCoil, Log, TEXT("[%.3f] COIL START pos=%.4f rate=%.3f (derived)"),
+	TD_TIMING_LOG(TEXT("[%.3f] COIL START pos=%.4f rate=%.3f (derived)"),
 		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f, CurrentPosition, CoilRate);
 }
 
@@ -216,7 +216,7 @@ void UTDChargedAttackAbility::CommitAttack()
 
 	SetMontagePlayRate(CommitRate);
 
-	UE_LOG(LogTDCoil, Log, TEXT("[%.3f] COMMIT     branch %d (%s) pos=%.4f rate=%.3f targetRelease=%.3f"),
+	TD_TIMING_LOG(TEXT("[%.3f] COMMIT     branch %d (%s) pos=%.4f rate=%.3f targetRelease=%.3f"),
 		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f, SelectedBranchIndex,
 		*Branch.AttackTag.ToString(), CurrentPosition, CommitRate, Branch.ReleaseAtSeconds);
 
@@ -241,7 +241,9 @@ void UTDChargedAttackAbility::HandleReleaseWindowBegan(FGameplayEventData Payloa
 	// drift if the montage is re-authored. This is the only moment the truth is available.
 	if (ActualStart >= 0.0f && FMath::Abs(ActualStart - ReleaseStartSeconds) > TDReleaseStartTolerance)
 	{
-		UE_LOG(LogTDCoil, Warning,
+		// Ungated: this is hand-copied data having silently drifted, and every rate the
+		// ability derives is computed from it.
+		UE_LOG(LogTDCombatTiming, Warning,
 			TEXT("Release Window opened at %.4f but ReleaseStartSeconds is %.4f. Update it to match the notify."),
 			ActualStart, ReleaseStartSeconds);
 	}
@@ -257,7 +259,7 @@ void UTDChargedAttackAbility::HandleReleaseWindowBegan(FGameplayEventData Payloa
 	const float ReleaseRate = FMath::Max(WindowLength / Branch.ReleaseSeconds, TDMinPlayRate);
 	SetMontagePlayRate(ReleaseRate);
 
-	UE_LOG(LogTDCoil, Log, TEXT("[%.3f] RELEASE    pos=%.4f windowLen=%.4f rate=%.3f (want %.3fs)"),
+	TD_TIMING_LOG(TEXT("[%.3f] RELEASE    pos=%.4f windowLen=%.4f rate=%.3f (want %.3fs)"),
 		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f, ActualStart, WindowLength, ReleaseRate, Branch.ReleaseSeconds);
 }
 

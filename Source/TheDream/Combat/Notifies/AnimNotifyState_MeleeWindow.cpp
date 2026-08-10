@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Combat/Notifies/AnimNotifyState_MeleeWindow.h"
+#include "Combat/TDCombatDebug.h"
 #include "Combat/TDGameplayTags.h"
 #include "AbilitySystemBlueprintLibrary.h"
 #include "Animation/AnimInstance.h"
@@ -8,20 +9,27 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/World.h"
 
-// TEMPORARY diagnostics for the charged attack's release phase. Remove once resolved.
-DEFINE_LOG_CATEGORY_STATIC(LogTDCoil, Log, All);
-
 namespace
 {
-	/** Logs where the montage playhead actually is when a release window edge fires. */
+	/**
+	 *  Logs where the montage playhead actually is when a release window edge fires.
+	 *
+	 *  Gated at the top rather than at the log call so the playhead reads are skipped too;
+	 *  this runs on every attack of every combatant.
+	 */
 	void LogWindowEdge(USkeletalMeshComponent* MeshComp, const TCHAR* Edge)
 	{
+		if (!TDShouldTraceCombatTiming())
+		{
+			return;
+		}
+
 		UAnimInstance* AnimInstance = MeshComp ? MeshComp->GetAnimInstance() : nullptr;
 		UAnimMontage* Montage = AnimInstance ? AnimInstance->GetCurrentActiveMontage() : nullptr;
 		const FAnimMontageInstance* Instance = (AnimInstance && Montage) ? AnimInstance->GetActiveInstanceForMontage(Montage) : nullptr;
 		const UWorld* World = MeshComp ? MeshComp->GetWorld() : nullptr;
 
-		UE_LOG(LogTDCoil, Log, TEXT("[%.3f] RELEASE %s  pos=%.4f rate=%.3f"),
+		UE_LOG(LogTDCombatTiming, Log, TEXT("[%.3f] RELEASE %s  pos=%.4f rate=%.3f"),
 			World ? World->GetTimeSeconds() : -1.0f,
 			Edge,
 			(AnimInstance && Montage) ? AnimInstance->Montage_GetPosition(Montage) : -1.0f,
