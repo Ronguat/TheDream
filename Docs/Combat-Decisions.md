@@ -70,6 +70,30 @@ concludes the log is wrong rather than merely old. Add a row whenever a name cha
 
 ---
 
+## 2026-08-10 — The focus-return frame hitch reproduces; it is a trigger, not an anomaly
+
+The windup-skipping hitch described under "2026-08-09 — Branches are described by when they
+hit" happened again, on the same trigger: the first attack thrown after clicking into the
+PIE window to return focus. It presents as a visibly stuttery light that deals no damage,
+and the damage total confirms the mechanism rather than merely resembling it — three
+subsequent attacks left the dummy at exactly 20 health, so the phantom attack contributed
+zero, meaning its release window opened before any trace existed.
+
+That entry called it "observed once", and its "not worth chasing yet" rested partly on
+being unable to reproduce it. It is now reproducible on demand, which changes the
+assessment even though the conclusion holds for now:
+
+- It is still an **editor-only** trigger. Nothing has shown a hitch large enough to do this
+  arising from gameplay, and a packaged build has no equivalent of returning window focus.
+- It remains worth fixing eventually, because the failure is silent. An attack that arrives
+  with no windup is unfair; one that arrives with no windup *and* no hitbox is merely
+  confusing, which is why this has never cost anything yet.
+- The fix, when it is worth doing, is to clamp the frame delta the ability reasons about,
+  not to special-case focus. Nothing currently clamps it.
+
+Do not treat a stuttery, damage-less first attack after clicking into PIE as a regression.
+Anything else of that shape is not this.
+
 ## 2026-08-10 — The four questions gating defense, settled
 
 **Block and parry keep separate buttons.** Block is hold-RMB, parry is MB4 or LAlt+RMB, and
