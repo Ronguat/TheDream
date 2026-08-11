@@ -214,6 +214,55 @@ concludes the log is wrong rather than merely old. Add a row whenever a name cha
 
 ---
 
+## 2026-08-11 — The training dummy gets the sword too, and the blade is authored rather than measured
+
+Raised by the user while setting item 6's scope: should the dummy get the new attacks, or keep
+punching with stock assets? Settled as **parity in what the player is tested against** — the
+user's phrase was "the correct amount of parity", and the qualifier is the load-bearing part.
+
+**Keeping the dummy unarmed as a stable control was the real alternative, and it is better than it
+sounds.** A test fixture that changes whenever the player changes stops being a control: you
+cannot ask "does blocking feel different than it did before item 6" if both sides moved. That is
+a genuine methodological argument and it is being rejected rather than refuted.
+
+What defeats it: **item 6 changes reach**, and reach is what spacing is measured against. Every
+defensive verdict from here — block coverage, blockstun duration, the parry window, whiff-punish
+distance — is measured against whatever the dummy throws. A dummy that keeps fist-reach is a
+*stable* reference to the wrong number, and item 7's blockstun is explicitly "a duration based on
+the attack blocked". The failure is silent: the tuning all looks principled, and is calibrated
+against an opponent nobody will ever fight. A wrong control answers a question the prototype is
+not asking, and PvP is the destination.
+
+**Parity is deliberately partial.** The dummy gets *offense* parity because offense is what the
+player is measured against. It does not get `GA_Dodge` and should not — nothing about a defensive
+verdict depends on the dummy being able to evade, and a dodging dummy would make every spacing
+measurement noisier for no gain. The rule is not "the dummy is a second player"; it is "the dummy
+is accurate in the dimension being measured."
+
+Worth noting the decision was nearly made already and neither of us had noticed: **both characters
+are granted the same `GA_Attack`**, so montages, branch timings, `TraceSocket` and `TraceRadius`
+are one shared set. Divergence was the option that cost work — a second ability asset with a
+second set of timings to keep in sync. Checking that first turned a design debate into a much
+smaller one, which is the general lesson: *establish whether the alternatives actually differ in
+cost before arguing their merits.*
+
+**The blade's length is authored, not derived from the weapon mesh.** This is the design decision
+the dummy question forced out early, and it is the more valuable half of the entry. A
+blade-base-to-tip sweep needs a length, and taking it from the attached `WeaponMesh` bounds is the
+obvious implementation. It fails on exactly one case and fails silently: the `Sword` socket lives
+on the *skeleton*, so it exists whether or not a prop hangs off it, and a character with no weapon
+mesh would produce a well-formed trace of **zero length** — a hitbox that misses everything, with
+nothing logged and nothing null. Authoring the length as a Blueprint-exposed number instead means
+the trace is correct for anyone holding anything, including nobody.
+
+Had the dummy stayed unarmed, a mesh-derived blade would have worked perfectly in every test —
+because the player, the only armed character, would have been the only one traced.
+
+The consequence for item 6 is small and should not be mistaken for the decision: the dummy needs
+its `WeaponMesh` and `ShieldMesh` set, which is two properties on `BP_TrainingDummy`, not a class
+change. If player and dummy become hard to tell apart, a material tint is the answer — it does
+not touch mechanics.
+
 ## 2026-08-11 — The ASC moves to the PlayerState, and the character resolves which one it uses
 
 **Decided, not yet built.** Recorded now because the alternatives were argued and discarded, and
