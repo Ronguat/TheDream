@@ -192,9 +192,21 @@ concludes the log is wrong rather than merely old. Add a row whenever a name cha
 ## 2026-08-11 — PvP is the destination, so state must replicate; the model is server-auth + prediction
 
 Raised by the user, who noted this prototype is ultimately PvP and that netcode should be treated
-as an inevitability rather than a later phase. `CLAUDE.md` still lists netcode as out of scope and
-that stands — **nothing is being networked now.** What changed is that new work must not add to
-the gap, and an audit went looking for how large the gap already was.
+as an inevitability rather than a later phase. An audit went looking for how large the gap
+already was.
+
+> **Corrected within the hour, by the user.** This entry originally said `CLAUDE.md` still listed
+> netcode as out of scope "and that stands". It does not stand — the user withdrew the scope call
+> as soon as it was restated back to them: *"A PvP prototype doesn't do all that much, ultimately,
+> if it's incapable of PvP."* `CLAUDE.md` now carries **Building for the network** instead, and
+> only *live multiplayer sessions* remain out of scope. Corrected inline rather than superseded
+> because the reasoning below never depended on the deferral — it argued the opposite — and a
+> stale claim about what another document says is exactly the kind that gets read as current.
+>
+> Worth keeping as an instance of a pattern this log already knows: **a claim moved between
+> documents arrives with the authority of its new home and none of the scrutiny it never had.**
+> The same thing happened on 2026-08-10 with the stock-ABP claim. Restating an inherited
+> assumption out loud is the cheapest moment to test it, and both times that is what killed it.
 
 **The verdict: caught early, and the expensive-to-retrofit decisions had already gone the right
 way.** Attributes replicate correctly (`Mixed` mode, `REPNOTIFY_Always`, three-layer clamping),

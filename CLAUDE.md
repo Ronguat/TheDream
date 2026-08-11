@@ -1,7 +1,11 @@
 # The Dream – Combat Prototype
 
 ## Project Intent
-Build a high-precision combat prototype in Unreal Engine that prioritizes spacing, reactability windows, stamina as a real resource, and clear punish opportunities. Feel goals (in priority order):
+Build a high-precision **PvP** combat prototype in Unreal Engine that prioritizes spacing, reactability windows, stamina as a real resource, and clear punish opportunities.
+
+**PvP is the destination, and it is a requirement rather than a later phase.** A combat prototype that cannot be played against another person does not answer the question it exists to ask — every feel goal below is about what two players do to each other. That does not mean networking each slice as it is built; it means no slice may be built in a way that has to be torn up to network it. See **Building for the network**, below.
+
+Feel goals (in priority order):
 - Precise spacing and whiff punish
 - Unreactable-but-risky light offense vs reactable-but-rewarding heavy/charged options
 - High-agency defense (block, dodge, parry) with meaningful costs
@@ -22,21 +26,32 @@ Build a high-precision combat prototype in Unreal Engine that prioritizes spacin
 - Armor classes
 - Abilities / specials
 - Full frame-data tuning pass (placeholder numbers are fine)
-- Netcode / multiplayer — **but see the rule below; this is deferred, not abandoned**
+- **Live multiplayer sessions** — lobbies, matchmaking, connection handling, a real network test
+  pass. *Building networkably is not on this list and never should have been;* see below.
 
-### Netcode is deferred, not out of mind
-**This prototype is ultimately PvP**, agreed 2026-08-11. Nothing is being networked now, and no
-slice should stop to network itself. But new work must not add to the gap, so two rules bind:
+## Building for the network
+
+**Networkability is a property of every slice, not a later phase** (2026-08-11, replacing an
+earlier call that put netcode flatly out of scope). What is deferred is *running* multiplayer —
+sessions, lobbies, a real test pass against latency. Being *able* to is not.
+
+The model is **server-authoritative with client prediction**, the one GAS is designed around.
+Three rules bind all new work:
+
 - **New state is a replicated property or an attribute, never a loose gameplay tag.** Loose tags
-  do not replicate. Follow `bDead` / `bExhausted` on `ATDCombatCharacter`: the server decides, the
-  bool replicates, `OnRep` applies the tag locally. **Decide on the server, apply everywhere.**
-- **Authority-sensitive work is explicitly gated.** Damage, attribute writes and hit detection are
-  the server's.
+  do not replicate. Follow `bDead` / `bExhausted` on `ATDCombatCharacter`: the server decides,
+  the bool replicates, `OnRep` applies the tag locally. **Decide on the server, apply everywhere.**
+- **Authority-sensitive work is explicitly gated.** Damage, attribute writes and hit detection
+  belong to the server. State that only the local machine can know — input, buffered presses,
+  camera-relative facing — deliberately does not.
+- **Latency comes out of the reactability budget, so it is a design input.** The heavy's
+  coil→damaging window is ~240 ms and already "right at the edge of human reaction"; a network
+  does not get to spend that budget silently. When a timing is chosen, say what it looks like
+  with a round trip in it.
 
-The model is **server-authoritative with client prediction** — the one GAS is built for. Its
-consequence for design, not just code: **latency comes out of the reactability budget**, and the
-heavy's coil→damaging window is already at the edge of human reaction. Reasoning, the audit
-findings and what remains undone are in `Docs/Combat-Decisions.md`.
+**Still outstanding:** prediction windows, lag compensation for i-frames, client-side stamina
+prediction, and 14 network-unaware `SetTimer` sites. The 2026-08-11 audit that found them, and
+the reasoning behind the model, are in `Docs/Combat-Decisions.md`.
 
 ## Core Combat Rules (must respect)
 
@@ -141,7 +156,7 @@ instead, and only this line changes when the order does:
 
 > **1 → 2 → 3 → 8 → 4 → 5 → 6 → 7 → 9 → 10 → 11 → 12**
 
-**Items 1, 2, 3, 8 and 4 are done.** Next is **item 5, dodge travel distance**.
+**Items 1, 2, 3, 8, 4 and 5 are done.** Next is **item 6, the sword-and-shield attack swap**.
 
 **Agreed 2026-08-10, amended 2026-08-11** to pull **item 8 (input buffering)** ahead of 4 and 5.
 Its own justification — that every timing verdict is confounded by presses that never registered
