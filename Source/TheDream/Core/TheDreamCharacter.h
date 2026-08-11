@@ -49,15 +49,47 @@ protected:
 	UPROPERTY(EditAnywhere, Category="Input")
 	UInputAction* MouseLookAction;
 
+	/**
+	 *  How fast the character turns to face the camera *while standing still*, in degrees/sec.
+	 *
+	 *  Deliberately its own value rather than CharacterMovement's RotationRate, which it
+	 *  drives: the two were one concern while facing followed movement and are two now.
+	 *  Facing snaps instantly the moment there is movement input, so this rate only ever
+	 *  applies at rest -- see UpdateCameraRelativeFacing().
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Movement", meta=(ClampMin="0.0"))
+	float StationaryTurnRateDegrees = 500.0f;
+
 public:
 
 	/** Constructor */
-	ATheDreamCharacter();	
+	ATheDreamCharacter();
 
 protected:
 
+	/** Drives the camera-relative facing rule. */
+	virtual void Tick(float DeltaSeconds) override;
+
 	/** Initialize input action bindings */
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
+
+	/**
+	 *  Snaps facing to the camera while there is movement input; turns smoothly while there
+	 *  is not. Runs every frame.
+	 *
+	 *  The character is camera-relative rather than facing its own input, which is what lets
+	 *  it strafe and backpedal and what lets all eight dodge directions resolve. Snapping is
+	 *  right while moving and wrong at rest, where a static idle has nothing to hide an
+	 *  instant rotation pop and the library has no turn-in-place clip to cover it.
+	 *
+	 *  **The condition is movement input, never velocity, and that is load-bearing.** Keyed
+	 *  on movement this would break the dodge exactly where dodges are pressed: standing
+	 *  still mid-turn, pressing forward and dodge on one frame would resolve the dodge
+	 *  against a stale facing and send it sideways. UTDDodgeAbility::ResolveDodgeDirection
+	 *  already returns Bw on near-zero input and never reads facing at rest, so keying both
+	 *  off the same value means facing may only lag while nothing is looking at it.
+	 */
+	void UpdateCameraRelativeFacing();
 
 protected:
 

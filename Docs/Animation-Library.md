@@ -167,6 +167,54 @@ The bundle contains genuine misspellings, so a *correct* search still misses ass
 `Defence`/`Defense` is the dangerous one: it is not a typo but a genuine split, so searching
 one spelling silently halves the results.
 
+**But the split is between archetypes, never inside one** *(checked 2026-08-10 across all
+6,576 rows of the index)*. No archetype uses both spellings:
+
+| Spelling | Archetypes |
+|---|---|
+| `Defense` | **`SwordShield` (17)**, `Unarmed` (5) |
+| `Defence` | `DaggerCombatAnimationV1` (8), `GreatSword` (6) |
+
+So **within `SwordShield` — the only archetype this project uses — it is uniformly `Defense`,
+and the hazard does not apply.** That matters for the block slice, which searches this exact
+term. Search both spellings when surveying the bundle; search one when working in an archetype.
+
+Those counts are substring matches, so they include `Defense1`, `DefenseStart` and friends. The
+token vocabulary above counts *exact tokens* and therefore reads `Defense(10)` for the same
+clips — the two disagree because they measure different things, not because either is wrong.
+This is the same mismatched-granularity trap that produced one of the wrong absence claims
+below; when two counts here conflict, check what each one is counting before believing either.
+
+**None of the misspelled clips are in this project** *(checked 2026-08-10)*. All ten live in
+archetypes that have never been migrated — `Compelte` in `GreatSword`, `Shealth` and
+`ToPostition` in `TwoHandSword`, `Puch` in `Unarmed`. Confirmed with:
+
+```bash
+find Content/GDHBundle -iname "*Compelte*" -o -iname "*Puch*" \
+                       -o -iname "*Shealth*" -o -iname "*ToPostition*"   # returns nothing
+```
+
+### Do not rename vendor content to fix these
+
+Considered and rejected 2026-08-10. **Treat the bundle as read-only and absorb its
+irregularities at the search layer** — this table is the fix, and it costs a lookup.
+
+Renaming in `AnimLibrary` does not stick: that project is disposable and unversioned, so the
+next Fab re-download restores the typos with no record a rename ever happened. It would also
+corrupt `Animation-Library-Index.tsv`, which is *generated* from the library — regenerate after
+a rename and the checked-in index describes our mutated copy, so a contributor on a fresh
+install regenerates it back and the diff reads as corruption. Worst of all it breaks the
+guarantee this file exists to make: *"if a word is not here, the bundle does not contain it"* is
+a claim about **the bundle**, and renaming quietly downgrades it to a claim about our copy.
+
+Renaming *migrated* copies is separately bad: the library↔project correspondence is name-based
+(see "What is in the library vs. what is in this project"), and a later migrate would land the
+vendor's spelling beside our corrected one, leaving two conventions where there was one.
+
+**Anything we author gets the correct spelling.** That is naming our own work, not renaming
+theirs — the same distinction that keeps `AM_Dodge` named for the mechanic rather than for the
+`Dash` clips it is built from.
+
 ## Move vocabulary
 
 What each archetype can actually *do*, which is the question worth answering quickly. The

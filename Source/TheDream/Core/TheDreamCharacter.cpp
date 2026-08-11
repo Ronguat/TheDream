@@ -17,13 +17,16 @@ ATheDreamCharacter::ATheDreamCharacter()
 	// Set size for collision capsule
 	GetCapsuleComponent()->InitCapsuleSize(42.f, 96.0f);
 		
-	// Don't rotate when the controller rotates. Let that just affect the camera.
+	// Facing is camera-relative, not movement-relative: the character faces where the camera
+	// looks so it can strafe and backpedal. These are only the at-rest defaults -- from the
+	// first frame onward UpdateCameraRelativeFacing() owns both yaw flags.
 	bUseControllerRotationPitch = false;
 	bUseControllerRotationYaw = false;
 	bUseControllerRotationRoll = false;
 
 	// Configure character movement
-	GetCharacterMovement()->bOrientRotationToMovement = true;
+	GetCharacterMovement()->bOrientRotationToMovement = false;
+	GetCharacterMovement()->bUseControllerDesiredRotation = true;
 	GetCharacterMovement()->RotationRate = FRotator(0.0f, 500.0f, 0.0f);
 
 	// Note: For faster iteration times these variables, and many more, can be tweaked in the Character Blueprint
@@ -48,6 +51,40 @@ ATheDreamCharacter::ATheDreamCharacter()
 
 	// Note: The skeletal mesh and anim blueprint references on the Mesh component (inherited from Character) 
 	// are set in the derived blueprint asset named ThirdPersonCharacter (to avoid direct content references in C++)
+}
+
+void ATheDreamCharacter::Tick(float DeltaSeconds)
+{
+	Super::Tick(DeltaSeconds);
+
+	UpdateCameraRelativeFacing();
+}
+
+void ATheDreamCharacter::UpdateCameraRelativeFacing()
+{
+	UCharacterMovementComponent* Movement = GetCharacterMovement();
+	if (!Movement)
+	{
+		return;
+	}
+
+	// Only the smooth branch reads RotationRate, but it is written unconditionally so the
+	// value stays live-tunable in PIE rather than latching whatever it was at construction.
+	Movement->RotationRate.Yaw = StationaryTurnRateDegrees;
+
+	// Deliberately the exact source UTDDodgeAbility::ResolveDodgeDirection reads. If these
+	// two ever disagree about what "no input" means, a dodge pressed on the first frame of
+	// movement resolves against a facing that is still catching up. Reading one value means
+	// they cannot disagree -- including about how stale that value is.
+	FVector Input = Movement->GetLastInputVector();
+	Input.Z = 0.0f;
+
+	const bool bHasMoveInput = !Input.IsNearlyZero();
+
+	// Snapped or smooth, never both: bUseControllerRotationYaw wins over the movement
+	// component's desired-rotation path, so leaving both on would silently disable the turn.
+	bUseControllerRotationYaw = bHasMoveInput;
+	Movement->bUseControllerDesiredRotation = !bHasMoveInput;
 }
 
 void ATheDreamCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)

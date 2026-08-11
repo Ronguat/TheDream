@@ -12,79 +12,75 @@ reasonably second-guess. Skip it for anything the code says plainly on its own.
 
 ---
 
-## Open questions
+## Known traps, indexed by what sets them off
 
-- **Does the 250 / 500 / 750 ms ladder hold up once there is something to fight?**
-  Playtested 2026-08-09 and judged good in isolation — nothing felt wrong about the three
-  tiers or about escalating between them. But that verdict was reached against a training
-  dummy, which cannot test either of the things the ladder exists to serve: spacing and
-  whiff punish. Treat it as provisionally answered and re-ask once block, dodge and parry
-  exist. The alternative still on the table is a faster 250 / 500 ladder (roughly Divine
-  Knockout vs. New World feel); all thresholds are per-branch `EditDefaultsOnly` floats,
-  so trying another is a Blueprint edit.
-- **How far should the coil be allowed to creep?** A slow creep was chosen over a hard
-  freeze (see below). The creep's *rate* is no longer a choice — it is derived from the
-  distance still to cover and the time left before the deepest branch commits — so the
-  knob is `CoilEndSeconds`, how far it may creep, rather than a rate. Closer to where the
-  coil begins reads as a hold; further reads as one continuous wind-up. The current value
-  is a guess, and the thing to judge is still "loaded" vs. "stalled".
-- **Should all three attacks share identical impact frames?** They no longer do. The
-  coil advances the animation while held, so the gap between commit and first active
-  frame shrinks the longer you charge. This may read correctly — a wound-up attack
-  snapping out faster is intuitive — but it reverses an earlier deliberate goal.
-- **"Release" is overloaded.** It names the damaging phase *and* the button coming up
-  (GAS gives us `InputReleased`, which cannot be renamed). Mitigated by convention
-  rather than solved; revisit if it causes a real misread. "Active" is the standard
-  alternative.
+Latent defects and unverified assumptions in code that **already exists**, each filed against
+the slice that makes it bite. Re-read this when starting that slice, not at session start — a
+flat list read once is forgotten by the time it matters.
 
-- **Does an aborted attack cost anything?** Cancelling into block currently costs only the
-  time spent. If feinting into guard turns out to be too cheap to punish, a stamina cost on
-  the cancel is the obvious lever — but it should not be added pre-emptively.
-- **Recovery is shorter than it looks, by exactly the montage's blend-out.** Found in review
-  2026-08-10, not by play. `UTDMeleeAttackAbility::StartAttackMontage` binds `HandleMontageFinished`
-  to **both** `OnCompleted` and `OnBlendOut`, and `OnBlendOut` fires when blending *starts* — so
-  the ability ends, and `State.Attacking` / `State.Attacking.Committed` come off,
-  `BlendOut.blendTime` before the swing visually finishes. That is **0.25 s** on
-  `AM_LightAttack_01`, which is large beside a 250 ms light. The consequence is that mechanical
-  recovery and visible recovery differ, and recovery *is* the punish window. Settle deliberately
-  when recovery and punish windows are built: either recovery ends at blend-out and the animation
-  is authored to agree, or the ability waits for `OnCompleted` and blend-out becomes dead time.
-  Do not discover this by tuning around it — it is also the true cause of the debug attacker
-  resetting before its swing looked done, which was patched with a delay rather than diagnosed.
-- **The melee trace opens on any `Event.Melee.WindowBegin` reaching that ASC.**
-  `UAbilityTask_MeleeTrace` subscribes by tag and does not check which montage sent the event.
-  Correct while exactly one montage carries the notify, and quietly wrong the moment a second one
-  does — a plausible future for the light string or a shield bash. Worth a montage check before
-  any second `Release Window` notify exists, not after.
-- **Does a 2.25× roll read as snappy or as fast-forwarded?** `DodgeSeconds` is 0.4 against 0.9 s
-  source clips, so the derived play rate is 2.25×. Unanswerable until `AM_Dodge` exists, and it is
-  being built with **whole, untrimmed clips** per the entry below — so this question is now asked
-  honestly rather than pre-empted. If it does read sped-up, the first lever is `DodgeSeconds`
-  itself, not the clip.
-- **Input buffering is a prerequisite for judging any of this fairly.** Raised 2026-08-10 while
-  testing the dodge. Without it, an input pressed during a committed action is simply dropped,
-  which is indistinguishable from the action feeling unresponsive — so every timing verdict is
-  currently confounded by inputs that never registered. It is not part of the defense slice, but
-  it should land before the ladder is tuned as a whole, or the tuning will be fitted to a
-  handicap.
-- **Is the roll's authored travel distance right for our spacing?** Play rate fixes the
-  0.9 s length (see the entry below) but it does **not** change how far the roll goes — a
-  faster roll covers the same ground in less time. If the distance itself is wrong, the knob
-  is `AnimRootMotionTranslationScale` on the montage task, not the rate. Unjudgeable until
-  it is in play, and it matters because spacing is the top feel goal.
-- **Should the debug auto-attack move, or only swing?** A dummy that attacks on a timer from
-  a fixed spot tests i-frames but not spacing, and spacing is the top feel goal. Adequate for
-  the dodge slice; inadequate for judging whiff punish later.
-- **Can exhaustion still fail to fire for an action paid at exactly 0?** The delegate only
-  fires on a *change*, so a cost applied at exactly 0 stamina changes nothing and cannot
-  retrigger. Unreachable today — exhaustion now ends only at full, and every defensive action
-  is locked out until then, so you cannot be at zero and un-exhausted. **Block may make it
-  reachable**, because `ActivationBlockedTags` gates activation and not continuation: a block
-  held through zero keeps draining and keeps `State.StaminaRegenPaused` applied, which would
-  stall recovery and therefore stall the exit condition. Check it when block is built.
-  (The related worry that exhaustion "does not scale with overspend" is closed rather than
-  fixed: stamina floors at 0, so overspending does not exist and every exhaustion is the same
-  length by design.)
+These are not design questions. Nothing here needs play to settle; they need checking.
+
+**Before block (item 7)** — *exhaustion can become permanent.* `ActivationBlockedTags` gates
+activation, not continuation, so a block held through zero keeps draining and keeps
+`State.StaminaRegenPaused` applied. Regen is now the **only** thing that ends exhaustion, so
+stalling it stalls the exit condition forever. Related: the stamina delegate only fires on a
+*change*, so a cost applied at exactly 0 changes nothing and cannot retrigger exhaustion.
+Unreachable today — every defensive action is locked out until full — and block is what makes
+it reachable.
+
+**Before a second `Release Window` notify exists (item 6, or item 9)** — *the melee trace opens
+on any `Event.Melee.WindowBegin` reaching that ASC.* `UAbilityTask_MeleeTrace` subscribes by tag
+and never checks which montage sent the event. Correct while exactly one montage carries the
+notify; silently wrong the moment a second does. Add the montage check **before** authoring the
+second notify, not after.
+
+**Before recovery and punish windows (item 12)** — *recovery is shorter than it looks, by exactly
+the montage's blend-out.* `UTDMeleeAttackAbility::StartAttackMontage` binds `HandleMontageFinished`
+to both `OnCompleted` and `OnBlendOut`, and `OnBlendOut` fires when blending *starts* — so the
+ability ends and `State.Attacking` / `State.Attacking.Committed` come off `BlendOut.blendTime`
+before the swing visually finishes. That is **0.25 s** on `AM_LightAttack_01`, large beside a
+250 ms light. Mechanical and visible recovery differ, and recovery *is* the punish window. Settle
+it deliberately: either recovery ends at blend-out and the animation is authored to agree, or the
+ability waits for `OnCompleted` and blend-out becomes dead time. **Do not discover this by tuning
+around it** — it is also the true cause of the debug attacker resetting before its swing looked
+done, which was patched with a delay rather than diagnosed.
+
+**Before tuning the ladder as a whole (item 8 must land first)** — *every timing verdict is
+currently confounded by inputs that never registered.* Without buffering, an input pressed
+during a committed action is simply dropped, which is indistinguishable from the action feeling
+unresponsive. Tuning before it exists fits the numbers to a handicap. Say so when a timing
+verdict is offered rather than acting on it silently.
+
+**During locomotion (item 3c)** — *`MaxWalkSpeed` is 500 because Epic's template said so, not
+because anything measured it.* If it disagrees with what the `Run` clips are authored for, the
+feet slide. The `_RM` variants encode the authored displacement, so this is **measurable rather
+than a matter of taste** — measure it and set the speed from the animation, rather than scaling
+the animation to a speed nobody chose.
+
+---
+
+## Tuning map — a verdict comes back, which knob moves
+
+**The right-hand column is the point.** Each row is a place where the obvious-looking fix is
+the wrong one, usually because it would quietly make the animation the balance authority or
+silently shrink a window under a later retune. Read the row before reaching for a number.
+
+The *questions* — does the ladder feel right, is the dodge too safe — are the user's and are
+kept in their own notes. What belongs here is only what to move once a verdict arrives.
+
+| Feels wrong | Move this | **Not** this |
+|---|---|---|
+| Dodge reads fast-forwarded | `DodgeSeconds` | The clip. Trimming sections to drop the play rate makes the animator's midpoint the design, and does it before the baseline has been felt. |
+| Dodge travels too far or short | `AnimRootMotionTranslationScale` on the montage task | The play rate. Rate changes *duration*, never *distance* — a faster dash covers the same ground in less time. |
+| Dodge is too safe | A recovery window in **absolute** time, i-frames derived as `DodgeSeconds - RecoverySeconds` | A *fraction* of the dodge. What makes recovery punishable is how it compares to an attack's startup, and a fraction shrinks the punish window below usable whenever the dodge is retuned faster. |
+| An attack is too reactable, or not enough | `CoilEndSeconds`, or moving where the coil starts | The windup length. Reactability is measured from the **tell**, not the press — a longer windup with the same coil changes nothing. |
+| The snap-to-camera pop reads badly | `StationaryTurnRateDegrees`, or blending the snap over a frame or two | Reverting to always-smooth. That reintroduces stale facing on the first frame of input and sends dodges sideways. |
+| Feet slide during locomotion | `MaxWalkSpeed`, set from the `_RM` clips' measured displacement | The animation's rate. 500 came from Epic's template and was never measured; derive the speed from the clip rather than scaling the clip to an unchosen number. |
+| An action feels unresponsive at low stamina | Nothing — find what is gating it | Adding or restoring a cost gate. Costs are paid, never required; if an input silently does nothing, `CostGameplayEffectClass` or `CommitAbility` has crept back in. |
+| Exhaustion feels too long or short | `StaminaRegenPerSecond`, since recovery *is* the duration | A duration knob. There isn't one — `ExhaustionSeconds` was deleted deliberately so no second number can disagree with the bar. |
+
+Add a row whenever an entry below establishes that a fix belongs in one place rather than
+another. That is the reusable part of an entry; the argument around it is not.
 
 ---
 
@@ -103,6 +99,89 @@ concludes the log is wrong rather than merely old. Add a row whenever a name cha
 | `LogTDCoil` | `LogTDCombatTiming`, behind the `TD.DebugCombatTiming` cvar. |
 
 ---
+
+## 2026-08-10 — Facing is camera-relative always, and snaps on *input* rather than on movement
+
+Four decisions taken together, before any of item 3 was built. Moved here from `CLAUDE.md`,
+which was carrying the argument as well as the ruling.
+
+**Why facing, locomotion and the props are one item.** `ResolveDodgeDirection` measures input
+against actor facing, and `bOrientRotationToMovement` meant the actor already faced its input —
+so the angle was always ~0 and it resolved to `Fw` in steady state, `Bw` only via the stationary
+fallback. Across every dodge logged 2026-08-10, no other direction ever fired. **The function
+needs no code change; it was correct and merely degenerate.** Camera-relative facing lights up
+all eight as they are.
+
+**Locomotion still ships with facing, but not for the reason `CLAUDE.md` gave.**
+
+> **Corrected the same day it was written.** This entry originally claimed locomotion could not
+> be deferred because "the stock ABP plays a forward run while moving sideways." **That is
+> false** — 3a went into play and `ABP_Manny_Combat` produced correct strafe and backpedal
+> animations immediately. The claim came from `CLAUDE.md`, was moved here unexamined, and was
+> falsified within hours by the very slice it was justifying. Neither of us had checked it. It
+> is corrected inline rather than superseded because nothing was *decided* on it — it was a
+> factual error about existing content, not a position that changed.
+
+The real reasons are ownership and stance, and both are weaker urgency than the false one:
+`ABP_Manny_Combat` lives at `/Game/` root, is Epic template content authored for the
+`Variant_Combat` hierarchy we deliberately do not derive from, and animates a generic Manny
+rather than a sword-and-shield stance. So it gets replaced because it is not ours and not the
+right character, not because it is broken.
+
+**The transferable lesson is about inherited claims.** A statement moved between documents
+arrives with the authority of the file it lands in and none of the scrutiny it never had.
+Deduplicating is still right — the error was in exactly one place when it came time to fix it,
+which is the whole argument for pointing rather than copying — but *moving* a claim is the
+cheapest moment to test it, and this one would have cost one PIE session to check.
+
+**Facing is camera-relative permanently, not by combat stance.** A stance toggle is the common
+action-game answer and was rejected for now on state cost: dodge, block and parry would each
+have to agree with it, and there is no traversal content that would benefit. Revisit if one
+ever exists.
+
+**But the character does not snap to the camera at all times.** While there is no movement
+input it turns smoothly toward camera yaw; the moment there is any movement input it snaps.
+The reason snap is wrong while stationary is that a static idle has nothing to mask an
+instant rotation pop — and the standard fix is unavailable to us:
+
+> **The bundle contains no turn-in-place animation whatsoever.** Zero matches for `Turn`,
+> `Pivot`, `Rotate` or `Spin` across all 6,576 rows of the unfiltered index, and no `Turn`
+> token in the exhaustive vocabulary. `SwordShield` ships two idles per pack and nothing else.
+
+So the hybrid is not a preference over the animated solution; it is the only solution we can
+build without new content.
+
+**The snap keys on input, never on velocity, and that is the load-bearing part.** Keyed on
+*movement* the hybrid would break the dodge at exactly the moment dodges get pressed. Standing
+still, camera swung north, character mid-turn still facing east, press forward+dodge on one
+frame: input is north, facing is east, the signed angle is −90° and the dodge resolves to `L`.
+You pressed forward and went left.
+
+Keying on input closes it, because `ResolveDodgeDirection` already returns `Bw` unconditionally
+on near-zero input and never consults facing while stationary. The two rules then key off the
+**same** condition and cannot disagree: facing is allowed to lag only while nothing reads it,
+and is exact the instant anything does.
+
+This is the third application of a rule the codebase keeps arriving at independently — **key
+off input or action, not off the state it produces.** `ResolveDodgeDirection` reads
+`GetLastInputVector()` rather than velocity because velocity still carries the old direction
+after the stick is released; the jump regen pause hooks `OnJumped` rather than `IsFalling()`
+so a ledge-walk is not billed. Worth stating generally now that it has come up three times.
+
+**Accepted cost, stated plainly: the pop is relocated, not removed.** Swing the camera 180°
+while stationary and move before the turn completes, and the remainder snaps. It lands on the
+idle→locomotion transition, which is changing the animation anyway, and at 500°/s a 180° turn
+takes 0.36 s so it will usually have finished. The turn rate gets its own tunable rather than
+borrowing `RotationRate`, because the two are now different things.
+
+**Locomotion is run-only, eight directions, `Loopable` clips, from `SwordAndShieldAnimV1`.**
+One 1D directional blendspace, eight samples, idle as a separate state. Walk is not authored
+because there is no walk/run input to select it — a speed axis would be content for a control
+that does not exist. Start/End transition clips are likewise deferred: they are polish on a
+baseline nobody has felt, and this project has now twice been right to judge the baseline
+first. V1 is chosen to match `AM_Dodge`, which is built from V1 `Dash` clips; mixing packs
+risks two stances reading as two characters. If V3 previews better, `AM_Dodge` should move too
+rather than the two diverging.
 
 ## 2026-08-10 — The defensive regen pause is 0.5 s; felt feel beat the argued distinction
 
