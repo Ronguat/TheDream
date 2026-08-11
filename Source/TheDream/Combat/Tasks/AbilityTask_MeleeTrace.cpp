@@ -80,6 +80,19 @@ void UAbilityTask_MeleeTrace::TickTask(float DeltaTime)
 		return;
 	}
 
+	// Hit detection is the server's alone. Abilities are LocalPredicted, so without this the
+	// sweep also runs on the owning client -- from a *different* socket position, because the
+	// two machines are a round trip apart in the swing. That client result can never apply
+	// damage (UTDMeleeAttackAbility gates on authority), so at best it is wasted work, and at
+	// worst it is a second opinion about what was hit that nothing reconciles.
+	//
+	// Prediction, when it arrives, does not change this: what a client predicts is its *own*
+	// action, never whether that action connected with someone else.
+	if (!Avatar->HasAuthority())
+	{
+		return;
+	}
+
 	const FVector CurrentLocation = Mesh->GetSocketLocation(TraceSocket);
 
 	// Sweeping from the previous frame's position closes the gap a fast swing would

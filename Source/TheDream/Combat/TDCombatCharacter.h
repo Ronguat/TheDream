@@ -117,6 +117,7 @@ protected:
 
 	virtual void BeginPlay() override;
 	virtual void Tick(float DeltaSeconds) override;
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
 	/** Blocked while exhausted, per the design: no defensive actions and no jump. */
 	virtual void Jump() override;
@@ -431,6 +432,31 @@ private:
 	void ExitExhaustion();
 
 	/**
+	 *  The locally-visible half of exhaustion and death, run on every machine.
+	 *
+	 *  **The split is the whole point.** Enter/Exit decide *whether* the state changed and run
+	 *  on the server alone, because the stamina and health delegates that drive them are bound
+	 *  behind the authority gate. Apply/Clear make the state *true on this machine* -- the tag,
+	 *  the ragdoll, the movement stop -- and run on the server directly and on clients from
+	 *  OnRep.
+	 *
+	 *  Before this existed the tag was applied by the server only, and since a loose gameplay
+	 *  tag does not replicate, a client's ASC never had it: its own CanActivateAbility would
+	 *  pass, it would predict an action the server had already refused, and only a correction
+	 *  would tell it otherwise.
+	 */
+	void ApplyExhaustionState();
+	void ClearExhaustionState();
+	void ApplyDeathState();
+	void ClearDeathState();
+
+	UFUNCTION()
+	void OnRep_Dead();
+
+	UFUNCTION()
+	void OnRep_Exhausted();
+
+	/**
 	 *  Applies State.Dead, cancels everything running, and stops the character moving.
 	 *
 	 *  Cancelling is the deliberate difference from exhaustion, which gates activation and
@@ -464,8 +490,20 @@ private:
 	/** True between an actual jump launch and landing. Never set by merely falling. */
 	bool bJumpRegenPauseActive = false;
 
+	/**
+	 *  Replicated, because the tags they drive are *loose* tags and loose tags do not replicate.
+	 *
+	 *  These bools are the wire format and the tag is the local consequence: the server decides,
+	 *  the bool replicates, and OnRep applies the same tag on each client that the server
+	 *  applied on itself. A GameplayEffect carrying the tag would replicate on its own and is
+	 *  the more usual answer, but UE 5.8 expresses effect-granted tags through gEComponents,
+	 *  which cannot be scripted -- see Docs/Working-In-Unreal.md -- so it would need a human in
+	 *  the editor for a mechanism the economy already owns in C++.
+	 */
+	UPROPERTY(ReplicatedUsing = OnRep_Exhausted)
 	bool bExhausted = false;
 
+	UPROPERTY(ReplicatedUsing = OnRep_Dead)
 	bool bDead = false;
 
 	/**

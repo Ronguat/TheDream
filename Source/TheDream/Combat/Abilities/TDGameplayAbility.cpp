@@ -13,6 +13,19 @@ UTDGameplayAbility::UTDGameplayAbility()
 	// One instance per actor: abilities keep state across activations (combo index,
 	// input holds) and per-execution instancing would throw that away every swing.
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
+
+	// Stated explicitly even though it is the engine default, because it is the engine default
+	// only by accident -- UGameplayAbility's constructor never assigns NetExecutionPolicy, and
+	// LocalPredicted is simply enum index 0. Every ability in this project was running the most
+	// demanding policy without anyone choosing it.
+	//
+	// LocalPredicted *is* the right value for the agreed model (server-authoritative with
+	// client prediction, decided 2026-08-11): the client starts acting immediately and the
+	// server remains the authority. What is still owed is the other half -- prediction windows
+	// so that a mispredicted activation is rolled back rather than left standing. Until that
+	// exists this is a correct declaration of intent and an incomplete implementation of it,
+	// which is deliberately better than an undeclared one.
+	NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::LocalPredicted;
 }
 
 bool UTDGameplayAbility::CanActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayTagContainer* SourceTags, const FGameplayTagContainer* TargetTags, FGameplayTagContainer* OptionalRelevantTags) const

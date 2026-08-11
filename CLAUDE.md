@@ -22,7 +22,21 @@ Build a high-precision combat prototype in Unreal Engine that prioritizes spacin
 - Armor classes
 - Abilities / specials
 - Full frame-data tuning pass (placeholder numbers are fine)
-- Netcode / multiplayer
+- Netcode / multiplayer — **but see the rule below; this is deferred, not abandoned**
+
+### Netcode is deferred, not out of mind
+**This prototype is ultimately PvP**, agreed 2026-08-11. Nothing is being networked now, and no
+slice should stop to network itself. But new work must not add to the gap, so two rules bind:
+- **New state is a replicated property or an attribute, never a loose gameplay tag.** Loose tags
+  do not replicate. Follow `bDead` / `bExhausted` on `ATDCombatCharacter`: the server decides, the
+  bool replicates, `OnRep` applies the tag locally. **Decide on the server, apply everywhere.**
+- **Authority-sensitive work is explicitly gated.** Damage, attribute writes and hit detection are
+  the server's.
+
+The model is **server-authoritative with client prediction** — the one GAS is built for. Its
+consequence for design, not just code: **latency comes out of the reactability budget**, and the
+heavy's coil→damaging window is already at the edge of human reaction. Reasoning, the audit
+findings and what remains undone are in `Docs/Combat-Decisions.md`.
 
 ## Core Combat Rules (must respect)
 

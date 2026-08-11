@@ -78,6 +78,22 @@ stalling it stalls the exit condition forever. Related: the stamina delegate onl
 Unreachable today — every defensive action is locked out until full — and block is what makes
 it reachable.
 
+**Whenever new state is added, from 2026-08-11 on** — *a loose gameplay tag does not replicate,
+and this is now a PvP project.* `AddLooseGameplayTag` is local to the machine that calls it. If
+the caller is authority-only — anything driven by an attribute delegate, which are all bound
+behind the authority gate — clients never see the state at all, and their own
+`CanActivateAbility` will happily pass a check the server has already failed. Use a replicated
+property whose `OnRep` applies the tag locally, following `bDead` / `bExhausted`. The rule is
+**decide on the server, apply everywhere.**
+
+**Before any multiplayer slice** — *i-frames have no lag compensation, and the dodge is 400 ms of
+invulnerability.* The immunity check reads the target's ASC on the server. A client dodges at T
+and the server learns at T+RTT/2; an attack resolving inside that gap ignores a dodge the player
+has already watched begin. This is the "I dodged that!" complaint and this design can least
+afford it — i-frames last exactly as long as the dodge, with no vulnerable tail to absorb the
+disagreement. Also unsolved: 14 `SetTimer` sites that are not network-aware, and no prediction
+windows despite every ability being `LocalPredicted`.
+
 **Before the sword-and-shield attack swap (item 6)** — *the melee trace follows `hand_r`, not the
 weapon, and reach is therefore unrelated to the sword.* `UTDMeleeAttackAbility::TraceSocket`
 defaults to `hand_r` and sweeps a sphere of the branch's `TraceRadius` (45 / 55 / 65) along that
@@ -172,6 +188,77 @@ concludes the log is wrong rather than merely old. Add a row whenever a name cha
 | `LogTDCoil` | `LogTDCombatTiming`, behind the `TD.DebugCombatTiming` cvar. |
 
 ---
+
+## 2026-08-11 — PvP is the destination, so state must replicate; the model is server-auth + prediction
+
+Raised by the user, who noted this prototype is ultimately PvP and that netcode should be treated
+as an inevitability rather than a later phase. `CLAUDE.md` still lists netcode as out of scope and
+that stands — **nothing is being networked now.** What changed is that new work must not add to
+the gap, and an audit went looking for how large the gap already was.
+
+**The verdict: caught early, and the expensive-to-retrofit decisions had already gone the right
+way.** Attributes replicate correctly (`Mixed` mode, `REPNOTIFY_Always`, three-layer clamping),
+damage and cost application are authority-gated, and **displacement is root motion rather than
+code-driven** — that last one was chosen on 2026-08-10 for a completely unrelated reason ("the
+cheaper experiment runs first") and is the single most valuable accident in the codebase, because
+CMC replicates root motion and a hand-rolled displacement system would have had to be rewritten.
+
+What was wrong was wrong *mechanically* rather than structurally: ten call sites of one mistake,
+one unset property, one missing guard.
+
+**The latency model is server-authoritative with client prediction.** Chosen deliberately over
+rollback. Rollback is arguably the better fit for the design — a 250 ms light and frame-precise
+punishes are fighting-game shapes — but GAS is not built for it, and choosing it would mean
+fighting the framework or moving combat out of it entirely. This is the model GAS is designed
+around, and the project has shipped PvP on it before.
+
+The consequence to hold onto: **latency is now a design constraint, not an implementation
+detail.** Reactability is measured from the tell, and the heavy's coil→damaging window is already
+"right at the edge of human reaction" at ~240 ms. Whatever a network adds comes out of that
+budget. Items 6–12 should be designed knowing it.
+
+**Loose gameplay tags do not replicate, and every state tag in the project was one.** For tags
+applied by an ability this survived by accident — the ability runs on both machines under
+`LocalPredicted`, so both ASCs get the tag independently. For tags applied by the *character* it
+was simply broken: `State.Dead` and `State.Exhausted` are driven by attribute delegates bound
+behind the authority gate, so a client's ASC never received them, its own `CanActivateAbility`
+would pass, and it would predict actions the server had already refused.
+
+Fixed by making `bDead` / `bExhausted` replicated properties whose `OnRep` applies the same tag
+locally that the server applied on itself. **A GameplayEffect carrying the tag is the more usual
+answer and was rejected on tooling grounds**: UE 5.8 expresses effect-granted tags through
+`gEComponents`, which cannot be scripted, so it would need a human in the details panel for a
+mechanism the economy already owns in C++.
+
+The shape this establishes, and the reason it is worth an entry: **decide on the server, apply
+everywhere.** `EnterDeath`/`ExitExhaustion` decide whether the state changed and are
+authority-only; `ApplyDeathState`/`ClearExhaustionState` make it true on the local machine and run
+on the server directly and on clients from `OnRep`. Two things stayed deliberately on the server
+side of that line — `CancelAllAbilities`, because it replicates through GAS by itself and running
+it again from a client would cancel that client's predicted copies, and attribute restoration,
+because a client rewriting its own health is the shape of an exploit.
+
+**`NetExecutionPolicy` was `LocalPredicted` on every ability by accident.** `UGameplayAbility`'s
+constructor never assigns it and `LocalPredicted` is enum index 0, so the most demanding policy
+was in force without anyone choosing it. It is now set explicitly — to the same value, which is
+correct for the agreed model. What is still owed is prediction windows, so a mispredicted
+activation is rolled back rather than left standing. Declaring the intent while the
+implementation is incomplete is deliberate and better than leaving it undeclared.
+
+**The melee trace is now authority-guarded.** It ran on client and server both, from socket
+positions a round trip apart. Damage was already server-gated so this was wasted work rather than
+double damage, but it was also a second opinion about what was hit that nothing reconciled.
+Prediction does not change this: a client predicts its own action, never whether that action
+connected with someone else.
+
+**Standing rule from here: new state is a replicated property or an attribute, never a loose tag;
+new authority-sensitive work is explicitly gated.** That is what stops the gap growing while the
+actual networking waits.
+
+Known to remain, and deliberately deferred: prediction windows and keys, lag compensation for
+i-frames and hit resolution (the dodge is 400 ms of invulnerability whose start instant two
+machines will disagree about), client-side stamina prediction, and 14 `SetTimer` sites that are
+not network-aware.
 
 ## 2026-08-11 — Dodge travel ships at the clips' authored distance, measured rather than assumed
 

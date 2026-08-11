@@ -13,6 +13,7 @@
 #include "PhysicsEngine/PhysicsAsset.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameplayEffect.h"
+#include "Net/UnrealNetwork.h"
 #include "TimerManager.h"
 
 ATDCombatCharacter::ATDCombatCharacter()
@@ -149,6 +150,16 @@ void ATDCombatCharacter::HandleHealthChanged(const FOnAttributeChangeData& Data)
 	EnterDeath();
 }
 
+void ATDCombatCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	// To everyone, not just the owner: a simulated proxy has to know an opponent is dead or
+	// exhausted, because that is what its own ragdoll and greyed bar are drawn from.
+	DOREPLIFETIME(ATDCombatCharacter, bDead);
+	DOREPLIFETIME(ATDCombatCharacter, bExhausted);
+}
+
 void ATDCombatCharacter::EnterDeath()
 {
 	if (bDead)
@@ -160,16 +171,61 @@ void ATDCombatCharacter::EnterDeath()
 	TD_TIMING_LOG(TEXT("[%.3f] DEATH      %s"),
 		GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f, *GetName());
 
+	// Server-only, and deliberately outside ApplyDeathState. Cancelling abilities is an
+	// authority decision that replicates through GAS on its own; running it again from a
+	// client's OnRep would cancel that client's *predicted* copies out from under a
+	// correction that may never come.
 	if (AbilitySystemComponent)
 	{
-		AbilitySystemComponent->AddLooseGameplayTag(TDTags::State_Dead);
-
 		// The tag alone only refuses *new* activations, which is exhaustion's rule and is
 		// visibly wrong here: a killing blow landing mid-swing would otherwise leave a corpse
 		// finishing its attack, hitbox included. Cancelling also clears State.Attacking and
 		// State.Attacking.Committed through the normal ability-end path, so death cannot leak
 		// the tags that would forbid every future defensive action on revive.
 		AbilitySystemComponent->CancelAllAbilities();
+	}
+
+	// A buffered press must not survive death: it would fire on revive, an action asked for
+	// in a situation that no longer exists. Local input state, so it is meaningless on any
+	// machine that is not the one that pressed the button.
+	BufferedInput.Clear();
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(BufferedReleaseTimerHandle);
+	}
+
+	if (DebugAutoReviveSeconds > 0.0f)
+	{
+		GetWorldTimerManager().SetTimer(
+			DebugReviveTimerHandle,
+			this,
+			&ATDCombatCharacter::ReviveFromDebug,
+			DebugAutoReviveSeconds,
+			false);
+	}
+
+	ApplyDeathState();
+}
+
+void ATDCombatCharacter::OnRep_Dead()
+{
+	// The server ran the matching half directly. Everything below is what a client needs in
+	// order to *look* and *behave* dead without being told twice.
+	if (bDead)
+	{
+		ApplyDeathState();
+	}
+	else
+	{
+		ClearDeathState();
+	}
+}
+
+void ATDCombatCharacter::ApplyDeathState()
+{
+	if (AbilitySystemComponent)
+	{
+		AbilitySystemComponent->AddLooseGameplayTag(TDTags::State_Dead);
 	}
 
 	// Otherwise "dead" is only a tag and the corpse keeps walking, which is the exact
@@ -190,23 +246,33 @@ void ATDCombatCharacter::EnterDeath()
 	{
 		StartRagdoll();
 	}
+}
 
-	// A buffered press must not survive death: it would fire on revive, an action asked for
-	// in a situation that no longer exists.
-	BufferedInput.Clear();
-	if (UWorld* World = GetWorld())
+void ATDCombatCharacter::ClearDeathState()
+{
+	if (AbilitySystemComponent)
 	{
-		World->GetTimerManager().ClearTimer(BufferedReleaseTimerHandle);
+		AbilitySystemComponent->RemoveLooseGameplayTag(TDTags::State_Dead);
 	}
 
-	if (DebugAutoReviveSeconds > 0.0f)
+	// Before the teleport, deliberately. StopRagdoll reattaches the mesh to the capsule, and
+	// moving the actor while physics still drives the mesh in world space would leave the body
+	// behind. Order is the whole correctness argument here.
+	StopRagdoll();
+
+	// An auto-attacker revives at the spot it was placed rather than wherever its last root
+	// motion carried it. Without this it stands up displaced and only drifts home on its next
+	// attack cycle -- which is what play reported. No-op for anything that is not an
+	// auto-attacker, so the player revives where they fell.
+	ReturnToDebugAutoAttackHome();
+
+	// Falling rather than Walking, deliberately. The character may have died in mid-air, and
+	// forcing Walking there leaves it hovering with no gravity until something else disturbs
+	// it. Falling is self-correcting in both cases: on the ground the movement component
+	// resolves it to Walking on the next update, in the air it simply resumes the fall.
+	if (UCharacterMovementComponent* Movement = GetCharacterMovement())
 	{
-		GetWorldTimerManager().SetTimer(
-			DebugReviveTimerHandle,
-			this,
-			&ATDCombatCharacter::ReviveFromDebug,
-			DebugAutoReviveSeconds,
-			false);
+		Movement->SetMovementMode(MOVE_Falling);
 	}
 }
 
@@ -281,24 +347,14 @@ void ATDCombatCharacter::ReviveFromDebug()
 	}
 	bDead = false;
 
-	// Before the teleport, deliberately. StopRagdoll reattaches the mesh to the capsule, and
-	// moving the actor while physics still drives the mesh in world space would leave the body
-	// behind. Order is the whole correctness argument here.
-	StopRagdoll();
-
-	// An auto-attacker revives at the spot it was placed rather than wherever its last root
-	// motion carried it. Without this it stands up displaced and only drifts home on its next
-	// attack cycle -- which is what play reported. No-op for anything that is not an
-	// auto-attacker, so the player revives where they fell.
-	ReturnToDebugAutoAttackHome();
-
 	TD_TIMING_LOG(TEXT("[%.3f] REVIVE     %s"),
 		GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f, *GetName());
 
+	// Authority-only: attribute writes are the server's, and clients receive them by
+	// replication. Restoring them from a client's OnRep would be a client rewriting its own
+	// health, which is both wrong and the shape of an exploit.
 	if (AbilitySystemComponent)
 	{
-		AbilitySystemComponent->RemoveLooseGameplayTag(TDTags::State_Dead);
-
 		AbilitySystemComponent->SetNumericAttributeBase(UTDAttributeSet::GetHealthAttribute(), GetMaxHealth());
 
 		// Stamina too, deliberately. Dying at low stamina and reviving instantly exhausted is
@@ -311,24 +367,13 @@ void ATDCombatCharacter::ReviveFromDebug()
 	// delegate fires on a *change*, and reviving from an already-full bar changes nothing.
 	ExitExhaustion();
 
-	// Falling rather than Walking, deliberately. The character may have died in mid-air, and
-	// forcing Walking there leaves it hovering with no gravity until something else disturbs
-	// it. Falling is self-correcting in both cases: on the ground the movement component
-	// resolves it to Walking on the next update, in the air it simply resumes the fall.
-	if (UCharacterMovementComponent* Movement = GetCharacterMovement())
-	{
-		Movement->SetMovementMode(MOVE_Falling);
-	}
+	ClearDeathState();
 }
 
 void ATDCombatCharacter::EnterExhaustion()
 {
 	bExhausted = true;
-
-	if (AbilitySystemComponent && ExhaustedTag.IsValid())
-	{
-		AbilitySystemComponent->AddLooseGameplayTag(ExhaustedTag);
-	}
+	ApplyExhaustionState();
 }
 
 void ATDCombatCharacter::ExitExhaustion()
@@ -339,6 +384,31 @@ void ATDCombatCharacter::ExitExhaustion()
 	}
 	bExhausted = false;
 
+	ClearExhaustionState();
+}
+
+void ATDCombatCharacter::OnRep_Exhausted()
+{
+	if (bExhausted)
+	{
+		ApplyExhaustionState();
+	}
+	else
+	{
+		ClearExhaustionState();
+	}
+}
+
+void ATDCombatCharacter::ApplyExhaustionState()
+{
+	if (AbilitySystemComponent && ExhaustedTag.IsValid())
+	{
+		AbilitySystemComponent->AddLooseGameplayTag(ExhaustedTag);
+	}
+}
+
+void ATDCombatCharacter::ClearExhaustionState()
+{
 	if (AbilitySystemComponent && ExhaustedTag.IsValid())
 	{
 		AbilitySystemComponent->RemoveLooseGameplayTag(ExhaustedTag);
