@@ -302,31 +302,36 @@ can be sped up — `Attack4_Stage2_Complete` runs 1.933 s and reads *too slow* a
 motion, not the number. Recorded because the opposite assumption drove clip selection for most of
 a session and ruled out the eventual winner's whole family on arithmetic.
 
+Ordered by attack number so a family can be cleared in one sitting, not by duration — the
+review is per-family and the durations are in the table anyway.
+
 | Clip | Length | What it is |
 |---|---:|---|
-| `Attack4_Stage1_Complete` | 0.967 | **Diagonal slash, top-right to bottom-left.** Steps forward, ends forward in idle. *Chosen baseline light.* |
-| `Attack4_Stage2_Complete` | 1.933 | **360° swing.** Reads too slow at 1×; wants speeding up. Good consecutive-light candidate. |
-| `Attack4_Stage3_Complete` | 1.000 | **Shield bash**, fairly stationary |
-| `Attack4_Stage4_Complete` | 2.300 | **Heavy stab + flourish** on withdraw. No forward travel. |
-| `Attack7_Stage2_Complete` | 0.967 | **Shield bash**, steps forward |
-| `Attack6_Stage2_Complete` | 0.900 | |
-| `Attack3_Stage2_Complete` | 1.133 | |
-| `Attack2_Stage1_Complete` | 1.333 | |
+| `Attack1_Stage1_Complete` | 3.000 | |
 | `Attack1_Stage2_Complete` | 1.367 | |
-| `Attack8_Stage2_Complete` | 1.500 | |
 | `Attack1_Stage3_Complete` | 1.567 | |
+| `Attack2_Stage1_Complete` | 1.333 | |
 | `Attack2_Stage2_Complete` | 1.633 | |
 | `Attack3_Stage1_Complete` | 1.767 | |
-| `Attack7_Stage1_Complete` | 1.767 | |
+| `Attack3_Stage2_Complete` | 1.133 | |
+| **`Attack4_Stage1_Complete`** | 0.967 | **Diagonal slash, top-right to bottom-left.** Steps forward, ends forward in idle. **Chosen baseline light.** |
+| **`Attack4_Stage2_Complete`** | 1.933 | **360° swing.** Reads too slow at 1×; wants speeding up. Good consecutive-light candidate. |
+| **`Attack4_Stage3_Complete`** | 1.000 | **Shield bash**, fairly stationary |
+| **`Attack4_Stage4_Complete`** | 2.300 | **Heavy stab + flourish** on withdraw. No forward travel. |
+| `Attack5` | 2.333 | *stage-less — the bare clip is the whole attack* |
 | `Attack6_Stage1_Complete` | 2.000 | |
-| `Attack8_Stage1_Complete` | 2.000 | |
-| `Attack10` | 2.133 | *stage-less — the bare clip is the whole attack* |
-| `Attack8_Stage3_Complete` | 2.233 | |
-| `Attack5` | 2.333 | *stage-less* |
+| `Attack6_Stage2_Complete` | 0.900 | |
 | `Attack6_Stage3_Complete` | 2.333 | |
-| `Attack9` | 2.533 | *stage-less* |
+| `Attack7_Stage1_Complete` | 1.767 | |
+| **`Attack7_Stage2_Complete`** | 0.967 | **Shield bash**, steps forward |
 | `Attack7_Stage3_Complete` | 2.500 | |
-| `Attack1_Stage1_Complete` | 3.000 | |
+| `Attack8_Stage1_Complete` | 2.000 | |
+| `Attack8_Stage2_Complete` | 1.500 | |
+| `Attack8_Stage3_Complete` | 2.233 | |
+| `Attack9` | 2.533 | *stage-less* |
+| `Attack10` | 2.133 | *stage-less* |
+
+**`Attack4` is fully reviewed.** The rest is open.
 
 **Combo families, for item 9.** Stage counts are `Attack4` **4**; `Attack1`/`6`/`7`/`8` **3**;
 `Attack2`/`3` **2**; `Attack5`/`9`/`10` none. A string uses the *fragments* mid-chain and a
