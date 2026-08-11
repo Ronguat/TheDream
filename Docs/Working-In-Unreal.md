@@ -465,6 +465,26 @@ character. Two traps when reasoning about them:
   can exceed a tier boundary. Printing it is what caught a 236 ms hold being flattened to a
   light.
 
+**`GetLogEntries` returns a *window*, and a mixed-frequency pattern makes it lie about absence**
+*(confirmed 2026-08-11, the hard way)*. `maxEntries` is taken from the **end** of the log, so a
+pattern combining a high-frequency event with a low-frequency one spends the whole budget on the
+noisy one. `DODGE|BUFFER|DEATH|REVIVE` at `maxEntries: 60` returned a window containing **2**
+dodges; the same query as `DODGE` alone at `maxEntries: 0` returned **30**, covering all eight
+directions. A regression was reported as half-untested on the strength of the first.
+
+**So: one pattern per event class, and `maxEntries: 0`, whenever the question is "did this ever
+happen".** A capped mixed query answers "what happened recently", which is a different question
+and looks identical. This is the standing absence rule in its logging form — the filter was mine,
+and a filter that misses proves nothing.
+
+**Not every state is traced, so check what the trace covers before reading anything into its
+silence.** `TD_TIMING_LOG` emits ACTIVATE, COIL START, ESCALATE, COMMIT, RELEASE, DODGE,
+DODGE END, BUFFER, REFUSED, DEATH and REVIVE — and **nothing for exhaustion**. Absence of
+exhaustion from the log is not evidence it did not occur; it is evidence nobody logs it. Confirm
+exhaustion with `GetActiveTags` during PIE, or infer it from a `BUFFER ...Dodge: expired`, which
+is what a dodge pressed while exhausted produces. The list is greppable:
+`grep -rn "TD_TIMING_LOG" Source/`.
+
 **The `RELEASE BEGIN`/`END` lines can report the wrong montage** *(found in review 2026-08-10)*.
 `AnimNotifyState_MeleeWindow` logs via `GetCurrentActiveMontage()` rather than the attack montage,
 so if anything else is playing at higher priority — a dodge cancelling an attack, now that
