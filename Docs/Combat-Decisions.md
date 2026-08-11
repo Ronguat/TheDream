@@ -60,6 +60,7 @@ dated entry. Add a row whenever an entry supersedes part of an older one.
 | 2026-08-10 — No dodging in the air | once buffering exists the refusal should become a defer | 2026-08-11 — The input buffer remembers a press |
 | 2026-08-10 — Facing is camera-relative | the stock ABP plays a forward run while strafing | corrected **inline** in that same entry — nothing was decided on it, so it was a factual error rather than a reversal |
 | 2026-08-11 — PvP is the destination | `CLAUDE.md` still lists netcode as out of scope "and that stands" | corrected **inline** in that same entry, within the hour — the user withdrew the scope call once it was restated back to them |
+| 2026-08-11 — PvP is the destination | 14 network-unaware `SetTimer` sites | corrected **inline** in that same entry — the real figure is **2**; the count swept in Epic template code, debug timers, and one that must stay local |
 
 ---
 
@@ -111,8 +112,18 @@ invulnerability.* The immunity check reads the target's ASC on the server. A cli
 and the server learns at T+RTT/2; an attack resolving inside that gap ignores a dodge the player
 has already watched begin. This is the "I dodged that!" complaint and this design can least
 afford it — i-frames last exactly as long as the dodge, with no vulnerable tail to absorb the
-disagreement. Also unsolved: 14 `SetTimer` sites that are not network-aware, and no prediction
-windows despite every ability being `LocalPredicted`.
+disagreement. Also unsolved: no prediction windows despite every ability being `LocalPredicted`,
+and **2** network-unaware `SetTimer` sites — `TDChargedAttackAbility`'s checkpoint and
+`TDDodgeAbility`'s duration.
+
+*Recounted 2026-08-11; the original figure of 14 came from a module-wide grep.* There are 13, and
+**six are in `Variant_Combat/`** — Epic template code this project explicitly does not derive
+from. Of our seven, four are debug-only (auto-attack press/release/reset, the debug revive) and
+one is the buffered-release replay, which is *local input* and by this project's own rule
+deliberately must **not** be networked. Note the correction does not shrink the work: the dodge
+timer is the i-frame problem in this same paragraph, which is the hardest item on the list. **A
+count taken across a whole module measures the module, not the debt** — the same filtered-view
+error the absence rule exists for, in its counting form.
 
 **Before the sword-and-shield attack swap (item 6)** — *the melee trace follows `hand_r`, not the
 weapon, and reach is therefore unrelated to the sword.* `UTDMeleeAttackAbility::TraceSocket`
@@ -378,6 +389,16 @@ Known to remain, and deliberately deferred: prediction windows and keys, lag com
 i-frames and hit resolution (the dodge is 400 ms of invulnerability whose start instant two
 machines will disagree about), client-side stamina prediction, and 14 `SetTimer` sites that are
 not network-aware.
+
+> **The figure of 14 is wrong, recounted 2026-08-11.** It is **2** — `TDChargedAttackAbility`'s
+> checkpoint and `TDDodgeAbility`'s duration. The original came from a module-wide grep that
+> counted six sites in `Variant_Combat/` (Epic template code we do not derive from), four
+> debug-only timers, and the buffered-release replay, which is local input and correctly stays
+> local. Corrected **inline** rather than superseded because nothing was decided on it — it was a
+> miscount, not a position that changed, the same treatment the stock-ABP claim got on
+> 2026-08-10. See the known-traps section for the full breakdown. **The correction makes the list
+> shorter, not the work smaller:** the dodge timer is the i-frame lag-compensation problem named
+> two sentences earlier, and that is the hardest item here.
 
 ## 2026-08-11 — Dodge travel ships at the clips' authored distance, measured rather than assumed
 

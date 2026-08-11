@@ -54,8 +54,12 @@ unpossessed placed pawn with no PlayerState, so `ATDCombatCharacter` *resolves* 
 uses rather than assuming one — never reach past `AbilitySystem` to the owned fallback.
 
 **Still outstanding:** prediction windows, lag compensation for i-frames, client-side stamina
-prediction, and 14 network-unaware `SetTimer` sites. The 2026-08-11 audit that found them, and
-the reasoning behind the model, are in `Docs/Combat-Decisions.md`.
+prediction, and **2** network-unaware `SetTimer` sites — the charged attack's checkpoint and the
+dodge's duration. (Recounted 2026-08-11: the figure was 14, which swept in six sites in
+`Variant_Combat/` that we do not derive from, four debug-only timers, and the buffered-release
+replay, which is local input and correctly stays local. Fewer sites, same difficulty — the dodge
+timer *is* the i-frame lag-compensation problem.) The 2026-08-11 audit and the reasoning behind
+the model are in `Docs/Combat-Decisions.md`.
 
 **On commitment level, stated 2026-08-11 so nobody has to guess it:** *building* networkably is
 non-negotiable and binds every slice, as above. *Actually networking the game* is the *final
