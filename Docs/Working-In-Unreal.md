@@ -465,6 +465,28 @@ character. Two traps when reasoning about them:
   can exceed a tier boundary. Printing it is what caught a 236 ms hold being flattened to a
   light.
 
+**A montage's `compositeSections` is invisible to the toolset, so segments can be repointed by
+script and sections cannot** *(confirmed 2026-08-11)*. `slotAnimTracks[].animTrack.animSegments[]`
+reads and writes fine — swapping all eight `AM_Dodge` clips to another pack took one call. But
+`compositeSections` is neither readable nor writable, and `sequenceLength` is **read-only** and
+does not recompute after a reflection write.
+
+That combination has a specific and ugly failure mode. Swapping 0.733 s clips for 0.833 s ones
+moved every segment while the section markers stayed at the old spacing, producing a **cumulative
+0.1 s drift**: section 0 was correct, section 1 started 0.1 s into the wrong clip, and by section
+7 it was 0.7 s adrift and played almost entirely the *previous* direction's animation. In play
+this reads as "forward is fine, and it gets progressively worse round the compass" — which sounds
+like an animation quality problem and is an arithmetic one.
+
+**The tell is in the trace, not the animation:** `DODGE` prints `sectionLen=`, which read 0.733
+while the segments were 0.833. Any montage whose section length disagrees with its segment length
+is misaligned. Note the derived play rate is computed *from* `sectionLen`, so it was wrong too and
+corrected itself once the sections were fixed.
+
+**So: script the segments, then have a human place the sections** — or rebuild the montage
+outright, which is cleaner when the length has gone stale, since sections cannot be placed past
+an end that never recomputed.
+
 **An automated PIE run is one fixed spawn position, so "no damage landed" is not evidence about
 hit detection** *(confirmed the hard way, 2026-08-11)*. `StartPIE` spawns both characters at
 their placed transforms and nobody moves. After the melee trace moved from `hand_r` to a 100 cm

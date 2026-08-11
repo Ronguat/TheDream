@@ -61,6 +61,8 @@ dated entry. Add a row whenever an entry supersedes part of an older one.
 | 2026-08-10 — Facing is camera-relative | the stock ABP plays a forward run while strafing | corrected **inline** in that same entry — nothing was decided on it, so it was a factual error rather than a reversal |
 | 2026-08-11 — PvP is the destination | `CLAUDE.md` still lists netcode as out of scope "and that stands" | corrected **inline** in that same entry, within the hour — the user withdrew the scope call once it was restated back to them |
 | 2026-08-11 — PvP is the destination | 14 network-unaware `SetTimer` sites | corrected **inline** in that same entry — the real figure is **2**; the count swept in Epic template code, debug timers, and one that must stay local |
+| 2026-08-10 — Facing is camera-relative | locomotion ships from `SwordAndShieldAnimV1`, and mixing packs must be avoided | 2026-08-11 — V3 becomes the base stance (V1 reads as permanently guarding, and V1 has no `Hit`/`Death` clips so mixing was never avoidable) |
+| 2026-08-11 — Dodge travel ships at the clips' authored distance | the eight directions agree, so one uniform scale is the right shape and no per-direction data is needed | 2026-08-11 — V3 becomes the base stance (true of V1's clips, false of V3's: spread 90.6 uu) |
 
 ---
 
@@ -242,6 +244,71 @@ concludes the log is wrong rather than merely old. Add a row whenever a name cha
 | `LogTDCoil` | `LogTDCombatTiming`, behind the `TD.DebugCombatTiming` cvar. |
 
 ---
+
+## 2026-08-11 — V3 becomes the base stance, and one uniform dodge scale does not survive the swap
+
+Two reversals, both driven by play, both superseding entries that reasoned well from what was
+known at the time.
+
+**V3 replaces V1 for locomotion, idle and the dodge.** This supersedes the pack choice in
+"2026-08-10 — Facing is camera-relative", which picked V1 to match `AM_Dodge`'s `Dash` clips on
+the grounds that *"mixing packs risks two stances reading as two characters."*
+
+**That argument was about internal consistency and never about how V1 looked** — nobody had
+compared the packs on appearance, because nobody had thought to. The user did, in play: V1's
+whole set reads as though the character is permanently blocking with the shield. V3 is neutral.
+Confirmed against the assets before the swap, and again in play after it.
+
+**The no-mixing principle it rested on was unachievable from the start, and this is the part
+worth carrying.** `SwordAndShieldAnimV1` contains **no `Hit` clips and no `Death` clips at all**.
+Item 11 was always going to force a cross-pack mix; the only question was where the seam fell.
+Choosing V1 for attacks would have put it on the swing-and-react interaction, which is the most
+observed exchange in the game. So the principle that justified V1 could not have been honoured by
+V1. *A constraint nobody re-checked outlived the facts that made it true.*
+
+**V1 is kept, for the one thing it is better at.** It owns the held guard — `DefenseStart` /
+`Defense_Loop` / `DefenseEnd` plus four directional `Defense_Hit` and four die-while-blocking
+variants, against V3's single non-directional block impact and no exit clip. So item 7 stays on
+V1, and the user's proposal to use V1 as a *blocking locomotion set* gets stronger with this
+result rather than weaker: V1 turns out to be specifically guard-shaped, which is a defect as a
+neutral stance and exactly right as a guard.
+
+**Second reversal: item 5's finding that a single uniform `DodgeRootMotionScale` is the right
+shape was correct for V1 and did not survive.** That entry measured all eight directions
+(mean 404.9, spread 31.5 uu), found them in agreement, and concluded no per-direction data was
+needed — while explicitly naming the condition that would change it. V3's clips meet that
+condition: **spread 90.6 uu**, 371.9 left against 462.6 right.
+
+**How it was established, because the method is the transferable part.** The user's first
+hypothesis was that the variance was their own input error, and tested it by dodging left and
+right deliberately. Repeat measurements came back *identical* — L 372.0 then 371.9, R 462.6
+twice. Within-direction repeatability is ≤6 uu against a 90.6 uu between-direction spread, about
+15:1, which converts "probably the clips" into "certainly the clips". **A disconfirmed hypothesis
+settled this faster than more measurement would have.**
+
+Then the amplifier: **dodging up a ramp**. On flat ground a 90 uu difference is arguable; on a
+slope it becomes a visible difference in how far up you end up, and the user reported right
+reaching nearly the top where left managed two thirds. Worth remembering as a technique — *a
+slope converts a distance difference into a position difference the eye can judge.*
+
+**The fix is an authored target with derived corrections, not eight authored scales.**
+`DodgeTargetDistanceCm` (405) is the distance knob; `MeasuredTravelCm` holds what each clip
+actually travels; the per-direction scale is `Target / Measured`. Retuning distance stays one
+number. Eight authored scales were rejected for the same reason recovery is authored in absolute
+time rather than as a fraction of the dodge: it couples "how far" to "which direction" and makes
+every future retune an eight-value edit that can silently drift apart.
+
+405 is deliberately **item 5's play-verified V1 distance**, not V3's incidental 413 mean — the
+feel that play already approved is preserved while only the asymmetry is removed.
+
+Verified: 17 dodges across all eight directions, mean **405.5**, spread **21.3 uu** — tighter
+than V1 ever was. Residual variance sits in the diagonals (FL 407.1 vs 419.8) where cardinals
+repeat within 1 uu, which is input precision rather than clips and is well inside item 5's
+perceptibility threshold.
+
+**`MeasuredTravelCm` is calibration, not tuning, and it is now a standing obligation: re-measure
+it whenever the dodge montage is rebuilt from different clips.** Stale values do not fail
+loudly — they quietly reintroduce exactly the per-direction bias they exist to remove.
 
 ## 2026-08-11 — Item 6's clip candidates, and the play-rate figure nobody has measured
 

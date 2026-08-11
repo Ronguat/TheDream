@@ -86,13 +86,43 @@ protected:
 	 *  half the time. Reaching for DodgeSeconds to fix distance is the standing mistake this
 	 *  property exists to prevent.
 	 *
-	 *  A single scale is deliberately uniform across all eight directions. If the source clips
-	 *  turn out to disagree about distance, scaling multiplies that disagreement rather than
-	 *  correcting it, and the fix is per-direction data rather than a bigger number here --
-	 *  which is why the trace reports measured distance per direction.
+	 *  **A global multiplier, applied on top of the per-direction correction below.** Leave it at
+	 *  1.0 and tune DodgeTargetDistanceCm; this exists for wholesale scaling (a slowed effect, a
+	 *  future weight class) rather than for setting the distance.
+	 *
+	 *  It used to be the only knob and was deliberately uniform, on the reasoning that if the
+	 *  source clips disagreed about distance a single scale would multiply that disagreement
+	 *  rather than correct it -- and that the fix would then be per-direction data. That case
+	 *  arrived with the V3 clips: measured travel ran 371.9 uu left against 462.6 uu right,
+	 *  reproducible to within 0.1 uu and plainly visible when dodging up a ramp.
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Dodge", meta=(ClampMin="0.0"))
 	float DodgeRootMotionScale = 1.0f;
+
+	/**
+	 *  How far a dodge should carry, in cm. **This is the distance knob.**
+	 *
+	 *  Per-direction scales are derived from this and MeasuredTravelCm, so retuning distance is
+	 *  one number rather than eight -- the same reason recovery is authored in absolute time
+	 *  rather than as a fraction. Defaults to 405, which is what item 5's play pass judged good
+	 *  on the V1 clips (measured mean 404.9); V3's untouched mean is 413, within 2%.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Dodge", meta=(ClampMin="1.0"))
+	float DodgeTargetDistanceCm = 405.0f;
+
+	/**
+	 *  Travel each direction produces at scale 1.0, on **flat ground**. Calibration, not taste.
+	 *
+	 *  These are measurements of the clips, so they change only when the clips do -- and they
+	 *  must be re-measured whenever the dodge montage is rebuilt from a different pack. Measured
+	 *  at the *actor* rather than read off the clip, deliberately: what the player feels is where
+	 *  the character ended up, which collision and the movement component get a say in.
+	 *
+	 *  A direction missing from this map falls back to DodgeRootMotionScale alone, which is the
+	 *  old uniform behaviour rather than a division by zero.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Dodge")
+	TMap<ETDDodgeDirection, float> MeasuredTravelCm;
 
 	/**
 	 *  Applied for the whole dodge, and read by attackers to skip the hit.
@@ -116,10 +146,23 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Category="Combat|Dodge")
 	ETDDodgeDirection DodgeDirection = ETDDodgeDirection::Bw;
 
+public:
+
+	UTDDodgeAbility();
+
 private:
 
 	/** Movement input relative to the character's facing, or Backward when stationary. */
 	ETDDodgeDirection ResolveDodgeDirection() const;
+
+	/**
+	 *  Root motion scale for one direction: the global multiplier times the correction that
+	 *  normalises this direction's clip to DodgeTargetDistanceCm.
+	 *
+	 *  Returns DodgeRootMotionScale unchanged when the direction has no measurement, so an
+	 *  unpopulated map degrades to the old uniform behaviour rather than dividing by zero.
+	 */
+	float ComputeRootMotionScale(ETDDodgeDirection Direction) const;
 
 	/** Removes the i-frame tag. Idempotent, because EndAbility can run more than once. */
 	void EndIFrames();

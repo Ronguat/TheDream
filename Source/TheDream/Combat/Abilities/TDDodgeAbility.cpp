@@ -11,6 +11,43 @@
 #include "Engine/World.h"
 #include "TimerManager.h"
 
+UTDDodgeAbility::UTDDodgeAbility()
+{
+	// Measured on flat ground from the V3 Dash clips at scale 1.0, 2026-08-11. Calibration data,
+	// not tuning: these describe the clips, so they change only when the clips do. Reproducible
+	// to within 0.1 uu on repeat dodges, against a 90.6 uu spread between directions -- roughly
+	// 15:1, which is what established the disagreement is the animation rather than input noise.
+	//
+	// **Re-measure these whenever the dodge montage is rebuilt from a different pack.** Stale
+	// values here do not fail loudly; they quietly bias distance per direction, which is exactly
+	// the bug they exist to correct.
+	MeasuredTravelCm =
+	{
+		{ ETDDodgeDirection::Fw, 406.7f },
+		{ ETDDodgeDirection::FR, 443.4f },
+		{ ETDDodgeDirection::R,  462.6f },
+		{ ETDDodgeDirection::BR, 409.7f },
+		{ ETDDodgeDirection::Bw, 402.6f },
+		{ ETDDodgeDirection::BL, 418.3f },
+		{ ETDDodgeDirection::L,  371.9f },
+		{ ETDDodgeDirection::FL, 388.3f },
+	};
+}
+
+float UTDDodgeAbility::ComputeRootMotionScale(ETDDodgeDirection Direction) const
+{
+	const float* Measured = MeasuredTravelCm.Find(Direction);
+
+	// No measurement, or a nonsense one, means fall back to the uniform scale. That is the
+	// pre-2026-08-11 behaviour: wrong in the way we are fixing, but never a divide by zero.
+	if (!Measured || *Measured <= KINDA_SMALL_NUMBER || DodgeTargetDistanceCm <= 0.0f)
+	{
+		return DodgeRootMotionScale;
+	}
+
+	return DodgeRootMotionScale * (DodgeTargetDistanceCm / *Measured);
+}
+
 namespace
 {
 	/** Montage section per direction. The montage must use these exact names. */
@@ -106,8 +143,12 @@ void UTDDodgeAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, c
 				*DodgeMontage->GetName(), *Section.ToString());
 		}
 
+		// Per-direction, because the source clips disagree about how far they carry. Uniform
+		// scaling would multiply that disagreement rather than correct it.
+		const float RootMotionScale = ComputeRootMotionScale(DodgeDirection);
+
 		UAbilityTask_PlayMontageAndWait* MontageTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(
-			this, NAME_None, DodgeMontage, PlayRate, Section, /*bStopWhenAbilityEnds=*/true, DodgeRootMotionScale);
+			this, NAME_None, DodgeMontage, PlayRate, Section, /*bStopWhenAbilityEnds=*/true, RootMotionScale);
 
 		// Deliberately not ending the ability on completion. DodgeSeconds is the authority,
 		// and a montage whose sections chain into the next one would otherwise decide the
@@ -212,11 +253,16 @@ void UTDDodgeAbility::EndAbility(const FGameplayAbilitySpecHandle Handle, const 
 		if (const AActor* Avatar = GetAvatarActorFromActorInfo())
 		{
 			const FVector Delta = Avatar->GetActorLocation() - DodgeStartLocation;
+
+			// The *effective* scale, not DodgeRootMotionScale. Printing the authored knob rather
+			// than the value that drove the montage would report 1.00 for every direction while
+			// eight different corrections were being applied -- the exact shape of trace that
+			// showed this system working perfectly while it was not.
 			TD_TIMING_LOG(TEXT("[%.3f] DODGE END  dir=%s travelled=%.1fuu scale=%.2f%s"),
 				GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f,
 				*UEnum::GetValueAsString(DodgeDirection),
 				Delta.Size2D(),
-				DodgeRootMotionScale,
+				ComputeRootMotionScale(DodgeDirection),
 				bWasCancelled ? TEXT(" (cancelled)") : TEXT(""));
 		}
 
