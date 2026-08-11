@@ -107,6 +107,28 @@ write was meant to produce — a value some system actually reads, a file gone f
 check *that*, and prefer a check that does not go back through the API that did the
 writing. A read-back through the same layer can confirm a write that never landed.
 
+**For assets with derived data, the artefact check is not enough either** *(confirmed
+2026-08-11)*. `BS_SwordShield_Locomotion` had its 27 `SampleData` entries written through
+`set_properties`. The write returned true, the read-back was correct, the `.uasset` grew to
+18 KB on disk, the binary physically contained every clip reference, and the samples appeared
+correctly positioned on the grid when the asset was opened. **Every available check was green
+and the blendspace still produced no pose at all** — the character T-posed the instant it
+moved, while an Idle state fed by a plain `SequencePlayer` on the same skeleton worked
+perfectly.
+
+A BlendSpace stores the authored `SampleData` *and* a derived interpolation grid built from
+it. Reflection writes populate the list and never trigger the rebuild, so there are samples
+and nothing to interpolate between. `GridSamples` is not readable through this layer, so the
+gap is invisible from outside.
+
+The tell was the asymmetry: **a node with only an asset reference worked, a node with computed
+data did not.** The fix is to open the asset in the editor, make any real edit (nudge a sample
+and put it back), and save — which regenerates and serializes the grid.
+
+So the rule generalises: **binary presence proves a write landed, not that anything derived
+from it was rebuilt.** Suspect this for any asset type that caches computed data — blend
+spaces, and probably anything else with a build step. Only play confirms those.
+
 **`ObjectTools.set_properties` can return true, and `get_properties` can read the value
 back intact, while the write accomplishes nothing** *(reported once, twice in one
 session)*. Round-trip verification is the obvious check and it is not sufficient — the
@@ -227,6 +249,22 @@ Confirmed traps:
   that needs it to act. Whenever a placed actor behaves as though its Blueprint were empty, read
   the instance and the CDO separately and compare — `GetGrantedAbilities` returning `[]` against
   a populated `DefaultAbilities` is the tell.
+- **`AssetTools.exists` false-negatives, and `AssetTools.duplicate` fails with a bare `false`**
+  *(confirmed 2026-08-10)* — `exists` returned **false** for
+  `/Game/Characters/Mannequins/Anims/Unarmed/BS_Idle_Walk_Run` while `find_assets` listed that
+  exact path, `ObjectTools.get_properties` read its contents in full, and `load_asset` resolved
+  it and handed back a valid object. It returned false for a folder holding a committed asset
+  too. Both the package form and the `Package.Object` form behaved identically.
+
+  `duplicate` failed the same way on the same asset in both path forms — return value `false`,
+  no error, nothing written. Since `load_asset` proves the source resolves, the path is not the
+  problem, and there is no diagnostic to work from.
+
+  **Use `load_asset` as the existence check** — it returns a usable object or errors, which is
+  a real answer. Treat `exists` as advisory only, and never conclude an asset is missing from
+  it. For duplication, have a human copy the asset in the content browser; writing *into* the
+  copy through `ObjectTools` works fine, so the split is creation by hand, authoring by script.
+
 - **`AssetTools.delete` is inconsistent about removing the `.uasset` from disk**
   *(confirmed 2026-08-10, both ways)* — deleting `GA_LightAttack` cleared the registry and
   left the file untouched with its original timestamp, which would have resurrected the
@@ -245,9 +283,34 @@ Confirmed traps:
 - Creating AnimMontages
 - Placing or configuring AnimNotifies on a montage timeline — a montage's `notifies`
   property is not even readable, so notify placement can only be verified at runtime
+- **Creating** BlendSpaces and AnimBlueprints. `AssetTools` has no create-asset function at
+  all, and `duplicate` fails with a bare `false` (see the trap above). A human makes the empty
+  asset; everything after that is scriptable.
 
 This is why renaming an AnimNotify class is expensive: placed notifies serialize against
 the class path, so a rename breaks them and they must be re-placed by hand.
+
+### But AnimGraph *editing* is scriptable — `BlueprintTools` is far more capable than it looks
+
+*(confirmed 2026-08-11)* This was predicted twice to need a human and did not, so it is worth
+stating positively rather than leaving as an absence someone else re-derives.
+
+`BlueprintTools` exposes `list_graphs`, `find_nodes`, `get_node_infos`, `create_node`,
+`connect_pins`, `set_pin_value`, `retarget_node_class`, `read_graph_dsl` / `write_graph_dsl`
+and `compile_blueprint`. `list_graphs` returns state machines and individual states as
+addressable graphs — e.g.
+`ABP_Combat:AnimGraph.AnimGraphNode_StateMachine_0.Locomotion.AnimStateNode_2.Walk / Run` —
+and `find_nodes` with an empty `title` lists everything in one.
+
+Repointing a Blend Space Player took a **partial** write to the node's `Node` struct
+(`{"Node":{"blendSpace":{"refPath":"..."}}}`), which changed that field and left every other
+one — sync group, play rate, loop flag — intact. A Sequence Player's clip is `Node.sequence`
+the same way. Prefer the partial write: the full struct includes pin-backed fields like the
+blendspace's `x`/`y`, and rewriting those risks disturbing connections.
+
+`describe_toolset` on `BlueprintTools` returns ~72k characters and will be rejected as too
+large. Grep the saved output for `"name":"..."` instead, and discover argument schemas by
+calling a function wrong on purpose — the error returns the full input schema.
 
 ## Verifying combat changes
 
