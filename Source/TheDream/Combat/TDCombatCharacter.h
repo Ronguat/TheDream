@@ -131,6 +131,16 @@ protected:
 	/** Ends the jump's regen pause, leaving JumpRegenPauseSeconds of tail behind it. */
 	virtual void Landed(const FHitResult& Hit) override;
 	virtual void PossessedBy(AController* NewController) override;
+
+	/**
+	 *  A client's PlayerState arrives *after* its pawn, so the ASC has to be resolved again here.
+	 *
+	 *  Without this a client initialises against a null PlayerState, silently falls back to the
+	 *  owned ASC, and has no abilities -- while the server, which possesses before replicating,
+	 *  works perfectly. That asymmetry is what makes it worth an override rather than a comment.
+	 */
+	virtual void OnRep_PlayerState() override;
+
 	virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
 
 	/** Granted on spawn. Empty means this character cannot act (training dummy). */
@@ -365,16 +375,63 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Combat|Equipment")
 	TObjectPtr<UStaticMeshComponent> ShieldMesh;
 
+	/**
+	 *  The ASC this character is actually using: its PlayerState's, or OwnedAbilitySystemComponent.
+	 *
+	 *  Resolved rather than assumed, because only *players* have a PlayerState -- the training
+	 *  dummy is an unpossessed placed pawn and has none. Null until InitialiseAbilitySystem has
+	 *  run, and on a client that is later than you expect, so every use is null-checked.
+	 *
+	 *  **Never reach past this to OwnedAbilitySystemComponent.** For a player that subobject
+	 *  exists, is registered, and holds nothing -- so using it compiles, runs, and silently
+	 *  reads an empty ASC with no attributes and no abilities. The fallback carries a name
+	 *  nobody types by accident for exactly that reason.
+	 */
+	UPROPERTY(Transient, BlueprintReadOnly, Category="Combat")
+	TObjectPtr<UAbilitySystemComponent> AbilitySystem;
+
+	/** Attributes on whichever ASC was resolved. Null until InitialiseAbilitySystem has run. */
+	UPROPERTY(Transient)
+	TObjectPtr<UTDAttributeSet> AttributeSet;
+
+	/**
+	 *  The fallback ASC, for characters that have no PlayerState -- i.e. the training dummy.
+	 *
+	 *  A player carries this subobject too and never uses it. That is the accepted cost of one
+	 *  character class serving both cases: it seeds no attributes and grants no abilities, so it
+	 *  costs registration rather than bandwidth. Splitting into player and AI classes would
+	 *  remove it, and was rejected because it means reparenting the two Blueprints everything
+	 *  else depends on, to buy a distinction this comment already makes.
+	 */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Combat")
-	TObjectPtr<UAbilitySystemComponent> AbilitySystemComponent;
+	TObjectPtr<UAbilitySystemComponent> OwnedAbilitySystemComponent;
 
 	UPROPERTY()
-	TObjectPtr<UTDAttributeSet> AttributeSet;
+	TObjectPtr<UTDAttributeSet> OwnedAttributeSet;
 
 private:
 
-	/** Binds the actor info, seeds the attributes and grants DefaultAbilities. Safe to call twice. */
+	/**
+	 *  Points AbilitySystem at the right ASC, binds actor info, and seeds defaults once.
+	 *
+	 *  Safe -- and expected -- to call repeatedly: from BeginPlay, from every possession, and
+	 *  from OnRep_PlayerState. Actor info is rebound every time because possession changes who
+	 *  owns the ASC; seeding is guarded per-ASC, not per-call and not per-character.
+	 */
 	void InitialiseAbilitySystem();
+
+	/**
+	 *  Which ASC this character should use, and which actor owns it.
+	 *
+	 *  The PlayerState's when there is one, the owned component when there is not. OutOwner is
+	 *  what InitAbilityActorInfo is given as the *owner*, which is not the avatar: GAS wants the
+	 *  PlayerState as owner and the pawn as avatar, so that ability state survives a pawn while
+	 *  traces, sockets and montages still resolve against the body.
+	 */
+	UAbilitySystemComponent* ResolveAbilitySystem(AActor*& OutOwner) const;
+
+	/** Attributes, abilities and effects, applied once per ASC. Authority only. */
+	void SeedAbilitySystemDefaults();
 
 	void OnAbilityInputPressed(FGameplayTag InputTag);
 	void OnAbilityInputReleased(FGameplayTag InputTag);
@@ -521,10 +578,15 @@ private:
 
 	FTimerHandle DebugReviveTimerHandle;
 
-	bool bAbilitySystemInitialised = false;
-
-	/** Attributes, abilities and effects are seeded once, even though actor info is not. */
-	bool bDefaultsApplied = false;
+	/**
+	 *  Seeded-once flag for the *owned* ASC only -- i.e. the training dummy's.
+	 *
+	 *  A player's flag lives on ATDPlayerState instead, because that is where its ASC lives.
+	 *  Splitting them is not tidiness: a player pawn's BeginPlay runs before possession, so a
+	 *  single flag on the character would be spent seeding the fallback ASC and the real one
+	 *  would never be seeded at all. See ATDPlayerState::HasSeededDefaults.
+	 */
+	bool bOwnedDefaultsApplied = false;
 
 	FTimerHandle DebugAutoAttackTimerHandle;
 	FTimerHandle DebugAutoAttackReleaseTimerHandle;

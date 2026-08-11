@@ -112,9 +112,14 @@ sword since item 3b, and its blade contributes nothing to what it hits. Confirme
 2026-08-11: item 6 moves the trace onto the weapon.
 
 Two things that will move with it. Reach grows, so the `TraceRadius` values were tuned against a
-fist and will need re-judging against a blade. And a sphere swept along one socket is a poor fit
-for a sword, which is a *line* — a blade-base to blade-tip sweep is the shape that actually
-matches, and picking that up is cheaper while the trace is being moved anyway than afterwards.
+fist and will need re-judging against a blade.
+
+**The shape is settled: a blade is a line.** Decided by the user 2026-08-11, so item 6 sweeps
+blade-base to blade-tip rather than sweeping a sphere along one socket. Recorded here because the
+trap previously posed it as an open question, and the cheap moment to take it is while the trace
+is being moved anyway — afterwards it is a second pass over the same code. The `TraceRadius`
+values (45 / 55 / 65) become the blade's *thickness* rather than the whole hitbox, which is a
+second reason they need re-judging and not merely rescaling.
 
 **Before a second `Release Window` notify exists (item 6, or item 9)** — *the melee trace opens
 on any `Event.Melee.WindowBegin` reaching that ASC.* `UAbilityTask_MeleeTrace` subscribes by tag

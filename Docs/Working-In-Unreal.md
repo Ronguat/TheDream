@@ -37,6 +37,11 @@ dies without asking. Low risk on a clean session, real risk when something half-
 **Say so before closing, every time.** Opening is non-destructive and needs no announcement;
 closing can destroy work only the user knows about, so it gets a sentence first.
 
+**But it is an announcement, not a request** *(clarified by the user 2026-08-11)*. Saying "I am
+about to close the editor" is itself what makes it safe — the user stops working in it the moment
+they read that — so stopping again to ask permission buys nothing and costs a round trip. Announce
+and proceed in the same turn. The sentence is still mandatory; only the pause after it is not.
+
 **Process up is not ready.** The process appears within ~1s and the port can be listening while
 the engine is still booting — an MCP call in that window fails with `Unable to connect`. The only
 reliable readiness signal is **an actual MCP call returning a result**; poll one rather than

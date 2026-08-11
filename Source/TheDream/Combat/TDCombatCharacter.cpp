@@ -5,6 +5,7 @@
 #include "Combat/Abilities/TDGameplayAbility.h"
 #include "Combat/TDCombatDebug.h"
 #include "Combat/TDGameplayTags.h"
+#include "Core/TDPlayerState.h"
 #include "AbilitySystemComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
@@ -18,13 +19,17 @@
 
 ATDCombatCharacter::ATDCombatCharacter()
 {
-	AbilitySystemComponent = CreateDefaultSubobject<UAbilitySystemComponent>(TEXT("AbilitySystemComponent"));
-	AbilitySystemComponent->SetIsReplicated(true);
+	// The fallback pair, used only when this character has no PlayerState -- the training dummy.
+	// A player builds these too and then ignores them in favour of its PlayerState's; see the
+	// header. The subobject *names* are unchanged from when this was the only ASC, so the two
+	// character Blueprints keep resolving their component templates.
+	OwnedAbilitySystemComponent = CreateDefaultSubobject<UAbilitySystemComponent>(TEXT("AbilitySystemComponent"));
+	OwnedAbilitySystemComponent->SetIsReplicated(true);
 
 	// Mixed: full effect replication to the owning client, minimal to everyone else.
-	AbilitySystemComponent->SetReplicationMode(EGameplayEffectReplicationMode::Mixed);
+	OwnedAbilitySystemComponent->SetReplicationMode(EGameplayEffectReplicationMode::Mixed);
 
-	AttributeSet = CreateDefaultSubobject<UTDAttributeSet>(TEXT("AttributeSet"));
+	OwnedAttributeSet = CreateDefaultSubobject<UTDAttributeSet>(TEXT("AttributeSet"));
 
 	// The pack's own Sword / Shield sockets, which hang off hand_r and hand_l and carry the
 	// grip rotation and a non-uniform scale (the shield's is 0.25, 0.20, 0.30 -- the mesh is
@@ -70,7 +75,7 @@ void ATDCombatCharacter::Tick(float DeltaSeconds)
 void ATDCombatCharacter::TickStaminaRegen(float DeltaSeconds)
 {
 	UWorld* World = GetWorld();
-	if (!World || !AbilitySystemComponent || StaminaRegenPerSecond <= 0.0f)
+	if (!World || !AbilitySystem || StaminaRegenPerSecond <= 0.0f)
 	{
 		return;
 	}
@@ -81,7 +86,7 @@ void ATDCombatCharacter::TickStaminaRegen(float DeltaSeconds)
 	// While a suppressor is active the resume time keeps being pushed forward, which is what
 	// makes each pause measure from when its cause *ends* without anyone tracking that. Taking
 	// the max rather than assigning lets two overlap without the shorter cutting the longer short.
-	if (StaminaRegenPausedTag.IsValid() && AbilitySystemComponent->HasMatchingGameplayTag(StaminaRegenPausedTag))
+	if (StaminaRegenPausedTag.IsValid() && AbilitySystem->HasMatchingGameplayTag(StaminaRegenPausedTag))
 	{
 		RegenSuppressedUntil = FMath::Max(RegenSuppressedUntil, Now + StaminaRegenPauseSeconds);
 		bSuppressorActive = true;
@@ -101,7 +106,7 @@ void ATDCombatCharacter::TickStaminaRegen(float DeltaSeconds)
 		return;
 	}
 
-	AbilitySystemComponent->ApplyModToAttribute(
+	AbilitySystem->ApplyModToAttribute(
 		UTDAttributeSet::GetStaminaAttribute(),
 		EGameplayModOp::Additive,
 		StaminaRegenPerSecond * DeltaSeconds);
@@ -115,8 +120,8 @@ bool ATDCombatCharacter::IsStaminaRegenPaused() const
 		return false;
 	}
 
-	const bool bActionRunning = AbilitySystemComponent && StaminaRegenPausedTag.IsValid()
-		&& AbilitySystemComponent->HasMatchingGameplayTag(StaminaRegenPausedTag);
+	const bool bActionRunning = AbilitySystem && StaminaRegenPausedTag.IsValid()
+		&& AbilitySystem->HasMatchingGameplayTag(StaminaRegenPausedTag);
 
 	return bActionRunning || bJumpRegenPauseActive || World->GetTimeSeconds() < RegenSuppressedUntil;
 }
@@ -175,14 +180,14 @@ void ATDCombatCharacter::EnterDeath()
 	// authority decision that replicates through GAS on its own; running it again from a
 	// client's OnRep would cancel that client's *predicted* copies out from under a
 	// correction that may never come.
-	if (AbilitySystemComponent)
+	if (AbilitySystem)
 	{
 		// The tag alone only refuses *new* activations, which is exhaustion's rule and is
 		// visibly wrong here: a killing blow landing mid-swing would otherwise leave a corpse
 		// finishing its attack, hitbox included. Cancelling also clears State.Attacking and
 		// State.Attacking.Committed through the normal ability-end path, so death cannot leak
 		// the tags that would forbid every future defensive action on revive.
-		AbilitySystemComponent->CancelAllAbilities();
+		AbilitySystem->CancelAllAbilities();
 	}
 
 	// A buffered press must not survive death: it would fire on revive, an action asked for
@@ -223,9 +228,9 @@ void ATDCombatCharacter::OnRep_Dead()
 
 void ATDCombatCharacter::ApplyDeathState()
 {
-	if (AbilitySystemComponent)
+	if (AbilitySystem)
 	{
-		AbilitySystemComponent->AddLooseGameplayTag(TDTags::State_Dead);
+		AbilitySystem->AddLooseGameplayTag(TDTags::State_Dead);
 	}
 
 	// Otherwise "dead" is only a tag and the corpse keeps walking, which is the exact
@@ -250,9 +255,9 @@ void ATDCombatCharacter::ApplyDeathState()
 
 void ATDCombatCharacter::ClearDeathState()
 {
-	if (AbilitySystemComponent)
+	if (AbilitySystem)
 	{
-		AbilitySystemComponent->RemoveLooseGameplayTag(TDTags::State_Dead);
+		AbilitySystem->RemoveLooseGameplayTag(TDTags::State_Dead);
 	}
 
 	// Before the teleport, deliberately. StopRagdoll reattaches the mesh to the capsule, and
@@ -353,14 +358,14 @@ void ATDCombatCharacter::ReviveFromDebug()
 	// Authority-only: attribute writes are the server's, and clients receive them by
 	// replication. Restoring them from a client's OnRep would be a client rewriting its own
 	// health, which is both wrong and the shape of an exploit.
-	if (AbilitySystemComponent)
+	if (AbilitySystem)
 	{
-		AbilitySystemComponent->SetNumericAttributeBase(UTDAttributeSet::GetHealthAttribute(), GetMaxHealth());
+		AbilitySystem->SetNumericAttributeBase(UTDAttributeSet::GetHealthAttribute(), GetMaxHealth());
 
 		// Stamina too, deliberately. Dying at low stamina and reviving instantly exhausted is
 		// a debug annoyance with no design content -- and exhaustion ends only at full, so it
 		// would outlast the revive by several seconds.
-		AbilitySystemComponent->SetNumericAttributeBase(UTDAttributeSet::GetStaminaAttribute(), GetMaxStamina());
+		AbilitySystem->SetNumericAttributeBase(UTDAttributeSet::GetStaminaAttribute(), GetMaxStamina());
 	}
 
 	// Exhaustion is cleared explicitly rather than waiting for the stamina delegate: the
@@ -401,17 +406,17 @@ void ATDCombatCharacter::OnRep_Exhausted()
 
 void ATDCombatCharacter::ApplyExhaustionState()
 {
-	if (AbilitySystemComponent && ExhaustedTag.IsValid())
+	if (AbilitySystem && ExhaustedTag.IsValid())
 	{
-		AbilitySystemComponent->AddLooseGameplayTag(ExhaustedTag);
+		AbilitySystem->AddLooseGameplayTag(ExhaustedTag);
 	}
 }
 
 void ATDCombatCharacter::ClearExhaustionState()
 {
-	if (AbilitySystemComponent && ExhaustedTag.IsValid())
+	if (AbilitySystem && ExhaustedTag.IsValid())
 	{
-		AbilitySystemComponent->RemoveLooseGameplayTag(ExhaustedTag);
+		AbilitySystem->RemoveLooseGameplayTag(ExhaustedTag);
 	}
 }
 
@@ -451,7 +456,7 @@ void ATDCombatCharacter::Landed(const FHitResult& Hit)
 
 UAbilitySystemComponent* ATDCombatCharacter::GetAbilitySystemComponent() const
 {
-	return AbilitySystemComponent;
+	return AbilitySystem;
 }
 
 void ATDCombatCharacter::BeginPlay()
@@ -472,41 +477,98 @@ void ATDCombatCharacter::PossessedBy(AController* NewController)
 {
 	Super::PossessedBy(NewController);
 
-	// A possessed pawn needs the actor info rebound to its new owner.
-	bAbilitySystemInitialised = false;
+	// Possession is where a player's PlayerState first becomes reachable on the server, so this
+	// is the call that swaps a player off the fallback ASC and onto the real one.
 	InitialiseAbilitySystem();
+}
+
+void ATDCombatCharacter::OnRep_PlayerState()
+{
+	Super::OnRep_PlayerState();
+
+	// The client half of the same swap. PossessedBy does not run on a simulated proxy, and the
+	// PlayerState replicates after the pawn, so without this a client keeps the fallback ASC.
+	InitialiseAbilitySystem();
+}
+
+UAbilitySystemComponent* ATDCombatCharacter::ResolveAbilitySystem(AActor*& OutOwner) const
+{
+	if (ATDPlayerState* TDPlayerState = GetPlayerState<ATDPlayerState>())
+	{
+		OutOwner = TDPlayerState;
+		return TDPlayerState->GetAbilitySystemComponent();
+	}
+
+	OutOwner = const_cast<ATDCombatCharacter*>(this);
+	return OwnedAbilitySystemComponent;
 }
 
 void ATDCombatCharacter::InitialiseAbilitySystem()
 {
-	if (bAbilitySystemInitialised || !AbilitySystemComponent)
+	AActor* OwnerActor = nullptr;
+	UAbilitySystemComponent* Resolved = ResolveAbilitySystem(OwnerActor);
+	if (!Resolved)
 	{
 		return;
 	}
 
-	AbilitySystemComponent->InitAbilityActorInfo(this, this);
-	bAbilitySystemInitialised = true;
+	AbilitySystem = Resolved;
+
+	if (ATDPlayerState* TDPlayerState = Cast<ATDPlayerState>(OwnerActor))
+	{
+		AttributeSet = TDPlayerState->GetAttributeSet();
+	}
+	else
+	{
+		AttributeSet = OwnedAttributeSet;
+	}
+
+	// Rebound every time rather than once: possession changes the owner, and the owner is what
+	// GAS resolves prediction keys and net roles against. The avatar stays the pawn, so traces,
+	// sockets and montages keep reading the body.
+	AbilitySystem->InitAbilityActorInfo(OwnerActor, this);
 
 	// Attributes and abilities are authority-only state; clients receive them by replication.
-	if (!HasAuthority())
+	if (HasAuthority())
 	{
-		return;
+		SeedAbilitySystemDefaults();
+	}
+}
+
+void ATDCombatCharacter::SeedAbilitySystemDefaults()
+{
+	// Guarded per *ASC*, not per call and not per character. Actor info is rebound on every
+	// possession but seeding must happen once, or a pawn possessed after BeginPlay is granted
+	// every ability a second time and stacks a second copy of every DefaultEffect -- and for an
+	// infinite effect that is a permanently doubled magnitude rather than a visible one-off.
+	//
+	// Where the flag lives is the subtle half. A player's BeginPlay runs *before* possession, so
+	// a single flag on the character would be spent on the fallback ASC and the PlayerState's
+	// real one would never be seeded -- a player with no attributes and no abilities, while the
+	// never-possessed training dummy worked perfectly.
+	ATDPlayerState* TDPlayerState = GetPlayerState<ATDPlayerState>();
+
+	if (TDPlayerState)
+	{
+		if (TDPlayerState->HasSeededDefaults())
+		{
+			return;
+		}
+		TDPlayerState->MarkDefaultsSeeded();
+	}
+	else
+	{
+		if (bOwnedDefaultsApplied)
+		{
+			return;
+		}
+		bOwnedDefaultsApplied = true;
 	}
 
-	// Actor info is rebound on every possession, but seeding must happen once. A pawn
-	// possessed after BeginPlay would otherwise be granted every ability a second time and
-	// stack a second copy of every DefaultEffect -- and for an infinite effect, that means a
-	// permanently doubled magnitude rather than a visible one-off error.
-	if (bDefaultsApplied)
-	{
-		return;
-	}
-	bDefaultsApplied = true;
-
-	AbilitySystemComponent->SetNumericAttributeBase(UTDAttributeSet::GetMaxHealthAttribute(), StartingMaxHealth);
-	AbilitySystemComponent->SetNumericAttributeBase(UTDAttributeSet::GetHealthAttribute(), StartingMaxHealth);
-	AbilitySystemComponent->SetNumericAttributeBase(UTDAttributeSet::GetMaxStaminaAttribute(), StartingMaxStamina);
-	AbilitySystemComponent->SetNumericAttributeBase(UTDAttributeSet::GetStaminaAttribute(), StartingMaxStamina);
+	AbilitySystem->SetNumericAttributeBase(UTDAttributeSet::GetMaxHealthAttribute(), StartingMaxHealth);
+	AbilitySystem->SetNumericAttributeBase(UTDAttributeSet::GetHealthAttribute(), StartingMaxHealth);
+	AbilitySystem->SetNumericAttributeBase(UTDAttributeSet::GetMaxStaminaAttribute(), StartingMaxStamina);
+	AbilitySystem->SetNumericAttributeBase(UTDAttributeSet::GetStaminaAttribute(), StartingMaxStamina);
 
 	for (const TSubclassOf<UGameplayAbility>& AbilityClass : DefaultAbilities)
 	{
@@ -514,11 +576,11 @@ void ATDCombatCharacter::InitialiseAbilitySystem()
 		{
 			// Input is matched against the ability's InputTag at press time, so the spec
 			// needs no input ID of its own.
-			AbilitySystemComponent->GiveAbility(FGameplayAbilitySpec(AbilityClass, 1, INDEX_NONE, this));
+			AbilitySystem->GiveAbility(FGameplayAbilitySpec(AbilityClass, 1, INDEX_NONE, this));
 		}
 	}
 
-	FGameplayEffectContextHandle Context = AbilitySystemComponent->MakeEffectContext();
+	FGameplayEffectContextHandle Context = AbilitySystem->MakeEffectContext();
 	Context.AddSourceObject(this);
 
 	for (const TSubclassOf<UGameplayEffect>& EffectClass : DefaultEffects)
@@ -528,18 +590,18 @@ void ATDCombatCharacter::InitialiseAbilitySystem()
 			continue;
 		}
 
-		const FGameplayEffectSpecHandle SpecHandle = AbilitySystemComponent->MakeOutgoingSpec(EffectClass, 1, Context);
+		const FGameplayEffectSpecHandle SpecHandle = AbilitySystem->MakeOutgoingSpec(EffectClass, 1, Context);
 		if (SpecHandle.IsValid())
 		{
-			AbilitySystemComponent->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data.Get());
+			AbilitySystem->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data.Get());
 		}
 	}
 
 	// Bound after seeding, so the initial fill to full does not read as a change to zero.
-	AbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(UTDAttributeSet::GetStaminaAttribute())
+	AbilitySystem->GetGameplayAttributeValueChangeDelegate(UTDAttributeSet::GetStaminaAttribute())
 		.AddUObject(this, &ATDCombatCharacter::HandleStaminaChanged);
 
-	AbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(UTDAttributeSet::GetHealthAttribute())
+	AbilitySystem->GetGameplayAttributeValueChangeDelegate(UTDAttributeSet::GetHealthAttribute())
 		.AddUObject(this, &ATDCombatCharacter::HandleHealthChanged);
 
 	if (bDebugAutoAttack && DebugAutoAttackInputTag.IsValid())
@@ -550,7 +612,7 @@ void ATDCombatCharacter::InitialiseAbilitySystem()
 
 		// Reset when the swing actually finishes rather than on a fixed delay: attack length
 		// varies by tier, and a delay long enough for a charged attack would be most of the gap.
-		AbilitySystemComponent->OnAbilityEnded.AddUObject(this, &ATDCombatCharacter::HandleDebugAutoAttackEnded);
+		AbilitySystem->OnAbilityEnded.AddUObject(this, &ATDCombatCharacter::HandleDebugAutoAttackEnded);
 
 		GetWorldTimerManager().SetTimer(
 			DebugAutoAttackTimerHandle,
@@ -678,14 +740,14 @@ void ATDCombatCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputC
 
 void ATDCombatCharacter::GatherAbilitiesForInput(const FGameplayTag& InputTag, TArray<FGameplayAbilitySpecHandle>& OutHandles) const
 {
-	if (!AbilitySystemComponent || !InputTag.IsValid())
+	if (!AbilitySystem || !InputTag.IsValid())
 	{
 		return;
 	}
 
 	// Collect handles rather than acting inside the loop: activating an ability can
 	// modify the spec list, and the specs would move underneath the iterator.
-	for (const FGameplayAbilitySpec& Spec : AbilitySystemComponent->GetActivatableAbilities())
+	for (const FGameplayAbilitySpec& Spec : AbilitySystem->GetActivatableAbilities())
 	{
 		const UTDGameplayAbility* Ability = Cast<UTDGameplayAbility>(Spec.Ability);
 		if (Ability && Ability->InputTag.MatchesTagExact(InputTag))
@@ -697,7 +759,7 @@ void ATDCombatCharacter::GatherAbilitiesForInput(const FGameplayTag& InputTag, T
 
 bool ATDCombatCharacter::TryActivateAbilitiesForInput(const FGameplayTag& InputTag, bool bForwardToActive)
 {
-	if (!AbilitySystemComponent)
+	if (!AbilitySystem)
 	{
 		return false;
 	}
@@ -709,7 +771,7 @@ bool ATDCombatCharacter::TryActivateAbilitiesForInput(const FGameplayTag& InputT
 
 	for (const FGameplayAbilitySpecHandle& Handle : Handles)
 	{
-		FGameplayAbilitySpec* Spec = AbilitySystemComponent->FindAbilitySpecFromHandle(Handle);
+		FGameplayAbilitySpec* Spec = AbilitySystem->FindAbilitySpecFromHandle(Handle);
 		if (!Spec)
 		{
 			continue;
@@ -720,12 +782,12 @@ bool ATDCombatCharacter::TryActivateAbilitiesForInput(const FGameplayTag& InputT
 		// Skipped for anything already running on a retry: see bForwardToActive.
 		if (bForwardToActive || !Spec->IsActive())
 		{
-			AbilitySystemComponent->AbilitySpecInputPressed(*Spec);
+			AbilitySystem->AbilitySpecInputPressed(*Spec);
 		}
 
 		if (!Spec->IsActive())
 		{
-			bActivated |= AbilitySystemComponent->TryActivateAbility(Handle);
+			bActivated |= AbilitySystem->TryActivateAbility(Handle);
 		}
 	}
 
@@ -734,7 +796,7 @@ bool ATDCombatCharacter::TryActivateAbilitiesForInput(const FGameplayTag& InputT
 
 void ATDCombatCharacter::ReleaseAbilitiesForInput(const FGameplayTag& InputTag)
 {
-	if (!AbilitySystemComponent)
+	if (!AbilitySystem)
 	{
 		return;
 	}
@@ -744,21 +806,21 @@ void ATDCombatCharacter::ReleaseAbilitiesForInput(const FGameplayTag& InputTag)
 
 	for (const FGameplayAbilitySpecHandle& Handle : Handles)
 	{
-		if (FGameplayAbilitySpec* Spec = AbilitySystemComponent->FindAbilitySpecFromHandle(Handle))
+		if (FGameplayAbilitySpec* Spec = AbilitySystem->FindAbilitySpecFromHandle(Handle))
 		{
-			AbilitySystemComponent->AbilitySpecInputReleased(*Spec);
+			AbilitySystem->AbilitySpecInputReleased(*Spec);
 		}
 	}
 }
 
 bool ATDCombatCharacter::ShouldBufferInput(const FGameplayTag& InputTag) const
 {
-	if (InputBufferSeconds <= 0.0f || !AbilitySystemComponent)
+	if (InputBufferSeconds <= 0.0f || !AbilitySystem)
 	{
 		return false;
 	}
 
-	const FGameplayAbilityActorInfo* ActorInfo = AbilitySystemComponent->AbilityActorInfo.Get();
+	const FGameplayAbilityActorInfo* ActorInfo = AbilitySystem->AbilityActorInfo.Get();
 
 	TArray<FGameplayAbilitySpecHandle> Handles;
 	GatherAbilitiesForInput(InputTag, Handles);
@@ -767,7 +829,7 @@ bool ATDCombatCharacter::ShouldBufferInput(const FGameplayTag& InputTag) const
 	// creates it. Any one of them wanting the press remembered is enough.
 	for (const FGameplayAbilitySpecHandle& Handle : Handles)
 	{
-		const FGameplayAbilitySpec* Spec = AbilitySystemComponent->FindAbilitySpecFromHandle(Handle);
+		const FGameplayAbilitySpec* Spec = AbilitySystem->FindAbilitySpecFromHandle(Handle);
 		const UTDGameplayAbility* Ability = Spec ? Cast<UTDGameplayAbility>(Spec->Ability) : nullptr;
 		if (Ability && Ability->ShouldBufferFailedInput(ActorInfo))
 		{
