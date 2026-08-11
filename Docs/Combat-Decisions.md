@@ -834,20 +834,15 @@ repo and lost on a machine change.
 
 ## 2026-08-09 — Attack phases are windup / release / recovery; coil sits inside windup
 
-*Windup* is everything before damage, *release* is the period the attack can deal damage,
-*recovery* runs from the end of the damaging phase to the end of the attack.
+**Compacted 2026-08-11 — this entry recorded nothing the other docs did not.** Audited against
+the new bar and found to be the only one of 27 that was fully duplicated: the vocabulary and the
+coil-inside-windup ruling are in `CLAUDE.md`'s **Combat Vocabulary**, and the reason
+`UAnimNotifyState_MeleeWindow` cannot be renamed — placed notifies serialize against the class
+path — is in `Docs/Working-In-Unreal.md` under **Not scriptable at all**. Both are better homes:
+one is loaded every session, the other is read before touching notifies.
 
-Coiling is deliberately **not** a fourth phase — it is a sub-state of windup, the portion
-that is slowed while waiting for the commit checkpoint. It is visual feedback, so its
-tuning values are named `Coil*` rather than after a phase.
-
-Recovery has no code yet; it is currently just the montage tail, with the ability ending
-on montage completion. It gets real values when endlag and punish windows land.
-
-The `UAnimNotifyState_MeleeWindow` class marks exactly the release phase and by rights
-should be renamed, but placed notifies serialize against the class path — a rename needs
-an `ActiveClassRedirects` line and would break the montage's existing notifies, which
-cannot be re-placed programmatically. Only the editor-facing `DisplayName` was changed.
+Kept as a stub rather than deleted so the date survives and a grep for the vocabulary lands
+somewhere that points onward. Full text in git before `2026-08-11`.
 
 ## 2026-08-09 — Windups are preset, not resolved at the moment of release
 
