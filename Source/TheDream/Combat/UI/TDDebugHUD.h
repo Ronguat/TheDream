@@ -87,6 +87,16 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category="Debug|Colours")
 	FLinearColor ExhaustedStaminaColor = FLinearColor(0.45f, 0.45f, 0.45f, 1.0f);
 
+	/**
+	 *  Fill colour for the health bar while State.Dead is applied.
+	 *
+	 *  Same reasoning as the exhausted stamina colour: an empty bar and a dead character look
+	 *  identical at a glance, since both sit at zero. This distinguishes "at 0 health" from
+	 *  "dead and refusing everything", which is the state that explains why input does nothing.
+	 */
+	UPROPERTY(EditDefaultsOnly, Category="Debug|Colours")
+	FLinearColor DeadHealthColor = FLinearColor(0.35f, 0.05f, 0.05f, 1.0f);
+
 	UPROPERTY(EditDefaultsOnly, Category="Debug|Colours")
 	FLinearColor BackgroundColor = FLinearColor(0.0f, 0.0f, 0.0f, 0.5f);
 

@@ -70,6 +70,18 @@ protected:
 	/** Drives the camera-relative facing rule. */
 	virtual void Tick(float DeltaSeconds) override;
 
+	/**
+	 *  Whether facing should stop tracking the camera this frame.
+	 *
+	 *  A hook rather than a check, because this class deliberately knows nothing about combat
+	 *  state -- death lives on ATDCombatCharacter. Base returns false: a character with no
+	 *  combat state always faces the camera.
+	 *
+	 *  Note that disabling *movement* does not disable facing. The two are separate systems
+	 *  and a dead character was still turning in place until this existed.
+	 */
+	virtual bool IsFacingLocked() const { return false; }
+
 	/** Initialize input action bindings */
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 

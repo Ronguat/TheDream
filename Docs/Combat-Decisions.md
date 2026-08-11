@@ -161,6 +161,66 @@ concludes the log is wrong rather than merely old. Add a row whenever a name cha
 
 ---
 
+## 2026-08-11 — Death cancels what exhaustion lets finish, and inert is not the same as dead
+
+Item 4, the minimum death: health reaches zero, `State.Dead` goes on, every ability is refused,
+the character stops. Respawn rules, whether death routes through knockdown, and whether the dummy
+should die at all remain item 11's.
+
+**Death cancels running abilities; exhaustion deliberately does not.** This is the one place the
+pattern being copied was wrong to copy. Exhaustion gates *activation* and lets a running ability
+play out, which is right for a stamina lockout — and is the reason a block held through zero is a
+filed trap. For death it is visibly wrong: a killing blow landing mid-swing would leave the corpse
+completing its attack, hitbox included. `CancelAllAbilities` also clears `State.Attacking` and
+`State.Attacking.Committed` through the normal end path, so death cannot leak the tags that would
+forbid every future defensive action after a revive.
+
+**The refusal lives on the shared ability base, not in each ability's `ActivationBlockedTags`.**
+An ability can be authored without a tag; it cannot be authored without its base class. The dead
+are not a special case any one ability should have to remember.
+
+**`State.Dead` is native, not an `EditDefaultsOnly` property like `ExhaustedTag`.** A placed actor
+can serialize stale `EditDefaultsOnly` values that silently override its Blueprint, and the
+training dummy shipped for days with `ExhaustedTag` unset for exactly that reason — unreachable
+from the details panel, so nothing showed it. A native tag has no per-instance value to go stale.
+
+**A ragdoll, because "inert" and "dead" look identical.** Play's first report was that death was
+unreadable: the character stopped and nothing announced it. The ragdoll needs no animation
+content, which matters because the directional `Death_<DIR>` clips belong to item 11 — and it is
+behind `bRagdollOnDeath` so that slice can switch it off rather than unpick it. The mesh's rest
+offset is captured in `BeginPlay`, before physics can touch it: restoring from a value read after
+death would bake the ragdoll's final pose in as the new rest offset and the character would stand
+up crooked permanently.
+
+**Disabling movement does not disable facing, and that cost a bug.** The dead character still
+turned to track the camera, because `UpdateCameraRelativeFacing` is a separate system that knew
+nothing about death. Worth stating generally: *stopping a character* is not one switch, and the
+list of what "stopped" means is not discoverable from the thing you just turned off.
+
+The user proposed **depossessing the pawn** instead, which is the stronger version of this
+argument and was rejected only on scope: it would kill the whole class of problem at once, but
+pulls in where the controller goes meanwhile and what the camera does, both of which are item 11's
+questions. Revisit if death ever needs its own camera. Recorded because the reasoning is better
+than the alternative it lost to, and someone should propose it again.
+
+**Two defects found by review rather than by play**, both silent:
+
+- *Dying airborne stranded `bJumpRegenPauseActive` set forever.* `DisableMovement` stops the fall,
+  so `Landed()` never fires to clear it, and stamina regen stays suppressed for the rest of that
+  character's life — past the revive, with nothing to indicate it.
+- *`ReturnToDebugAutoAttackHome` guarded on the wrong flag.* It checked
+  `bDebugAutoAttackResetPosition` (default true) but not `bDebugAutoAttack`, while the home
+  transform is only ever captured for auto-attackers. Unreachable until the revive started calling
+  it — at which point the *player* would have teleported to the world origin on every death.
+
+**And one found by play that was a wrong comment rather than wrong code.** The reset is correctly
+suppressed while dead, so a corpse is not teleported mid-ragdoll; the comment then claimed "the
+revive restores the transform anyway", which was false — the revive restores the *mesh's* offset
+from the capsule, never the *actor's* world transform. So a dummy killed mid-lunge revived
+displaced and only drifted home on its next attack cycle. The behaviour was changed to match the
+comment rather than the comment softened to match the behaviour, because the comment described
+what the system should have done.
+
 ## 2026-08-11 — The buffer window doubles to 200 ms, and what the tuning sessions ruled out
 
 `InputBufferSeconds` 100 → 200 ms, settled by play the same day it was built. Measured, across

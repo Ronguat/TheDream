@@ -101,6 +101,16 @@ editor once and stay in it for the whole content pass.
 
 ## Editing assets through the toolset
 
+**Read a property off the asset rather than guessing from filenames** *(confirmed 2026-08-11)*.
+Looking for the mesh's physics asset, `find -iname "*PHYS*"` returned nothing across all of
+`Content/`, which reads as "there is no physics asset" and is wrong — it is
+`PA_Mannequin`, under the bundle's `Mannequins/Rigs/`. `ObjectTools.get_properties` on
+`SKM_Manny` returned the reference immediately. This is the standing absence rule in its
+tooling form: **a naming-convention guess is a filter, and a filter that misses proves
+nothing.** The call shape is easy to get wrong too — the schema is
+`{"instance": {"refPath": "..."}, "properties": [...]}`, not `object_path`/`property_names`;
+calling it wrong returns the full input schema, which is the fastest way to learn any of these.
+
 **Verify against the artefact, not the tool's return value.** Two of these tools have now
 reported success while changing nothing that mattered, in different ways. Whatever the
 write was meant to produce — a value some system actually reads, a file gone from disk —
@@ -338,6 +348,11 @@ standing set for combat work:
   ability's own state. The tell is the absence of `RELEASE BEGIN`/`END`, which come from a
   notify on the montage and therefore only fire if the montage is really playing.
 - `LogAbilitySystem` is free of new warnings
+- **Death and revive leave nothing stranded**, whenever movement, regen or ability state is
+  touched. Die *in mid-air* specifically: `DisableMovement` stops the fall, so `Landed()` never
+  fires, and anything keyed to landing stays set forever — silently, past the revive. Check
+  stamina regen still runs afterwards. Also confirm no `State.Attacking.Committed` survives a
+  death that cancelled a swing, since a leak there forbids every future defensive action.
 
 Once the stamina economy is involved, add:
 

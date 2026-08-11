@@ -4,9 +4,13 @@
 #include "Combat/Attributes/TDAttributeSet.h"
 #include "Combat/Abilities/TDGameplayAbility.h"
 #include "Combat/TDCombatDebug.h"
+#include "Combat/TDGameplayTags.h"
 #include "AbilitySystemComponent.h"
+#include "Components/CapsuleComponent.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "EnhancedInputComponent.h"
+#include "PhysicsEngine/PhysicsAsset.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameplayEffect.h"
 #include "TimerManager.h"
@@ -135,6 +139,188 @@ void ATDCombatCharacter::HandleStaminaChanged(const FOnAttributeChangeData& Data
 	}
 }
 
+void ATDCombatCharacter::HandleHealthChanged(const FOnAttributeChangeData& Data)
+{
+	if (bDead || Data.NewValue > 0.0f)
+	{
+		return;
+	}
+
+	EnterDeath();
+}
+
+void ATDCombatCharacter::EnterDeath()
+{
+	if (bDead)
+	{
+		return;
+	}
+	bDead = true;
+
+	TD_TIMING_LOG(TEXT("[%.3f] DEATH      %s"),
+		GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f, *GetName());
+
+	if (AbilitySystemComponent)
+	{
+		AbilitySystemComponent->AddLooseGameplayTag(TDTags::State_Dead);
+
+		// The tag alone only refuses *new* activations, which is exhaustion's rule and is
+		// visibly wrong here: a killing blow landing mid-swing would otherwise leave a corpse
+		// finishing its attack, hitbox included. Cancelling also clears State.Attacking and
+		// State.Attacking.Committed through the normal ability-end path, so death cannot leak
+		// the tags that would forbid every future defensive action on revive.
+		AbilitySystemComponent->CancelAllAbilities();
+	}
+
+	// Otherwise "dead" is only a tag and the corpse keeps walking, which is the exact
+	// complaint this item exists to fix. Velocity is zeroed as well as input disabled, or
+	// momentum carries the body along for a second afterwards.
+	if (UCharacterMovementComponent* Movement = GetCharacterMovement())
+	{
+		Movement->StopMovementImmediately();
+		Movement->DisableMovement();
+	}
+
+	// Dying airborne would otherwise strand this flag set forever: DisableMovement stops the
+	// fall, so Landed() never fires to clear it, and regen stays suppressed for the rest of
+	// the character's life -- past the revive, silently. Death ends the jump it was tracking.
+	bJumpRegenPauseActive = false;
+
+	if (bRagdollOnDeath)
+	{
+		StartRagdoll();
+	}
+
+	// A buffered press must not survive death: it would fire on revive, an action asked for
+	// in a situation that no longer exists.
+	BufferedInput.Clear();
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(BufferedReleaseTimerHandle);
+	}
+
+	if (DebugAutoReviveSeconds > 0.0f)
+	{
+		GetWorldTimerManager().SetTimer(
+			DebugReviveTimerHandle,
+			this,
+			&ATDCombatCharacter::ReviveFromDebug,
+			DebugAutoReviveSeconds,
+			false);
+	}
+}
+
+void ATDCombatCharacter::StartRagdoll()
+{
+	USkeletalMeshComponent* SkeletalMesh = GetMesh();
+	if (!SkeletalMesh || bRagdollActive)
+	{
+		return;
+	}
+
+	// Physics silently refuses to simulate without one, leaving the character standing dead
+	// with no error anywhere. Warned rather than logged quietly: a mesh swap is exactly how
+	// this would break, and the symptom -- death stops looking like death -- reads as a
+	// gameplay regression rather than a missing asset.
+	if (!SkeletalMesh->GetPhysicsAsset())
+	{
+		UE_LOG(LogTDCombatTiming, Warning,
+			TEXT("%s: bRagdollOnDeath is set but the mesh has no physics asset; death will not ragdoll."),
+			*GetName());
+		return;
+	}
+
+	bRagdollActive = true;
+
+	// The capsule stops colliding so it cannot hold the body up or shove it around. It is
+	// deliberately left in place rather than moved: it is still what the actor's transform
+	// means, and the revive puts the mesh back onto it.
+	if (UCapsuleComponent* Capsule = GetCapsuleComponent())
+	{
+		Capsule->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	}
+
+	SkeletalMesh->SetCollisionProfileName(TEXT("Ragdoll"));
+	SkeletalMesh->SetAllBodiesSimulatePhysics(true);
+	SkeletalMesh->SetSimulatePhysics(true);
+	SkeletalMesh->WakeAllRigidBodies();
+}
+
+void ATDCombatCharacter::StopRagdoll()
+{
+	USkeletalMeshComponent* SkeletalMesh = GetMesh();
+	if (!SkeletalMesh || !bRagdollActive)
+	{
+		return;
+	}
+	bRagdollActive = false;
+
+	SkeletalMesh->SetSimulatePhysics(false);
+	SkeletalMesh->SetAllBodiesSimulatePhysics(false);
+	SkeletalMesh->PutAllRigidBodiesToSleep();
+	SkeletalMesh->SetCollisionProfileName(TEXT("CharacterMesh"));
+
+	// Reattached explicitly: simulation detaches the mesh from the capsule in all but name,
+	// and setting the relative transform without reattaching leaves it in world space.
+	if (UCapsuleComponent* Capsule = GetCapsuleComponent())
+	{
+		SkeletalMesh->AttachToComponent(Capsule, FAttachmentTransformRules::KeepRelativeTransform);
+		Capsule->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+	}
+
+	// From the value captured before physics ever touched it. Reading the current relative
+	// transform here would bake the ragdoll's final pose in as the rest offset.
+	SkeletalMesh->SetRelativeTransform(MeshRestRelativeTransform);
+}
+
+void ATDCombatCharacter::ReviveFromDebug()
+{
+	if (!bDead)
+	{
+		return;
+	}
+	bDead = false;
+
+	// Before the teleport, deliberately. StopRagdoll reattaches the mesh to the capsule, and
+	// moving the actor while physics still drives the mesh in world space would leave the body
+	// behind. Order is the whole correctness argument here.
+	StopRagdoll();
+
+	// An auto-attacker revives at the spot it was placed rather than wherever its last root
+	// motion carried it. Without this it stands up displaced and only drifts home on its next
+	// attack cycle -- which is what play reported. No-op for anything that is not an
+	// auto-attacker, so the player revives where they fell.
+	ReturnToDebugAutoAttackHome();
+
+	TD_TIMING_LOG(TEXT("[%.3f] REVIVE     %s"),
+		GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f, *GetName());
+
+	if (AbilitySystemComponent)
+	{
+		AbilitySystemComponent->RemoveLooseGameplayTag(TDTags::State_Dead);
+
+		AbilitySystemComponent->SetNumericAttributeBase(UTDAttributeSet::GetHealthAttribute(), GetMaxHealth());
+
+		// Stamina too, deliberately. Dying at low stamina and reviving instantly exhausted is
+		// a debug annoyance with no design content -- and exhaustion ends only at full, so it
+		// would outlast the revive by several seconds.
+		AbilitySystemComponent->SetNumericAttributeBase(UTDAttributeSet::GetStaminaAttribute(), GetMaxStamina());
+	}
+
+	// Exhaustion is cleared explicitly rather than waiting for the stamina delegate: the
+	// delegate fires on a *change*, and reviving from an already-full bar changes nothing.
+	ExitExhaustion();
+
+	// Falling rather than Walking, deliberately. The character may have died in mid-air, and
+	// forcing Walking there leaves it hovering with no gravity until something else disturbs
+	// it. Falling is self-correcting in both cases: on the ground the movement component
+	// resolves it to Walking on the next update, in the air it simply resumes the fall.
+	if (UCharacterMovementComponent* Movement = GetCharacterMovement())
+	{
+		Movement->SetMovementMode(MOVE_Falling);
+	}
+}
+
 void ATDCombatCharacter::EnterExhaustion()
 {
 	bExhausted = true;
@@ -162,8 +348,10 @@ void ATDCombatCharacter::ExitExhaustion()
 void ATDCombatCharacter::Jump()
 {
 	// Deliberately silent. Exhaustion is communicated by the tag and the empty bar; a
-	// failed jump that plays nothing reads as the lockout it is.
-	if (bExhausted)
+	// failed jump that plays nothing reads as the lockout it is. Jump is not a
+	// GameplayAbility, so the dead check in UTDGameplayAbility does not cover it and has
+	// to be repeated here -- the one place that rule is not centralised.
+	if (bExhausted || bDead)
 	{
 		return;
 	}
@@ -199,6 +387,12 @@ UAbilitySystemComponent* ATDCombatCharacter::GetAbilitySystemComponent() const
 void ATDCombatCharacter::BeginPlay()
 {
 	Super::BeginPlay();
+
+	// Captured before anything can move it, so the revive has a true rest pose to restore.
+	if (const USkeletalMeshComponent* SkeletalMesh = GetMesh())
+	{
+		MeshRestRelativeTransform = SkeletalMesh->GetRelativeTransform();
+	}
 
 	// Covers characters that are never possessed, such as a placed training dummy.
 	InitialiseAbilitySystem();
@@ -275,6 +469,9 @@ void ATDCombatCharacter::InitialiseAbilitySystem()
 	AbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(UTDAttributeSet::GetStaminaAttribute())
 		.AddUObject(this, &ATDCombatCharacter::HandleStaminaChanged);
 
+	AbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(UTDAttributeSet::GetHealthAttribute())
+		.AddUObject(this, &ATDCombatCharacter::HandleHealthChanged);
+
 	if (bDebugAutoAttack && DebugAutoAttackInputTag.IsValid())
 	{
 		// Captured before the first swing, so it is the placed transform rather than wherever
@@ -297,7 +494,19 @@ void ATDCombatCharacter::InitialiseAbilitySystem()
 
 void ATDCombatCharacter::ReturnToDebugAutoAttackHome()
 {
-	if (!bDebugAutoAttackResetPosition)
+	// Guarded on the auto-attack flag as well as the reset flag, because HomeTransform is only
+	// captured for auto-attackers. Without this, calling it on anything else -- the player, on
+	// revive -- teleports to an identity transform, i.e. the world origin.
+	if (!bDebugAutoAttackResetPosition || !bDebugAutoAttack)
+	{
+		return;
+	}
+
+	// Death cancels the running attack, which fires the ability-ended reset -- so without this
+	// the dummy's corpse teleports home mid-ragdoll, dragging the capsule out from under a mesh
+	// that physics is driving in world space. ReviveFromDebug calls this again once the ragdoll
+	// has been put away, which is what actually gets the body home.
+	if (bDead)
 	{
 		return;
 	}

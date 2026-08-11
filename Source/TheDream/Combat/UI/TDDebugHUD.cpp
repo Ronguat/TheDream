@@ -97,7 +97,16 @@ float ATDDebugHUD::DrawCombatantPanel(ATDCombatCharacter* Character, float X, fl
 		CursorY += LineHeight;
 	}
 
-	DrawLabelledBar(TEXT("HP"), Character->GetHealthPercent(), Character->GetHealth(), Character->GetMaxHealth(), HealthColor, X, CursorY, Scale);
+	const bool bDead = Character->IsDead();
+	DrawLabelledBar(TEXT("HP"), Character->GetHealthPercent(), Character->GetHealth(), Character->GetMaxHealth(),
+		bDead ? DeadHealthColor : HealthColor, X, CursorY, Scale);
+
+	// Death is a timed lockout with nothing on the bar to count it down -- unlike exhaustion,
+	// which is legible because the bar visibly refills toward its exit condition.
+	if (bDead)
+	{
+		DrawText(TEXT("dead"), TextColor, X + (BarWidth * Scale) + (6.0f * Scale), CursorY, nullptr, Scale);
+	}
 	CursorY += LineHeight;
 
 	const bool bExhausted = Character->IsExhausted();

@@ -74,6 +74,17 @@ void ATheDreamCharacter::UpdateCameraRelativeFacing()
 		return;
 	}
 
+	// Both rotation sources are switched off rather than merely left alone. Returning early
+	// without this would freeze them at whatever they were on the last live frame -- and if
+	// that frame had movement input, bUseControllerRotationYaw stays true and the character
+	// keeps turning with the camera, which is exactly the bug this fixes.
+	if (IsFacingLocked())
+	{
+		bUseControllerRotationYaw = false;
+		Movement->bUseControllerDesiredRotation = false;
+		return;
+	}
+
 	// Only the smooth branch reads RotationRate, but it is written unconditionally so the
 	// value stays live-tunable in PIE rather than latching whatever it was at construction.
 	Movement->RotationRate.Yaw = StationaryTurnRateDegrees;

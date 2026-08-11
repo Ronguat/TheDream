@@ -109,6 +109,10 @@ public:
 	UFUNCTION(BlueprintPure, Category="Combat|Stamina")
 	bool IsExhausted() const { return bExhausted; }
 
+	/** True from health reaching 0 until revived. Every ability is refused throughout. */
+	UFUNCTION(BlueprintPure, Category="Combat|Health")
+	bool IsDead() const { return bDead; }
+
 protected:
 
 	virtual void BeginPlay() override;
@@ -116,6 +120,9 @@ protected:
 
 	/** Blocked while exhausted, per the design: no defensive actions and no jump. */
 	virtual void Jump() override;
+
+	/** The dead do not turn to face the camera. */
+	virtual bool IsFacingLocked() const override { return bDead; }
 
 	/** The actual launch, as opposed to Jump() which only records the press. Starts the regen pause. */
 	virtual void OnJumped_Implementation() override;
@@ -227,6 +234,34 @@ protected:
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Stamina")
 	FGameplayTag ExhaustedTag;
+
+	/**
+	 *  Collapse into a ragdoll on death.
+	 *
+	 *  Item 4's death is otherwise *inert* rather than legible -- the character simply stops
+	 *  and nothing announces it, which was the first thing play reported. A ragdoll is the
+	 *  cheapest unambiguous read, and it needs no animation content, which matters because
+	 *  the directional `Death_<DIR>` clips belong to item 11.
+	 *
+	 *  Requires a physics asset on the mesh or physics silently does nothing. Ours has one
+	 *  (`PA_Mannequin`, on the bundle's `SKM_Manny`); a mesh without one dies standing up.
+	 *
+	 *  Exposed so item 11 can turn it off when death gets real animation, rather than having
+	 *  to unpick it from code.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat|Death")
+	bool bRagdollOnDeath = true;
+
+	/**
+	 *  Debug only: seconds after death before reviving at full. 0 disables the auto-revive.
+	 *
+	 *  Item 4 is deliberately the *minimum* death: a state that stops the character acting, so
+	 *  the health bar means something and damage observations after a kill are not garbage.
+	 *  Respawn rules, whether death routes through knockdown, and whether the dummy should die
+	 *  at all are item 11's, and a debug revive is what lets this ship without answering them.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat|Debug", meta=(ClampMin="0.0"))
+	float DebugAutoReviveSeconds = 3.0f;
 
 	/** Starting and maximum health. Characters spawn at full. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Attributes", meta=(ClampMin="1.0"))
@@ -395,7 +430,27 @@ private:
 	void EnterExhaustion();
 	void ExitExhaustion();
 
+	/**
+	 *  Applies State.Dead, cancels everything running, and stops the character moving.
+	 *
+	 *  Cancelling is the deliberate difference from exhaustion, which gates activation and
+	 *  lets a running ability finish. That is right for a stamina lockout and visibly wrong
+	 *  for a corpse: without it a killing blow landing mid-swing leaves the dead character
+	 *  completing the attack, hitbox and all.
+	 */
+	void EnterDeath();
+
+	/** Debug only: clears State.Dead, restores movement, refills health and stamina. */
+	void ReviveFromDebug();
+
+	/** Hands the mesh to physics. No-op without a physics asset -- and silent, so verify in play. */
+	void StartRagdoll();
+
+	/** Returns the mesh to the capsule at its authored offset. Exact, or the character stays skewed. */
+	void StopRagdoll();
+
 	void HandleStaminaChanged(const struct FOnAttributeChangeData& Data);
+	void HandleHealthChanged(const struct FOnAttributeChangeData& Data);
 
 	/** The one press waiting for something to answer it. Single slot: last press wins. */
 	FTDBufferedInput BufferedInput;
@@ -410,6 +465,23 @@ private:
 	bool bJumpRegenPauseActive = false;
 
 	bool bExhausted = false;
+
+	bool bDead = false;
+
+	/**
+	 *  The mesh's authored offset from the capsule, captured once before physics ever moves it.
+	 *
+	 *  Ragdolling drives the mesh in world space, so the relative transform is meaningless by
+	 *  the time it stops. Restoring from a value read *after* death would bake the ragdoll's
+	 *  final pose in as the new rest offset, and the character would stand up crooked and stay
+	 *  that way. Captured in BeginPlay rather than the constructor so it reflects whatever a
+	 *  Blueprint authored.
+	 */
+	FTransform MeshRestRelativeTransform;
+
+	bool bRagdollActive = false;
+
+	FTimerHandle DebugReviveTimerHandle;
 
 	bool bAbilitySystemInitialised = false;
 

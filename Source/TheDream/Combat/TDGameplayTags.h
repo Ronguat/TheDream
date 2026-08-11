@@ -24,4 +24,16 @@ namespace TDTags
 
 	/** SetByCaller key for stamina drain inflicted on a blocking target. */
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Data_StaminaDamage);
+
+	/**
+	 *  Health reached zero. Refuses every ability, from the shared base rather than per asset.
+	 *
+	 *  Deliberately native rather than an EditDefaultsOnly UPROPERTY like ExhaustedTag, which
+	 *  is otherwise the pattern this copies. A placed actor can serialize stale
+	 *  EditDefaultsOnly values that silently override its Blueprint, and the training dummy
+	 *  shipped for days with ExhaustedTag unset for exactly that reason -- unreachable from
+	 *  the details panel, so nothing showed it. A native tag has no per-instance value to be
+	 *  stale. See Docs/Working-In-Unreal.md.
+	 */
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Dead);
 }

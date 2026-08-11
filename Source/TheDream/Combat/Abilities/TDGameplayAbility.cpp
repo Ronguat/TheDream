@@ -2,6 +2,7 @@
 
 #include "Combat/Abilities/TDGameplayAbility.h"
 #include "Combat/TDCombatDebug.h"
+#include "Combat/TDGameplayTags.h"
 #include "AbilitySystemComponent.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
@@ -18,6 +19,20 @@ bool UTDGameplayAbility::CanActivateAbility(const FGameplayAbilitySpecHandle Han
 {
 	if (!Super::CanActivateAbility(Handle, ActorInfo, SourceTags, TargetTags, OptionalRelevantTags))
 	{
+		return false;
+	}
+
+	// Checked here rather than by adding State.Dead to every ability's ActivationBlockedTags,
+	// so a future ability cannot be granted without it. The dead are not a special case any
+	// one ability should have to remember. Unconditional rather than a flag like
+	// bBlockedWhileAirborne -- there is no ability a corpse should be able to use.
+	if (ActorInfo && ActorInfo->AbilitySystemComponent.IsValid()
+		&& ActorInfo->AbilitySystemComponent->HasMatchingGameplayTag(TDTags::State_Dead))
+	{
+		TD_TIMING_LOG(TEXT("[%.3f] REFUSED    %s: dead"),
+			ActorInfo->AvatarActor.IsValid() && ActorInfo->AvatarActor->GetWorld()
+				? ActorInfo->AvatarActor->GetWorld()->GetTimeSeconds() : 0.0f,
+			*GetName());
 		return false;
 	}
 
@@ -43,6 +58,16 @@ bool UTDGameplayAbility::CanActivateAbility(const FGameplayAbilitySpecHandle Han
 
 bool UTDGameplayAbility::ShouldBufferFailedInput(const FGameplayAbilityActorInfo* ActorInfo) const
 {
+	// Death is the clearest case of a refusal that must not be remembered. It lasts whole
+	// seconds, so a press buffered across it would fire on revive -- an action the player
+	// asked for in a situation that no longer exists, which is precisely the false positive
+	// the window length exists to prevent.
+	if (ActorInfo && ActorInfo->AbilitySystemComponent.IsValid()
+		&& ActorInfo->AbilitySystemComponent->HasMatchingGameplayTag(TDTags::State_Dead))
+	{
+		return false;
+	}
+
 	// The airborne refusal is the one kind that must not be remembered. Everything else this
 	// ability can be refused by -- a committed swing, an exhaustion lockout, a live instance --
 	// clears while the player is still standing there meaning it. Being in the air does not:
