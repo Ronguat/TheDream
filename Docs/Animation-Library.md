@@ -291,6 +291,52 @@ meaningful for a string even though it is not a count of usable standalone attac
 sits, a 0.9 s clip lands near the rate this project already ships, while a 2.1 s one implies
 roughly 3×. **Reach for `_Complete`, not the standalone form.**
 
+### Every complete single attack in `SwordSwordAnimV3` RM
+
+**23 clips.** This is the candidate pool for item 6 and beyond — everything in V3 that is one
+self-contained strike. Durations measured 2026-08-11. The **What it is** column is filled in by
+preview only; blank means nobody has looked yet.
+
+**Duration is not a filter.** It is an input to a derived play rate, and a clip authored slowly
+can be sped up — `Attack4_Stage2_Complete` runs 1.933 s and reads *too slow* at 1×. Judge the
+motion, not the number. Recorded because the opposite assumption drove clip selection for most of
+a session and ruled out the eventual winner's whole family on arithmetic.
+
+| Clip | Length | What it is |
+|---|---:|---|
+| `Attack4_Stage1_Complete` | 0.967 | **Diagonal slash, top-right to bottom-left.** Steps forward, ends forward in idle. *Chosen baseline light.* |
+| `Attack4_Stage2_Complete` | 1.933 | **360° swing.** Reads too slow at 1×; wants speeding up. Good consecutive-light candidate. |
+| `Attack4_Stage3_Complete` | 1.000 | **Shield bash**, fairly stationary |
+| `Attack4_Stage4_Complete` | 2.300 | **Heavy stab + flourish** on withdraw. No forward travel. |
+| `Attack7_Stage2_Complete` | 0.967 | **Shield bash**, steps forward |
+| `Attack6_Stage2_Complete` | 0.900 | |
+| `Attack3_Stage2_Complete` | 1.133 | |
+| `Attack2_Stage1_Complete` | 1.333 | |
+| `Attack1_Stage2_Complete` | 1.367 | |
+| `Attack8_Stage2_Complete` | 1.500 | |
+| `Attack1_Stage3_Complete` | 1.567 | |
+| `Attack2_Stage2_Complete` | 1.633 | |
+| `Attack3_Stage1_Complete` | 1.767 | |
+| `Attack7_Stage1_Complete` | 1.767 | |
+| `Attack6_Stage1_Complete` | 2.000 | |
+| `Attack8_Stage1_Complete` | 2.000 | |
+| `Attack10` | 2.133 | *stage-less — the bare clip is the whole attack* |
+| `Attack8_Stage3_Complete` | 2.233 | |
+| `Attack5` | 2.333 | *stage-less* |
+| `Attack6_Stage3_Complete` | 2.333 | |
+| `Attack9` | 2.533 | *stage-less* |
+| `Attack7_Stage3_Complete` | 2.500 | |
+| `Attack1_Stage1_Complete` | 3.000 | |
+
+**Combo families, for item 9.** Stage counts are `Attack4` **4**; `Attack1`/`6`/`7`/`8` **3**;
+`Attack2`/`3` **2**; `Attack5`/`9`/`10` none. A string uses the *fragments* mid-chain and a
+`_Complete` to terminate — so a family's stage count is a usable hit count for a string, unlike
+for standalone attacks. **`Attack4` is the only four-stage family**, and it is where the chosen
+light came from, so one coherent set can serve items 6 and 9 together.
+
+The bare `AttackN` form of a family *with* stages (e.g. `Attack4` at 4.867 s) is the entire
+multi-stage combo idle-to-idle, not a single strike. Not a candidate here.
+
 ### Clips identified as something other than a plain swing
 
 Worth recording, because a name gives no hint and re-discovering costs a preview each time:
