@@ -72,6 +72,13 @@ flat list read once is forgotten by the time it matters.
 
 These are not design questions. Nothing here needs play to settle; they need checking.
 
+**Discharge a trap in the same commit that fixes it.** This section is the most load-bearing part
+of the file and the only one with no natural expiry: a trap fixed by someone not reading this file
+stays here and misdirects the next person, which is worse than never having filed it. Say what
+discharged it and keep anything from it that is still true — the Slice B entry became a note about
+the client path being unexercised rather than simply disappearing. Removing a trap silently is the
+one edit here that cannot be reviewed, because nothing is left to review.
+
 **Before block (item 7)** — *exhaustion can become permanent.* `ActivationBlockedTags` gates
 activation, not continuation, so a block held through zero keeps draining and keeps
 `State.StaminaRegenPaused` applied. Regen is now the **only** thing that ends exhaustion, so
@@ -224,6 +231,34 @@ concludes the log is wrong rather than merely old. Add a row whenever a name cha
 | `LogTDCoil` | `LogTDCombatTiming`, behind the `TD.DebugCombatTiming` cvar. |
 
 ---
+
+## 2026-08-11 — Item 6's clip candidates, and the play-rate figure nobody has measured
+
+Measured 2026-08-10, moved here from `CLAUDE.md` on 2026-08-11 because it is working data and an
+unverified assumption, not a rule. The assumption is the reason it earns an entry.
+
+**The pack splits every attack into a short mid-chain strike and a long terminal one.**
+`Attack3_Stage1_RM` **0.73 s** and `Attack7_Stage2_RM` **0.70 s** are strike-only and chain;
+terminal stages (`Attack3_Stage2` 2.20 s, `Attack7_Stage3` 2.27 s) carry a 2 s+ recovery to idle.
+The standalone `AttackN_RM` clips are those same strikes wrapped in idle at both ends and run
+**1.50 s** (`Attack9`, the shortest) to **6.60 s** (`Attack8`).
+
+**The ~0.7 s chain stages are the candidates.** Windup rate scales with where the impact frame
+sits, so against our current 1.0 s montage with its impact 36% in, a 0.7 s clip lands near
+**1.0×** — better than today's 1.44× — while `Attack9` implies ~2.2× and `Attack1` ~7.4×.
+
+**Those rate figures assume the pack shares our clip's impact proportion, and that is not
+measured.** Impact position is unreadable through the MCP toolset, which is the same gap that
+forces `ReleaseStartSeconds` to duplicate the notify by hand in the first place. So the numbers
+above are an *argument for previewing*, not a result — and the failure mode if the assumption is
+wrong is not a bad rate, it is a `ReleaseStartSeconds` that has drifted from the notify it was
+copied from, which makes an attack silently stop dealing damage. Confirm on a preview before
+committing to a family.
+
+**`Attack7` is favoured for a reason that is not about rate:** the pack ships native combo
+families, and `Attack7` has three authored stages (`Attack3`/`4`/`6`/`10` have two). That is
+exactly what item 9's 2–4 hit light string wants, and choosing a family without the string in
+mind means placing the `Release Window` notifies twice.
 
 ## 2026-08-11 — The training dummy gets the sword too, and the blade is authored rather than measured
 

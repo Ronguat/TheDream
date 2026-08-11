@@ -312,12 +312,38 @@ These are facts about the bundle, checked across all 6,576 assets, not impressio
   **first**, because a pack that ships props usually ships sockets for them. Note this is the
   presence-side twin of the absence rule in `CLAUDE.md`: a derived view misleads in both
   directions, and only one of them had a rule.
-- **Parry is thin but it exists.** Six clips in the whole bundle: `SwordShield` has exactly
-  one, `SwordShieldAnimV3/Animation/RM/AS_SwordSwordAnimV3_Block1_Parry_RM`, and `Katana` has
-  five (`Deflect`, `Deflect_Complete`, `Deflect_Block`, `Deflect_Block_Heavy`,
-  `Deflect_Counter`). One clip is enough for a parry that has a single success animation, so
-  this is not a blocker — but there is no whiff or failed-parry variant in our archetype, and
-  Katana's richer set is the wrong stance. Worth knowing before the parry slice, not during.
+- **Parry is thin *by name* and less thin *by function*.** Six clips in the whole bundle carry a
+  parry-shaped name: `SwordShield` has exactly one,
+  `SwordShieldAnimV3/Animation/RM/AS_SwordSwordAnimV3_Block1_Parry_RM`, and `Katana` has five
+  (`Deflect`, `Deflect_Complete`, `Deflect_Block`, `Deflect_Block_Heavy`, `Deflect_Counter`).
+
+  **Re-searched 2026-08-11 at the user's suggestion, by enumerating every distinct `SwordShield`
+  move rather than grepping for parry words — and the picture changed.** The name search was
+  correct and answered the wrong question: it asked *what is called a parry* rather than *what
+  could function as one*. `SwordShield` also has `Block1` and `Block2`, each a **discrete**
+  block action with its own `_Idle` and `_Hit`, and those are parry-shaped whatever they are
+  called. `Block1_Hit` / `Block2_Hit` are candidate reads for a parry that failed, which the
+  earlier note said did not exist. So the honest count is three candidate shapes plus failure
+  states, not one clip. **This is the "index guarantees names, not suitability" warning below
+  biting in a new way: a name search cannot find a clip that would work under a different name.**
+
+  **The two packs split by idiom, not merely by version**, which is the finding that matters for
+  the parry slice:
+
+  | Pack | Idiom | Clips |
+  |---|---|---|
+  | `SwordAndShieldAnimV1` | **held guard** | `Defense`, `Defense_Loop`, `DefenseStart`, `DefenseEnd`, four directional `Defense_Hit_*`, four `_Death` |
+  | `SwordSwordAnimV3` | **discrete block actions** | `Block1`/`Block2`, each with `_Idle` and `_Hit`, plus `Block1_Parry` |
+
+  That maps onto this project's two mechanics almost exactly: **block holds** (V1's idiom, and V1
+  is already the pack the dodge and locomotion come from, so item 7 has no stance problem at all),
+  while **parry is a 400 ms discrete action** — which is what V3's `Block*` family is. All 19 of
+  these clips are **already migrated**; none needs a migrate.
+
+  Two things still needing a preview, not a search. The V3 pack is named **`SwordSword`** despite
+  living in the `SwordShield` folder, which hints it may be animated for dual swords — a left hand
+  behaving as though it holds a sword rather than a shield. And a stance mismatch costs far less
+  across a 400 ms flash than across a held pose, but less is not none.
 - **Props do not follow the `SM_` / `SKM_` naming convention, so do not search by prefix.**
   `SwordShield/DEMO/StaticMesh/` holds both `SM_Sword` *and* `Shield_Heater` — the shield
   carries no prefix at all. A prefix-filtered search for shield meshes returned nothing and
