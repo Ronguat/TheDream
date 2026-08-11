@@ -47,9 +47,9 @@ enum class ETDDodgeDirection : uint8
  *  Direction is resolved from movement input, falling back to backward when stationary,
  *  because a neutral dodge that goes nowhere reads as a flinch rather than an evade.
  *
- *  Displacement is deliberately absent for now: whether the dodge is moved by root motion
- *  or driven in code is unsettled, and spacing is the top feel goal, so it is not a choice
- *  to make by accident. See Docs/Combat-Decisions.md.
+ *  Displacement comes from the montage's root motion, scaled by DodgeRootMotionScale. Driving
+ *  it in code was the alternative and is still available without new assets, but the clips
+ *  ship with authored displacement and using it costs nothing. See Docs/Combat-Decisions.md.
  */
 UCLASS(abstract)
 class UTDDodgeAbility : public UTDGameplayAbility
@@ -77,6 +77,22 @@ protected:
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Dodge", meta=(ClampMin="0.01"))
 	float DodgeSeconds = 0.5f;
+
+	/**
+	 *  Multiplies the montage's authored root motion translation. 1.0 is the clip as authored.
+	 *
+	 *  **This is the travel knob, and the play rate is not.** Rate changes how long the dodge
+	 *  takes, never how far it goes -- a dash played twice as fast covers the same ground in
+	 *  half the time. Reaching for DodgeSeconds to fix distance is the standing mistake this
+	 *  property exists to prevent.
+	 *
+	 *  A single scale is deliberately uniform across all eight directions. If the source clips
+	 *  turn out to disagree about distance, scaling multiplies that disagreement rather than
+	 *  correcting it, and the fix is per-direction data rather than a bigger number here --
+	 *  which is why the trace reports measured distance per direction.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Dodge", meta=(ClampMin="0.0"))
+	float DodgeRootMotionScale = 1.0f;
 
 	/**
 	 *  Applied for the whole dodge, and read by attackers to skip the hit.
@@ -113,4 +129,13 @@ private:
 
 	FTimerHandle DodgeTimerHandle;
 	bool bIFramesActive = false;
+
+	/**
+	 *  Where the dodge started, so the trace can report how far it actually travelled.
+	 *
+	 *  Measured rather than derived from the clip: what the player feels is the distance the
+	 *  character ended up moving, which collision, slopes and the movement component all get a
+	 *  say in. A number read off the asset would describe the animation's intent instead.
+	 */
+	FVector DodgeStartLocation = FVector::ZeroVector;
 };

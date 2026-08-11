@@ -78,6 +78,18 @@ stalling it stalls the exit condition forever. Related: the stamina delegate onl
 Unreachable today — every defensive action is locked out until full — and block is what makes
 it reachable.
 
+**Before the sword-and-shield attack swap (item 6)** — *the melee trace follows `hand_r`, not the
+weapon, and reach is therefore unrelated to the sword.* `UTDMeleeAttackAbility::TraceSocket`
+defaults to `hand_r` and sweeps a sphere of the branch's `TraceRadius` (45 / 55 / 65) along that
+socket's path. Legacy from unarmed prototyping, and **already wrong** — the character has held a
+sword since item 3b, and its blade contributes nothing to what it hits. Confirmed with the user
+2026-08-11: item 6 moves the trace onto the weapon.
+
+Two things that will move with it. Reach grows, so the `TraceRadius` values were tuned against a
+fist and will need re-judging against a blade. And a sphere swept along one socket is a poor fit
+for a sword, which is a *line* — a blade-base to blade-tip sweep is the shape that actually
+matches, and picking that up is cheaper while the trace is being moved anyway than afterwards.
+
 **Before a second `Release Window` notify exists (item 6, or item 9)** — *the melee trace opens
 on any `Event.Melee.WindowBegin` reaching that ASC.* `UAbilityTask_MeleeTrace` subscribes by tag
 and never checks which montage sent the event. Correct while exactly one montage carries the
@@ -160,6 +172,40 @@ concludes the log is wrong rather than merely old. Add a row whenever a name cha
 | `LogTDCoil` | `LogTDCombatTiming`, behind the `TD.DebugCombatTiming` cvar. |
 
 ---
+
+## 2026-08-11 — Dodge travel ships at the clips' authored distance, measured rather than assumed
+
+Item 5. `DodgeRootMotionScale` is now wired through to the montage task, and stays at **1.0** —
+the value play already had. The slice's product is the knob and the measurement, not a change.
+
+**The eight directions were suspected of disagreeing and do not.** `AM_Dodge` is built from eight
+separate `Dash` clips, and nothing had ever checked they travel the same distance; if they had
+disagreed, a single uniform scale would multiply the gap rather than close it, and the fix would
+have been per-direction data. Measured over one dodge each on flat ground:
+
+| Direction | BR | FR | FL | R | Fw | BL | Bw | L |
+|---|---|---|---|---|---|---|---|---|
+| Travelled (uu) | 418.5 | 417.3 | 408.8 | 403.6 | 403.4 | 402.2 | 398.6 | 387.0 |
+
+Mean **404.9 uu**, total spread 31.5 uu — under one capsule radius, and below what a player can
+perceive as directional bias. A single scale is the right shape. Durations were 0.400–0.408 s
+against `DodgeSeconds` 0.400, matching the project's usual within-a-frame-biased-late pattern.
+
+**Measured at the actor, deliberately, not read off the clip.** What the player feels is where
+the character ended up, which collision, slopes and the movement component all get a say in. The
+authored displacement would describe the animator's intent instead. The trace reports the actual
+delta, horizontal only — vertical travel is gravity, and counting it would make every dodge down
+a slope read as longer.
+
+**The number worth carrying forward: a dodge covers roughly three times an attack's static
+reach**, and averages about twice `MaxWalkSpeed`. So it does not merely evade, it disengages, and
+punishing afterwards costs the time to close again. That is not a complaint — play reports the
+dodge feels good — but it means the dodge has *two* safety margins, exposure and distance, where
+the tuning map's "dodge is too safe" row only names the first. Whichever gets moved, the other is
+still there.
+
+Reach is estimated rather than measured: the trace follows `hand_r`, and where that socket sits at
+the impact frame is unknown. If spacing becomes contentious, that is the missing number.
 
 ## 2026-08-11 — Death cancels what exhaustion lets finish, and inert is not the same as dead
 

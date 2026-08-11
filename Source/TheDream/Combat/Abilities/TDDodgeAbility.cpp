@@ -59,6 +59,11 @@ void UTDDodgeAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, c
 
 	DodgeDirection = ResolveDodgeDirection();
 
+	if (const AActor* Avatar = GetAvatarActorFromActorInfo())
+	{
+		DodgeStartLocation = Avatar->GetActorLocation();
+	}
+
 	if (ATDCombatCharacter* Character = Cast<ATDCombatCharacter>(GetAvatarActorFromActorInfo()))
 	{
 		Character->DebugStatusLine = FString::Printf(TEXT("Dodge %s  %.2fs  invulnerable"),
@@ -101,7 +106,8 @@ void UTDDodgeAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, c
 				*DodgeMontage->GetName(), *Section.ToString());
 		}
 
-		UAbilityTask_PlayMontageAndWait* MontageTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(this, NAME_None, DodgeMontage, PlayRate, Section);
+		UAbilityTask_PlayMontageAndWait* MontageTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(
+			this, NAME_None, DodgeMontage, PlayRate, Section, /*bStopWhenAbilityEnds=*/true, DodgeRootMotionScale);
 
 		// Deliberately not ending the ability on completion. DodgeSeconds is the authority,
 		// and a montage whose sections chain into the next one would otherwise decide the
@@ -190,6 +196,31 @@ void UTDDodgeAbility::EndAbility(const FGameplayAbilitySpecHandle Handle, const 
 	if (UWorld* World = GetWorld())
 	{
 		World->GetTimerManager().ClearTimer(DodgeTimerHandle);
+	}
+
+	// Horizontal only: vertical travel is gravity and ground, not the dodge, and including it
+	// would make every dodge down a slope read as longer. Reported here rather than on the
+	// timer so a cancelled dodge still reports what it managed -- a dodge cut short by a
+	// cancel travelling nearly its full distance would be worth knowing about.
+	//
+	// Guarded on the start location being set, and clearing it, because EndAbility can run
+	// more than once -- the same reason EndIFrames is idempotent. A measurement that
+	// double-reports is worse than none: the duplicates look like real samples and quietly
+	// weight any average taken over them.
+	if (!DodgeStartLocation.IsZero())
+	{
+		if (const AActor* Avatar = GetAvatarActorFromActorInfo())
+		{
+			const FVector Delta = Avatar->GetActorLocation() - DodgeStartLocation;
+			TD_TIMING_LOG(TEXT("[%.3f] DODGE END  dir=%s travelled=%.1fuu scale=%.2f%s"),
+				GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f,
+				*UEnum::GetValueAsString(DodgeDirection),
+				Delta.Size2D(),
+				DodgeRootMotionScale,
+				bWasCancelled ? TEXT(" (cancelled)") : TEXT(""));
+		}
+
+		DodgeStartLocation = FVector::ZeroVector;
 	}
 
 	// Must come off even when the dodge is cancelled, or a cancelled dodge leaves the
