@@ -262,6 +262,43 @@ number is how many clips share that move name across directions, `RM`/`IP` and q
 - `ArcheryCombatAnimV1` — aim-directional attacks, `Squat`(98), `Flip` in eight directions.
   Out of scope.
 
+## The attack clip schema, and why `Stage` clips are not attacks
+
+*(established 2026-08-11 by inspecting the clips, after measurements alone pointed the wrong way)*
+
+Every `AttackN` in the bundle exists in four forms, and only two of them are usable as a
+standalone attack:
+
+| Form | What it is | Usable alone? |
+|---|---|---|
+| `AttackN_StageM` | The strike **fragment**. Begins and ends mid-motion. | **No** — it snaps in and out of pose |
+| `AttackN_StageM_Back` | That stage's return to idle | No, it is a tail |
+| **`AttackN_StageM_Complete`** | **Stage + Back: a strike that settles, lands, and holds.** Same shape as the unarmed punch this project already used. | **Yes** |
+| `AttackN` | The whole multi-stage attack, idle to idle | Yes, but long (2.1–4.9 s in V3) |
+
+`Stage + Back ≈ Complete` arithmetically, which is what first suggested the structure; a preview
+confirmed it. `AttackN_StageM_Complete_React` also exists — that is the same clip including the
+*recipient's* reaction, for showcase purposes, not for us.
+
+**The fragments are not useless, they are just not standalone.** A clip that begins and ends
+mid-motion is exactly right for a **mid-string hit**, where the next hit continues the movement
+rather than resolving it. So a combo string is `Stage1` → `Stage2` → `StageN_Complete`, with the
+terminal hit resolving. That is how the pack is built, and it means a family's stage count *is*
+meaningful for a string even though it is not a count of usable standalone attacks.
+
+**Duration matters more than it looks.** `_Complete` clips run 0.900–3.000 s in V3; the standalone
+`AttackN` forms run 2.133–4.867 s. Since the play rate is derived from where the impact frame
+sits, a 0.9 s clip lands near the rate this project already ships, while a 2.1 s one implies
+roughly 3×. **Reach for `_Complete`, not the standalone form.**
+
+### Clips identified as something other than a plain swing
+
+Worth recording, because a name gives no hint and re-discovering costs a preview each time:
+
+- **`AS_SwordSwordAnimV3_Attack7_Stage2_Complete_RM` is a shield bash** — starts from idle, steps
+  forward into a bash, holds the new position. Wrong for a sword light, and a strong candidate if
+  a **shield bash ability** is ever wanted (out of scope now; abilities and specials are).
+
 ## Known gaps and what they imply
 
 These are facts about the bundle, checked across all 6,576 assets, not impressions:
