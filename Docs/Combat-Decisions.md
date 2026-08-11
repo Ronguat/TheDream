@@ -10,12 +10,37 @@ never rewritten to match new code — a reversal gets a new entry that supersede
 Append an entry whenever a gameplay or combat choice is made that a future reader could
 reasonably second-guess. Skip it for anything the code says plainly on its own.
 
-**How to read this file.** The three sections above the first dated entry — **known traps**,
-the **tuning map**, and **retired names** — are the working part, and they are short on
-purpose. The dated entries below them are an archive: they grow monotonically because entries
-are superseded rather than rewritten, so this file will only ever get longer. Read the working
-sections when starting a slice; reach for the entries when you want to know *why* something is
-the shape it is, or when an entry is cited by name. Do not read it front to back.
+**How to read this file.** The sections above the first dated entry — **known traps**, the
+**tuning map**, **what has been superseded**, and **retired names** — are the working part, and
+they are short on purpose. The dated entries below are an archive. Read the working sections
+when starting a slice; grep the entries when you want to know *why* something is the shape it
+is. Do not read it front to back.
+
+**On the fact that it only grows.** Reviewed 2026-08-11 and kept deliberately. Compacting
+superseded entries was considered and rejected: all seven supersessions to date are *partial* —
+each kills one claim inside an entry whose other claims are still live — so stubbing them would
+destroy current reasoning to save bytes nobody pays for. The archive is reached by search, not
+by reading, so its length costs approximately nothing, and git already holds anything that did
+get removed. Length is not the risk here; **a stale claim that does not announce itself is**,
+which is what the table below exists for.
+
+---
+
+## What has been superseded
+
+A new entry says what it supersedes. The old entry does not say it has been gutted — so reading
+one directly can hand you a dead number with full confidence. Check here before trusting any
+dated entry. Add a row whenever an entry supersedes part of an older one.
+
+| This entry | …has a claim that is now wrong | Corrected by |
+|---|---|---|
+| 2026-08-09 — Ability input is routed by gameplay tag | block and parry will share one button | 2026-08-10 — The four questions gating defense |
+| 2026-08-09 — One ability with three branches | `GA_LightAttack` is kept on disk as a fallback | 2026-08-10 — The `GA_LightAttack` fallback is removed |
+| 2026-08-10 — The four questions gating defense | only *block* can cancel an attack's startup | 2026-08-10 — Costs are paid, not required |
+| 2026-08-10 — Costs are paid, not required | exhaustion lasts a flat 4 s (`ExhaustionSeconds`) | 2026-08-10 — Exhaustion ends at full |
+| 2026-08-10 — Jumping is taxed in recovery | the jump's tail is half the defensive pause | 2026-08-10 — The defensive regen pause is 0.5 s |
+| 2026-08-10 — Sword and shield, rolls for every evade | every evade is a roll | 2026-08-10 — The evade is a dash, not a roll |
+| 2026-08-10 — Facing is camera-relative | the stock ABP plays a forward run while strafing | corrected **inline** in that same entry — nothing was decided on it, so it was a factual error rather than a reversal |
 
 ---
 

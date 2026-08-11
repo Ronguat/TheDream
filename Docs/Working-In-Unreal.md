@@ -290,27 +290,24 @@ Confirmed traps:
 This is why renaming an AnimNotify class is expensive: placed notifies serialize against
 the class path, so a rename breaks them and they must be re-placed by hand.
 
-### But AnimGraph *editing* is scriptable — `BlueprintTools` is far more capable than it looks
+### AnimGraph *editing* is scriptable *(confirmed 2026-08-11)*
 
-*(confirmed 2026-08-11)* This was predicted twice to need a human and did not, so it is worth
-stating positively rather than leaving as an absence someone else re-derives.
+Only asset **creation** needs a human. Graph editing does not.
 
-`BlueprintTools` exposes `list_graphs`, `find_nodes`, `get_node_infos`, `create_node`,
-`connect_pins`, `set_pin_value`, `retarget_node_class`, `read_graph_dsl` / `write_graph_dsl`
-and `compile_blueprint`. `list_graphs` returns state machines and individual states as
-addressable graphs — e.g.
-`ABP_Combat:AnimGraph.AnimGraphNode_StateMachine_0.Locomotion.AnimStateNode_2.Walk / Run` —
-and `find_nodes` with an empty `title` lists everything in one.
+`BlueprintTools` has `list_graphs`, `find_nodes`, `get_node_infos`, `create_node`,
+`connect_pins`, `set_pin_value`, `retarget_node_class`, `read_graph_dsl` / `write_graph_dsl`,
+`compile_blueprint`.
 
-Repointing a Blend Space Player took a **partial** write to the node's `Node` struct
-(`{"Node":{"blendSpace":{"refPath":"..."}}}`), which changed that field and left every other
-one — sync group, play rate, loop flag — intact. A Sequence Player's clip is `Node.sequence`
-the same way. Prefer the partial write: the full struct includes pin-backed fields like the
-blendspace's `x`/`y`, and rewriting those risks disturbing connections.
-
-`describe_toolset` on `BlueprintTools` returns ~72k characters and will be rejected as too
-large. Grep the saved output for `"name":"..."` instead, and discover argument schemas by
-calling a function wrong on purpose — the error returns the full input schema.
+- `list_graphs` addresses state machines and individual states, e.g.
+  `ABP_Combat:AnimGraph.AnimGraphNode_StateMachine_0.Locomotion.AnimStateNode_2.Walk / Run`.
+- `find_nodes` needs a `title`; pass `""` to list everything in a graph.
+- Change a node through a **partial** write to its `Node` struct —
+  `{"Node":{"blendSpace":{"refPath":"..."}}}`, or `Node.sequence` for a Sequence Player. Partial,
+  not full: the full struct contains pin-backed fields like a blendspace's `x`/`y`, and writing
+  those risks the connections.
+- `describe_toolset` on it returns ~72k chars and is rejected as too large. Grep the saved dump
+  for `"name":"..."`, and get argument schemas by calling a function wrong — the error returns
+  the full input schema.
 
 ## Verifying combat changes
 
