@@ -104,6 +104,7 @@ Deliberately **not** kept: per-system design docs. Local rationale belongs in he
 
 ## Working Rules
 - **Combat and gameplay work is deliberate, not vibed.** Minimize assumptions and state the reasoning, even when it is slower. If a gameplay question has more than one defensible answer, raise it rather than picking one quietly — and record the choice in `Docs/Combat-Decisions.md`. Unprompted initiative is welcome for debug and tooling conveniences (adding a readout to the debug HUD, say); it is not welcome for anything that changes how the game plays.
+- **When play and rationale disagree, play wins.** This file and `Docs/Combat-Decisions.md` are full of carefully argued positions. They exist to make choices legible, not to defend them against evidence — a designed distinction that does not survive contact with feel gets dropped, and the entry recording it gets superseded rather than argued for. Do not treat a persuasive past entry as a commitment.
 - Always propose a short plan before creating or modifying multiple assets.
 - Work in small, verifiable vertical slices. After each slice, stop and wait for feedback.
 - Never delete assets or change project settings without explicit approval.

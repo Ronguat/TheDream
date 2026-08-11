@@ -88,6 +88,28 @@ concludes the log is wrong rather than merely old. Add a row whenever a name cha
 
 ---
 
+## 2026-08-10 — The defensive regen pause is 0.5 s; felt feel beat the argued distinction
+
+`StaminaRegenPauseSeconds` drops 1.0 → 0.5, which makes it equal to `JumpRegenPauseSeconds`.
+
+This supersedes the reasoning in "Jumping is taxed in recovery" below, which set the jump's tail
+at half the defensive one *because* "a jump is a weaker commitment than a dodge and should not be
+taxed as heavily." That argument is sound and it lost to play: with the montage finally attached
+and the dodge legible, 0.5 s simply felt right and 1.0 s did not. The distinction was reasoned
+into existence before anyone had felt either number.
+
+**The two values stay separate even though they are now identical.** Not an oversight — the
+separation is capacity, not an active claim. Collapsing them into one number would make
+re-splitting them a code change rather than a tuning pass, and there is no cost to holding two
+fields that happen to agree.
+
+The transferable rule, now also in `CLAUDE.md`: **when play and rationale disagree, play wins.**
+This log exists to make choices legible, not to defend them against evidence. A carefully argued
+entry is not a commitment — it is a record of what was known at the time, and superseding one is
+the system working rather than failing. That matters here specifically because this log is long
+and persuasive, and a persuasive argument is exactly the kind of thing that can outlive its
+usefulness quietly.
+
 ## 2026-08-10 — The evade is a dash, not a roll; the roll choice came from an incomplete search
 
 `AM_Dodge` is built from the eight `AS_SwordAndShieldAnimV1_Dash_*_RM` clips. This supersedes
