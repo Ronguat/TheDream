@@ -95,17 +95,17 @@ ability waits for `OnCompleted` and blend-out becomes dead time. **Do not discov
 around it** — it is also the true cause of the debug attacker resetting before its swing looked
 done, which was patched with a delay rather than diagnosed.
 
-**Before tuning `InputBufferSeconds` (item 12 should land first)** — *the window is being sized
-against a recovery length nobody chose.* **43% of buffered presses (17 of 40) expired unfired**
-in the first session it existed, and the obvious read is that the window is too short. It may be —
-but an attack stays unavailable until its *ability* ends, and that is currently montage
-blend-out rather than an authored recovery, per the item 12 trap below. Widening the window to
-bridge an accidental recovery bakes the accident in. Buffering itself is verified in play; only
-its size is open.
+**When item 12 authors a real recovery** — *re-check `InputBufferSeconds`, which was sized
+against a recovery nobody chose.* The window was tuned to its current value by play on
+2026-08-11 and works well, but what it is bridging is an attack's *ability* lifetime, and that
+still ends at montage blend-out rather than at an authored recovery — the item 12 trap below.
+Change what an attack's tail is and the window is measuring a different thing, without anything
+announcing it. Its ceiling is set by the longest lockout the design refuses to shorten, which is
+exhaustion; see the 200 ms entry.
 
-Note this retires the trap that stood here until 2026-08-11 — that every timing verdict was
+Note this replaces the trap that stood here until 2026-08-11 — that every timing verdict was
 confounded by inputs which never registered. That was item 8's whole justification and it is
-now discharged.
+discharged.
 
 **Whenever `MaxWalkSpeed` changes** — *it is coupled to the blendspace's top row and nothing
 enforces the link.* `BS_SwordShield_Locomotion` places its run samples at Speed 500 because
@@ -160,6 +160,61 @@ concludes the log is wrong rather than merely old. Add a row whenever a name cha
 | `LogTDCoil` | `LogTDCombatTiming`, behind the `TD.DebugCombatTiming` cvar. |
 
 ---
+
+## 2026-08-11 — The buffer window doubles to 200 ms, and what the tuning sessions ruled out
+
+`InputBufferSeconds` 100 → 200 ms, settled by play the same day it was built. Measured, across
+three sessions on the same build:
+
+| Window | Presses buffered | Expired unfired | Fired |
+|---|---|---|---|
+| 100 ms | 40 | **17 (43%)** | 23 |
+| 200 ms | 35 | 2 (5.7%) | 33 |
+| 200 ms, ladder test | 70 | **2 (2.9%)** | 68 (97%) |
+
+**Going higher was rejected, and exhaustion is the reason it stays rejected.** The user's read
+was that a wider window buys only false positives; the log gives that a mechanism. Exhaustion
+lasts until stamina refills — about four seconds — and dodge presses made while exhausted
+correctly expire rather than firing. A window wide enough to bridge that would hand back a dodge
+seconds after it was asked for. So the ceiling is not "how long until an input feels stale" in
+the abstract; it is set by the longest lockout the design deliberately refuses to shorten.
+
+**A verdict that reads as a dodge failure and is not.** Zero of seven buffered dodges fired in
+one session, which looked alarming and was not: all seven were pressed either during a charged's
+commitment or while exhausted, and 14 further dodge presses that session activated immediately.
+Both blocking states are visible to the player — a swing in progress, an empty greyed bar — so
+none of these was an input silently doing nothing. **The lesson is the denominator**: judging a
+buffer by the subset that needed buffering measures the hardest cases only, and reports a healthy
+system as broken.
+
+**Holding an input to have it fire on the first legal frame is accepted as a technique.** It
+falls out of the no-expiry-while-held rule rather than being designed, and it was left in
+deliberately after being checked for the failure that would have killed it: it does not loop.
+Buffering happens only on a press edge (`ETriggerEvent::Started`), and the slot is cleared when
+it fires, so a held button yields exactly one action. Confirmed in play — the tightest interval
+between consecutive dodges was 834 ms against a 0.4 s dodge; a loop would show a run of ~400 ms
+repeats until stamina ran out.
+
+**Accepted, with eyes open: a buffered attack's tier depends on how long the buffer waited, and
+the player cannot see that.** The hold is measured from activation, so the wait is subtracted
+from the front. Measured in one session: a **452 ms** physical hold produced a **Heavy** while a
+**484 ms** hold produced a **Light**, because the buffer had sat for 0 ms and 282 ms
+respectively. This is not a defect — it is "windup length is preset" doing its job, and
+crediting the pre-activation hold is the fix that was rejected when the buffer was built. It is
+recorded because someone will propose that fix again on seeing exactly this. What makes it
+liveable is that the attack is *visually* cued: hold until the coil appears and the latency
+stops mattering. The user's verdict after extended play was that the misses "felt like a skill I
+could grind improving, rather than the game's inputs betraying me", which is the distinction
+that matters and the one only play can supply.
+
+**A note on what "verified" required, because the bar was briefly set wrong.** The
+tier-preserving replay was called untested for two sessions on the grounds that no logged case
+showed a hold past 200 ms producing a heavy. That standard was wrong: there is no branch on
+200 ms. The path schedules the replay at `HoldSeconds` whatever its value, it executed 24 times
+correctly, and what follows the replayed release is the ordinary escalation logic that 39 heavy
+and 38 charged commits already exercise. **Treating a parameter value as a code branch produced
+a test that could only be passed by hand-timing a float**, and cost two play sessions chasing it.
+Ask what the code actually branches on before asking play to cover a case.
 
 ## 2026-08-11 — The input buffer remembers a press, and one rejection that play reversed
 
