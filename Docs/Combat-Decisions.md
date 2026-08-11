@@ -10,6 +10,13 @@ never rewritten to match new code — a reversal gets a new entry that supersede
 Append an entry whenever a gameplay or combat choice is made that a future reader could
 reasonably second-guess. Skip it for anything the code says plainly on its own.
 
+**How to read this file.** The three sections above the first dated entry — **known traps**,
+the **tuning map**, and **retired names** — are the working part, and they are short on
+purpose. The dated entries below them are an archive: they grow monotonically because entries
+are superseded rather than rewritten, so this file will only ever get longer. Read the working
+sections when starting a slice; reach for the entries when you want to know *why* something is
+the shape it is, or when an entry is cited by name. Do not read it front to back.
+
 ---
 
 ## Known traps, indexed by what sets them off
