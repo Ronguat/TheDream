@@ -49,6 +49,10 @@ Three rules bind all new work:
   does not get to spend that budget silently. When a timing is chosen, say what it looks like
   with a round trip in it.
 
+**The ASC lives on `ATDPlayerState` for players** (2026-08-11). The training dummy is an
+unpossessed placed pawn with no PlayerState, so `ATDCombatCharacter` *resolves* which ASC it
+uses rather than assuming one — never reach past `AbilitySystem` to the owned fallback.
+
 **Still outstanding:** prediction windows, lag compensation for i-frames, client-side stamina
 prediction, and 14 network-unaware `SetTimer` sites. The 2026-08-11 audit that found them, and
 the reasoning behind the model, are in `Docs/Combat-Decisions.md`.

@@ -79,14 +79,24 @@ stalling it stalls the exit condition forever. Related: the stamina delegate onl
 Unreachable today — every defensive action is locked out until full — and block is what makes
 it reachable.
 
-**Before starting Slice B, the ASC move to PlayerState (decided, not yet built)** — three things
-that will bite in order. `APlayerState` sets `SetNetUpdateFrequency(1)` in its own constructor —
-**1 Hz** — so an ASC driving 250 ms attacks off it will look catastrophically broken in a way
-that reads as a gameplay bug; raise it. The PlayerState arrives on a client *after* the pawn, so
-the character must re-resolve its ASC in `OnRep_PlayerState` as well as `PossessedBy`, or clients
-initialise against a null PlayerState and silently have no abilities. And `ATheDreamGameMode` is
-a bare stub that never sets `PlayerStateClass`, so a new PlayerState class is not used until it
-does.
+**Before the first real multiplayer test — the ASC's client path is written and unexercised.**
+Slice B shipped 2026-08-11 and its three filed traps are discharged: the PlayerState's 1 Hz net
+update frequency is raised in `ATDPlayerState`'s constructor, the character re-resolves its ASC
+in `OnRep_PlayerState` as well as `PossessedBy`, and `ATheDreamGameMode` now sets
+`PlayerStateClass`. What is *verified* is the server path only — single-player PIE has no client,
+so `OnRep_PlayerState` never fired in any test that passed. It is the half that is hardest to
+reason about and the only half nothing has run.
+
+A fourth trap was **not** filed in advance and is the one worth carrying forward as a pattern
+rather than a fact: *the ordering hazard was invisible from the design and obvious from the
+engine's callback order.* Seeding was guarded by one bool on the character, and a player pawn's
+`BeginPlay` runs **before** it is possessed — so the flag would have been spent on the fallback
+ASC and the PlayerState's real one never seeded. The player would have had no attributes and no
+abilities **while the never-possessed training dummy worked perfectly**, which is what would have
+made it hard to find. The guard now lives with the ASC (`ATDPlayerState::HasSeededDefaults`).
+The general form: **when one code path serves two lifecycles, the one that works is not evidence
+about the one that does not** — and here the working one was the simpler, so it would have been
+tested first.
 
 **Whenever new state is added, from 2026-08-11 on** — *a loose gameplay tag does not replicate,
 and this is now a PvP project.* `AddLooseGameplayTag` is local to the machine that calls it. If
