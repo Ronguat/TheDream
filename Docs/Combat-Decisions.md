@@ -8,7 +8,18 @@ why the shape is what it is, and stay true even after the code moves on. An entr
 never rewritten to match new code — a reversal gets a new entry that supersedes it.
 
 Append an entry whenever a gameplay or combat choice is made that a future reader could
-reasonably second-guess. Skip it for anything the code says plainly on its own.
+reasonably second-guess.
+
+**The bar, raised 2026-08-11: does this record something the code cannot?** In practice that
+means **what was rejected, and the mechanism by which it failed** — because code contains only
+the winner. "We built an authored `IFrameSeconds` inside a longer dodge and dropped it", "we
+authored per-branch commit rates and the windup rate carried through the release and halved the
+light's active window", "we raised letting stamina go negative and rejected it": none of that is
+recoverable from a codebase, and every one of them is a proposal somebody will make again.
+
+If an entry would be equally true as a header comment, **write the header comment instead** —
+code cannot drift from itself. Audited on the day this bar was set: 9 of the first 27 entries
+cleared it; the rest explained the current design, which the codebase does better.
 
 **How to read this file.** The sections above the first dated entry — **known traps**, the
 **tuning map**, **what has been superseded**, and **retired names** — are the working part, and
@@ -16,8 +27,14 @@ they are short on purpose. The dated entries below are an archive. Read the work
 when starting a slice; grep the entries when you want to know *why* something is the shape it
 is. Do not read it front to back.
 
-**On the fact that it only grows.** Reviewed 2026-08-11 and kept deliberately. Compacting
-superseded entries was considered and rejected: all seven supersessions to date are *partial* —
+**On the fact that it only grows.** Reviewed 2026-08-11 and kept deliberately. **The growth is
+proportionate, not pathological** — a codebase accumulates decisions as it accumulates code, and
+a file recording the ones worth keeping grows alongside it. A decision log that stopped growing
+would mean the project had stopped being built. What has to stay bounded is the *working*
+sections above, not the archive.
+
+Compacting superseded entries was considered and rejected: all seven supersessions to date are
+*partial* —
 each kills one claim inside an entry whose other claims are still live — so stubbing them would
 destroy current reasoning to save bytes nobody pays for. The archive is reached by search, not
 by reading, so its length costs approximately nothing, and git already holds anything that did
