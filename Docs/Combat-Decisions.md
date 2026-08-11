@@ -260,6 +260,47 @@ families, and `Attack7` has three authored stages (`Attack3`/`4`/`6`/`10` have t
 exactly what item 9's 2–4 hit light string wants, and choosing a family without the string in
 mind means placing the `Release Window` notifies twice.
 
+> **Corrected the same day, by measuring both packs. Two errors above.**
+>
+> **1. The durations are V1's, and the entry never said so.** `Attack7_Stage2_RM` exists in all
+> three `SwordShield` packs *and* in `Spear`; the clip name alone does not identify a pack.
+> Confirmed by measurement: V1's is 0.700 s, V3's is **0.467 s**.
+>
+> **2. "Three authored stages" does not mean three usable strikes**, and this is the error that
+> would have cost a re-do. Nearly every family in **both** packs is *long opener → one short
+> strike → long terminal*: V1 `Attack7` is 1.667 / 0.700 / 2.267; V3 `Attack7` is 1.500 / 0.467 /
+> 2.333; V3 `Attack6` is 1.500 / 0.433 / 2.200. One chainable strike per family, not three. Item
+> 9's string must therefore be assembled from short stages **across** families, or accept uneven
+> lengths. The single exception found is **V3 `Attack4`**, the only four-stage family, at
+> 0.600 / 1.167 / **0.667** / 2.333 — two short stages inside one authored chain.
+>
+> **And a correction to the reasoning, not just the data: shorter is not better.** The target is
+> a clip whose impact frame lands at 250 ms at a play rate near **1.0**, which at an assumed 36%
+> impact position means **L ≈ 0.70 s**. A 0.433 s clip implies a rate of **0.62** — slow motion,
+> which is as much an artifact as the 1.44× it would replace. This kills the tempting reading
+> that V3's snappier clips are automatically the better source.
+>
+> **Both packs have 0.700 s candidates, so length does not discriminate between them** — V1
+> `Attack4_Stage1` and `Attack7_Stage2`, V3 `Attack1_Stage2` and `Attack8_Stage2`. The pack
+> choice is therefore a *look* question, settled by preview, not by this table.
+
+**Measured 2026-08-11, both packs, every non-`React`/`Complete`/`Back` attack clip.** Short
+chainable strikes only; full data in git history of this entry.
+
+| V1 | s | V3 | s |
+|---|---|---|---|
+| `Attack10_Stage1` | 0.633 | `Attack6_Stage2` | 0.433 |
+| `Attack4_Stage1` | **0.700** | `Attack7_Stage2` | 0.467 |
+| `Attack7_Stage2` | **0.700** | `Attack4_Stage1` | 0.600 |
+| `Attack3_Stage1` | 0.733 | `Attack4_Stage3` | 0.667 |
+| `Attack6_Stage1` | 1.067 | `Attack1_Stage2`, `Attack8_Stage2` | **0.700** |
+
+**V1's two-stage families open short** (0.633–0.733) where V3's mostly do not, so for item 6's
+*single* light — all the current scope needs — V1 gives a usable strike with no long opener in
+front of it. **V3's combo families are deeper** (`Attack4` has four stages; `Attack1`/`6`/`7`/`8`
+have three, against V1's mostly two), which is what item 9 will want. That tension is real and is
+not resolved here.
+
 ## 2026-08-11 — The training dummy gets the sword too, and the blade is authored rather than measured
 
 Raised by the user while setting item 6's scope: should the dummy get the new attacks, or keep

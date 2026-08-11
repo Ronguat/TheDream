@@ -46,7 +46,20 @@ UAbilityTask_MeleeTrace* UTDMeleeAttackAbility::StartMeleeTrace(float Radius)
 		return nullptr;
 	}
 
-	UAbilityTask_MeleeTrace* TraceTask = UAbilityTask_MeleeTrace::MeleeTrace(this, MeshComponent, TraceSocket, Radius, bDrawDebugTrace);
+	// AttackMontage is passed so the trace only opens on *this* attack's Release Window. The
+	// events reach the whole ASC and carry no ownership, so without it a second montage carrying
+	// the notify would open every listening trace.
+	UAbilityTask_MeleeTrace* TraceTask = UAbilityTask_MeleeTrace::MeleeTrace(
+		this,
+		MeshComponent,
+		TraceSocket,
+		BladeAxisLocal,
+		BladeStartCm,
+		BladeLengthCm,
+		BladeTraceSegments,
+		Radius,
+		bDrawDebugTrace,
+		AttackMontage);
 	TraceTask->OnHit.AddDynamic(this, &UTDMeleeAttackAbility::HandleTraceHit);
 	TraceTask->ReadyForActivation();
 

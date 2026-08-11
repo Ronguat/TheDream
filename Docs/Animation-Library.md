@@ -340,10 +340,16 @@ These are facts about the bundle, checked across all 6,576 assets, not impressio
   while **parry is a 400 ms discrete action** — which is what V3's `Block*` family is. All 19 of
   these clips are **already migrated**; none needs a migrate.
 
-  Two things still needing a preview, not a search. The V3 pack is named **`SwordSword`** despite
-  living in the `SwordShield` folder, which hints it may be animated for dual swords — a left hand
-  behaving as though it holds a sword rather than a shield. And a stance mismatch costs far less
-  across a 400 ms flash than across a held pose, but less is not none.
+  **The "`SwordSword` might mean dual swords" worry is dead** *(raised and closed 2026-08-11)*.
+  The `SwordShield` archetype contains three sub-packs named three different ways for the same
+  thing — `SwordAndShieldAnimV1`, `SwordShieldAnimV2`, `SwordSwordAnimV3` — while every dual-sword
+  asset is named `DualSwordAnimation*` and lives in the `DualSword` archetype. The name is vendor
+  inconsistency, from the vendor that also ships `Compelte` and `Puch`. Left recorded rather than
+  deleted because the name will look alarming to the next reader too.
+
+  What still needs a preview rather than a search: whether V3's guard pose reads consistently
+  beside V1's. A mismatch costs far less across a 400 ms flash than across a held pose, but less
+  is not none.
 - **Props do not follow the `SM_` / `SKM_` naming convention, so do not search by prefix.**
   `SwordShield/DEMO/StaticMesh/` holds both `SM_Sword` *and* `Shield_Heater` — the shield
   carries no prefix at all. A prefix-filtered search for shield meshes returned nothing and

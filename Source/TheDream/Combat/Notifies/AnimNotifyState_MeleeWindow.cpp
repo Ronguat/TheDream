@@ -39,7 +39,7 @@ namespace
 
 namespace
 {
-	void SendMeleeWindowEvent(USkeletalMeshComponent* MeshComp, const FGameplayTag& EventTag, float WindowLength)
+	void SendMeleeWindowEvent(USkeletalMeshComponent* MeshComp, const FGameplayTag& EventTag, float WindowLength, const UAnimSequenceBase* SourceAnimation)
 	{
 		if (!MeshComp)
 		{
@@ -55,6 +55,14 @@ namespace
 		FGameplayEventData Payload;
 		Payload.EventTag = EventTag;
 		Payload.Instigator = Owner;
+
+		// Which animation this window belongs to. The event is broadcast to the whole ASC, so
+		// without it a second montage carrying this notify would open every listening trace --
+		// including one belonging to an attack that is not the montage playing. Correct while
+		// exactly one montage carries the notify, and silently wrong the moment a second does,
+		// which is what item 6 creates. UAbilityTask_MeleeTrace compares this against the
+		// montage its own ability is playing.
+		Payload.OptionalObject = SourceAnimation;
 
 		// The notify is the only thing that knows how long this window is -- a montage's
 		// notifies cannot be read back off the asset. Passing it along means the ability
@@ -72,7 +80,7 @@ void UAnimNotifyState_MeleeWindow::NotifyBegin(USkeletalMeshComponent* MeshComp,
 
 	LogWindowEdge(MeshComp, TEXT("BEGIN"));
 
-	SendMeleeWindowEvent(MeshComp, TDTags::Event_Melee_WindowBegin, TotalDuration);
+	SendMeleeWindowEvent(MeshComp, TDTags::Event_Melee_WindowBegin, TotalDuration, Animation);
 }
 
 void UAnimNotifyState_MeleeWindow::NotifyEnd(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, const FAnimNotifyEventReference& EventReference)
@@ -81,7 +89,7 @@ void UAnimNotifyState_MeleeWindow::NotifyEnd(USkeletalMeshComponent* MeshComp, U
 
 	LogWindowEdge(MeshComp, TEXT("END  "));
 
-	SendMeleeWindowEvent(MeshComp, TDTags::Event_Melee_WindowEnd, 0.0f);
+	SendMeleeWindowEvent(MeshComp, TDTags::Event_Melee_WindowEnd, 0.0f, Animation);
 }
 
 #if WITH_EDITOR

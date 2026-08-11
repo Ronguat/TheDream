@@ -15,15 +15,51 @@ UAbilityTask_MeleeTrace::UAbilityTask_MeleeTrace()
 	bTickingTask = true;
 }
 
-UAbilityTask_MeleeTrace* UAbilityTask_MeleeTrace::MeleeTrace(UGameplayAbility* OwningAbility, USkeletalMeshComponent* MeshComponent, FName SocketName, float Radius, bool bDrawDebug)
+UAbilityTask_MeleeTrace* UAbilityTask_MeleeTrace::MeleeTrace(UGameplayAbility* OwningAbility, USkeletalMeshComponent* MeshComponent, FName SocketName, FVector BladeAxisLocal, float BladeStartCm, float BladeLengthCm, int32 Segments, float Radius, bool bDrawDebug, const UAnimMontage* InExpectedMontage)
 {
 	UAbilityTask_MeleeTrace* Task = NewAbilityTask<UAbilityTask_MeleeTrace>(OwningAbility);
 	Task->Mesh = MeshComponent;
 	Task->TraceSocket = SocketName;
+
+	// A zero axis would collapse every sample onto the socket and silently restore the old
+	// single-point trace, so it falls back rather than producing a degenerate blade.
+	Task->BladeAxis = BladeAxisLocal.IsNearlyZero() ? FVector::ForwardVector : BladeAxisLocal.GetSafeNormal();
+	Task->BladeStart = BladeStartCm;
+	Task->BladeLength = FMath::Max(0.0f, BladeLengthCm);
+	Task->BladeSegments = FMath::Max(1, Segments);
 	Task->TraceRadius = Radius;
 	Task->bDrawDebugTrace = bDrawDebug;
+	Task->ExpectedMontage = InExpectedMontage;
 
 	return Task;
+}
+
+void UAbilityTask_MeleeTrace::BuildBladePoints(TArray<FVector>& OutPoints) const
+{
+	OutPoints.Reset();
+	if (!Mesh.IsValid())
+	{
+		return;
+	}
+
+	const FTransform SocketTransform = Mesh->GetSocketTransform(TraceSocket);
+	const FVector AxisWorld = SocketTransform.TransformVectorNoScale(BladeAxis);
+	const FVector Base = SocketTransform.GetLocation() + AxisWorld * BladeStart;
+
+	// One segment means one point at the base, which is the old socket-only behaviour and the
+	// sane degenerate case for a weapon with no authored length.
+	if (BladeSegments <= 1 || BladeLength <= 0.0f)
+	{
+		OutPoints.Add(Base);
+		return;
+	}
+
+	OutPoints.Reserve(BladeSegments);
+	for (int32 Index = 0; Index < BladeSegments; ++Index)
+	{
+		const float Alpha = static_cast<float>(Index) / static_cast<float>(BladeSegments - 1);
+		OutPoints.Add(Base + AxisWorld * (BladeLength * Alpha));
+	}
 }
 
 void UAbilityTask_MeleeTrace::Activate()
@@ -48,19 +84,50 @@ void UAbilityTask_MeleeTrace::Activate()
 		FGameplayEventTagMulticastDelegate::FDelegate::CreateUObject(this, &UAbilityTask_MeleeTrace::HandleWindowEnd));
 }
 
+bool UAbilityTask_MeleeTrace::IsWindowForThisAttack(const FGameplayEventData* Payload) const
+{
+	// Null means accept any, which is the pre-item-6 behaviour. Deliberately kept so an ability
+	// can opt out, but it is not the default: the events reach the whole ASC.
+	if (!ExpectedMontage.IsValid())
+	{
+		return true;
+	}
+
+	return Payload && Payload->OptionalObject == ExpectedMontage.Get();
+}
+
 void UAbilityTask_MeleeTrace::HandleWindowBegin(FGameplayTag Tag, const FGameplayEventData* Payload)
 {
+	if (!IsWindowForThisAttack(Payload))
+	{
+		// Ungated warning, like the other two in this system, because the failure it describes is
+		// an attack that silently deals no damage rather than one that crashes. If this fires for
+		// the montage an attack is actually playing, the notify and the ability disagree about
+		// which asset is which and no trace will ever open.
+		UE_LOG(LogTemp, Warning, TEXT("MeleeTrace: ignoring a Release Window from '%s'; this attack is tracing for '%s'."),
+			(Payload && Payload->OptionalObject) ? *Payload->OptionalObject->GetName() : TEXT("<none>"),
+			ExpectedMontage.IsValid() ? *ExpectedMontage->GetName() : TEXT("<none>"));
+		return;
+	}
+
 	bWindowOpen = true;
 
 	// A fresh window means a fresh swing, so previously hit actors are hittable again.
 	ActorsHitThisWindow.Reset();
-	bHasPreviousLocation = false;
+	PreviousBladePoints.Reset();
 }
 
 void UAbilityTask_MeleeTrace::HandleWindowEnd(FGameplayTag Tag, const FGameplayEventData* Payload)
 {
+	// Filtered on the way out too. A foreign montage's window ending must not close ours, which
+	// would truncate an active swing rather than merely failing to start one.
+	if (!IsWindowForThisAttack(Payload))
+	{
+		return;
+	}
+
 	bWindowOpen = false;
-	bHasPreviousLocation = false;
+	PreviousBladePoints.Reset();
 }
 
 void UAbilityTask_MeleeTrace::TickTask(float DeltaTime)
@@ -93,51 +160,74 @@ void UAbilityTask_MeleeTrace::TickTask(float DeltaTime)
 		return;
 	}
 
-	const FVector CurrentLocation = Mesh->GetSocketLocation(TraceSocket);
+	TArray<FVector> CurrentPoints;
+	BuildBladePoints(CurrentPoints);
+	if (CurrentPoints.Num() == 0)
+	{
+		return;
+	}
 
-	// Sweeping from the previous frame's position closes the gap a fast swing would
-	// otherwise skip over. The first tick of a window has no previous position yet.
-	const FVector StartLocation = bHasPreviousLocation ? PreviousSocketLocation : CurrentLocation;
+	// The blade is sampled at BladeSegments points and each is swept from where it was last
+	// frame. Two gaps get closed by this: along the blade (a target between base and tip) and
+	// through time (a fast swing passing a target entirely between frames). The first tick of a
+	// window has no previous positions, so each point sweeps against itself.
+	const bool bHasPrevious = PreviousBladePoints.Num() == CurrentPoints.Num();
 
 	FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(TDMeleeTrace), false, Avatar);
 	QueryParams.AddIgnoredActor(Avatar);
 
-	TArray<FHitResult> Hits;
-	World->SweepMultiByChannel(
-		Hits,
-		StartLocation,
-		CurrentLocation,
-		FQuat::Identity,
-		ECC_Pawn,
-		FCollisionShape::MakeSphere(TraceRadius),
-		QueryParams);
+	const FCollisionShape Sphere = FCollisionShape::MakeSphere(TraceRadius);
+
+	for (int32 Index = 0; Index < CurrentPoints.Num(); ++Index)
+	{
+		const FVector CurrentLocation = CurrentPoints[Index];
+		const FVector StartLocation = bHasPrevious ? PreviousBladePoints[Index] : CurrentLocation;
+
+		TArray<FHitResult> Hits;
+		World->SweepMultiByChannel(
+			Hits,
+			StartLocation,
+			CurrentLocation,
+			FQuat::Identity,
+			ECC_Pawn,
+			Sphere,
+			QueryParams);
 
 #if ENABLE_DRAW_DEBUG
-	if (bDrawDebugTrace)
+		if (bDrawDebugTrace)
+		{
+			DrawDebugSphere(World, CurrentLocation, TraceRadius, 8, FColor::Red, false, 1.0f);
+			DrawDebugLine(World, StartLocation, CurrentLocation, FColor::Red, false, 1.0f);
+		}
+#endif
+
+		for (const FHitResult& Hit : Hits)
+		{
+			AActor* HitActor = Hit.GetActor();
+			if (!HitActor || ActorsHitThisWindow.Contains(HitActor))
+			{
+				continue;
+			}
+
+			ActorsHitThisWindow.Add(HitActor);
+
+			if (ShouldBroadcastAbilityTaskDelegates())
+			{
+				OnHit.Broadcast(Hit);
+			}
+		}
+	}
+
+#if ENABLE_DRAW_DEBUG
+	// The blade itself, so its authored length can be judged against the weapon on screen --
+	// which is the only way to tell BladeLengthCm is wrong, since nothing else reports it.
+	if (bDrawDebugTrace && CurrentPoints.Num() > 1)
 	{
-		DrawDebugSphere(World, CurrentLocation, TraceRadius, 12, FColor::Red, false, 1.0f);
-		DrawDebugLine(World, StartLocation, CurrentLocation, FColor::Red, false, 1.0f);
+		DrawDebugLine(World, CurrentPoints[0], CurrentPoints.Last(), FColor::Yellow, false, 1.0f, 0, 1.5f);
 	}
 #endif
 
-	PreviousSocketLocation = CurrentLocation;
-	bHasPreviousLocation = true;
-
-	for (const FHitResult& Hit : Hits)
-	{
-		AActor* HitActor = Hit.GetActor();
-		if (!HitActor || ActorsHitThisWindow.Contains(HitActor))
-		{
-			continue;
-		}
-
-		ActorsHitThisWindow.Add(HitActor);
-
-		if (ShouldBroadcastAbilityTaskDelegates())
-		{
-			OnHit.Broadcast(Hit);
-		}
-	}
+	PreviousBladePoints = MoveTemp(CurrentPoints);
 }
 
 void UAbilityTask_MeleeTrace::OnDestroy(bool bInOwnerFinished)

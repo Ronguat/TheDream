@@ -51,11 +51,58 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Damage")
 	FGameplayTagContainer TargetImmunityTags;
 
-	/** Socket swept for hits. hand_r suits unarmed; a weapon socket replaces it later. */
+	/**
+	 *  Socket the blade hangs off. The pack's `Sword` socket, on hand_r.
+	 *
+	 *  Was `hand_r` until item 6, which was legacy from unarmed prototyping and already wrong:
+	 *  the character has held a sword since item 3b and the blade contributed nothing to what an
+	 *  attack hit.
+	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Trace")
-	FName TraceSocket = FName("hand_r");
+	FName TraceSocket = FName("Sword");
 
-	/** Sphere radius in cm. This is the attack's effective thickness, so it drives spacing. */
+	/**
+	 *  Socket-space direction the blade points, from grip toward tip.
+	 *
+	 *  Exposed rather than assumed because it is a property of how the pack authored its socket,
+	 *  and getting it wrong points the hitbox somewhere plausible-looking and wrong. Verify with
+	 *  bDrawDebugTrace, which draws the blade in yellow.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Trace")
+	FVector BladeAxisLocal = FVector::ForwardVector;
+
+	/** Distance from the socket to the blade's base, along BladeAxisLocal. Skips the grip. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Trace")
+	float BladeStartCm = 0.0f;
+
+	/**
+	 *  Blade base-to-tip length in cm. **This is the attack's reach.**
+	 *
+	 *  Authored, and deliberately **never** measured from the attached weapon mesh. The `Sword`
+	 *  socket lives on the skeleton and exists whether or not a prop hangs off it, so a
+	 *  mesh-derived length would hand an unarmed character a well-formed *zero-length* trace --
+	 *  a hitbox that misses everything, with nothing null and nothing logged to say so.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Trace", meta=(ClampMin="0.0"))
+	float BladeLengthCm = 100.0f;
+
+	/**
+	 *  Sample points along the blade, each swept from its own previous position.
+	 *
+	 *  Closes the gap *along* the blade the way the previous-to-current sweep closes the gap
+	 *  through time. Cost is linear: this many sweeps per tick per attacker. 1 collapses to the
+	 *  old single-point trace.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Trace", meta=(ClampMin="1"))
+	int32 BladeTraceSegments = 5;
+
+	/**
+	 *  Sphere radius in cm swept at each blade sample -- the blade's **thickness**, not its reach.
+	 *
+	 *  Reach is BladeLengthCm. The 45 / 55 / 65 values these carried were tuned against a fist
+	 *  standing in for the whole hitbox, so they are not merely rescaled by the move to a blade;
+	 *  they measure a different thing now and need re-judging in play.
+	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Trace", meta=(ClampMin="1.0"))
 	float TraceRadius = 45.0f;
 
