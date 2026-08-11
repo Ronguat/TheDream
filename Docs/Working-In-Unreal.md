@@ -310,3 +310,26 @@ symptom onto a branch that currently works) over one that merely observes it.
 Two warnings on that category are deliberately ungated, because both describe an attack
 that silently stops dealing damage rather than crashing: a skipped coil, and a
 `ReleaseStartSeconds` that has drifted from the Release Window notify it is copied from.
+
+**The `RELEASE BEGIN`/`END` lines can report the wrong montage** *(found in review 2026-08-10)*.
+`AnimNotifyState_MeleeWindow` logs via `GetCurrentActiveMontage()` rather than the attack montage,
+so if anything else is playing at higher priority — a dodge cancelling an attack, now that
+`AM_Dodge` exists — the position and rate belong to that montage instead. The `DODGE` and
+`COMMIT` lines come from the abilities themselves and are unaffected. Cross-check against those
+before trusting a release-edge position that looks impossible.
+
+## Running git
+
+**Push through the Bash tool, never PowerShell.** Bash reaches Git Credential Manager and
+authenticates to `github.com/Ronguat/TheDream`; the PowerShell tool runs with
+`GIT_TERMINAL_PROMPT=0`, the helper returns nothing, and it fails with
+`could not read Username for 'https://github.com'`. This is a second, independent reason to
+prefer Bash on top of the console-font one above. `gh` is not installed, so no `gh` commands.
+
+A failure in one shell is not a statement about capability: on 2026-08-09 the PowerShell failure
+was generalised to "I cannot push" and the user was told to push themselves, which was wrong —
+`git push --dry-run` from Bash authenticated immediately.
+
+**A push can hang while the commit has already landed** *(observed 2026-08-10)*. If `git push`
+times out, check `git rev-list --left-right --count origin/main...HEAD` before assuming failure;
+the commit is usually present and only the transfer stalled. Re-running the push is safe.

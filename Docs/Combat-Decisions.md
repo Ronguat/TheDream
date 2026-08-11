@@ -40,6 +40,22 @@ reasonably second-guess. Skip it for anything the code says plainly on its own.
 - **Does an aborted attack cost anything?** Cancelling into block currently costs only the
   time spent. If feinting into guard turns out to be too cheap to punish, a stamina cost on
   the cancel is the obvious lever — but it should not be added pre-emptively.
+- **Recovery is shorter than it looks, by exactly the montage's blend-out.** Found in review
+  2026-08-10, not by play. `UTDMeleeAttackAbility::StartAttackMontage` binds `HandleMontageFinished`
+  to **both** `OnCompleted` and `OnBlendOut`, and `OnBlendOut` fires when blending *starts* — so
+  the ability ends, and `State.Attacking` / `State.Attacking.Committed` come off,
+  `BlendOut.blendTime` before the swing visually finishes. That is **0.25 s** on
+  `AM_LightAttack_01`, which is large beside a 250 ms light. The consequence is that mechanical
+  recovery and visible recovery differ, and recovery *is* the punish window. Settle deliberately
+  when recovery and punish windows are built: either recovery ends at blend-out and the animation
+  is authored to agree, or the ability waits for `OnCompleted` and blend-out becomes dead time.
+  Do not discover this by tuning around it — it is also the true cause of the debug attacker
+  resetting before its swing looked done, which was patched with a delay rather than diagnosed.
+- **The melee trace opens on any `Event.Melee.WindowBegin` reaching that ASC.**
+  `UAbilityTask_MeleeTrace` subscribes by tag and does not check which montage sent the event.
+  Correct while exactly one montage carries the notify, and quietly wrong the moment a second one
+  does — a plausible future for the light string or a shield bash. Worth a montage check before
+  any second `Release Window` notify exists, not after.
 - **Does a 2.25× roll read as snappy or as fast-forwarded?** `DodgeSeconds` is 0.4 against 0.9 s
   source clips, so the derived play rate is 2.25×. Unanswerable until `AM_Dodge` exists, and it is
   being built with **whole, untrimmed clips** per the entry below — so this question is now asked

@@ -302,3 +302,24 @@ confirming the `.uasset` on disk was rewritten, that the binary physically conta
 Migrate only what a slice needs. The discipline is the same one that applied when
 animations were bought individually; it has just moved from purchasing to what enters the
 repository.
+
+**A retarget-first variant, for future packs.** The `CompatibleSkeletons` fix above works because
+both skeletons are the same UE5 Manny at two paths. A pack built on a genuinely different
+skeleton cannot be fixed that way: retarget it **inside the library project** and migrate the
+*retargeted* results, so the foreign skeleton never enters this repo at all.
+
+## Asking for animations
+
+**If missing animations are genuinely blocking a feature, ask.** Do not silently design around a
+real gap, and do not treat one as a hard blocker — the library is a bought pack that lives
+outside the repo, so the request is normally "please migrate these", not "please buy these".
+
+Confirm the gap is real first, and check **all** the places content already lives: this bundle,
+Epic template content under `/Game/`, and `Variant_Combat`. Then name precisely what the current
+slice needs — specific moves, how many, root motion or not — and nothing beyond it.
+
+**The index guarantees names, not suitability.** The token vocabulary and
+`Animation-Library-Index.tsv` make *absence* checkable, which is what they exist for. They say
+nothing about whether a clip is any good for its purpose — that still needs previewing, and it is
+how the eight-direction `Dash` set sat migrated and unnoticed while `Roll` was chosen on an
+argument about which sets covered all eight directions. Both did.
