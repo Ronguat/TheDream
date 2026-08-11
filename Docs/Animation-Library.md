@@ -286,9 +286,32 @@ These are facts about the bundle, checked across all 6,576 assets, not impressio
   dodge was built — so re-reading them returns `true` and does not contradict this. The claim
   describes what the bundle ships, not what our migrated copies now hold; any *newly* migrated
   clip still needs the flag set.
-- **The Manny skeleton has `weapon_r` and `weapon_l` bones.** For attaching a sword and
-  shield these are better than adding a socket to `hand_r`, since they are animated as part
-  of the rig and the pack's clips were authored against them.
+- **Attach props to the pack's `Sword` / `Shield` sockets, never to the `weapon_*` bones.**
+  *(confirmed 2026-08-10, the hard way)* `GDHBundle`'s `SKM_Manny` carries three authored
+  sockets — `Sword`, `Shield`, `Sheath` — parented to `hand_r` / `hand_l`, and they hold the
+  grip rotation **and a non-uniform scale**. The shield's is `0.25, 0.20, 0.30`, correcting a
+  mesh 256 units tall against a ~180-unit character. **Both props are correct at identity when
+  attached to the sockets**, which is why the pack's own `BP_CharacterSample_SwordShield` reads
+  scale 1 everywhere and still looks right.
+
+  This **supersedes an earlier claim here** that the `weapon_r` / `weapon_l` bones were the
+  better target "since they are animated as part of the rig". That advice fails twice:
+
+  1. Those bones are **absent from Epic's `SKM_Manny_Simple`**, which is what this project's
+     character used. `SetupAttachment` given a name it cannot resolve falls back silently to
+     the component root, putting both props at the character's midriff with no warning at all.
+  2. Only GDH clips animate them, so under any Epic animation they sit at reference pose — the
+     props were correct during a dodge and nonsense at every other moment. `hand_r` / `hand_l`
+     are driven by every animation there is.
+
+  **The verification lesson, which cost most of a slice:** `get_bone_names()` reports the
+  *Skeleton asset's* bone list, while `get_bone_parent` / `get_bone_children` read the
+  *SkeletalMesh's* reduced hierarchy. `weapon_r` appears in the first and not the second, and
+  the two were read as agreeing. A bone in `get_bone_names()` is **not** evidence you can
+  attach to it — confirm with `get_bone_parent`, and check `get_socket_names()` on the mesh
+  **first**, because a pack that ships props usually ships sockets for them. Note this is the
+  presence-side twin of the absence rule in `CLAUDE.md`: a derived view misleads in both
+  directions, and only one of them had a rule.
 - **Parry is thin but it exists.** Six clips in the whole bundle: `SwordShield` has exactly
   one, `SwordShieldAnimV3/Animation/RM/AS_SwordSwordAnimV3_Block1_Parry_RM`, and `Katana` has
   five (`Deflect`, `Deflect_Complete`, `Deflect_Block`, `Deflect_Block_Heavy`,

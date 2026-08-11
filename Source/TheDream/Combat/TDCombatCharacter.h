@@ -14,6 +14,7 @@ class UAbilitySystemComponent;
 class UGameplayAbility;
 class UGameplayEffect;
 class UInputAction;
+class UStaticMeshComponent;
 class UTDAttributeSet;
 struct FAbilityEndedData;
 
@@ -245,6 +246,29 @@ public:
 	FString DebugStatusLine;
 
 protected:
+
+	/**
+	 *  Held props, attached to the SwordShield pack's own `Sword` / `Shield` sockets.
+	 *
+	 *  Those sockets hang off `hand_r` / `hand_l` and carry the grip rotation plus a
+	 *  non-uniform scale that corrects for meshes authored several times too large -- the
+	 *  shield's is 0.25, 0.20, 0.30 against a mesh 256 units tall. **Both props are therefore
+	 *  correct at identity, and no offset should be authored here.** They exist only on the
+	 *  bundle's `SKM_Manny`, not on Epic's `SKM_Manny_Simple`.
+	 *
+	 *  Not the `weapon_r` / `weapon_l` bones, which look like the obvious choice and fail
+	 *  twice: absent from Epic's mesh, and animated only by GDH clips, so under any Epic
+	 *  animation a prop parented there freezes at reference pose.
+	 *
+	 *  Deliberately cosmetic: collision is off and the melee trace is a separate ability task,
+	 *  so the sword's mesh never decides what the sword hits. Left empty on the CDO, which is
+	 *  what keeps the training dummy unarmed without needing its own class.
+	 */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Combat|Equipment")
+	TObjectPtr<UStaticMeshComponent> WeaponMesh;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Combat|Equipment")
+	TObjectPtr<UStaticMeshComponent> ShieldMesh;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Combat")
 	TObjectPtr<UAbilitySystemComponent> AbilitySystemComponent;

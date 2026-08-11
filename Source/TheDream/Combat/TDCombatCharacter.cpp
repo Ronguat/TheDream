@@ -4,6 +4,7 @@
 #include "Combat/Attributes/TDAttributeSet.h"
 #include "Combat/Abilities/TDGameplayAbility.h"
 #include "AbilitySystemComponent.h"
+#include "Components/StaticMeshComponent.h"
 #include "EnhancedInputComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameplayEffect.h"
@@ -18,6 +19,27 @@ ATDCombatCharacter::ATDCombatCharacter()
 	AbilitySystemComponent->SetReplicationMode(EGameplayEffectReplicationMode::Mixed);
 
 	AttributeSet = CreateDefaultSubobject<UTDAttributeSet>(TEXT("AttributeSet"));
+
+	// The pack's own Sword / Shield sockets, which hang off hand_r and hand_l and carry the
+	// grip rotation and a non-uniform scale (the shield's is 0.25, 0.20, 0.30 -- the mesh is
+	// authored several times too large and the socket is what corrects it). Attach here and
+	// both props are right at identity; anything else means re-deriving what the pack knows.
+	//
+	// Deliberately NOT the weapon_r / weapon_l bones, which look like the obvious choice and
+	// are worse twice over: they are absent from Epic's SKM_Manny_Simple entirely, and only
+	// GDH clips animate them -- so under any Epic animation the props freeze at reference
+	// pose. hand_r / hand_l are driven by every animation there is.
+	//
+	// Cosmetic only. Collision is off because the melee trace is UAbilityTask_MeleeTrace's
+	// job -- a prop that could block or overlap would let the mesh quietly decide reach,
+	// which is the thing spacing tests measure.
+	WeaponMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("WeaponMesh"));
+	WeaponMesh->SetupAttachment(GetMesh(), TEXT("Sword"));
+	WeaponMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+
+	ShieldMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("ShieldMesh"));
+	ShieldMesh->SetupAttachment(GetMesh(), TEXT("Shield"));
+	ShieldMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 
 	// Stamina regen runs per frame rather than on a timer, so the bar moves smoothly
 	// instead of stepping.
