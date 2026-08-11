@@ -330,7 +330,16 @@ standing set for combat work:
   silently disables all future attacks. `State.Attacking.Committed` and `State.Dodging` are
   worse: a leaked `Committed` forbids every future defensive action, and a leaked
   `State.Dodging` leaves the character permanently invulnerable.
-- Template locomotion still works, whenever input code was touched
+- Locomotion and jump still work, whenever input or movement code was touched. (This used to
+  read "template locomotion"; since 2026-08-11 it is our own `ABP_Combat` and
+  `BS_SwordShield_Locomotion`, not Epic's.)
+- **The light attack still plays its montage**, whenever anything touches meshes, skeletons or
+  animation assets. The character's mesh sits on `GDHBundle`'s skeleton while
+  `AM_LightAttack_01` is bound to Epic's, and it only plays because GDH's `SK_Mannequin` holds
+  a reverse `CompatibleSkeletons` entry. Lose that and the attack stops **silently** — the
+  ability still runs and still logs its timing, because `LogTDCombatTiming` reports the
+  ability's own state. The tell is the absence of `RELEASE BEGIN`/`END`, which come from a
+  notify on the montage and therefore only fire if the montage is really playing.
 - `LogAbilitySystem` is free of new warnings
 
 Once the stamina economy is involved, add:

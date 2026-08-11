@@ -51,11 +51,15 @@ during a committed action is simply dropped, which is indistinguishable from the
 unresponsive. Tuning before it exists fits the numbers to a handicap. Say so when a timing
 verdict is offered rather than acting on it silently.
 
-**During locomotion (item 3c)** — *`MaxWalkSpeed` is 500 because Epic's template said so, not
-because anything measured it.* If it disagrees with what the `Run` clips are authored for, the
-feet slide. The `_RM` variants encode the authored displacement, so this is **measurable rather
-than a matter of taste** — measure it and set the speed from the animation, rather than scaling
-the animation to a speed nobody chose.
+**Whenever `MaxWalkSpeed` changes** — *it is coupled to the blendspace's top row and nothing
+enforces the link.* `BS_SwordShield_Locomotion` places its run samples at Speed 500 because
+`MaxWalkSpeed` is 500. Change one and the character tops out partway up the blend, playing a
+permanent half-walk at full speed, with no error anywhere. Change both together.
+
+Note 500 was inherited from Epic's template and **still has never been measured** against what
+the `Run` clips are authored for — 3c shipped without visible foot sliding, which makes it
+acceptable rather than correct. The `_RM` variants encode the authored displacement, so this
+stays measurable rather than a matter of taste. See the tuning map's foot-sliding row.
 
 ---
 
@@ -99,6 +103,40 @@ concludes the log is wrong rather than merely old. Add a row whenever a name cha
 | `LogTDCoil` | `LogTDCombatTiming`, behind the `TD.DebugCombatTiming` cvar. |
 
 ---
+
+## 2026-08-11 — The character wears the bundle's mesh, and `ABP_Combat` is Epic's ABP with two nodes swapped
+
+Three choices from items 3b and 3c that a future reader would reasonably question.
+
+**The character mesh is `GDHBundle`'s `SKM_Manny`, not Epic's `SKM_Manny_Simple`.** Not a
+preference — the pack's `Sword` and `Shield` sockets exist only on its own mesh, and those
+sockets carry the grip rotation and the non-uniform scale that corrects an oversized shield.
+`_Simple` also lacks the whole twist/corrective/weapon bone family. The cost is that the mesh
+now sits on the bundle's skeleton while `AM_LightAttack_01` is still bound to Epic's, which
+works **only** because GDH's `SK_Mannequin` was given a reverse `CompatibleSkeletons` entry
+pointing back at Epic's. That entry is load-bearing: remove it and the light attack silently
+stops playing. The original migration added the forward entry; this session added the return.
+
+**`ABP_Combat` is a duplicate of Epic's `ABP_Manny_Combat` with two nodes repointed**, rather
+than an AnimBlueprint authored from scratch. Duplicating buys a working state machine, jump and
+fall states, and a foot-IK control rig for free, and putting the copy under `/Game/TheDream/`
+satisfies the ownership rule. Authoring one fresh would have cost a day to arrive somewhere
+worse. The accepted consequence is that we now maintain Epic's structure without having chosen
+it, and that its jump, fall and land states still play Epic's generic `MM_` clips — visible in
+play, deliberately out of item 3c's scope.
+
+**The blendspace has a walk row even though WASD cannot ask for a walk.** Raised by the user,
+who expected it to be dead content. It is not: the Speed axis is fed by actual movement speed,
+not by an input mode, and the character ramps through walk speeds on every start and stop. With
+no walk row that ramp blends idle straight into a full run and reads floaty. The row that would
+genuinely be dead content is a *sprint* row, since nothing can request one.
+
+**Known and not fixed: adjacent directions disagree about the guard pose.** `BR` holds the
+shield front-left while backpedalling, `R` holds it front-centre, so it snaps ~135° blending
+between them. That is in the source clips, not in our setup. The standard fix is an upper-body
+layered blend over one consistent guard pose, above `spine_01` or `spine_03` — which is very
+likely what block needs anyway, so building it now would mean building it twice or building it
+before knowing what item 7 wants from it. Deferred deliberately, not overlooked.
 
 ## 2026-08-10 — Facing is camera-relative always, and snaps on *input* rather than on movement
 

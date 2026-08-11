@@ -27,6 +27,10 @@ ATheDreamCharacter::ATheDreamCharacter()
 	// Configure character movement
 	GetCharacterMovement()->bOrientRotationToMovement = false;
 	GetCharacterMovement()->bUseControllerDesiredRotation = true;
+
+	// RotationRate.Yaw is rewritten every frame from StationaryTurnRateDegrees, so editing it
+	// on a Blueprint does nothing and reverts invisibly. Change that property instead. Only
+	// pitch and roll, which nothing drives, are actually authored here.
 	GetCharacterMovement()->RotationRate = FRotator(0.0f, 500.0f, 0.0f);
 
 	// Note: For faster iteration times these variables, and many more, can be tweaked in the Character Blueprint
@@ -49,8 +53,10 @@ ATheDreamCharacter::ATheDreamCharacter()
 	FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName);
 	FollowCamera->bUsePawnControlRotation = false;
 
-	// Note: The skeletal mesh and anim blueprint references on the Mesh component (inherited from Character) 
-	// are set in the derived blueprint asset named ThirdPersonCharacter (to avoid direct content references in C++)
+	// Note: The skeletal mesh and anim blueprint references on the Mesh component (inherited from
+	// Character) are set in BP_PlayerCharacter, to avoid direct content references in C++. It uses
+	// GDHBundle's SKM_Manny rather than Epic's SKM_Manny_Simple, because the Sword and Shield
+	// sockets the props attach to exist only on that mesh -- see Docs/Animation-Library.md.
 }
 
 void ATheDreamCharacter::Tick(float DeltaSeconds)
