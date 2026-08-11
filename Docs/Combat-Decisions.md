@@ -78,6 +78,15 @@ stalling it stalls the exit condition forever. Related: the stamina delegate onl
 Unreachable today — every defensive action is locked out until full — and block is what makes
 it reachable.
 
+**Before starting Slice B, the ASC move to PlayerState (decided, not yet built)** — three things
+that will bite in order. `APlayerState` sets `SetNetUpdateFrequency(1)` in its own constructor —
+**1 Hz** — so an ASC driving 250 ms attacks off it will look catastrophically broken in a way
+that reads as a gameplay bug; raise it. The PlayerState arrives on a client *after* the pawn, so
+the character must re-resolve its ASC in `OnRep_PlayerState` as well as `PossessedBy`, or clients
+initialise against a null PlayerState and silently have no abilities. And `ATheDreamGameMode` is
+a bare stub that never sets `PlayerStateClass`, so a new PlayerState class is not used until it
+does.
+
 **Whenever new state is added, from 2026-08-11 on** — *a loose gameplay tag does not replicate,
 and this is now a PvP project.* `AddLooseGameplayTag` is local to the machine that calls it. If
 the caller is authority-only — anything driven by an attribute delegate, which are all bound
@@ -188,6 +197,39 @@ concludes the log is wrong rather than merely old. Add a row whenever a name cha
 | `LogTDCoil` | `LogTDCombatTiming`, behind the `TD.DebugCombatTiming` cvar. |
 
 ---
+
+## 2026-08-11 — The ASC moves to the PlayerState, and the character resolves which one it uses
+
+**Decided, not yet built.** Recorded now because the alternatives were argued and discarded, and
+the code will only contain the winner.
+
+**The ASC moves to a new `ATDPlayerState`** for player characters — the conventional PvP shape,
+and the one that survives if respawn ever means a fresh pawn rather than the revive it is today.
+Keeping it on the character was defensible on current behaviour and was rejected on the grounds
+that the destination is known.
+
+**The training dummy has no PlayerState**, being an unpossessed placed pawn, so the character
+resolves its ASC: the PlayerState's when there is one, an owned component when there is not.
+One class, one `InitialiseAbilitySystem`, no Blueprint changes.
+
+Two alternatives were rejected:
+
+**Splitting into `ATDPlayerCharacter` / `ATDAICharacter`** was chosen first and then withdrawn.
+It is the cleanest conceptually — each class honest about what it owns — but it means
+**reparenting `BP_PlayerCharacter` and `BP_TrainingDummy`**, and a Blueprint stores its parent
+class path. That is the operation this project's first implementation convention exists to warn
+about, and it would be performed on the two Blueprints everything else depends on, to buy a
+distinction a header comment already makes. What decided it: *the training dummy will only ever
+be a training dummy.* There is no future AI opponent for the split to serve, so it would be
+structure built for a case that is not coming.
+
+**Giving the dummy an AI controller with `bWantsPlayerState`** would make the rule uniform with
+no fallback branch, and was rejected for the same reason — a controller the dummy does not
+otherwise need, to remove a branch that is two lines.
+
+The accepted cost is a small one, stated plainly: a player character carries an owned ASC
+subobject it never uses. It seeds no attributes and grants no abilities, so it costs registration
+rather than bandwidth.
 
 ## 2026-08-11 — PvP is the destination, so state must replicate; the model is server-auth + prediction
 
