@@ -465,6 +465,20 @@ character. Two traps when reasoning about them:
   can exceed a tier boundary. Printing it is what caught a 236 ms hold being flattened to a
   light.
 
+**An automated PIE run is one fixed spawn position, so "no damage landed" is not evidence about
+hit detection** *(confirmed the hard way, 2026-08-11)*. `StartPIE` spawns both characters at
+their placed transforms and nobody moves. After the melee trace moved from `hand_r` to a 100 cm
+blade, four swings over a 12 s warmup dealt zero damage — and the inference drawn from that was
+that the mechanism was broken. It was not: **the user repositioned and both characters killed
+each other immediately.** Moving a hitbox changes *where* it is, and a fixed spawn distance that
+used to connect need not still connect.
+
+The general form, and this is the second costume the same error wore in one session: **a single
+fixed test configuration is a filter.** Absence of an effect inside it says nothing about the
+mechanism, exactly as a filtered search says nothing about existence. Before concluding hit
+detection is broken, either move something or turn on `bDrawDebugTrace` and look — do not reason
+from a null result in a scene where nothing can move.
+
 **`GetLogEntries` returns a *window*, and a mixed-frequency pattern makes it lie about absence**
 *(confirmed 2026-08-11, the hard way)*. `maxEntries` is taken from the **end** of the log, so a
 pattern combining a high-frequency event with a low-frequency one spends the whole budget on the

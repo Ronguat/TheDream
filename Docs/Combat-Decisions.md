@@ -79,18 +79,16 @@ discharged it and keep anything from it that is still true — the Slice B entry
 the client path being unexercised rather than simply disappearing. Removing a trap silently is the
 one edit here that cannot be reviewed, because nothing is left to review.
 
-**Right now, mid-item-6 — *the melee trace connects with nothing, and this is expected.***
-The trace moved onto the blade on 2026-08-11 and `BladeAxisLocal` / `BladeLengthCm` are
-**placeholders that have never been seen on screen**. Meanwhile the attack montage is still the
-unarmed punch, so the hand travels a punch arc with a 100 cm notional blade projecting off it in
-an unverified direction. Verified working in the same session: the montage-filtered window (the
-`RELEASE BEGIN`/`END` edges fire and no rejection warnings appear), so the filter is not the
-cause.
+**Mid-item-6 — *reach has changed and the placed spacing has not.*** The trace moved from
+`hand_r` to a 100 cm blade on the `Sword` socket, so the hitbox is somewhere else. **Both
+characters still damage and kill each other** — verified in play 2026-08-11 — but a target
+standing where it used to be struck can now sit outside the swing. Re-judge `TraceRadius`
+(45 / 55 / 65, tuned against a fist standing in for the whole hitbox) and the training dummy's
+placed distance during the content pass. `bDrawDebugTrace` draws the blade in yellow; nothing
+else reports whether the length and axis are right.
 
-Two things to know before touching it. **Arming the dummy does not fix this** — the trace never
-reads the weapon mesh, by design, so a visible sword changes appearance and nothing else. And
-`bDrawDebugTrace` draws the blade in yellow, which is the only thing that reports whether the
-axis and length are right; nothing else will ever say so. Resolves with item 6's content pass.
+*This replaces a trap filed hours earlier claiming the trace connected with nothing. It was
+wrong — see the diagnostic note below, which is the part worth keeping.*
 
 **Before block (item 7)** — *exhaustion can become permanent.* `ActivationBlockedTags` gates
 activation, not continuation, so a block held through zero keeps draining and keeps

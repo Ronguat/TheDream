@@ -57,21 +57,35 @@ protected:
 	 *  Was `hand_r` until item 6, which was legacy from unarmed prototyping and already wrong:
 	 *  the character has held a sword since item 3b and the blade contributed nothing to what an
 	 *  attack hit.
+	 *
+	 *  **Moving it changed reach, which is the point and is not a bug.** Hits land from a
+	 *  different distance now, so a target standing where it used to be struck may sit outside
+	 *  the new hitbox. Verified in play 2026-08-11: both characters damage and kill each other
+	 *  once spacing is adjusted, while still playing the unarmed punch montage.
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Trace")
 	FName TraceSocket = FName("Sword");
 
 	/**
-	 *  Socket-space direction the blade points, from grip toward tip.
+	 *  Socket-space direction the blade points, from grip toward tip. **+Z for this pack.**
 	 *
-	 *  Exposed rather than assumed because it is a property of how the pack authored its socket,
-	 *  and getting it wrong points the hitbox somewhere plausible-looking and wrong. Verify with
-	 *  bDrawDebugTrace, which draws the blade in yellow.
+	 *  Read off SM_Sword's own bounds rather than guessed: the mesh spans 0..100 on Z, ~25 cm on
+	 *  Y (the crossguard) and ~3.7 cm on X, and it is correct at identity on the `Sword` socket,
+	 *  so the socket's +Z *is* the blade. This shipped briefly as ForwardVector -- +X, the blade's
+	 *  *thickness* axis -- which projected the hitbox sideways out of the grip and connected with
+	 *  nothing. The failure is silent, so verify with bDrawDebugTrace, which draws the blade in
+	 *  yellow, rather than by whether hits seem to land.
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Trace")
-	FVector BladeAxisLocal = FVector::ForwardVector;
+	FVector BladeAxisLocal = FVector::UpVector;
 
-	/** Distance from the socket to the blade's base, along BladeAxisLocal. Skips the grip. */
+	/**
+	 *  Distance from the socket to the blade's base, along BladeAxisLocal.
+	 *
+	 *  0 traces from the pommel, which is deliberate for now: it is generous rather than wrong,
+	 *  and where the grip ends is not readable from the mesh's bounds. Raise it during item 6's
+	 *  content pass if hits land off the handle in a way play notices.
+	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Trace")
 	float BladeStartCm = 0.0f;
 
