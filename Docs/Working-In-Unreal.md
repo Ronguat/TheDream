@@ -9,6 +9,48 @@ been reproduced since — trust them enough to work around, but re-test rather t
 as settled if one blocks you or looks wrong. Do not promote a mark without re-observing
 the behaviour; an unverified claim in here is worse than an absent one.
 
+## Driving the editor itself
+
+*(confirmed 2026-08-11, full cycle tested end to end)* **The assistant can open and close the
+editor.** Sessions before this one asked the user to do both, or discovered the editor was still
+running by watching a build fail. Neither is necessary.
+
+| Step | How |
+|---|---|
+| Is it running? | `tasklist \| grep -i UnrealEditor.exe` |
+| Open | `nohup "/c/Program Files (x86)/UE_5.8/Engine/Binaries/Win64/UnrealEditor.exe" "<abs path>/TheDream.uproject" >/dev/null 2>&1 &` |
+| Save everything dirty | `AssetTools.save_assets` with `asset_paths: []` |
+| Close | `taskkill //F //IM UnrealEditor.exe` — exits in ~2s |
+
+**Always save-all before closing.** This is what makes a forced kill safe rather than a gamble,
+and it was the user's suggestion: with nothing dirty there is no "save changes?" prompt to strand
+a half-closed editor, and nothing to lose if the process dies instantly. Verified after the test
+kill — no crash dump was produced, and `Saved/Autosaves/PackageRestoreData.json` read
+`RestoreEnabled: false, Packages: []`, so the next launch had no restore prompt.
+
+**There is no graceful quit.** Checked across the whole toolset registry;
+`EditorToolset.EditorAppToolset` is PIE control, selection, camera and capture only, with no
+quit function anywhere. So closing is always a forced kill, and **save-all covers *assets* only** —
+anything the editor holds outside the asset system, such as in-progress asset-editor state, still
+dies without asking. Low risk on a clean session, real risk when something half-built is open.
+
+**Say so before closing, every time.** Opening is non-destructive and needs no announcement;
+closing can destroy work only the user knows about, so it gets a sentence first.
+
+**Process up is not ready.** The process appears within ~1s and the port can be listening while
+the engine is still booting — an MCP call in that window fails with `Unable to connect`. The only
+reliable readiness signal is **an actual MCP call returning a result**; poll one rather than
+trusting `tasklist` or the port.
+
+Note this project's MCP server initialises on engine startup, so a reopened editor reconnects on
+its own. That is a project configuration, not engine default — do not assume it elsewhere.
+
+**The automation makes the build check *more* important, not less.** The whole close/build/reopen
+cycle can now run without the user in it, which removes the natural pause where a missing build
+would have been noticed. On 2026-08-11 a fix was described, the user was asked to test it, and it
+had never been compiled — they reported it still broken and were right. Run the `-newer` check
+after every build, without exception.
+
 ## Before you start
 
 **Open the editor before starting Claude Code.** `unreal-mcp` is an HTTP server hosted by
@@ -25,6 +67,12 @@ correction in this file already:
 
 The distinction is registration versus connection: tool schemas are picked up once, at
 session start, and the live connection can drop and re-establish afterwards.
+
+**This rule survives the assistant being able to open the editor itself** (see the section
+above). Launching it mid-session restores the *connection*, which is the case that already
+worked; it cannot retroactively *register* a toolset that was absent when Claude Code started.
+So "open the editor first, then start Claude Code" still holds — what changed is that nobody has
+to keep it open through a rebuild.
 
 If asset writes are needed, confirm the tools actually respond before promising any.
 
