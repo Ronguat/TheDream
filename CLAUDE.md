@@ -53,6 +53,14 @@ Three rules bind all new work:
 prediction, and 14 network-unaware `SetTimer` sites. The 2026-08-11 audit that found them, and
 the reasoning behind the model, are in `Docs/Combat-Decisions.md`.
 
+**On commitment level, stated 2026-08-11 so nobody has to guess it:** *building* networkably is
+non-negotiable and binds every slice, as above. *Actually networking the game* is the *final
+frontier* — attempted in earnest, held with a stretch-goal mentality. The distinction matters in
+two directions. It means netcode difficulty must never be a reason to compromise combat feel,
+which is what the prototype exists to establish. And it means **the prototype is not a failure if
+netcode proves too hard** — a combat model that is verified good and provably networkable has
+answered its question. Do not let readiness work crowd out the feel work it exists to protect.
+
 ## Core Combat Rules (must respect)
 
 ### Combat Vocabulary
