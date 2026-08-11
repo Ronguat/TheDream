@@ -97,7 +97,7 @@ done, which was patched with a delay rather than diagnosed.
 
 **Before tuning `InputBufferSeconds` (item 12 should land first)** — *the window is being sized
 against a recovery length nobody chose.* **43% of buffered presses (17 of 40) expired unfired**
-in the first session it existed, and the obvious read is that 100 ms is too short. It may be —
+in the first session it existed, and the obvious read is that the window is too short. It may be —
 but an attack stays unavailable until its *ability* ends, and that is currently montage
 blend-out rather than an authored recovery, per the item 12 trap below. Widening the window to
 bridge an accidental recovery bakes the accident in. Buffering itself is verified in play; only

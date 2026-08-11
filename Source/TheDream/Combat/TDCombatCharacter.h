@@ -30,8 +30,8 @@ struct FAbilityEndedData;
  *
  *  An earlier version stored it as a yes/no and released at once, on the argument that the
  *  buffer outlives a release by only InputBufferSeconds, so every recordable hold had to be
- *  under 100 ms and therefore inside the light's 200 ms boundary. **That argument is false and
- *  play disproved it**: the buffer survives indefinitely while the button is *held*, so the
+ *  shorter than the window, and therefore inside the light's hold boundary. **That argument is
+ *  false and play disproved it**: the buffer survives indefinitely while the button is *held*, so the
  *  recorded hold is bounded by how long the block lasted, not by the window. A 236 ms hold --
  *  a heavy by every rule the ladder has -- was recorded, flattened to a light, and only found
  *  because the trace prints the duration. Any hold length is reachable this way.
