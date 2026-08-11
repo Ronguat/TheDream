@@ -19,6 +19,48 @@ class UTDAttributeSet;
 struct FAbilityEndedData;
 
 /**
+ *  A press that nothing was able to answer, kept for a moment in case something can.
+ *
+ *  Records **both edges**, because the attack ladder's identity is a consequence of how long
+ *  the button was held. A press replayed without knowing whether the button had since come up
+ *  would leave the attack believing it was still held, sail past every checkpoint, and turn
+ *  a tap into a charged heavy.
+ *
+ *  The release is recorded as a **duration**, and replayed at that same offset from activation.
+ *
+ *  An earlier version stored it as a yes/no and released at once, on the argument that the
+ *  buffer outlives a release by only InputBufferSeconds, so every recordable hold had to be
+ *  under 100 ms and therefore inside the light's 200 ms boundary. **That argument is false and
+ *  play disproved it**: the buffer survives indefinitely while the button is *held*, so the
+ *  recorded hold is bounded by how long the block lasted, not by the window. A 236 ms hold --
+ *  a heavy by every rule the ladder has -- was recorded, flattened to a light, and only found
+ *  because the trace prints the duration. Any hold length is reachable this way.
+ */
+struct FTDBufferedInput
+{
+	/** Which input was pressed. Invalid means the buffer is empty. */
+	FGameplayTag InputTag;
+
+	/** World time the button went down, for the trace's "how late did this fire". */
+	float PressWorldTime = 0.0f;
+
+	/** World time to give up at. Held buttons keep pushing this forward; see TickInputBuffer. */
+	float ExpiryWorldTime = 0.0f;
+
+	/**
+	 *  How long the button was held, valid once bReleased. Replayed at this offset from
+	 *  activation, which is what preserves the tier the player actually asked for.
+	 */
+	float HoldSeconds = 0.0f;
+
+	/** True once the button came up, whether or not the buffer has fired. */
+	bool bReleased = false;
+
+	bool IsSet() const { return InputTag.IsValid(); }
+	void Clear() { *this = FTDBufferedInput(); }
+};
+
+/**
  *  Base class for anything that can fight: the player and the training dummy alike.
  *
  *  Inherits locomotion and the third person camera from ATheDreamCharacter and adds
@@ -111,6 +153,23 @@ protected:
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Input")
 	TMap<TObjectPtr<UInputAction>, FGameplayTag> AbilityInputActions;
+
+	/**
+	 *  How long a press nothing could answer keeps trying, once the button is back up.
+	 *
+	 *  Without this an input pressed during a committed action is simply discarded, which the
+	 *  player cannot tell apart from the action being unresponsive -- so it confounded every
+	 *  timing verdict in the project until it existed.
+	 *
+	 *  **It is a window on taps, not on intent.** A button still held is not a stale input, so
+	 *  the buffer does not expire while it is down; this measures from the release. That is
+	 *  what lets a heavy be buffered at all -- its 200 ms boundary is beyond any window this
+	 *  size, so a tier above light can only ever come from a hold that outlives the window.
+	 *
+	 *  Zero disables buffering entirely, which is the honest way to A/B whether it is helping.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Input", meta=(ClampMin="0.0"))
+	float InputBufferSeconds = 0.1f;
 
 	/**
 	 *  Stamina regained per second, while regen is running at all.
@@ -287,6 +346,38 @@ private:
 	/** Handles of granted abilities whose InputTag matches, in activation order. */
 	void GatherAbilitiesForInput(const FGameplayTag& InputTag, TArray<FGameplayAbilitySpecHandle>& OutHandles) const;
 
+	/**
+	 *  Presses the input at every matching spec and starts whatever is not already running.
+	 *
+	 *  Returns whether a *new* activation happened -- deliberately not whether anything is
+	 *  live. A press arriving at an ability that is already running is the single most
+	 *  important thing to buffer, since a committed swing is what refuses most inputs.
+	 *
+	 *  bForwardToActive is false on a buffered retry: the button was pressed once, and a
+	 *  retry is this system trying again rather than the player pressing again. Telling a
+	 *  running ability it was re-pressed every frame is a lie that nothing reads today and
+	 *  that WaitInputRelease would read tomorrow.
+	 */
+	bool TryActivateAbilitiesForInput(const FGameplayTag& InputTag, bool bForwardToActive);
+
+	/** Forwards the release edge to every matching spec. */
+	void ReleaseAbilitiesForInput(const FGameplayTag& InputTag);
+
+	/** True if any ability answering this input wants its refusal remembered. */
+	bool ShouldBufferInput(const FGameplayTag& InputTag) const;
+
+	/** Retries the buffered press, or drops it once its window has passed. */
+	void TickInputBuffer();
+
+	/**
+	 *  Replays a buffered release, HoldSeconds after the buffered press finally activated.
+	 *
+	 *  Cancelled the moment real input for that tag arrives, because a live edge always beats
+	 *  a recorded one -- otherwise a replay scheduled for a hold the player has since abandoned
+	 *  would land on whatever ability is running by then.
+	 */
+	void ReplayBufferedRelease(FGameplayTag InputTag);
+
 	/** Presses the debug attack input, then releases it DebugAutoAttackHoldSeconds later. */
 	void DebugAutoAttackPress();
 	void DebugAutoAttackRelease();
@@ -305,6 +396,12 @@ private:
 	void ExitExhaustion();
 
 	void HandleStaminaChanged(const struct FOnAttributeChangeData& Data);
+
+	/** The one press waiting for something to answer it. Single slot: last press wins. */
+	FTDBufferedInput BufferedInput;
+
+	/** Pending replayed release. Live input for the same tag cancels it. */
+	FTimerHandle BufferedReleaseTimerHandle;
 
 	/** World time before which regen stays suppressed. Pushed out while a suppressor is active. */
 	float RegenSuppressedUntil = 0.0f;

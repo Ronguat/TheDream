@@ -42,6 +42,20 @@ public:
 	virtual void EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled) override;
 	virtual bool CanActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayTagContainer* SourceTags = nullptr, const FGameplayTagContainer* TargetTags = nullptr, FGameplayTagContainer* OptionalRelevantTags = nullptr) const override;
 
+	/**
+	 *  Whether a press this ability just refused is worth remembering for a moment.
+	 *
+	 *  The input buffer exists for refusals that are *temporary* -- a committed swing, a
+	 *  blocking tag -- where the player pressed slightly early and meant it. Some refusals
+	 *  are not temporary in that sense but in the trivial sense that everything ends
+	 *  eventually, and replaying those produces an action the player is no longer asking
+	 *  for. This is where an ability says which kind its refusal was.
+	 *
+	 *  It is asked *instead of* enumerating reasons on the character's side, so the rule
+	 *  stays next to the flag that creates it.
+	 */
+	virtual bool ShouldBufferFailedInput(const FGameplayAbilityActorInfo* ActorInfo) const;
+
 protected:
 
 	/**
@@ -56,8 +70,13 @@ protected:
 	 *  adopt the same rule with a checkbox if they want it. Left off by default: an air attack
 	 *  is a legitimate thing to want later, and this should not quietly forbid one.
 	 *
-	 *  Once input buffering exists this should arguably become a *defer* rather than a refusal,
-	 *  so a dodge pressed just before landing fires on landing instead of vanishing.
+	 *  **This refusal is deliberately not buffered**, decided when the buffer was built. An
+	 *  earlier note here predicted the opposite -- that a dodge pressed just before landing
+	 *  ought to fire on landing rather than vanish. The reason it should not: landing is not a
+	 *  moment you are free to act through. A landing recovery would lock the dodge out anyway,
+	 *  so deferring to the touchdown frame buys a dodge that a finished character would not
+	 *  give you, and tunes the timing of a window that does not exist yet. See
+	 *  ShouldBufferFailedInput below and Docs/Combat-Decisions.md.
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Activation")
 	bool bBlockedWhileAirborne = false;

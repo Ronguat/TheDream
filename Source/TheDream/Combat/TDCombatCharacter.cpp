@@ -3,6 +3,7 @@
 #include "Combat/TDCombatCharacter.h"
 #include "Combat/Attributes/TDAttributeSet.h"
 #include "Combat/Abilities/TDGameplayAbility.h"
+#include "Combat/TDCombatDebug.h"
 #include "AbilitySystemComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "EnhancedInputComponent.h"
@@ -55,6 +56,10 @@ void ATDCombatCharacter::Tick(float DeltaSeconds)
 	{
 		TickStaminaRegen(DeltaSeconds);
 	}
+
+	// Not authority-gated: a buffered press is local input waiting to be spent, and it is
+	// spent through the same path a live press takes.
+	TickInputBuffer();
 }
 
 void ATDCombatCharacter::TickStaminaRegen(float DeltaSeconds)
@@ -411,29 +416,50 @@ void ATDCombatCharacter::GatherAbilitiesForInput(const FGameplayTag& InputTag, T
 	}
 }
 
-void ATDCombatCharacter::OnAbilityInputPressed(FGameplayTag InputTag)
+bool ATDCombatCharacter::TryActivateAbilitiesForInput(const FGameplayTag& InputTag, bool bForwardToActive)
 {
+	if (!AbilitySystemComponent)
+	{
+		return false;
+	}
+
 	TArray<FGameplayAbilitySpecHandle> Handles;
 	GatherAbilitiesForInput(InputTag, Handles);
 
+	bool bActivated = false;
+
 	for (const FGameplayAbilitySpecHandle& Handle : Handles)
 	{
-		if (FGameplayAbilitySpec* Spec = AbilitySystemComponent->FindAbilitySpecFromHandle(Handle))
+		FGameplayAbilitySpec* Spec = AbilitySystemComponent->FindAbilitySpecFromHandle(Handle);
+		if (!Spec)
 		{
-			// Marks the spec as held and forwards the press to any live instance. This is
-			// the state WaitInputRelease reads, so holds keep working.
-			AbilitySystemComponent->AbilitySpecInputPressed(*Spec);
+			continue;
+		}
 
-			if (!Spec->IsActive())
-			{
-				AbilitySystemComponent->TryActivateAbility(Handle);
-			}
+		// Marks the spec as held before activating, which is the state WaitInputRelease reads
+		// -- so an ability starts life knowing the button is down and holds keep working.
+		// Skipped for anything already running on a retry: see bForwardToActive.
+		if (bForwardToActive || !Spec->IsActive())
+		{
+			AbilitySystemComponent->AbilitySpecInputPressed(*Spec);
+		}
+
+		if (!Spec->IsActive())
+		{
+			bActivated |= AbilitySystemComponent->TryActivateAbility(Handle);
 		}
 	}
+
+	return bActivated;
 }
 
-void ATDCombatCharacter::OnAbilityInputReleased(FGameplayTag InputTag)
+void ATDCombatCharacter::ReleaseAbilitiesForInput(const FGameplayTag& InputTag)
 {
+	if (!AbilitySystemComponent)
+	{
+		return;
+	}
+
 	TArray<FGameplayAbilitySpecHandle> Handles;
 	GatherAbilitiesForInput(InputTag, Handles);
 
@@ -444,6 +470,213 @@ void ATDCombatCharacter::OnAbilityInputReleased(FGameplayTag InputTag)
 			AbilitySystemComponent->AbilitySpecInputReleased(*Spec);
 		}
 	}
+}
+
+bool ATDCombatCharacter::ShouldBufferInput(const FGameplayTag& InputTag) const
+{
+	if (InputBufferSeconds <= 0.0f || !AbilitySystemComponent)
+	{
+		return false;
+	}
+
+	const FGameplayAbilityActorInfo* ActorInfo = AbilitySystemComponent->AbilityActorInfo.Get();
+
+	TArray<FGameplayAbilitySpecHandle> Handles;
+	GatherAbilitiesForInput(InputTag, Handles);
+
+	// Asked of the abilities rather than decided here, so the rule sits next to the flag that
+	// creates it. Any one of them wanting the press remembered is enough.
+	for (const FGameplayAbilitySpecHandle& Handle : Handles)
+	{
+		const FGameplayAbilitySpec* Spec = AbilitySystemComponent->FindAbilitySpecFromHandle(Handle);
+		const UTDGameplayAbility* Ability = Spec ? Cast<UTDGameplayAbility>(Spec->Ability) : nullptr;
+		if (Ability && Ability->ShouldBufferFailedInput(ActorInfo))
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+void ATDCombatCharacter::OnAbilityInputPressed(FGameplayTag InputTag)
+{
+	// A live edge always beats a recorded one. Without this, a replay still scheduled from an
+	// earlier buffered press would land on whatever ability is running by the time it fires --
+	// releasing a hold the player is in the middle of.
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(BufferedReleaseTimerHandle);
+	}
+
+	// Any new press supersedes a buffered one, whether or not this press succeeds and whatever
+	// it was. Pressing something else says you have stopped waiting on the last thing -- and
+	// without this a dodge buffered into a lockout could still surface after an attack the
+	// player chose instead of it. Pressing the *same* thing again is unremarkable and is only
+	// cleared here so it cannot outlive the press that replaced it.
+	if (BufferedInput.IsSet())
+	{
+		if (!BufferedInput.InputTag.MatchesTagExact(InputTag))
+		{
+			TD_TIMING_LOG(TEXT("[%.3f] BUFFER     %s: dropped, superseded by %s"),
+				GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f,
+				*BufferedInput.InputTag.ToString(),
+				*InputTag.ToString());
+		}
+
+		BufferedInput.Clear();
+	}
+
+	if (TryActivateAbilitiesForInput(InputTag, /*bForwardToActive=*/true))
+	{
+		return;
+	}
+
+	if (!ShouldBufferInput(InputTag))
+	{
+		return;
+	}
+
+	const UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+
+	// One slot, last press wins. A queue would replay stale intent as a burst: press dodge
+	// then attack into a lockout and you would get both, in an order you had already stopped
+	// asking for. Only the most recent press is still something the player wants.
+	const float Now = World->GetTimeSeconds();
+
+	BufferedInput.Clear();
+	BufferedInput.InputTag = InputTag;
+	BufferedInput.PressWorldTime = Now;
+	BufferedInput.ExpiryWorldTime = Now + InputBufferSeconds;
+
+	TD_TIMING_LOG(TEXT("[%.3f] BUFFER     %s: stored"), Now, *InputTag.ToString());
+}
+
+void ATDCombatCharacter::OnAbilityInputReleased(FGameplayTag InputTag)
+{
+	// Same reason as the press: a real release makes any pending replay redundant at best.
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(BufferedReleaseTimerHandle);
+	}
+
+	ReleaseAbilitiesForInput(InputTag);
+
+	// Recorded rather than acted on. The buffer needs this edge because the attack ladder
+	// resolves its tier from whether the button is still down at each checkpoint: a press
+	// replayed as though it were still held would run past every one of them and turn a tap
+	// into a charged heavy. It is also what starts the window counting down -- until now the
+	// press was a held button, which is live intent rather than something to expire.
+	const UWorld* World = GetWorld();
+	if (!World || !BufferedInput.IsSet() || BufferedInput.bReleased)
+	{
+		return;
+	}
+
+	if (!BufferedInput.InputTag.MatchesTagExact(InputTag))
+	{
+		return;
+	}
+
+	const float Now = World->GetTimeSeconds();
+	BufferedInput.bReleased = true;
+	BufferedInput.HoldSeconds = FMath::Max(0.0f, Now - BufferedInput.PressWorldTime);
+	BufferedInput.ExpiryWorldTime = Now + InputBufferSeconds;
+
+	TD_TIMING_LOG(TEXT("[%.3f] BUFFER     %s: released after %.0fms held"),
+		Now, *InputTag.ToString(), BufferedInput.HoldSeconds * 1000.0f);
+}
+
+void ATDCombatCharacter::ReplayBufferedRelease(FGameplayTag InputTag)
+{
+	ReleaseAbilitiesForInput(InputTag);
+
+	TD_TIMING_LOG(TEXT("[%.3f] BUFFER     %s: replayed release"),
+		GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f, *InputTag.ToString());
+}
+
+void ATDCombatCharacter::TickInputBuffer()
+{
+	if (!BufferedInput.IsSet())
+	{
+		return;
+	}
+
+	const UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+
+	const float Now = World->GetTimeSeconds();
+
+	// A button still down is not a stale input, so it never expires -- the same
+	// push-the-deadline-forward idiom the regen pause uses. This is what makes a buffered
+	// heavy reachable at all: its 200 ms boundary is past any window this size, so every
+	// tier above light necessarily comes from a hold that outlives the window.
+	if (!BufferedInput.bReleased)
+	{
+		BufferedInput.ExpiryWorldTime = FMath::Max(BufferedInput.ExpiryWorldTime, Now + InputBufferSeconds);
+	}
+
+	if (Now >= BufferedInput.ExpiryWorldTime)
+	{
+		TD_TIMING_LOG(TEXT("[%.3f] BUFFER     %s: expired, %.0fms after press"),
+			Now, *BufferedInput.InputTag.ToString(), (Now - BufferedInput.PressWorldTime) * 1000.0f);
+		BufferedInput.Clear();
+		return;
+	}
+
+	// Retried every frame rather than woken by an event. Every reason an activation can be
+	// refused -- a blocking tag, a live instance, an ability ending, the airborne check --
+	// would otherwise have to be enumerated and hooked, and missing one fails silently.
+	// Polling cannot be incomplete, and there is at most one buffered input to retry.
+	if (!TryActivateAbilitiesForInput(BufferedInput.InputTag, /*bForwardToActive=*/false))
+	{
+		return;
+	}
+
+	const FGameplayTag FiredTag = BufferedInput.InputTag;
+	const bool bWasReleased = BufferedInput.bReleased;
+	const float HoldSeconds = BufferedInput.HoldSeconds;
+	const float LateBySeconds = Now - BufferedInput.PressWorldTime;
+
+	BufferedInput.Clear();
+
+	if (!bWasReleased)
+	{
+		// Still held, so the live release edge arrives on its own and the hold is measured
+		// from activation. The time held before then is deliberately not credited: the windup
+		// is preset, and crediting it would land the attack sooner than its tier is authored
+		// to take.
+		TD_TIMING_LOG(TEXT("[%.3f] BUFFER     %s: fired %.0fms late, still held"),
+			Now, *FiredTag.ToString(), LateBySeconds * 1000.0f);
+		return;
+	}
+
+	// The button came up before anything could answer it, so replay that edge at the offset it
+	// really had. Releasing at once instead would flatten every buffered hold to the shortest
+	// branch -- a 236ms hold, a heavy by every rule the ladder has, came out a light before
+	// this existed. The windup still runs its full preset length from activation; only the
+	// *tier* is carried across, never the time already spent holding.
+	TD_TIMING_LOG(TEXT("[%.3f] BUFFER     %s: fired %.0fms late, replaying release at +%.0fms"),
+		Now, *FiredTag.ToString(), LateBySeconds * 1000.0f, HoldSeconds * 1000.0f);
+
+	if (HoldSeconds <= KINDA_SMALL_NUMBER)
+	{
+		ReplayBufferedRelease(FiredTag);
+		return;
+	}
+
+	World->GetTimerManager().SetTimer(
+		BufferedReleaseTimerHandle,
+		FTimerDelegate::CreateWeakLambda(this, [this, FiredTag]() { ReplayBufferedRelease(FiredTag); }),
+		HoldSeconds,
+		false);
 }
 
 float ATDCombatCharacter::GetHealth() const

@@ -380,6 +380,23 @@ Two warnings on that category are deliberately ungated, because both describe an
 that silently stops dealing damage rather than crashing: a skipped coil, and a
 `ReleaseStartSeconds` that has drifted from the Release Window notify it is copied from.
 
+**`BUFFER` lines trace the input buffer** *(added 2026-08-11)*, on the same cvar: `stored` when a
+refused press is remembered, `released after Nms held`, `fired Nms late` with whether the button
+was still down, `expired`, and `dropped, superseded by` when a different press replaced it.
+
+Read them before believing an input was dropped — `expired` and no line at all mean different
+things, and the first is a window question while the second means the press never reached the
+character. Two traps when reasoning about them:
+
+- **A held buffer does not expire, but it does not wait either.** It fires at the first
+  opportunity, so holding a button through a lockout will not keep a buffer parked for you to
+  test against. Reproducing `superseded by` needs a block that outlasts human reaction, and
+  today exhaustion is the only one — dodge twice to zero, then hold dodge and press attack.
+- **The hold duration in `released after Nms held` is the value that matters**, not the fact of
+  a release. It is bounded by how long the *block* lasted, not by `InputBufferSeconds`, so it
+  can exceed a tier boundary. Printing it is what caught a 236 ms hold being flattened to a
+  light.
+
 **The `RELEASE BEGIN`/`END` lines can report the wrong montage** *(found in review 2026-08-10)*.
 `AnimNotifyState_MeleeWindow` logs via `GetCurrentActiveMontage()` rather than the attack montage,
 so if anything else is playing at higher priority — a dodge cancelling an attack, now that

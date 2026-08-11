@@ -57,6 +57,7 @@ dated entry. Add a row whenever an entry supersedes part of an older one.
 | 2026-08-10 — Costs are paid, not required | exhaustion lasts a flat 4 s (`ExhaustionSeconds`) | 2026-08-10 — Exhaustion ends at full |
 | 2026-08-10 — Jumping is taxed in recovery | the jump's tail is half the defensive pause | 2026-08-10 — The defensive regen pause is 0.5 s |
 | 2026-08-10 — Sword and shield, rolls for every evade | every evade is a roll | 2026-08-10 — The evade is a dash, not a roll |
+| 2026-08-10 — No dodging in the air | once buffering exists the refusal should become a defer | 2026-08-11 — The input buffer remembers a press |
 | 2026-08-10 — Facing is camera-relative | the stock ABP plays a forward run while strafing | corrected **inline** in that same entry — nothing was decided on it, so it was a factual error rather than a reversal |
 
 ---
@@ -94,11 +95,17 @@ ability waits for `OnCompleted` and blend-out becomes dead time. **Do not discov
 around it** — it is also the true cause of the debug attacker resetting before its swing looked
 done, which was patched with a delay rather than diagnosed.
 
-**Before tuning the ladder as a whole (item 8 must land first)** — *every timing verdict is
-currently confounded by inputs that never registered.* Without buffering, an input pressed
-during a committed action is simply dropped, which is indistinguishable from the action feeling
-unresponsive. Tuning before it exists fits the numbers to a handicap. Say so when a timing
-verdict is offered rather than acting on it silently.
+**Before tuning `InputBufferSeconds` (item 12 should land first)** — *the window is being sized
+against a recovery length nobody chose.* **43% of buffered presses (17 of 40) expired unfired**
+in the first session it existed, and the obvious read is that 100 ms is too short. It may be —
+but an attack stays unavailable until its *ability* ends, and that is currently montage
+blend-out rather than an authored recovery, per the item 12 trap below. Widening the window to
+bridge an accidental recovery bakes the accident in. Buffering itself is verified in play; only
+its size is open.
+
+Note this retires the trap that stood here until 2026-08-11 — that every timing verdict was
+confounded by inputs which never registered. That was item 8's whole justification and it is
+now discharged.
 
 **Whenever `MaxWalkSpeed` changes** — *it is coupled to the blendspace's top row and nothing
 enforces the link.* `BS_SwordShield_Locomotion` places its run samples at Speed 500 because
@@ -131,6 +138,7 @@ kept in their own notes. What belongs here is only what to move once a verdict a
 | Feet slide during locomotion | `MaxWalkSpeed`, set from the `_RM` clips' measured displacement | The animation's rate. 500 came from Epic's template and was never measured; derive the speed from the clip rather than scaling the clip to an unchosen number. |
 | An action feels unresponsive at low stamina | Nothing — find what is gating it | Adding or restoring a cost gate. Costs are paid, never required; if an input silently does nothing, `CostGameplayEffectClass` or `CommitAbility` has crept back in. |
 | Exhaustion feels too long or short | `StaminaRegenPerSecond`, since recovery *is* the duration | A duration knob. There isn't one — `ExhaustionSeconds` was deleted deliberately so no second number can disagree with the bar. |
+| An input still feels dropped, with buffering on | `InputBufferSeconds` — but read the `BUFFER` trace first and find out whether it was stored, fired or expired | The attack's own timings. A press that expired unfired is a question about the window; moving `ReleaseAtSeconds` to compensate tunes the ladder around an input problem and hides it. |
 
 Add a row whenever an entry below establishes that a fix belongs in one place rather than
 another. That is the reusable part of an entry; the argument around it is not.
@@ -152,6 +160,72 @@ concludes the log is wrong rather than merely old. Add a row whenever a name cha
 | `LogTDCoil` | `LogTDCombatTiming`, behind the `TD.DebugCombatTiming` cvar. |
 
 ---
+
+## 2026-08-11 — The input buffer remembers a press, and one rejection that play reversed
+
+A press nothing could answer is kept for `InputBufferSeconds` (100 ms) and retried each frame.
+Item 8, verified in play. The code says what it does; below is what was rejected, and the one
+rejection that turned out to be wrong.
+
+**Crediting the hold already elapsed was rejected outright.** It is the tempting way to make a
+buffered charge arrive "on time", and it breaks the rule that windup length is preset — the
+attack would land sooner than its tier is authored to take. The hold is measured from
+activation, and time spent pressing before that is spent.
+
+**Replaying the release as a *duration* was built, dropped, then reinstated by play. That
+sequence is the entry.** The simplification was to record the release as a yes/no and replay it
+at once, justified like this: the buffer outlives a release by only `InputBufferSeconds`, so
+every recordable hold must be under 100 ms — comfortably inside the light's 200 ms boundary —
+and therefore replaying the true offset and releasing immediately select the same branch, so the
+offset machinery buys nothing.
+
+The premise is false. **The buffer survives indefinitely while the button is held**, so a
+recorded hold is bounded by how long the *block* lasted, not by the window. Release while still
+locked out and any hold length can be recorded. Play produced a **236 ms hold — a heavy by every
+rule the ladder has — flattened to a light**, visible only because the trace prints the duration
+rather than a boolean.
+
+Two things worth carrying out of that:
+
+- The instruction it overrode — record both edges, *because you need to be able to buffer any
+  attack type* — was the user's, and the argument that talked us out of it was mine. **A
+  simplification justified by an invariant is worth exactly as much as the invariant**, and this
+  one was never checked against a rule written into the same struct three edits earlier.
+- **Where a value drives behaviour, print the value.** A boolean trace would have shown this
+  system working perfectly. That is the second time this project has learned it; the first was
+  `want=0.500s` on eleven consecutive dodges.
+
+**One slot, not a queue.** A queue replays stale intent as a burst — press dodge then attack into
+a lockout and both arrive, in an order you had already stopped asking for.
+
+**Polled, not event-driven.** Waking on "the reason this was refused" means enumerating every
+blocking tag, every ability end and the airborne check; missing one fails silently. Polling
+cannot be incomplete, and there is at most one entry to retry.
+
+**The window is grace on taps, not on intent.** A held button never expires, so the 100 ms
+measures from the release. Without that a heavy could not be buffered at all — its 200 ms
+boundary is beyond any window this size, so every tier above light necessarily comes from a hold
+that outlives the window.
+
+**The airborne dodge refusal is deliberately not buffered**, superseding the prediction in
+"2026-08-10 — No dodging in the air" that buffering would turn it into a defer. Landing is not a
+moment you are free to act through: a landing recovery would lock the dodge out anyway, so
+deferring to the touchdown frame hands back a dodge a finished character will later have to take
+away, and tunes the timing of a window that does not exist yet. `ShouldBufferFailedInput` is
+where an ability declares that its refusal was not the temporary kind.
+
+**A held buffer does not expire, but it does not wait either** — and confusing the two cost two
+play sessions. I proposed testing the supersede path by holding dodge through a committed attack
+and then pressing attack, expecting the held buffer still to be there. It was not: holding
+prevents *expiry*, not *firing*, and the buffer fires at the first opportunity. Measured, the
+dodge escaped in 202, 227 and 335 ms across three attempts. The general form is more useful than
+the bug — **a superseding press only matters when something blocks an ability for longer than a
+person can react**, and today exhaustion is the only such thing in the game. Items 7 and 11
+(block, blockstun, knockdown) make long lockouts routine, at which point this stops being exotic.
+
+**Feel is deliberately untuned.** 43% of buffered presses expired unfired in the first session.
+Whether the window should be wider is open and is the user's call; see the trap above about
+sizing it against a recovery length item 12 has not settled.
 
 ## 2026-08-11 — The character wears the bundle's mesh, and `ABP_Combat` is Epic's ABP with two nodes swapped
 

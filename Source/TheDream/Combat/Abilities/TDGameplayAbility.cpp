@@ -41,6 +41,27 @@ bool UTDGameplayAbility::CanActivateAbility(const FGameplayAbilitySpecHandle Han
 	return true;
 }
 
+bool UTDGameplayAbility::ShouldBufferFailedInput(const FGameplayAbilityActorInfo* ActorInfo) const
+{
+	// The airborne refusal is the one kind that must not be remembered. Everything else this
+	// ability can be refused by -- a committed swing, an exhaustion lockout, a live instance --
+	// clears while the player is still standing there meaning it. Being in the air does not:
+	// the thing it clears into is a landing, which is itself not a moment you can act through.
+	// Buffering it would hand back a dodge on the touchdown frame that a landing recovery will
+	// later have to take away again.
+	if (bBlockedWhileAirborne)
+	{
+		const ACharacter* Character = ActorInfo ? Cast<ACharacter>(ActorInfo->AvatarActor.Get()) : nullptr;
+		const UCharacterMovementComponent* Movement = Character ? Character->GetCharacterMovement() : nullptr;
+		if (Movement && Movement->IsFalling())
+		{
+			return false;
+		}
+	}
+
+	return true;
+}
+
 void UTDGameplayAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData)
 {
 	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
