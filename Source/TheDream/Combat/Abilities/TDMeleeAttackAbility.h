@@ -153,4 +153,21 @@ protected:
 
 	UFUNCTION()
 	void HandleMontageInterrupted();
+
+	/**
+	 *  Thin wrappers that exist only to name which montage delegate fired.
+	 *
+	 *  All four funnel into two handlers, so the log could never say whether an attack ended
+	 *  because the montage completed, blended out, was interrupted or was cancelled -- and
+	 *  those have different causes and different fixes. Diagnosing an attack that ended 8 ms
+	 *  after its release window opened cost three wrong guesses for want of this distinction.
+	 */
+	UFUNCTION()
+	void HandleMontageCompleted();
+
+	UFUNCTION()
+	void HandleMontageBlendedOut();
+
+	UFUNCTION()
+	void HandleMontageCancelled();
 };

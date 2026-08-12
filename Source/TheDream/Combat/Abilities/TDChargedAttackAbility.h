@@ -148,6 +148,20 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Timing", meta=(ClampMin="0.0"))
 	float CoilEndSeconds = 0.35f;
 
+	/**
+	 *  Play rate for the montage once the damaging window closes.
+	 *
+	 *  Recovery is currently *whatever is left of the montage*, so its length is set by the clip
+	 *  rather than chosen — and a clip picked for its swing has no opinion about how long a
+	 *  punish window should be. This makes the tail authorable without pretending to be item 12,
+	 *  which is where recovery gets a real design: windows in absolute time, and punish maths.
+	 *
+	 *  1.0 is authored speed. Raising it shortens recovery, which shortens the punish window,
+	 *  so it is a **balance** number wearing an animation number's clothes. Move it knowing that.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Timing", meta=(ClampMin="0.01"))
+	float RecoveryPlayRate = 1.0f;
+
 	/** Optional section played on activation. None starts the montage from the beginning. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Timing")
 	FName WindupSection = NAME_None;
@@ -188,6 +202,22 @@ private:
 	/** Stretches the release window to the selected branch's ReleaseSeconds. */
 	UFUNCTION()
 	void HandleReleaseWindowBegan(FGameplayEventData Payload);
+
+	/**
+	 *  Takes the release rate back off when the damaging window closes.
+	 *
+	 *  Without this the rate derived for the *release* stays applied for the whole remainder
+	 *  of the montage, so the follow-through and all of recovery inherit a speed that was
+	 *  computed from how wide the notify happens to be authored. It went unnoticed for weeks
+	 *  because the punch's notify was 0.0842 against a ReleaseSeconds of 0.09 -- a rate of
+	 *  0.935, near enough to 1 to look like nothing. The first clip whose notify did not
+	 *  happen to match sent recovery through at 3.28x.
+	 */
+	UFUNCTION()
+	void HandleReleaseWindowEnded(FGameplayEventData Payload);
+
+	/** Whether a window event came from the montage this attack is playing. */
+	bool IsWindowForThisAttack(const FGameplayEventData& Payload) const;
 
 	/**
 	 *  Shared windup rate: fast enough that the first branch reaches ReleaseStartSeconds

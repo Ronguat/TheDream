@@ -3,10 +3,13 @@
 #include "Combat/Abilities/TDMeleeAttackAbility.h"
 #include "Combat/Tasks/AbilityTask_MeleeTrace.h"
 #include "Combat/TDGameplayTags.h"
+#include "Combat/TDCombatDebug.h"
 #include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
 #include "AbilitySystemBlueprintLibrary.h"
 #include "AbilitySystemComponent.h"
 #include "GameFramework/Character.h"
+#include "Animation/AnimInstance.h"
+#include "Animation/AnimMontage.h"
 
 void UTDMeleeAttackAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData)
 {
@@ -73,11 +76,52 @@ bool UTDMeleeAttackAbility::StartAttackMontage(FName StartSection, float PlayRat
 		return false;
 	}
 
+	// A montage's section table is invisible to the MCP reflection layer (compositeSections
+	// cannot be read), so it has never been checked from outside. It is plain C++ here. A
+	// section that ends before the montage does, with nothing chained after it, ends the
+	// montage there -- naturally, so the task reports OnBlendOut rather than OnInterrupted,
+	// which is indistinguishable from a normal finish without this.
+	if (TDShouldTraceCombatTiming() && AttackMontage)
+	{
+		TD_TIMING_LOG(TEXT("[%.3f] MONTAGE    sections=%d  length=%.4f"),
+			GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f,
+			AttackMontage->CompositeSections.Num(),
+			AttackMontage->GetPlayLength());
+
+		for (int32 Index = 0; Index < AttackMontage->CompositeSections.Num(); ++Index)
+		{
+			const FCompositeSection& Composite = AttackMontage->CompositeSections[Index];
+			TD_TIMING_LOG(TEXT("[%.3f] MONTAGE      [%d] '%s' start=%.4f nextSection='%s'"),
+				GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f,
+				Index,
+				*Composite.SectionName.ToString(),
+				Composite.GetTime(),
+				*Composite.NextSectionName.ToString());
+		}
+
+		// Notify placement is not readable through the MCP layer either, so until now the only
+		// way to learn where a Release Window sits was to play an attack and read the edge it
+		// fired at -- a round trip per marker adjustment. It is plain C++ here. This is also the
+		// authored truth that ReleaseStartSeconds duplicates by hand, so a drift between them is
+		// visible on the same screen rather than needing the warning to catch it.
+		for (int32 Index = 0; Index < AttackMontage->Notifies.Num(); ++Index)
+		{
+			const FAnimNotifyEvent& Event = AttackMontage->Notifies[Index];
+			TD_TIMING_LOG(TEXT("[%.3f] MONTAGE      notify '%s' trigger=%.4f duration=%.4f"),
+				GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f,
+				*Event.NotifyName.ToString(),
+				Event.GetTriggerTime(),
+				Event.GetDuration());
+		}
+	}
+
 	UAbilityTask_PlayMontageAndWait* MontageTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(this, NAME_None, AttackMontage, PlayRate, StartSection);
-	MontageTask->OnCompleted.AddDynamic(this, &UTDMeleeAttackAbility::HandleMontageFinished);
-	MontageTask->OnBlendOut.AddDynamic(this, &UTDMeleeAttackAbility::HandleMontageFinished);
+	// Bound to four separate wrappers rather than two shared handlers, so the trace can say
+	// which delegate ended the attack. They have different causes and different fixes.
+	MontageTask->OnCompleted.AddDynamic(this, &UTDMeleeAttackAbility::HandleMontageCompleted);
+	MontageTask->OnBlendOut.AddDynamic(this, &UTDMeleeAttackAbility::HandleMontageBlendedOut);
 	MontageTask->OnInterrupted.AddDynamic(this, &UTDMeleeAttackAbility::HandleMontageInterrupted);
-	MontageTask->OnCancelled.AddDynamic(this, &UTDMeleeAttackAbility::HandleMontageInterrupted);
+	MontageTask->OnCancelled.AddDynamic(this, &UTDMeleeAttackAbility::HandleMontageCancelled);
 	MontageTask->ReadyForActivation();
 
 	return true;
@@ -121,6 +165,41 @@ void UTDMeleeAttackAbility::HandleTraceHit(const FHitResult& Hit)
 	}
 }
 
+void UTDMeleeAttackAbility::HandleMontageCompleted()
+{
+	TD_TIMING_LOG(TEXT("[%.3f] MONTAGE    OnCompleted"), GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f);
+	HandleMontageFinished();
+}
+
+void UTDMeleeAttackAbility::HandleMontageBlendedOut()
+{
+	// Where the blend starts, and which section was playing when it did. With
+	// blendOutTriggerTime at -1 the natural end-blend cannot begin before
+	// (length - blendTime), so a position well short of that means something else ended the
+	// section -- and the section name is the only thing that can say what.
+	const FGameplayAbilityActorInfo* ActorInfo = GetCurrentActorInfo();
+	UAnimInstance* AnimInstance = ActorInfo ? ActorInfo->GetAnimInstance() : nullptr;
+
+	const float Position = (AnimInstance && AttackMontage) ? AnimInstance->Montage_GetPosition(AttackMontage) : -1.0f;
+	const FName Section = (AnimInstance && AttackMontage) ? AnimInstance->Montage_GetCurrentSection(AttackMontage) : NAME_None;
+	const bool bPlaying = (AnimInstance && AttackMontage) ? AnimInstance->Montage_IsPlaying(AttackMontage) : false;
+
+	TD_TIMING_LOG(TEXT("[%.3f] MONTAGE    OnBlendOut  pos=%.4f section=%s playing=%d montageLen=%.4f"),
+		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f,
+		Position,
+		*Section.ToString(),
+		bPlaying ? 1 : 0,
+		AttackMontage ? AttackMontage->GetPlayLength() : -1.0f);
+
+	HandleMontageFinished();
+}
+
+void UTDMeleeAttackAbility::HandleMontageCancelled()
+{
+	TD_TIMING_LOG(TEXT("[%.3f] MONTAGE    OnCancelled"), GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f);
+	HandleMontageInterrupted();
+}
+
 void UTDMeleeAttackAbility::HandleMontageFinished()
 {
 	EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, false);
@@ -128,5 +207,6 @@ void UTDMeleeAttackAbility::HandleMontageFinished()
 
 void UTDMeleeAttackAbility::HandleMontageInterrupted()
 {
+	TD_TIMING_LOG(TEXT("[%.3f] MONTAGE    OnInterrupted"), GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f);
 	EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, true);
 }

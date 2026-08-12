@@ -245,6 +245,48 @@ concludes the log is wrong rather than merely old. Add a row whenever a name cha
 
 ---
 
+## 2026-08-12 — Recovery stays at 1.0 although shorter felt better, and becomes an authored duration
+
+**Two decisions about the attack tail, one of which looks like it breaks this project's own rule
+and does not.**
+
+**`RecoveryPlayRate` stays at 1.0.** Shorter recovery was tried and *felt good* — and was rejected
+anyway. The reason: the good feeling comes from **removing a cost the design wants to exist.**
+Avoiding recovery is supposed to require *choosing to combo into another light*; whiffing, or
+declining to continue, is supposed to leave you punishable. A globally shorter tail hands that
+safety out for free and deletes the decision.
+
+**This is not "play wins" being overruled.** That rule is about a *designed distinction* not
+surviving contact with feel — an argued position losing to evidence. This is the opposite shape: a
+mechanic whose whole job is to impose a cost, feeling better with the cost reduced. Of course it
+does. "Infinite stamina feels good" is the same sentence. The test is not *is this pleasant*, it
+is *does the pleasantness come from the mechanic working or from it not working*.
+
+Deliberately deferred rather than settled: **re-evaluate once lights can actually chain**, because
+until item 9 exists the combo escape hatch is unavailable and recovery is being judged with half
+its context missing.
+
+**Recovery becomes an authored duration, matching windup and release.** Requested by the user, and
+it generalises what two thirds of the model already does:
+
+| Phase | Authored as | Rate derived from |
+|---|---|---|
+| Windup | `ReleaseAtSeconds` | `ReleaseStartSeconds ÷ ReleaseAtSeconds` |
+| Release | `ReleaseSeconds` | notify width ÷ `ReleaseSeconds` |
+| **Recovery** | **`RecoverySeconds`** *(to build)* | remaining montage ÷ `RecoverySeconds` |
+
+**The notify denotes release; windup is whatever precedes it and recovery whatever follows.** So an
+attack is specified as three durations and the animation warps to fit — which is the same
+principle already stated as *"mechanics decide how long, the animation gets all of that time,"*
+applied to the one phase that never got it. `RecoveryPlayRate` becomes the derived value it should
+always have been rather than a knob.
+
+**The complication to solve rather than discover:** the montage's blend-out eats the end of
+recovery, because the ability ends when blending *starts* — which is the trap already filed against
+item 12. Authoring a recovery duration means deciding whether that duration ends at blend-out or at
+the montage's true end, and deriving the rate accordingly. Getting it wrong makes every authored
+recovery silently shorter than its number, which is precisely the failure the trap describes.
+
 ## 2026-08-12 — The coil has no room on a short clip, and the light's floor is not `HoldUntilSeconds`
 
 Found while swapping the punch for a real sword clip. Three findings, in ascending order of how

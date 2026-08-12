@@ -216,6 +216,16 @@ void UTDChargedAttackAbility::CommitAttack()
 		WaitTask->ReadyForActivation();
 	}
 
+	// And the closing edge, because the release rate must come back off. Subscribed here
+	// rather than inside HandleReleaseWindowBegan so both edges are armed at the same moment
+	// -- a window narrow enough to open and close inside one frame would otherwise miss its
+	// own end and leave the rate applied, which is the bug this pair exists to fix.
+	if (UAbilityTask_WaitGameplayEvent* EndTask = UAbilityTask_WaitGameplayEvent::WaitGameplayEvent(this, TDTags::Event_Melee_WindowEnd, nullptr, true, true))
+	{
+		EndTask->EventReceived.AddDynamic(this, &UTDChargedAttackAbility::HandleReleaseWindowEnded);
+		EndTask->ReadyForActivation();
+	}
+
 	// Carry the montage from wherever it actually is into the strike, arriving exactly on
 	// this branch's ReleaseAtSeconds. For the fastest branch this works out to the windup
 	// rate it was already running, so the light never changes pace at all.
@@ -239,8 +249,58 @@ void UTDChargedAttackAbility::CommitAttack()
 	}
 }
 
+bool UTDChargedAttackAbility::IsWindowForThisAttack(const FGameplayEventData& Payload) const
+{
+	// The notify broadcasts to the whole ASC and carries no ownership, so without this any
+	// montage carrying a Release Window would drive this attack's play rate. Harmless while
+	// exactly one montage carries the notify; silently wrong the moment a second does, which
+	// is what item 6's content pass creates. UAbilityTask_MeleeTrace guards the same way.
+	//
+	// Null AttackMontage means accept any, which is the behaviour before this guard existed.
+	if (!AttackMontage)
+	{
+		return true;
+	}
+
+	if (Payload.OptionalObject == AttackMontage)
+	{
+		return true;
+	}
+
+	// Ungated: a mismatch here means the attack never applies its release rate and never
+	// takes it off again -- both silent, and the second is the bug this guard shipped with.
+	UE_LOG(LogTDCombatTiming, Warning,
+		TEXT("Release Window from '%s' ignored; this attack is playing '%s'."),
+		Payload.OptionalObject ? *Payload.OptionalObject->GetName() : TEXT("<none>"),
+		*AttackMontage->GetName());
+
+	return false;
+}
+
+void UTDChargedAttackAbility::HandleReleaseWindowEnded(FGameplayEventData Payload)
+{
+	if (!IsWindowForThisAttack(Payload))
+	{
+		return;
+	}
+
+	// Off the release rate and onto the recovery rate. Without this the rate derived for the
+	// release stays applied for the rest of the montage, which is what sent recovery through
+	// at 3.28x and -- above about 2.8x -- left less montage-time remaining than the blend-out
+	// needed, so the montage terminated itself the instant the rate was applied.
+	SetMontagePlayRate(RecoveryPlayRate);
+
+	TD_TIMING_LOG(TEXT("[%.3f] RELEASE OFF  pos=%.4f recoveryRate=%.3f"),
+		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f, GetMontagePosition(), RecoveryPlayRate);
+}
+
 void UTDChargedAttackAbility::HandleReleaseWindowBegan(FGameplayEventData Payload)
 {
+	if (!IsWindowForThisAttack(Payload))
+	{
+		return;
+	}
+
 	if (!Branches.IsValidIndex(SelectedBranchIndex))
 	{
 		return;
@@ -324,6 +384,15 @@ void UTDChargedAttackAbility::EndAbility(const FGameplayAbilitySpecHandle Handle
 	{
 		World->GetTimerManager().ClearTimer(CheckpointTimerHandle);
 	}
+
+	// When the ability ends relative to the release window's close is not otherwise
+	// observable, and it decides whether HandleReleaseWindowEnded can run at all: ending
+	// first destroys the task waiting for that edge.
+	TD_TIMING_LOG(TEXT("[%.3f] ABILITY END  pos=%.4f elapsed=%.3f%s"),
+		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f,
+		GetMontagePosition(),
+		GetElapsedSeconds(),
+		bWasCancelled ? TEXT(" (cancelled)") : TEXT(""));
 
 	// A cancelled attack would otherwise leave the montage crawling at the coil rate.
 	SetMontagePlayRate(1.0f);
