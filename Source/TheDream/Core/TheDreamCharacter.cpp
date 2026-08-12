@@ -17,6 +17,22 @@ ATheDreamCharacter::ATheDreamCharacter()
 	// Set size for collision capsule
 	GetCapsuleComponent()->InitCapsuleSize(42.f, 96.0f);
 
+	// The mesh hangs from the capsule's centre, so this number must be the negative of the
+	// half-height directly above it or the feet do not touch the ground. ACharacter defaults it
+	// to -90 and nothing ever reconciled that with the 96 we set ourselves -- the two lived in
+	// different files with no stated relationship -- so the feet floated exactly 6 cm in every
+	// pose, on both characters.
+	//
+	// It went unnoticed for a long time because ABP_Combat's foot-IK Control Rig spent 6 cm of
+	// correction every frame absorbing it. The hover was therefore only visible wherever that IK
+	// does not run: inside montages, which is why attacks and dodges hovered and locomotion did
+	// not, and in mid-air, where ShouldDoIKTrace is false. Three hypotheses about the animations
+	// were wrong before anyone measured these two numbers.
+	//
+	// Change this and InitCapsuleSize together, always. SKM_Manny's reference pose puts its
+	// lowest point at Z = -0.02, so the mesh origin is the feet and no further offset is owed.
+	GetMesh()->SetRelativeLocation(FVector(0.0f, 0.0f, -96.0f));
+
 	// Characters are invisible to the camera boom's collision probe, which sweeps on ECC_Camera.
 	// Without this the spring arm treats another combatant as an obstruction and yanks the camera
 	// forward -- and melee spends all of its time at exactly the range that triggers it, so an

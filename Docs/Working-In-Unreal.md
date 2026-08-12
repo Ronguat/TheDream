@@ -299,6 +299,38 @@ So reserve `set_properties` for cases where a human edit is impractical, prefer 
 anything a designer would touch anyway, and restart the editor before trusting a programmatic
 write.
 
+**The rule is about Blueprint CDOs, and does not extend to plain assets** *(confirmed 2026-08-12)*.
+`bEnableRootMotion` was written `false` on an AnimSequence through `set_properties` with no editor
+restart, and the very next PIE session behaved accordingly — the character provably stopped
+travelling during its attack. Both observations behind the restart rule were Blueprint CDO
+properties (`bBlockedWhileAirborne`, `DodgeSeconds`), which fits the suspected mechanism of
+Blueprint reinstancing discarding the in-memory write. A plain `UObject` asset has no reinstancing
+step, and empirically the write is live immediately.
+
+**This is worth knowing precisely because of what a null result means.** When the evidence you are
+collecting is *"I changed it and the symptom did not move"*, the restart rule makes that ambiguous
+between a refuted hypothesis and a write that never landed. **Prove the instrument first: make one
+write whose effect is numerically measurable, confirm it, then trust the null results that follow.**
+Disabling root motion is a good probe for animation work — the actor visibly stops travelling, which
+is a number, not an impression.
+
+**`reset_properties` resets to the property's *default*, not to the inherited archetype value**
+*(confirmed 2026-08-12)*. Called on a Blueprint CDO's mesh component to clear a `relativeLocation`
+override and let the C++ default apply, it wrote `(0, 0, 0)` — not the parent's value, and further
+from correct than the override it removed. There is no archetype-aware reset in the toolset; the
+details panel's yellow revert arrow has no scriptable equivalent. **Set the inherited value
+explicitly instead**, which also stops it serialising as an override, since a CDO records only
+deltas from its parent.
+
+**A component property set in C++ reaches nothing if a Blueprint or a placed actor overrides it**
+*(confirmed 2026-08-12)*. Moving the mesh from Z −90 to −96 in `ATheDreamCharacter`'s constructor
+changed nothing in PIE: `BP_PlayerCharacter` and `BP_TrainingDummy` each carried a serialized −90
+on their **inherited** mesh component, and the placed dummy in `L_CombatTest` carried a third copy.
+Three writes were needed. This is the same family as the stale `EditDefaultsOnly` trap below, but
+milder — a component transform is `EditAnywhere`, so a direct write sticks and the actor does not
+have to be deleted and re-placed. **After any C++ default change to an inherited component, read the
+value back off a live PIE actor before believing it took.**
+
 **But check the running value before spending an editor restart on this rule** *(2026-08-12)*.
 `ReleaseStartSeconds` was written 0.3046 → 0.30 through `set_properties`, saved, and **not**
 restarted — and the ability's own `COMMIT` line reported the derived windup rate as **1.500**
@@ -423,7 +455,14 @@ Only asset **creation** needs a human. Graph editing does not.
 
 `BlueprintTools` has `list_graphs`, `find_nodes`, `get_node_infos`, `create_node`,
 `connect_pins`, `set_pin_value`, `retarget_node_class`, `read_graph_dsl` / `write_graph_dsl`,
-`compile_blueprint`.
+`compile_blueprint`, and **`delete_node`** *(confirmed 2026-08-12, takes `{"node": {"refPath": …}}`)*.
+There is no disconnect function — `disconnect_pins` and `break_pin_links` do not exist — but
+deleting a node breaks its links and leaves the downstream pin on its literal, which is usually what
+you want anyway.
+
+`read_graph_dsl` returned an **empty string** for `ABP_Combat:AnimGraph` while `find_nodes` with
+`title: ""` listed all ten nodes. Use `find_nodes` + `get_node_infos` to read a graph; the latter
+returns each pin's connections in both directions, which is what you need to establish node order.
 
 - `list_graphs` addresses state machines and individual states, e.g.
   `ABP_Combat:AnimGraph.AnimGraphNode_StateMachine_0.Locomotion.AnimStateNode_2.Walk / Run`.
@@ -498,6 +537,30 @@ actors while PIE runs — ask for the session to be left running rather than sto
 **Those calls are separate round-trips, so a snapshot can straddle a state change.** An
 ability reading `bIsActive: false` alongside a live `State.Attacking` looks exactly like a
 leaked tag and is usually just sampling skew. Take several samples before believing one.
+
+## Diagnosing what you can see
+
+**The level viewport is an instrument, and it is the cheapest one here** *(learned the hard way,
+2026-08-12)*. A visual defect that turns out to be *static* — a bad offset, a wrong attachment, a
+mesh that does not sit where it should — is fully visible on the placed actor in the editor, with no
+PIE, no animation and no ability running. The character hover bug was chased for two sessions
+through skeletons, root motion, root locks and montage playback, and the training dummy was
+displaying it in the level viewport the entire time.
+
+So before deciding *which* dynamic system causes a visual problem, establish **whether it is dynamic
+at all**: look at the placed actor at rest. If the defect is there, everything animation-shaped is
+already eliminated and the cause is in the actor's own setup. If it is not, you have learned
+something real too, and cheaply.
+
+The general form, which applies well beyond visuals: **before testing whether a symptom depends on
+X, test whether it depends on anything at all.** It is a strictly cheaper question and it partitions
+the search space far more brutally than any comparison between two candidate causes.
+
+**And a corollary about reporting:** what the user glosses over is often the decisive observation.
+"The dummy hovers in the preview too" and "the dodge hovers as well" each reframed this bug
+instantly, and both were volunteered casually rather than in response to a question. When a bug
+resists, ask explicitly what else shows the symptom — including in states nobody thinks of as part
+of the system.
 
 ## Diagnosing timing
 

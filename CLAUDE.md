@@ -153,6 +153,16 @@ Three files carry knowledge the code cannot. Read them before working in their a
 Deliberately **not** kept: per-system design docs. Local rationale belongs in header comments, which are read at the moment the code is; a doc that describes a system drifts out of sync and then gets trusted over the code.
 
 ## Working Rules
+- **The loop is: objective → measure → plan → greenlight → execute.** Named by the user 2026-08-12,
+  after it turned a two-session bug hunt into a measured one-line fix. Given an objective, do all the
+  reading and measuring needed to actually understand the problem, **then present a plan and stop.**
+  Three parts carry the weight. *Measuring comes before planning*, so the plan is built on numbers
+  instead of on a guess about what is wrong — a plan proposed before measuring is just the first
+  hypothesis wearing a schedule. *The pause is real*: do not begin work that has not been described
+  and agreed, however obvious it looks. *Execution after a greenlight is unattended* — drive the
+  editor closes, rebuilds, asset writes and verification through to the end rather than handing
+  steps back one at a time. If a measurement taken mid-execution changes what should happen, that is
+  a **new plan** and needs its own greenlight; say so and stop rather than quietly widening scope.
 - **Combat and gameplay work is deliberate, not vibed.** Minimize assumptions and state the reasoning, even when it is slower. If a gameplay question has more than one defensible answer, raise it rather than picking one quietly — and record the choice in `Docs/Combat-Decisions.md`. Unprompted initiative is welcome for debug and tooling conveniences (adding a readout to the debug HUD, say); it is not welcome for anything that changes how the game plays.
 - **When play and rationale disagree, play wins.** This file and `Docs/Combat-Decisions.md` are full of carefully argued positions. They exist to make choices legible, not to defend them against evidence — a designed distinction that does not survive contact with feel gets dropped, and the entry recording it gets superseded rather than argued for. Do not treat a persuasive past entry as a commitment.
 - Always propose a short plan before creating or modifying multiple assets.
@@ -173,23 +183,28 @@ Deliberately **not** kept: per-system design docs. Local rationale belongs in he
 each other, so renumbering breaks cross-references for no gain. Execution order is stated here
 instead, and only this line changes when the order does:
 
-> **1 → 2 → 3 → 8 → 4 → 5 → 6 → [root-motion hover bug] → 13 → 7 → 9 → 10 → 11 → 12 → 14**
+> **1 → 2 → 3 → 8 → 4 → 5 → 6 → ~~[hover bug]~~ → 13 → 7 → 9 → 10 → 11 → 12 → 14**
 
-**Pick up at the hover bug**, which is not a numbered item because it is a defect rather than a
-slice. **The character floats above the ground whenever a root-motion montage plays — attacks and
-dodges both**, locomotion not. It is cosmetic and does not affect hit detection, so it is first for
-sequencing reasons rather than severity: three hypotheses have been wrong, the last measurement
-reframed the whole problem, and it is cheap to finish while that is fresh rather than rediscover
-later. The next experiments are named in `Docs/Combat-Decisions.md` and none of them needs a build.
+**Pick up at item 13, Lunge.** The hover bug is **fixed (2026-08-12)** and was never an animation
+problem: the mesh component sat at Z −90 under a 96 capsule half-height, so the feet floated 6 cm in
+every pose, and `ABP_Combat`'s foot IK absorbed exactly that much whenever it ran — which made the
+defect visible only inside montages, where Epic's template switched the IK off. The offset now lives
+in `ATheDreamCharacter`'s constructor beside `InitCapsuleSize`, **and those two numbers must always
+change together.** Foot IK now also runs during montages, which is polish rather than the fix and is
+kept because attacking on a ramp adapts correctly. One question was left open and it is **not** a
+defect: the character can stand on the ramp's very steep edge face, so walking off it descends that
+face before free fall. Whether `MaxWalkableFloorAngle` should permit that has never been examined —
+the value has not even been read. Full account, including the four refuted hypotheses, in
+`Docs/Combat-Decisions.md`.
 
 **Then 13 (Lunge), moved ahead of 7** — every spacing verdict from here is measured against travel
 that is currently the animator's, and item 7's blockstun is explicitly "a duration based on the
 attack blocked". Settling offense's movement before measuring defense against it is cheaper than
 the reverse. 14 is an audit and genuinely belongs last.
 
-**Items 1, 2, 3, 8, 4, 5 and 6 are done**, plus the netcode groundwork Slices A and B, which are
-not numbered items. Next is the **root-motion hover bug**, then **item 13, Lunge** — see the
-execution order above.
+**Items 1, 2, 3, 8, 4, 5 and 6 are done**, plus the netcode groundwork Slices A and B and the
+hover bug, none of which are numbered items. Next is **item 13, Lunge** — see the execution order
+above.
 
 Every item here gets done; only the sequence was ever in question. Items 1–3 were ordered by
 dependency, not preference; the rest is judgement and may be revisited.
@@ -201,7 +216,7 @@ them is in `Docs/Combat-Decisions.md`.
 1. ~~Light → Heavy → Charged Heavy, with input timing and basic montages.~~ **Done 2026-08-09.** Offense still lacks the light string, knockdown, and block-safety.
 2. ~~**Dodge**, and the stamina economy that shipped with it.~~ **Done 2026-08-10**, moved to V3 clips 2026-08-11. `DodgeSeconds` 0.4; `AM_Dodge` is eight untrimmed V3 `Dash_*` clips at a derived 2.083×. **Distance is `DodgeTargetDistanceCm` (405), with per-direction corrections derived from `MeasuredTravelCm`** — V3's clips disagree by 90.6 uu where V1's agreed within 31.5, so a single uniform scale no longer works. **Re-measure `MeasuredTravelCm` whenever the montage is rebuilt from different clips**; stale values silently reintroduce directional bias.
 3. ~~**The character becomes a sword-and-shield fighter**~~ — camera-relative facing, the props, and the `SwordShield` locomotion set. **Done 2026-08-11.** **The stance moved from V1 to V3 later the same day**: V1's whole set reads as though permanently blocking, and V1 has no `Hit` or `Death` clips at all, so the "don't mix packs" rule that chose it was never achievable. **V1 is retained for the held guard (item 7), which it is decisively better at.** Two things it left behind:
-   - ~~**The reverse `CompatibleSkeletons` entry is load-bearing.**~~ **Resolved 2026-08-12.** `AM_LightAttack_01` was bound to Epic's skeleton while our mesh sits on `GDHBundle`'s, so the attack played only via a reverse `CompatibleSkeletons` entry — and would have stopped **silently** if it were ever removed. **`AM_Attack` is built from the clip itself, so it inherits GDH's skeleton and the dependency is gone.** Build a montage *from its sequence*, never empty-then-assign — that is what makes the skeleton correct by construction. **This did *not* fix the attack hover**, which was predicted and was wrong; that bug is still open, with the next experiment named in `Docs/Combat-Decisions.md`.
+   - ~~**The reverse `CompatibleSkeletons` entry is load-bearing.**~~ **Resolved 2026-08-12.** `AM_LightAttack_01` was bound to Epic's skeleton while our mesh sits on `GDHBundle`'s, so the attack played only via a reverse `CompatibleSkeletons` entry — and would have stopped **silently** if it were ever removed. **`AM_Attack` is built from the clip itself, so it inherits GDH's skeleton and the dependency is gone.** Build a montage *from its sequence*, never empty-then-assign — that is what makes the skeleton correct by construction. **This did *not* fix the attack hover**, which was predicted and was wrong — the hover turned out to be a 6 cm mesh offset and nothing to do with skeletons at all (fixed 2026-08-12).
    - **Known art seam, not a bug:** adjacent directions disagree about the guard pose, so the shield snaps ~135° blending between them. Inherent to the source clips. The fix is an upper-body layered blend over one guard pose — which **item 7 will probably want anyway**, so it was deliberately not built twice.
 4. ~~**Death, minimally.**~~ **Done 2026-08-11.** `State.Dead` is refused by the shared ability base, so a new ability cannot be authored without it. Respawn rules, whether death routes through knockdown, and whether the dummy should die at all are still **item 11's**.
 5. ~~**Dodge travel distance.**~~ **Done 2026-08-11.** `DodgeRootMotionScale` stays at **1.0**; all eight directions measured and agree, so no per-direction data is needed.

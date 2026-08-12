@@ -68,6 +68,8 @@ dated entry. Add a row whenever an entry supersedes part of an older one.
 | 2026-08-11 — The light is reactable at 250 ms | prefer scaling root motion over code-driven movement; code is the exception to pay for knowingly | 2026-08-12 — Root motion scaling is not enough control (play says a multiplier only amplifies the animator's curve; the netcode reason survives and is answered by GAS root motion *sources*, not by hand-rolled movement) |
 | 2026-08-12 — The facing unlock is asymmetrical with the lock | facing fades into and out of its lock, over 50 ms in and half of recovery out | 2026-08-12 — The real cause was an engine default (the fades were deleted the same day: any value below full authority disables the snap, so chained attacks never caught the camera) |
 | 2026-08-12 — Two facing-fade bugs | the chained-attack sluggishness was caused by the fade suppressing the snap | 2026-08-12 — The real cause was an engine default (`bAllowPhysicsRotationDuringAnimRootMotion`; removing the fade did not move the bug) |
+| 2026-08-12 — The attack montage hovers because it is bound to the wrong skeleton | the whole entry — the skeleton was never the cause | 2026-08-12 — The hover was six centimetres of mesh offset |
+| 2026-08-12 — A hitbox is authored, not traced | the hover is "cosmetic, filed rather than fixed" and shared by every *root-motion* montage | 2026-08-12 — The hover was six centimetres of mesh offset (it is shared by every pose, root motion irrelevant, and it is fixed) |
 
 ---
 
@@ -97,63 +99,40 @@ says nothing about hit detection.
 *This replaces a trap filed hours earlier claiming the trace connected with nothing. It was
 wrong — see the diagnostic note below, which is the part worth keeping.*
 
-**NEXT SESSION STARTS HERE. Open bug — *the character hovers while a root-motion montage plays.***
-Cosmetic, does not affect hit detection (the wedge is measured from the actor, not the mesh).
+**~~Open bug — the character hovers while a root-motion montage plays.~~ Discharged 2026-08-12.**
+It was never about montages, root motion, skeletons or clips. The mesh component sat at Z **−90**
+under a **96** capsule half-height, so the feet floated exactly **6 cm** in every pose on both
+characters. `ABP_Combat`'s foot-IK Control Rig spent those 6 cm of correction every frame absorbing
+it, which is why the offset was visible only where that IK does not run: inside montages, and in
+mid-air. Fixed in `ATheDreamCharacter`'s constructor, beside the `InitCapsuleSize` it has to agree
+with. Full account in the dated entry below.
 
-**The decisive fact, found 2026-08-12 at the very end: the dodge hovers too.** That reframes
-everything below, and it arrived because the user happened to look. Attacks hover, dodges hover,
-locomotion does not. **The common factor is a root-motion montage playing**, not anything specific
-to attacks.
+Four things from the hunt are kept here because they are still true and outlived the bug:
 
-*Disconfirmed, and the skeleton theory dies with this:* the montage being built on Epic's skeleton.
-`AM_Attack` was rebuilt on GDHBundle's and still hovers — and `AM_Dodge` was **always** on GDH's
-skeleton and hovers as well. Two independent refutations. The rebuild was still worth doing on its
-own terms, since it removed a real `CompatibleSkeletons` dependency, but it was never this.
-
-*Back on the table, having been wrongly excluded:* the clips' `RootMotionRootLock = RefPose`. It
-is set identically on both the attack and dodge clips — read directly, both of them — which now
-*fits* the evidence instead of contradicting it.
-
-**How it was wrongly excluded is the lesson, and it is the sharpest one from this session.** The
-hypothesis was killed by "the dodge has the same setting and does not hover." **Nobody ever checked
-whether the dodge hovers.** The user's report said the hover does not occur *during locomotion*,
-and that was silently converted into *the dodge is fine* — two different claims about two different
-systems, one of which was observed and one of which was assumed. A comparison case is only
-disconfirming if the case was actually *measured*; an assumed control is worse than no control,
-because it carries the authority of evidence while being a guess. This is the same error as the
-other two wrong diagnoses this session, one level further down: it corrupted not the conclusion but
+**An assumed control is worse than no control.** The `RootMotionRootLock` hypothesis was first
+killed by "the dodge has the same setting and does not hover" — and **nobody had ever checked
+whether the dodge hovers.** A report that the hover does not occur *during locomotion* was silently
+converted into *the dodge is fine*: two different claims about two different systems, one observed
+and one assumed. A comparison case only disconfirms if the case was actually *measured*; an assumed
+control carries the authority of evidence while being a guess. It corrupts not the conclusion but
 the test used to reject a conclusion.
 
-**Next experiments, cheapest first, none needing a build:**
-1. **Measure actor world Z at rest versus mid-montage.** Changes → the capsule is genuinely being
-   lifted, so it is translation. Unchanged → nothing moves the actor and the offset is in the
-   *pose*, i.e. the mesh's relation to the capsule. One reading rules out half the search space.
-2. If translation: set `RootMotionScale` to **0** on `GA_Attack` and attack. Hover stops → the
-   clips carry vertical root motion and the fix is to strip Z from what gets applied.
-3. If pose: change `RootMotionRootLock` to `AnimFirstFrame` on one clip and compare. It edits
-   vendor content, so try it on a copy or be ready to revert.
+**Before testing whether a symptom depends on X, test whether it depends on anything at all.** This
+is the one that would have ended the hunt on the first day. The very first measurement correctly
+established *pose, not translation* — actor Z was constant to four decimals through every montage —
+and the next question should have been "does it hover with nothing playing?" rather than which
+animation property caused it. **The dummy hovers in the level viewport, statically, with no PIE.**
+A static symptom deserves a static test first, and the cheapest instrument in the project turned
+out to be looking at the level.
 
-**Whatever the cause, it is shared by every root-motion montage in the project**, so a fix belongs
-somewhere common rather than on the attack.
+**A sufficient explanation is not the actual one**, three times on this bug: the Epic skeleton
+binding, `RootMotionRootLock`, and the `IsSlotActive` wiring were each true, each capable of
+producing the symptom, and each not the cause. The pattern is only broken by manipulating the
+suspected cause and watching the symptom fail to move.
 
-**The next experiment, and it needs no build:** set `GA_Attack`'s `RootMotionScale` to **0** in the
-details panel and attack. That manipulates the suspected cause rather than observing it.
-- Hover *stops* → the clip carries **vertical** root motion and the capsule is genuinely being
-  lifted. The fix is to strip Z from the applied root motion, not to touch the animation.
-- Hover *persists* → nothing is moving the capsule and the offset is in the **pose**, which means
-  the mesh's relation to the capsule rather than the character's position in the world.
-
-**The cheap discriminator before even that:** read the actor's world Z at rest and mid-swing. If it
-changes, it is translation; if it does not, it is pose. That distinction rules out half the search
-space and costs one measurement.
-
-*Filed rather than fixed because the session ended, and because guessing a third time is worse
-than leaving it open.* It does not affect hit detection — the wedge is measured from the actor,
-not the mesh.
-
-**What the rebuild did settle:** build a montage *from its clip*, never empty-then-assign, so the
-skeleton is right by construction. And the rename came with it — one montage serves light, heavy
-and charged, so `AM_LightAttack_01` was always a misnomer and `AM_Attack` matches `GA_Attack`.
+**Build a montage *from its clip*, never empty-then-assign**, so the skeleton is right by
+construction. The rename came with it — one montage serves light, heavy and charged, so
+`AM_LightAttack_01` was always a misnomer and `AM_Attack` matches `GA_Attack`.
 
 **Before block (item 7)** — *exhaustion can become permanent.* `ActivationBlockedTags` gates
 activation, not continuation, so a block held through zero keeps draining and keeps
@@ -317,6 +296,8 @@ kept in their own notes. What belongs here is only what to move once a verdict a
 | An ability's direction can be steered when it should be committed | `SetAbilityFacingLocked(true)` for its duration | `bAllowPhysicsRotationDuringAnimRootMotion`. Turning it back off fixes one ability by re-breaking every other, which is how the dodge got a committed direction it never declared. |
 | An attack does not close enough ground | `UTDMeleeAttackAbility::RootMotionScale`, which every tier shares | The clip, and **not** the per-branch scale if the complaint is about the whole ladder — that one cannot touch the windup at all. |
 | One *tier* does not lunge far enough | `FTDAttackBranch::RootMotionScale`, knowing it only affects travel after commit | A larger number, once it stops responding. Past that point the clip is stationary in the phase that needs travel, and the fix is a different clip — see the 2026-08-12 displacement entry. |
+| The character floats, sinks, or its feet do not meet the ground | The mesh component's relative Z, which must be the negative of `InitCapsuleSize`'s half-height | Anything in the animations. Clip settings, root motion, root lock and skeletons were all investigated and all innocent; the offset is static and visible in the level viewport with nothing playing. Check it there before opening a single animation. |
+| Feet look right while moving but wrong during attacks | The same mesh Z — a discrepancy that only shows inside montages is foot IK masking it everywhere else | The montage or the clip. `ABP_Combat`'s Control Rig silently absorbs a constant offset, so "only montages are wrong" means "only montages lack the correction". |
 
 Add a row whenever an entry below establishes that a fix belongs in one place rather than
 another. That is the reusable part of an entry; the argument around it is not.
@@ -344,6 +325,118 @@ concludes the log is wrong rather than merely old. Add a row whenever a name cha
 | `FacingLockFadeSeconds`, `FacingUnlockRecoveryFraction`, `FacingTurnScale` | Deleted 2026-08-12. Facing is a hard lock; interpolation is item 14's. |
 
 ---
+
+## 2026-08-12 — The hover was six centimetres of mesh offset, and foot IK had been hiding it
+
+**The answer, after four wrong hypotheses across two sessions.** `ATheDreamCharacter` sets
+`InitCapsuleSize(42, 96)`. `ACharacter` defaults the mesh component to Z **−90**. Nothing ever
+reconciled the two — they lived in different files with no stated relationship — so the feet sat
+exactly **6 cm** above the capsule bottom, in every pose, on both characters. `SKM_Manny`'s
+reference pose puts its lowest point at Z = −0.02, so the mesh origin *is* the feet and the 6 cm
+was the whole discrepancy.
+
+**Why it looked like an animation bug for two sessions.** `ABP_Combat`'s foot-IK Control Rig plants
+feet on the ground, so it spent 6 cm of correction every frame absorbing the offset. It was
+therefore invisible everywhere the IK runs, and visible everywhere it does not — which, thanks to
+Epic's template wiring (`IsSlotActive("DefaultSlot")` → `SelectFloat(0, 1)` → the rig's `Alpha`),
+meant **exactly and only while a montage played.** Attacks hovered, dodges hovered, locomotion did
+not. That correlation is perfect, entirely real, and points at the wrong system.
+
+**This supersedes the 2026-08-12 entry blaming the montage's skeleton, in full.**
+
+### What was rejected, and the mechanism by which each failed
+
+- **The montage bound to Epic's skeleton.** Refuted by rebuilding `AM_Attack` on GDHBundle's — the
+  hover survived — and independently by `AM_Dodge`, always on GDH's skeleton and hovering too.
+- **`RootMotionRootLock = RefPose` on the clips.** Refuted by manipulation: set to `AnimFirstFrame`
+  on the attack clip, hover unchanged. Note this hypothesis had been killed *incorrectly* a session
+  earlier by an assumed control, then correctly resurrected, then correctly killed.
+- **Root motion itself.** Refuted by setting `bEnableRootMotion` false: the montage still played,
+  the character provably stopped travelling (X held at 200.00 across three mid-attack samples where
+  it had read 156.8 / 132.3 / 134.2), and it still hovered.
+- **The Slot node bypassing something upstream.** Refuted by reading the graph: the Control Rig sits
+  *downstream* of the slot, so montages cannot bypass it.
+
+**Every one of those was a sufficient explanation.** Each would have produced the symptom; none
+did. The only thing that separates a sufficient explanation from the actual one is manipulating it
+and watching the symptom refuse to move.
+
+### The two methods that actually cracked it
+
+**The crossover.** Put a clip known *not* to hover — `Idle1_IP`, which the graph's Idle state plays
+via a plain SequencePlayer — through the suspect path by pointing `AM_Attack`'s segment at it. It
+hovered. Same clip, same skeleton, two playback paths, opposite results: that eliminated every
+clip-level explanation at once, where testing clip properties one at a time never could. **Run the
+known-good input through the suspect path, rather than more variants of the suspect input.**
+
+**A write-path control before trusting a null result.** `Docs/Working-In-Unreal.md` records that
+`set_properties` can silently fail to reach the running game, which makes "I changed it and nothing
+happened" ambiguous between *hypothesis wrong* and *write never landed*. So the first write was one
+whose effect was **numerically measurable** — disabling root motion, which visibly stops the actor
+travelling. Once that proved the write path was live, the later null results were real refutations
+rather than possible tooling failures. **When a null result is the evidence, prove the instrument
+first.**
+
+### Foot IK now runs during montages, as a deliberate choice rather than a fix
+
+The `IsSlotActive` → `SelectFloat` pair is deleted and the rig's `Alpha` is a literal 1.0, so IK
+runs during montages too. **This is polish, not the fix, and the distinction is load-bearing**: with
+the mesh offset corrected the raw pose is already right, confirmed by the level viewport, where no
+IK runs at all. Nothing depends on the Alpha change.
+
+It is kept because play found it better: attacking on `L_CombatTest`'s ramp adapts correctly instead
+of standing at flat-ground angles. Epic disables IK during montages on the assumption that an
+authored montage pose should not be second-guessed by a ground trace; that reasoning is weaker here,
+where durations are authored and clips are warped to fit them anyway. The cost is that a ground
+trace can move feet during a release window, which is cosmetic only — hitboxes are authored in the
+actor's frame and cannot be moved by a pose.
+
+### The offset lives in three places and only one of them is the home
+
+Setting it in C++ was not enough. `BP_PlayerCharacter` and `BP_TrainingDummy` both carried a
+serialized **−90** override on their inherited mesh component, and the placed dummy in
+`L_CombatTest` carried a third copy — so the C++ default reached nothing until all three were
+written. All are now −96, which should stop the Blueprints serialising an override at all, since a
+CDO records only deltas from its parent. *Expected, not verified* — proving it needs a second C++
+change to watch propagate.
+
+The value belongs in `ATheDreamCharacter`'s constructor regardless, directly beside
+`InitCapsuleSize`, because the two numbers must agree and adjacency is the only thing that keeps
+them agreeing. Same failure shape as the `MaxWalkSpeed` ↔ blendspace coupling already in the traps
+list: two numbers, two files, no enforcement.
+
+### The ledge dip was not a bug at all, and the way it was nearly recorded as one is the point
+
+**Walking off the ramp's edge appeared to dip the character slightly before the fall started.** It
+was filed here as a foot-IK artifact — the trace finding distant ground and pulling the feet toward
+it — and an argument was built on top of that reading: that the alignment fix had to land *first*,
+because while the mesh was 6 cm out the IK owed a constant correction every frame and any clamp on
+its displacement would have had to permit at least that much.
+
+**The user then looked properly and there is no dip.** The ramp's edge has thickness, the resulting
+face is very steep, and the character is simply *able to stand on it* — so walking off the ramp
+walks briefly down that steep face before free fall begins. Nothing is pulling anything.
+
+Two things worth keeping from that:
+
+**A correct decision can rest partly on a wrong reason, and the reason still has to be retracted.**
+Fixing the alignment before touching IK displacement was right, and it was right on its own merits —
+a static 6 cm offset is a defect whatever else is true. The clamp-tunability argument was extra
+justification invented for a symptom that did not exist. Had the alignment fix been *contingent* on
+that argument, it would have been a correct action taken for a reason that evaporated.
+
+**"Slightly dips" and "walks down a steep surface" are the same picture at speed.** The
+distinguishing question was never about IK — it was whether the character was in a walking or a
+falling state at that moment, which is one glance at a debug readout. Reaching for the subsystem
+recently under suspicion is exactly the bias this bug punished four times already.
+
+### Left open
+
+**Whether the character should be able to perch on a face that steep is a real question, and
+unexamined.** It is `MaxWalkableFloorAngle` on the movement component, and nobody has read the
+value, let alone chosen it. Raised here rather than in the traps list because it is a design call
+about movement rather than a latent defect — a spacing-first combat game may well not want players
+standing on near-vertical geometry, but nothing about the current behaviour is broken.
 
 ## 2026-08-12 — A hitbox is authored, not traced; and facing is the price it charges
 
