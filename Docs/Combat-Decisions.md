@@ -245,6 +245,48 @@ concludes the log is wrong rather than merely old. Add a row whenever a name cha
 
 ---
 
+## 2026-08-11 — The light is reactable at 250 ms, and three consequences of admitting it
+
+Found in play while judging attack candidates. **This supersedes the offense model's claim that
+the light is "unreactable — it never coils, so there is no tell at all."**
+
+**The claim conflated two things.** The light has no *distinguishing* tell — you cannot tell it
+from a heavy before the coil, which is true and is the property the ladder is built on. But the
+montage starts on the press, so **the windup is a tell from frame one**, and 250 ms of visible
+windup sits at simple human reaction time. That is the same edge the docs already flag for the
+heavy's ~240 ms coil→damaging window; nobody had noticed the light was standing on it too.
+
+The user's report: *"250 ms is reactable for me in PIE when I'm focused."*
+
+**The caveat belongs with the finding, not against it.** PIE against a stationary dummy with full
+attention is the easiest possible case to react in — no mixups, no movement, no competing
+options. Live PvP is harder, so the honest reading is *"250 ms is closer to the edge than the
+model assumed"* rather than *"250 ms is reactable in a match."* The direction is settled; the
+magnitude is not, and should be re-measured against something that fights back.
+
+**Consequence one: lights get faster.** Two separate knobs, and they are easy to confuse. The
+*mechanical* release time is `ReleaseAtSeconds` (250 ms). *Where the strike visually lands in the
+clip* is a property of the animation and of `ReleaseStartSeconds`. A clip whose impact frame sits
+late reads as slow even at a correct 250 ms, which is what the user observed — *"this particular
+animation just doesn't get to where I think its release should be as soon."* Move the second
+before the first.
+
+**Consequence two: displacement is authored per attack, not taken from the clips.** Every
+candidate needs several times more forward travel than it ships with, and foot sliding is
+accepted. **Prefer scaling root motion over code-driven movement** — scaling several times over
+is still root motion, so CMC still replicates it, and the netcode audit's "most valuable accident"
+survives. Scaling cannot reshape *when* motion happens, only how much, so a clip that is
+stationary during the window that needs travel is the case that genuinely forces code. Pay that
+knowingly rather than by default.
+
+**Consequence three: attacks are chosen per slot, not taken as vendor strings.** This reverses
+the reasoning that a whole authored family should be preferred for guaranteed inter-hit flow. The
+trade, stated by the user and accepted with eyes open: **more precision in feel, in exchange for
+more aesthetic jank** — every transition becomes one we author and blend rather than one the
+vendor authored. Given that lights need speeding, displacement needs authoring, and the charged
+branches to its own clip anyway, the vendor's flow was already being broken in three places; the
+coherence it bought was mostly notional.
+
 ## 2026-08-11 — Chain rules come as a package: the light guarantee and heavy→light are coupled
 
 **Noted, not decided.** Recorded because the coupling is invisible in the rules as written, and
