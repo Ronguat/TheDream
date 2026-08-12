@@ -63,7 +63,27 @@ void ATheDreamCharacter::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
 
+	AdvanceFacingFade(DeltaSeconds);
 	UpdateCameraRelativeFacing();
+}
+
+void ATheDreamCharacter::SetFacingAuthority(float Target, float OverSeconds)
+{
+	FacingTurnScaleTarget = FMath::Clamp(Target, 0.0f, 1.0f);
+
+	// Rate is derived from the distance still to travel, so re-targeting mid-fade still lands on
+	// time rather than inheriting a rate chosen for a journey that no longer applies.
+	const float Distance = FMath::Abs(FacingTurnScaleTarget - FacingTurnScale);
+	FacingTurnScaleRate = (OverSeconds > KINDA_SMALL_NUMBER) ? (Distance / OverSeconds) : 0.0f;
+}
+
+void ATheDreamCharacter::AdvanceFacingFade(float DeltaSeconds)
+{
+	// Advanced from Tick rather than a timer, on two counts: a fade measured in a few frames
+	// needs frame resolution, and the project's SetTimer sites are counted debt against the
+	// netcode work -- see Docs/Combat-Decisions.md. FInterpConstantTo snaps on a non-positive
+	// rate, which is what a zero-length fade asks for.
+	FacingTurnScale = FMath::FInterpConstantTo(FacingTurnScale, FacingTurnScaleTarget, DeltaSeconds, FacingTurnScaleRate);
 }
 
 void ATheDreamCharacter::UpdateCameraRelativeFacing()
@@ -87,7 +107,11 @@ void ATheDreamCharacter::UpdateCameraRelativeFacing()
 
 	// Only the smooth branch reads RotationRate, but it is written unconditionally so the
 	// value stays live-tunable in PIE rather than latching whatever it was at construction.
-	Movement->RotationRate.Yaw = StationaryTurnRateDegrees;
+	//
+	// A yaw rate of exactly zero means *no rotation* to the movement component (negative would
+	// mean unlimited), so a fully faded scale and a hard lock are the same state and the fade
+	// needs no special case at its endpoint.
+	Movement->RotationRate.Yaw = StationaryTurnRateDegrees * FMath::Clamp(FacingTurnScale, 0.0f, 1.0f);
 
 	// Deliberately the exact source UTDDodgeAbility::ResolveDodgeDirection reads. If these
 	// two ever disagree about what "no input" means, a dodge pressed on the first frame of
@@ -100,8 +124,14 @@ void ATheDreamCharacter::UpdateCameraRelativeFacing()
 
 	// Snapped or smooth, never both: bUseControllerRotationYaw wins over the movement
 	// component's desired-rotation path, so leaving both on would silently disable the turn.
-	bUseControllerRotationYaw = bHasMoveInput;
-	Movement->bUseControllerDesiredRotation = !bHasMoveInput;
+	//
+	// The snap is additionally conditional on *full* facing authority. It ignores RotationRate
+	// entirely, so it cannot be faded -- left available below full authority it would teleport
+	// the character's facing to the camera on any frame with movement input, no matter how far
+	// into an attack's lock the swing had got, and the fade would be decorative.
+	const bool bSnap = bHasMoveInput && FacingTurnScale >= 1.0f;
+	bUseControllerRotationYaw = bSnap;
+	Movement->bUseControllerDesiredRotation = !bSnap;
 }
 
 void ATheDreamCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)

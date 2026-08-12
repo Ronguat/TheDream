@@ -4,63 +4,65 @@
 #include "Combat/TDCombatDebug.h"
 #include "Combat/TDGameplayTags.h"
 #include "AbilitySystemComponent.h"
-#include "Components/SkeletalMeshComponent.h"
+#include "Components/CapsuleComponent.h"
+#include "Engine/OverlapResult.h"
 #include "Engine/World.h"
+#include "GameFramework/Character.h"
 
 #if ENABLE_DRAW_DEBUG
 #include "DrawDebugHelpers.h"
 #endif
+
+namespace
+{
+	/**
+	 *  The upright cylinder a hitbox is tested against.
+	 *
+	 *  A Character's own capsule is the honest answer and is what every combatant has. Anything
+	 *  else falls back to its bounds rather than being skipped, so a future prop or destructible
+	 *  is hit rather than silently ignored -- the failure mode this project files traps about.
+	 */
+	bool GetTargetCylinder(const AActor* Actor, FVector& OutCentre, float& OutRadiusCm, float& OutHalfHeightCm)
+	{
+		if (const ACharacter* Character = Cast<ACharacter>(Actor))
+		{
+			if (const UCapsuleComponent* Capsule = Character->GetCapsuleComponent())
+			{
+				OutCentre = Capsule->GetComponentLocation();
+				OutRadiusCm = Capsule->GetScaledCapsuleRadius();
+				OutHalfHeightCm = Capsule->GetScaledCapsuleHalfHeight();
+				return true;
+			}
+		}
+
+		if (!Actor)
+		{
+			return false;
+		}
+
+		FVector Origin = FVector::ZeroVector;
+		FVector Extent = FVector::ZeroVector;
+		Actor->GetActorBounds(true, Origin, Extent);
+		OutCentre = Origin;
+		OutRadiusCm = FMath::Max(Extent.X, Extent.Y);
+		OutHalfHeightCm = Extent.Z;
+		return true;
+	}
+}
 
 UAbilityTask_MeleeTrace::UAbilityTask_MeleeTrace()
 {
 	bTickingTask = true;
 }
 
-UAbilityTask_MeleeTrace* UAbilityTask_MeleeTrace::MeleeTrace(UGameplayAbility* OwningAbility, USkeletalMeshComponent* MeshComponent, FName SocketName, FVector BladeAxisLocal, float BladeStartCm, float BladeLengthCm, int32 Segments, float Radius, bool bDrawDebug, const UAnimMontage* InExpectedMontage)
+UAbilityTask_MeleeTrace* UAbilityTask_MeleeTrace::MeleeTrace(UGameplayAbility* OwningAbility, const TArray<FTDAttackHitbox>& InHitboxes, bool bDrawDebug, const UAnimMontage* InExpectedMontage)
 {
 	UAbilityTask_MeleeTrace* Task = NewAbilityTask<UAbilityTask_MeleeTrace>(OwningAbility);
-	Task->Mesh = MeshComponent;
-	Task->TraceSocket = SocketName;
-
-	// A zero axis would collapse every sample onto the socket and silently restore the old
-	// single-point trace, so it falls back rather than producing a degenerate blade.
-	Task->BladeAxis = BladeAxisLocal.IsNearlyZero() ? FVector::ForwardVector : BladeAxisLocal.GetSafeNormal();
-	Task->BladeStart = BladeStartCm;
-	Task->BladeLength = FMath::Max(0.0f, BladeLengthCm);
-	Task->BladeSegments = FMath::Max(1, Segments);
-	Task->TraceRadius = Radius;
+	Task->Hitboxes = InHitboxes;
 	Task->bDrawDebugTrace = bDrawDebug;
 	Task->ExpectedMontage = InExpectedMontage;
 
 	return Task;
-}
-
-void UAbilityTask_MeleeTrace::BuildBladePoints(TArray<FVector>& OutPoints) const
-{
-	OutPoints.Reset();
-	if (!Mesh.IsValid())
-	{
-		return;
-	}
-
-	const FTransform SocketTransform = Mesh->GetSocketTransform(TraceSocket);
-	const FVector AxisWorld = SocketTransform.TransformVectorNoScale(BladeAxis);
-	const FVector Base = SocketTransform.GetLocation() + AxisWorld * BladeStart;
-
-	// One segment means one point at the base, which is the old socket-only behaviour and the
-	// sane degenerate case for a weapon with no authored length.
-	if (BladeSegments <= 1 || BladeLength <= 0.0f)
-	{
-		OutPoints.Add(Base);
-		return;
-	}
-
-	OutPoints.Reserve(BladeSegments);
-	for (int32 Index = 0; Index < BladeSegments; ++Index)
-	{
-		const float Alpha = static_cast<float>(Index) / static_cast<float>(BladeSegments - 1);
-		OutPoints.Add(Base + AxisWorld * (BladeLength * Alpha));
-	}
 }
 
 void UAbilityTask_MeleeTrace::Activate()
@@ -75,7 +77,7 @@ void UAbilityTask_MeleeTrace::Activate()
 		return;
 	}
 
-	// The notify state on the montage drives when tracing is live.
+	// The notify state on the montage drives when the hitboxes are live.
 	WindowBeginHandle = ASC->AddGameplayEventTagContainerDelegate(
 		FGameplayTagContainer(TDTags::Event_Melee_WindowBegin),
 		FGameplayEventTagMulticastDelegate::FDelegate::CreateUObject(this, &UAbilityTask_MeleeTrace::HandleWindowBegin));
@@ -104,8 +106,8 @@ void UAbilityTask_MeleeTrace::HandleWindowBegin(FGameplayTag Tag, const FGamepla
 		// Ungated warning, like the other two in this system, because the failure it describes is
 		// an attack that silently deals no damage rather than one that crashes. If this fires for
 		// the montage an attack is actually playing, the notify and the ability disagree about
-		// which asset is which and no trace will ever open.
-		UE_LOG(LogTemp, Warning, TEXT("MeleeTrace: ignoring a Release Window from '%s'; this attack is tracing for '%s'."),
+		// which asset is which and no hitbox will ever go live.
+		UE_LOG(LogTemp, Warning, TEXT("MeleeTrace: ignoring a Release Window from '%s'; this attack is testing for '%s'."),
 			(Payload && Payload->OptionalObject) ? *Payload->OptionalObject->GetName() : TEXT("<none>"),
 			ExpectedMontage.IsValid() ? *ExpectedMontage->GetName() : TEXT("<none>"));
 		return;
@@ -115,7 +117,6 @@ void UAbilityTask_MeleeTrace::HandleWindowBegin(FGameplayTag Tag, const FGamepla
 
 	// A fresh window means a fresh swing, so previously hit actors are hittable again.
 	ActorsHitThisWindow.Reset();
-	PreviousBladePoints.Reset();
 }
 
 void UAbilityTask_MeleeTrace::HandleWindowEnd(FGameplayTag Tag, const FGameplayEventData* Payload)
@@ -128,17 +129,11 @@ void UAbilityTask_MeleeTrace::HandleWindowEnd(FGameplayTag Tag, const FGameplayE
 	}
 
 	bWindowOpen = false;
-	PreviousBladePoints.Reset();
 }
 
 void UAbilityTask_MeleeTrace::TickTask(float DeltaTime)
 {
 	Super::TickTask(DeltaTime);
-
-	if (!bWindowOpen || !Mesh.IsValid())
-	{
-		return;
-	}
 
 	UWorld* World = GetWorld();
 	const FGameplayAbilityActorInfo* ActorInfo = Ability ? Ability->GetCurrentActorInfo() : nullptr;
@@ -148,11 +143,39 @@ void UAbilityTask_MeleeTrace::TickTask(float DeltaTime)
 		return;
 	}
 
-	// Hit detection is the server's alone. Abilities are LocalPredicted, so without this the
-	// sweep also runs on the owning client -- from a *different* socket position, because the
-	// two machines are a round trip apart in the swing. That client result can never apply
-	// damage (UTDMeleeAttackAbility gates on authority), so at best it is wasted work, and at
-	// worst it is a second opinion about what was hit that nothing reconciles.
+#if ENABLE_DRAW_DEBUG
+	// Deliberately outside the authority gate and outside the window check. Drawing is local, and
+	// a volume that is only visible while it is resolving hits can only be judged in hindsight --
+	// the editor has no hitbox preview, so this is the whole authoring affordance.
+	//
+	// How much of an attack this covers depends on when the task started, which differs by path:
+	// UTDMeleeAttackAbility starts it at activation and so draws the entire windup, while
+	// UTDChargedAttackAbility cannot start it until the branch is chosen and so draws only the
+	// commit-to-release run-up and then the recovery. The recovery half is the useful one -- the
+	// wedge sits still, in place, for as long as it takes to look at.
+	if (bDrawDebugTrace || TDShouldDrawMeleeTrace())
+	{
+		const FVector Location = Avatar->GetActorLocation();
+		const float Yaw = Avatar->GetActorRotation().Yaw;
+		const FColor Color = bWindowOpen ? FColor::Red : FColor(60, 60, 60);
+
+		for (const FTDAttackHitbox& Hitbox : Hitboxes)
+		{
+			DrawHitbox(World, Hitbox, Location, Yaw, Color);
+		}
+	}
+#endif
+
+	if (!bWindowOpen)
+	{
+		return;
+	}
+
+	// Hit detection is the server's alone. Abilities are LocalPredicted, so without this the test
+	// also runs on the owning client -- from a *different* position, because the two machines are
+	// a round trip apart in the swing. That client result can never apply damage
+	// (UTDMeleeAttackAbility gates on authority), so at best it is wasted work, and at worst it is
+	// a second opinion about what was hit that nothing reconciles.
 	//
 	// Prediction, when it arrives, does not change this: what a client predicts is its *own*
 	// action, never whether that action connected with someone else.
@@ -161,91 +184,70 @@ void UAbilityTask_MeleeTrace::TickTask(float DeltaTime)
 		return;
 	}
 
-	TArray<FVector> CurrentPoints;
-	BuildBladePoints(CurrentPoints);
-	if (CurrentPoints.Num() == 0)
-	{
-		return;
-	}
+	ResolveHits(World, Avatar);
+}
 
-	// The blade is sampled at BladeSegments points and each is swept from where it was last
-	// frame. Two gaps get closed by this: along the blade (a target between base and tip) and
-	// through time (a fast swing passing a target entirely between frames). The first tick of a
-	// window has no previous positions, so each point sweeps against itself.
-	const bool bHasPrevious = PreviousBladePoints.Num() == CurrentPoints.Num();
+void UAbilityTask_MeleeTrace::ResolveHits(UWorld* World, AActor* Avatar)
+{
+	const FVector AttackerLocation = Avatar->GetActorLocation();
+	const float AttackerYaw = Avatar->GetActorRotation().Yaw;
 
-	FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(TDMeleeTrace), false, Avatar);
+	FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(TDMeleeHitbox), false, Avatar);
 	QueryParams.AddIgnoredActor(Avatar);
 
-	// Either the ability's own flag or the console toggle. The cvar exists so the question
-	// "where is this blade actually sweeping" costs a keypress instead of an editor restart.
-	const bool bDraw = bDrawDebugTrace || TDShouldDrawMeleeTrace();
-
-	// A capsule per blade segment rather than a sphere per sample point. Spheres coupled
-	// TraceRadius to BladeTraceSegments -- drop the radius below half the sample spacing and
-	// the blade grows holes between its own samples -- so thickness could not be tuned without
-	// also tuning density. A capsule spans the segment by construction, which makes the radius
-	// mean thickness and nothing else.
-	//
-	// Deliberately *not* line traces, though the blade is geometrically a line. Exact hit
-	// detection rewards precision only where the player has precise control, and here an attack
-	// is a canned animation that cannot be aimed -- not even by looking up or down. A near miss
-	// would then be something the player had no means to avoid, which reads as the game being
-	// finicky rather than as their own imprecision. What reads as *precise* under this control
-	// scheme is landing in the same place at the same range every time, so thickness is what
-	// delivers the spacing goal rather than compromising it.
-	for (int32 Index = 0; Index + 1 < CurrentPoints.Num(); ++Index)
+	for (const FTDAttackHitbox& Hitbox : Hitboxes)
 	{
-		const FVector CurrentA = CurrentPoints[Index];
-		const FVector CurrentB = CurrentPoints[Index + 1];
-		const FVector PreviousA = bHasPrevious ? PreviousBladePoints[Index] : CurrentA;
-		const FVector PreviousB = bHasPrevious ? PreviousBladePoints[Index + 1] : CurrentB;
-
-		const FVector Segment = CurrentB - CurrentA;
-		const float SegmentLength = Segment.Size();
-		if (SegmentLength <= KINDA_SMALL_NUMBER)
-		{
-			continue;
-		}
-
-		// UE measures a capsule's half height including its hemispherical caps, so the
-		// cylindrical part only spans the segment once the radius is added back.
-		const FCollisionShape Capsule = FCollisionShape::MakeCapsule(TraceRadius, SegmentLength * 0.5f + TraceRadius);
-		const FQuat Orientation = FQuat::FindBetweenNormals(FVector::UpVector, Segment / SegmentLength);
-
-		// Each segment sweeps from where it was last frame to where it is now, so a swing that
-		// rotates fast is covered by its own arc rather than by one capsule's translation.
-		const FVector StartLocation = (PreviousA + PreviousB) * 0.5f;
-		const FVector CurrentLocation = (CurrentA + CurrentB) * 0.5f;
-
-		TArray<FHitResult> Hits;
-		World->SweepMultiByChannel(
-			Hits,
-			StartLocation,
-			CurrentLocation,
-			Orientation,
+		// Broad phase. One sphere per hitbox, sized so it cannot miss anything the exact filter
+		// would accept; the filter below is what actually decides.
+		TArray<FOverlapResult> Overlaps;
+		World->OverlapMultiByChannel(
+			Overlaps,
+			AttackerLocation,
+			FQuat::Identity,
 			ECC_Pawn,
-			Capsule,
+			FCollisionShape::MakeSphere(Hitbox.GetBroadPhaseRadiusCm()),
 			QueryParams);
 
-#if ENABLE_DRAW_DEBUG
-		if (bDraw)
+		for (const FOverlapResult& Overlap : Overlaps)
 		{
-			DrawDebugCapsule(World, CurrentLocation, SegmentLength * 0.5f + TraceRadius, TraceRadius,
-				Orientation, FColor::Red, false, 1.0f);
-			DrawDebugLine(World, StartLocation, CurrentLocation, FColor::Silver, false, 1.0f);
-		}
-#endif
-
-		for (const FHitResult& Hit : Hits)
-		{
-			AActor* HitActor = Hit.GetActor();
-			if (!HitActor || ActorsHitThisWindow.Contains(HitActor))
+			AActor* Candidate = Overlap.GetActor();
+			if (!Candidate || ActorsHitThisWindow.Contains(Candidate))
 			{
 				continue;
 			}
 
-			ActorsHitThisWindow.Add(HitActor);
+			FVector TargetCentre = FVector::ZeroVector;
+			float TargetRadius = 0.0f;
+			float TargetHalfHeight = 0.0f;
+			if (!GetTargetCylinder(Candidate, TargetCentre, TargetRadius, TargetHalfHeight))
+			{
+				continue;
+			}
+
+			if (!Hitbox.OverlapsCapsule(AttackerLocation, AttackerYaw, TargetCentre, TargetRadius, TargetHalfHeight))
+			{
+				continue;
+			}
+
+			// One entry covers every axis at once: the same actor cannot be reported twice by two
+			// hitboxes in a tick, nor by the same hitbox on the next tick, nor by two overlap
+			// results resolving to one actor. It resets only when a new window opens.
+			ActorsHitThisWindow.Add(Candidate);
+
+			// Synthesised rather than reported by a sweep, because there is no sweep any more. The
+			// point on the target's body nearest the attacker is what a hit effect would want, and
+			// it is clamped into the band so it does not sit above or below the volume that struck.
+			FVector ToTarget = TargetCentre - AttackerLocation;
+			ToTarget.Z = 0.0f;
+			const FVector Direction = ToTarget.IsNearlyZero() ? Avatar->GetActorForwardVector() : ToTarget.GetSafeNormal();
+
+			FVector ImpactPoint = TargetCentre - Direction * TargetRadius;
+			ImpactPoint.Z = FMath::Clamp(
+				ImpactPoint.Z,
+				AttackerLocation.Z + Hitbox.HeightMinCm,
+				AttackerLocation.Z + Hitbox.HeightMaxCm);
+
+			const FHitResult Hit(Candidate, Overlap.GetComponent(), ImpactPoint, -Direction);
 
 			if (ShouldBroadcastAbilityTaskDelegates())
 			{
@@ -253,18 +255,60 @@ void UAbilityTask_MeleeTrace::TickTask(float DeltaTime)
 			}
 		}
 	}
+}
 
 #if ENABLE_DRAW_DEBUG
-	// The blade itself, so its authored length can be judged against the weapon on screen --
-	// which is the only way to tell BladeLengthCm is wrong, since nothing else reports it.
-	if (bDraw && CurrentPoints.Num() > 1)
-	{
-		DrawDebugLine(World, CurrentPoints[0], CurrentPoints.Last(), FColor::Yellow, false, 1.0f, 0, 1.5f);
-	}
-#endif
+void UAbilityTask_MeleeTrace::DrawHitbox(const UWorld* World, const FTDAttackHitbox& Hitbox, const FVector& Location, float YawDegrees, const FColor& Color) const
+{
+	// One segment per 10 degrees keeps a narrow arc from collapsing to a straight line and a full
+	// circle from costing more than it is worth to look at.
+	const int32 Steps = FMath::Clamp(FMath::CeilToInt(Hitbox.ArcDegrees / 10.0f), 2, 72);
+	const float HalfArc = Hitbox.ArcDegrees * 0.5f;
+	const float Heights[2] = { Hitbox.HeightMinCm, Hitbox.HeightMaxCm };
 
-	PreviousBladePoints = MoveTemp(CurrentPoints);
+	FVector Corners[2][2];
+
+	for (int32 Band = 0; Band < 2; ++Band)
+	{
+		const FVector BandOffset(0.0f, 0.0f, Heights[Band]);
+		FVector PreviousInner = FVector::ZeroVector;
+		FVector PreviousOuter = FVector::ZeroVector;
+
+		for (int32 Step = 0; Step <= Steps; ++Step)
+		{
+			const float Alpha = static_cast<float>(Step) / static_cast<float>(Steps);
+			const float AngleDegrees = YawDegrees + Hitbox.ArcCentreDegrees - HalfArc + Hitbox.ArcDegrees * Alpha;
+			const float AngleRadians = FMath::DegreesToRadians(AngleDegrees);
+			const FVector Direction(FMath::Cos(AngleRadians), FMath::Sin(AngleRadians), 0.0f);
+
+			const FVector Inner = Location + Direction * Hitbox.MinReachCm + BandOffset;
+			const FVector Outer = Location + Direction * Hitbox.MaxReachCm + BandOffset;
+
+			if (Step > 0)
+			{
+				DrawDebugLine(World, PreviousInner, Inner, Color, false, -1.0f, 0, 1.0f);
+				// The outer arc is the attack's range, so it is drawn heaviest -- it is the one
+				// line worth reading off the screen while tuning.
+				DrawDebugLine(World, PreviousOuter, Outer, Color, false, -1.0f, 0, 2.0f);
+			}
+
+			// The arc's two straight edges, and the corners the vertical struts join.
+			if (Step == 0 || Step == Steps)
+			{
+				DrawDebugLine(World, Inner, Outer, Color, false, -1.0f, 0, 1.0f);
+				Corners[Band][Step == 0 ? 0 : 1] = Outer;
+			}
+
+			PreviousInner = Inner;
+			PreviousOuter = Outer;
+		}
+	}
+
+	// Struts between the bands, so the volume reads as a volume rather than two floating arcs.
+	DrawDebugLine(World, Corners[0][0], Corners[1][0], Color, false, -1.0f, 0, 1.0f);
+	DrawDebugLine(World, Corners[0][1], Corners[1][1], Color, false, -1.0f, 0, 1.0f);
 }
+#endif
 
 void UAbilityTask_MeleeTrace::OnDestroy(bool bInOwnerFinished)
 {

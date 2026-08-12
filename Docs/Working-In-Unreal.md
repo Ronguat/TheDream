@@ -130,6 +130,30 @@ the user's console font: it writes `FaceName` (forced to Lucida Console) without
 `FontSize`, so both the face and the size reset. It is not the build or `dotnet` that does it —
 a bare `Get-ItemProperty` reproduced it — so it is the tool invocation itself, every time.
 
+**The damage is not undoable from here, so the rule is the whole defence.** Nothing on disk or
+in the registry records what the font *was*, so the only repair is the user setting it back by
+hand. Searched 2026-08-12 across `Docs/`, `CLAUDE.md` and every commit
+(`git log -S "FaceName" --all`, `-S "font" --all`): no repair procedure has ever been recorded,
+only this prevention.
+
+**"Bash cannot do this" is nearly always wrong, and believing it is what breaks the rule.** This
+is the failure mode in practice — not forgetting the rule, but hitting something Bash seemed
+unable to do and reaching for the other shell. It happened on 2026-08-12 decoding a base64 PNG
+out of a large MCP result. **There is no Python on PATH** *(machine fact, hit twice)*:
+`python -c ...` returns the Microsoft Store shim message. But Git Bash ships a full toolbox, and
+these are all confirmed present here:
+
+| Need | Use |
+|---|---|
+| Decode base64 | `base64 -d`, at `/usr/bin/base64` |
+| Read or write the registry | `reg query` / `reg add` |
+| Hex dump, byte slicing | `xxd`, `cut -c`, `tr` |
+| Certificates, base64 fallback | `certutil` |
+| HTTP | `curl` |
+
+Check for the binary before concluding Bash cannot do something. The cost of being wrong is a
+clobbered font every time, and it is paid by the user, not by the session that caused it.
+
 `Build.bat` cannot be called from Git Bash: the space in `C:\Program Files (x86)` survives every
 quoting form tried, including `cmd //c` with an explicitly quoted path. Skip the batch file and
 call UnrealBuildTool directly, which is all `Build.bat` does after its lock and dotnet lookup.

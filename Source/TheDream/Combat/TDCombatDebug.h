@@ -30,19 +30,19 @@ FORCEINLINE bool TDShouldTraceCombatTiming()
 }
 
 /**
- *  Draws the melee trace: the blade in yellow, and a sphere at each sampled point.
+ *  Outlines each authored melee hitbox: arcs at both radii, across both ends of its band.
  *
  *  Switch on with `TD.DebugMeleeTrace 1`, at runtime, on either combatant. It exists as a
  *  cvar rather than only as the per-ability `bDrawDebugTrace` because that property is
  *  EditDefaultsOnly on a Blueprint CDO -- changing it means the details panel and a PIE
- *  restart at best, and an editor restart when set programmatically. A question like "is the
- *  blade actually on the sword" should cost a keypress, not a restart.
+ *  restart at best, and an editor restart when set programmatically. A question like "how far
+ *  does this actually reach" should cost a keypress, not a restart.
  *
- *  This is the only thing that reports whether BladeAxisLocal, BladeStartCm and BladeLengthCm
- *  are right. Nothing else can: a wrong axis produces a well-formed trace pointing somewhere
- *  useless, and a wrong length produces reach that is simply incorrect rather than broken.
- *  It is also how TraceRadius gets judged, since radius reads as reach on screen and as a
- *  number nowhere.
+ *  **This is the only way an FTDAttackHitbox can be judged at all.** Six numbers in a details
+ *  panel say nothing about whether the arc covers the swing or the reach matches the sword, the
+ *  editor has no hitbox preview, and a volume that is merely *wrong* resolves hits perfectly
+ *  happily. The draw is deliberately live during the windup as well as the release, dimmed, so
+ *  a volume can be looked at before the instant it is already deciding a hit.
  *
  *  The per-ability property still works and is OR'd with this, so an attack can be left
  *  drawing without touching the console.

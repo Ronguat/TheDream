@@ -75,9 +75,19 @@ struct FTDAttackBranch
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Attack", meta=(ClampMin="0.0"))
 	float Damage = 15.0f;
 
-	/** Heavier attacks reach further, so radius is per branch rather than per ability. */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Attack", meta=(ClampMin="1.0"))
-	float TraceRadius = 45.0f;
+	/**
+	 *  The volumes this branch strikes with. Empty falls back to the ability's own set.
+	 *
+	 *  Per branch rather than per ability because the spec gives heavy a higher range than light
+	 *  and charged the highest, and until this existed those differences were whatever the clips
+	 *  happened to do. MaxReachCm is now the authored answer.
+	 *
+	 *  The fallback is not merely convenience: removing the old per-branch TraceRadius left every
+	 *  authored branch with an empty array, and without falling back an attack would have gone
+	 *  silently damage-less until the content pass caught up.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Attack")
+	TArray<FTDAttackHitbox> Hitboxes;
 };
 
 /**
@@ -183,7 +193,7 @@ protected:
 	TArray<FTDAttackBranch> Branches;
 
 	virtual float GetAttackDamage() const override;
-	virtual float GetAttackTraceRadius() const override;
+	virtual const TArray<FTDAttackHitbox>& GetAttackHitboxes() const override;
 
 private:
 

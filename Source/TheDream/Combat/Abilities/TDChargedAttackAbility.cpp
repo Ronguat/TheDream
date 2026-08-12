@@ -3,6 +3,7 @@
 #include "Combat/Abilities/TDChargedAttackAbility.h"
 #include "Combat/TDCombatDebug.h"
 #include "Combat/TDGameplayTags.h"
+#include "Core/TheDreamCharacter.h"
 #include "Abilities/Tasks/AbilityTask_WaitGameplayEvent.h"
 #include "AbilitySystemComponent.h"
 #include "Animation/AnimInstance.h"
@@ -203,10 +204,25 @@ void UTDChargedAttackAbility::CommitAttack()
 		}
 	}
 
-	// Radius is per branch, so tracing can only start once the branch is known. Starting
+	// Hitboxes are per branch, so the task can only start once the branch is known. Starting
 	// it here is also what guarantees a listener exists before the window opens -- which
 	// is why CoilEndSeconds must stay below ReleaseStartSeconds.
-	StartMeleeTrace(GetAttackTraceRadius());
+	StartMeleeTrace(GetAttackHitboxes());
+
+	// Facing begins tightening now and is frozen by the time the hitbox appears. The volume is
+	// defined in the attacker's frame, so a swing free to snap toward the camera mid-release
+	// would carry its own arc around with it and the authored coverage would mean nothing.
+	//
+	// Commit is the right moment on design grounds as well as geometric ones: it is already the
+	// boundary past which nothing can be cancelled, so this makes commitment spatial as well as
+	// temporal, and it deliberately leaves the whole windup steerable. The fade cannot exceed the
+	// runway that actually exists, hence the clamp -- overrunning it would mean facing was still
+	// moving on the frame the hitbox went live.
+	const float FacingRunway = FMath::Max(0.0f, Branch.ReleaseAtSeconds - Branch.HoldUntilSeconds);
+	if (ATheDreamCharacter* Character = GetFacingCharacter())
+	{
+		Character->SetFacingAuthority(0.0f, FMath::Min(FacingLockFadeSeconds, FacingRunway));
+	}
 
 	// The window's own length is only knowable once the notify fires, so the ability waits
 	// for it rather than duplicating the timeline.
@@ -290,6 +306,14 @@ void UTDChargedAttackAbility::HandleReleaseWindowEnded(FGameplayEventData Payloa
 	// needed, so the montage terminated itself the instant the rate was applied.
 	SetMontagePlayRate(RecoveryPlayRate);
 
+	// Facing comes back the same way it went, mirrored, so recovery does not begin with a jolt.
+	// EndAbility restores it too and does so unconditionally -- this exists for the ordinary case
+	// where the attack plays out, that one for every case where it does not.
+	if (ATheDreamCharacter* Character = GetFacingCharacter())
+	{
+		Character->SetFacingAuthority(1.0f, FacingLockFadeSeconds);
+	}
+
 	TD_TIMING_LOG(TEXT("[%.3f] RELEASE OFF  pos=%.4f recoveryRate=%.3f"),
 		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f, GetMontagePosition(), RecoveryPlayRate);
 }
@@ -308,6 +332,14 @@ void UTDChargedAttackAbility::HandleReleaseWindowBegan(FGameplayEventData Payloa
 
 	const FTDAttackBranch& Branch = Branches[SelectedBranchIndex];
 	const float ActualStart = GetMontagePosition();
+
+	// Hard lock, and deliberately ahead of every early return below. The fade started at commit
+	// should already have arrived; this is what guarantees it, so a branch whose runway was zero
+	// or whose window reported a bad length still gets a stable frame to resolve hits in.
+	if (ATheDreamCharacter* Character = GetFacingCharacter())
+	{
+		Character->SetFacingAuthority(0.0f, 0.0f);
+	}
 
 	// ReleaseStartSeconds is hand-copied from the notify's placement, so it can silently
 	// drift if the montage is re-authored. This is the only moment the truth is available.
@@ -373,9 +405,18 @@ float UTDChargedAttackAbility::GetAttackDamage() const
 	return Branches.IsValidIndex(SelectedBranchIndex) ? Branches[SelectedBranchIndex].Damage : Damage;
 }
 
-float UTDChargedAttackAbility::GetAttackTraceRadius() const
+const TArray<FTDAttackHitbox>& UTDChargedAttackAbility::GetAttackHitboxes() const
 {
-	return Branches.IsValidIndex(SelectedBranchIndex) ? Branches[SelectedBranchIndex].TraceRadius : TraceRadius;
+	// An authored-but-empty branch falls back to the ability's own set rather than to nothing.
+	// The alternative is an attack that silently deals no damage, which is the exact failure this
+	// project keeps a trap list for -- and it was reachable the moment the old per-branch
+	// TraceRadius was removed, since every existing branch deserialises with an empty array.
+	if (Branches.IsValidIndex(SelectedBranchIndex) && Branches[SelectedBranchIndex].Hitboxes.Num() > 0)
+	{
+		return Branches[SelectedBranchIndex].Hitboxes;
+	}
+
+	return Hitboxes;
 }
 
 void UTDChargedAttackAbility::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled)

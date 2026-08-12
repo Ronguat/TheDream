@@ -4,6 +4,7 @@
 #include "Combat/Tasks/AbilityTask_MeleeTrace.h"
 #include "Combat/TDGameplayTags.h"
 #include "Combat/TDCombatDebug.h"
+#include "Core/TheDreamCharacter.h"
 #include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
 #include "AbilitySystemBlueprintLibrary.h"
 #include "AbilitySystemComponent.h"
@@ -15,7 +16,7 @@ void UTDMeleeAttackAbility::ActivateAbility(const FGameplayAbilitySpecHandle Han
 {
 	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
 
-	StartMeleeTrace(GetAttackTraceRadius());
+	StartMeleeTrace(GetAttackHitboxes());
 
 	// A plain swing has no derived timing, so it plays at the montage's authored speed.
 	if (!StartAttackMontage(NAME_None, 1.0f))
@@ -24,43 +25,33 @@ void UTDMeleeAttackAbility::ActivateAbility(const FGameplayAbilitySpecHandle Han
 	}
 }
 
-USkeletalMeshComponent* UTDMeleeAttackAbility::FindAvatarMesh() const
+void UTDMeleeAttackAbility::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled)
 {
-	const FGameplayAbilityActorInfo* ActorInfo = GetCurrentActorInfo();
-	AActor* Avatar = ActorInfo ? ActorInfo->AvatarActor.Get() : nullptr;
-	if (!Avatar)
+	// Faded rather than restored instantly, so a cancel does not snap facing back any more
+	// abruptly than the attack took it away. A normal end simply re-targets a fade that is
+	// already running toward the same place, which costs nothing.
+	if (ATheDreamCharacter* Character = GetFacingCharacter())
 	{
-		return nullptr;
+		Character->SetFacingAuthority(1.0f, FacingLockFadeSeconds);
 	}
 
-	if (ACharacter* Character = Cast<ACharacter>(Avatar))
-	{
-		return Character->GetMesh();
-	}
-
-	return Avatar->FindComponentByClass<USkeletalMeshComponent>();
+	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }
 
-UAbilityTask_MeleeTrace* UTDMeleeAttackAbility::StartMeleeTrace(float Radius)
+ATheDreamCharacter* UTDMeleeAttackAbility::GetFacingCharacter() const
 {
-	USkeletalMeshComponent* MeshComponent = FindAvatarMesh();
-	if (!MeshComponent)
-	{
-		return nullptr;
-	}
+	const FGameplayAbilityActorInfo* ActorInfo = GetCurrentActorInfo();
+	return ActorInfo ? Cast<ATheDreamCharacter>(ActorInfo->AvatarActor.Get()) : nullptr;
+}
 
-	// AttackMontage is passed so the trace only opens on *this* attack's Release Window. The
+UAbilityTask_MeleeTrace* UTDMeleeAttackAbility::StartMeleeTrace(const TArray<FTDAttackHitbox>& InHitboxes)
+{
+	// AttackMontage is passed so the hitboxes only go live on *this* attack's Release Window. The
 	// events reach the whole ASC and carry no ownership, so without it a second montage carrying
 	// the notify would open every listening trace.
 	UAbilityTask_MeleeTrace* TraceTask = UAbilityTask_MeleeTrace::MeleeTrace(
 		this,
-		MeshComponent,
-		TraceSocket,
-		BladeAxisLocal,
-		BladeStartCm,
-		BladeLengthCm,
-		BladeTraceSegments,
-		Radius,
+		InHitboxes,
 		bDrawDebugTrace,
 		AttackMontage);
 	TraceTask->OnHit.AddDynamic(this, &UTDMeleeAttackAbility::HandleTraceHit);

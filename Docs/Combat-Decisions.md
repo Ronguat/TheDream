@@ -63,6 +63,8 @@ dated entry. Add a row whenever an entry supersedes part of an older one.
 | 2026-08-11 — PvP is the destination | 14 network-unaware `SetTimer` sites | corrected **inline** in that same entry — the real figure is **2**; the count swept in Epic template code, debug timers, and one that must stay local |
 | 2026-08-10 — Facing is camera-relative | locomotion ships from `SwordAndShieldAnimV1`, and mixing packs must be avoided | 2026-08-11 — V3 becomes the base stance (V1 reads as permanently guarding, and V1 has no `Hit`/`Death` clips so mixing was never avoidable) |
 | 2026-08-11 — Dodge travel ships at the clips' authored distance | the eight directions agree, so one uniform scale is the right shape and no per-direction data is needed | 2026-08-11 — V3 becomes the base stance (true of V1's clips, false of V3's: spread 90.6 uu) |
+| 2026-08-11 — The training dummy gets the sword too | the blade's length is an authored number, `BladeLengthCm` | 2026-08-12 — A hitbox is authored, not traced (the *principle* survives and is why it generalised: authored beat mesh-derived, then authored volumes beat authored blades) |
+| 2026-08-11 — Dodge travel ships at the clips' authored distance | reach is unmeasurable because the trace follows `hand_r` and nobody knows where that socket is at the impact frame | 2026-08-12 — A hitbox is authored, not traced (reach is `MaxReachCm`, an authored number, so the dodge-versus-reach comparison is now simply readable) |
 
 ---
 
@@ -81,13 +83,13 @@ discharged it and keep anything from it that is still true — the Slice B entry
 the client path being unexercised rather than simply disappearing. Removing a trap silently is the
 one edit here that cannot be reviewed, because nothing is left to review.
 
-**Mid-item-6 — *reach has changed and the placed spacing has not.*** The trace moved from
-`hand_r` to a 100 cm blade on the `Sword` socket, so the hitbox is somewhere else. **Both
-characters still damage and kill each other** — verified in play 2026-08-11 — but a target
-standing where it used to be struck can now sit outside the swing. Re-judge `TraceRadius`
-(45 / 55 / 65, tuned against a fist standing in for the whole hitbox) and the training dummy's
-placed distance during the content pass. `bDrawDebugTrace` draws the blade in yellow; nothing
-else reports whether the length and axis are right.
+**Mid-item-6 — *reach has changed and the placed spacing has not.*** Filed when the trace moved
+onto the blade, and **still live after 2026-08-12's swap to authored hitboxes**, which is the
+third time reach has moved in two days. `MaxReachCm` is now the authored answer per branch, so
+the *re-judge `TraceRadius`* half is discharged — that property no longer exists — but the
+placed-spacing half is not. Re-check the training dummy's distance in `L_CombatTest` against the
+new wedges, and remember an automated PIE run is one fixed spawn: no damage from a scripted swing
+says nothing about hit detection.
 
 *This replaces a trap filed hours earlier claiming the trace connected with nothing. It was
 wrong — see the diagnostic note below, which is the part worth keeping.*
@@ -145,22 +147,15 @@ timer is the i-frame problem in this same paragraph, which is the hardest item o
 count taken across a whole module measures the module, not the debt** — the same filtered-view
 error the absence rule exists for, in its counting form.
 
-**Before the sword-and-shield attack swap (item 6)** — *the melee trace follows `hand_r`, not the
-weapon, and reach is therefore unrelated to the sword.* `UTDMeleeAttackAbility::TraceSocket`
-defaults to `hand_r` and sweeps a sphere of the branch's `TraceRadius` (45 / 55 / 65) along that
-socket's path. Legacy from unarmed prototyping, and **already wrong** — the character has held a
-sword since item 3b, and its blade contributes nothing to what it hits. Confirmed with the user
-2026-08-11: item 6 moves the trace onto the weapon.
+**~~Before the sword-and-shield attack swap (item 6)~~ — *the melee trace follows `hand_r`.***
+**Discharged 2026-08-12, twice over.** The trace moved to the blade on 2026-08-11, and on
+2026-08-12 the whole socket-following approach was replaced by authored `FTDAttackHitbox` wedges
+— so `TraceSocket`, `BladeAxisLocal`, `BladeStartCm`, `BladeLengthCm`, `BladeTraceSegments` and
+`TraceRadius` are all deleted. Reach is `MaxReachCm`, authored per branch.
 
-Two things that will move with it. Reach grows, so the `TraceRadius` values were tuned against a
-fist and will need re-judging against a blade.
-
-**The shape is settled: a blade is a line.** Decided by the user 2026-08-11, so item 6 sweeps
-blade-base to blade-tip rather than sweeping a sphere along one socket. Recorded here because the
-trap previously posed it as an open question, and the cheap moment to take it is while the trace
-is being moved anyway — afterwards it is a second pass over the same code. The `TraceRadius`
-values (45 / 55 / 65) become the blade's *thickness* rather than the whole hitbox, which is a
-second reason they need re-judging and not merely rescaling.
+Kept because it is still true and no longer has a home: **the values were tuned against a fist
+standing in for the whole hitbox**, so nothing carried forward from them numerically. The
+starting wedges are a fresh guess and have never been played.
 
 **Before a second `Release Window` notify exists (item 6, or item 9)** — *the melee trace opens
 on any `Event.Melee.WindowBegin` reaching that ASC.* `UAbilityTask_MeleeTrace` subscribes by tag
@@ -190,6 +185,15 @@ exhaustion; see the 200 ms entry.
 Note this replaces the trap that stood here until 2026-08-11 — that every timing verdict was
 confounded by inputs which never registered. That was item 8's whole justification and it is
 discharged.
+
+**Before the first multiplayer slice, added 2026-08-12** — *the attack facing lock is applied by
+the ability and nothing else, so a simulated proxy never gets it.* `SetFacingAuthority` is called
+from `UTDChargedAttackAbility` on the machine running the ability; `UpdateCameraRelativeFacing`
+runs from `Tick` on **every** character on **every** machine. A remote attacker's proxy therefore
+turns freely through a swing that is locked on the server, so the pose a client watches and the
+frame the server resolved hits in disagree. Harmless today with one machine, and it is the same
+"decide on the server, apply everywhere" shape as `bDead` / `bExhausted` — but facing is a float
+that fades rather than a bool, so the replicated form is not simply a third copy of that pattern.
 
 **Whenever `MaxWalkSpeed` changes** — *it is coupled to the blendspace's top row and nothing
 enforces the link.* `BS_SwordShield_Locomotion` places its run samples at Speed 500 because
@@ -223,6 +227,10 @@ kept in their own notes. What belongs here is only what to move once a verdict a
 | An action feels unresponsive at low stamina | Nothing — find what is gating it | Adding or restoring a cost gate. Costs are paid, never required; if an input silently does nothing, `CostGameplayEffectClass` or `CommitAbility` has crept back in. |
 | Exhaustion feels too long or short | `StaminaRegenPerSecond`, since recovery *is* the duration | A duration knob. There isn't one — `ExhaustionSeconds` was deleted deliberately so no second number can disagree with the bar. |
 | An input still feels dropped, with buffering on | `InputBufferSeconds` — but read the `BUFFER` trace first and find out whether it was stored, fired or expired | The attack's own timings. A press that expired unfired is a question about the window; moving `ReleaseAtSeconds` to compensate tunes the ladder around an input problem and hides it. |
+| An attack reaches too far or not far enough | The branch's `MaxReachCm` | The animation, the clip choice, or the play rate. Reach stopped being a property of the art on 2026-08-12; if a swing looks like it should reach further than it does, that is an argument for changing the number *or* the clip, and only the number is balance. |
+| An attack hits things beside you that it visibly missed | `ArcDegrees`, or skew `ArcCentreDegrees` toward the side the blade crosses | `MaxReachCm`. Narrowing reach to fix a coverage problem shortens the attack everywhere to fix it in one direction. |
+| Attacks feel like they clip through you at point blank | `MinReachCm` — but expect it to feel worse | Nothing else. A hole at the centre is authorable and is almost always wrong: the attacker's own body is already there, so the case is rarer than it seems. |
+| The facing freeze reads abruptly | `FacingLockFadeSeconds`, then the commit→release gap it clamps to | `StationaryTurnRateDegrees`, which is locomotion's and would change how the character turns everywhere to fix how one attack ends. |
 
 Add a row whenever an entry below establishes that a fix belongs in one place rather than
 another. That is the reusable part of an entry; the argument around it is not.
@@ -242,8 +250,146 @@ concludes the log is wrong rather than merely old. Add a row whenever a name cha
 | `CoilStartSeconds` | `Branches[0].HoldUntilSeconds` — the coil begins exactly where the light stops being available, so it is one number, not two. |
 | `WindupSeconds`, `MinHoldSeconds`, `MaxHoldSeconds` | Per-branch `HoldUntilSeconds` (the input boundary) and `ReleaseAtSeconds` (when the hitbox goes live). |
 | `LogTDCoil` | `LogTDCombatTiming`, behind the `TD.DebugCombatTiming` cvar. |
+| `TraceSocket`, `BladeAxisLocal`, `BladeStartCm`, `BladeLengthCm`, `BladeTraceSegments` | Deleted 2026-08-12. An attack's volume is `FTDAttackHitbox`, authored in the attacker's frame. |
+| `TraceRadius` (per branch and per ability) | Deleted 2026-08-12. Reach is `MaxReachCm`; there is no thickness knob, because a wedge has no thickness. |
+| `GetAttackTraceRadius()` | `GetAttackHitboxes()` |
 
 ---
+
+## 2026-08-12 — A hitbox is authored, not traced; and facing is the price it charges
+
+**The last dimension the animation controlled.** Windup, release and recovery are authored
+durations with derived play rates — the clip warps to fit the mechanic. Space was still taken
+from the art: reach was wherever the vendor's animator put the blade. It no longer is.
+`FTDAttackHitbox` is six numbers in the attacker's own frame, and `MaxReachCm` is the attack's
+range.
+
+**What forced it was not tuning, it was expressiveness.** The blade trace worked. It could not
+describe three of the 23 shortlisted attacks at all: `Attack4_Stage3_Complete` and
+`Attack7_Stage2_Complete` are **shield bashes** and `Attack1_Stage2_Complete` leads with the
+shield, so a `Sword`-socket trace follows the wrong object, and `Attack2_Stage2_Complete` is a
+360° spin that a forward-facing volume cannot cover. Each would have needed a second trace source
+and a per-attack switch. **A system that needs a special case for a fifth of its content is
+describing the wrong thing.**
+
+**Boxes were chosen first, then reversed to wedges before any code was written.** The user's
+first call was boxes, on comprehensibility — *"I don't feel confident I can wrap my head around
+your logic for the wedges"* — which is the correct instinct: an authoring primitive you cannot
+picture produces numbers nobody can defend. The reversal came when the comparison was made
+concrete rather than argued, and it is worth recording *what* made it concrete, because the
+first explanation failed:
+
+- A box's reach varies with angle. Measured on a realistic one — half-extent (55, 30, 60) at
+  offset 110 — that is 165 cm ahead against 167.7 cm at the corner. **1.7%**, i.e. nothing.
+- The same box at a wide arc over-reaches by **41%** at its corners.
+- So the wedge's advantage is real but *only* on wide attacks, and its cost is zero on narrow
+  ones, where the two are interchangeable.
+
+A wedge additionally makes reach **radially constant**, so `MaxReachCm` answers "what is my
+range?" in every covered direction rather than in one. That is the property a spacing-first design
+wants, and it speaks the vocabulary the spec already uses for defense — block is "180° forward",
+parry is "360° coverage". Offense and defense had been describing space in two different
+languages and now do not.
+
+**The honest summary of the exchange: the first pitch of wedges was worse than the idea.** The
+user reversed on the *same* proposal once it was quantified. Quantify before asking someone to
+accept an abstraction.
+
+**Not an `FCollisionShape`.** The engine offers sphere, capsule and box, so a wedge is one
+broad-phase sphere overlap plus an exact filter. That is *cheaper* than the four capsule sweeps it
+replaced, not a compromise for it.
+
+**Sweeping went away with the blade, and that is not an oversight.** The old trace swept
+previous-to-current because a blade is thin and a thin volume tunnels past a target between
+frames. A wedge is tens of cm deep and a target covers at most ~8 cm per frame at `MaxWalkSpeed`
+500. The gap the sweep existed to close no longer exists; keeping it would have been cargo cult.
+
+**Hits are measured to the target's body, not its origin.** A capsule whose near edge falls inside
+`MaxReachCm` is struck, and the arc is widened at test time by the angle that capsule subtends.
+Without both, reach would mean "to your centre" and the arc would compare a bearing against a
+cylinder — edge hits would fail for no reason the player could see. **Reach is only a number a
+player can learn if it is measured to the thing they can see.**
+
+### Facing is the price, and it is charged at commit
+
+An actor-frame volume needs a stable actor frame. `UpdateCameraRelativeFacing` gives none: with
+movement input it sets `bUseControllerRotationYaw`, which **snaps** yaw to the camera every frame
+— rotation between two frames is unbounded — and without input it turns at
+`StationaryTurnRateDegrees` 500°/s, which is 75° across a 150 ms release. A player could sweep
+their own hitbox through an arc the design never authored.
+
+**So facing locks, for the release window only.** The user's call, and the reasoning holds up:
+steering during windup is *good* game feel, recovery is benign, and release is the only phase
+where the volume's frame is load-bearing. This deliberately keeps the whole cancellable portion of
+an attack steerable.
+
+**The lock fades in over the commit→release gap rather than snapping on.** Proposed by the user
+explicitly as a hedge against prototype feel, and it is cheap: `FacingTurnScale` scales
+`RotationRate.Yaw`, and a yaw rate of exactly 0 already means *no rotation* to the movement
+component, so the fade's endpoint and a hard lock are the same state with no special case. It
+fades back out into recovery, mirrored, for the same reason.
+
+**Two things the fade required that were not obvious:**
+
+- **The snap branch had to be disabled below full authority.** It ignores `RotationRate`
+  entirely, so left available it would have teleported facing to the camera on any frame with
+  movement input, however deep into the lock — and the fade would have been decorative while
+  looking implemented.
+- **The runway is 50 ms and that is all there is.** Commit fires at `HoldUntilSeconds` and release
+  at `ReleaseAtSeconds`: 0.15/0.20, 0.45/0.50, 0.70/0.75. A linear ramp from 500°/s over 50 ms
+  bleeds off about **12° of turn** — enough to remove the clunk, not enough to see. Widening it
+  means moving the input boundary below 150 ms or release above 200 ms, which is a ladder
+  decision, not a free one. The fade is clamped to the gap rather than allowed to overrun it,
+  because facing still moving on the frame the hitbox appears is the whole failure being avoided.
+
+**Restoration lives in `EndAbility`, not on the montage delegates.** Every exit funnels there —
+completed, blended out, interrupted, cancelled, and death's `CancelAllAbilities` — so it cannot
+miss a path. A stranded lock is a character who can never turn again with nothing to announce it,
+and this project has already shipped one bug of exactly that shape (`bJumpRegenPauseActive`
+stranded by dying airborne). **Restore where the paths converge, never on each path.**
+
+### Two deliberate holes, named
+
+**An empty `Hitboxes` array means an attack that cannot hit**, and it is legal. A swing with no
+damaging volume is a coherent thing to author. But removing the per-branch `TraceRadius` left
+every existing branch deserialising with an empty array, so the per-branch lookup **falls back to
+the ability's set** rather than to nothing — without that, every attack in the project would have
+gone silently damage-less between the rebuild and the content pass.
+
+**`HeightMinCm`/`HeightMaxCm` are nearly inert today.** Everyone is the same standing capsule, so
+the band only discriminates on a slope or against a jump. Authored generously and worth revisiting
+when there are crouch or knockdown states worth cutting under.
+
+**Nothing here has been played.** The starting wedges are a guess: nobody has measured where the
+light's blade actually is at its impact frame, and the numbers that preceded them were tuned
+against a fist.
+
+## 2026-08-12 — The coil may not survive the faster light, and heavy would then blend from it
+
+**Noted, not decided, and nothing is built for it.** Raised by the user while settling hitboxes,
+and recorded because it would dissolve a mechanism three other documents currently treat as
+fixed — the sort of thing that is expensive to reconstruct from memory two slices later.
+
+The claim: the freedom won by admitting the light is reactable and moving it to 200 ms may remove
+the need for the shared-windup-plus-coil structure entirely. Instead of one windup whose tier is
+decided by a hold, and a coil that exists to tell the defender which tier arrived, **the light
+would blend out into bespoke authored heavy and charged attacks, on reaction.** Heavy would then
+have to blend into charged the same way.
+
+What it would dissolve, so the scale is visible: `CoilEndSeconds` and the derived coil rate, the
+escalation checkpoint chain in `UTDChargedAttackAbility`, and — most consequentially — the
+**windup-compatibility criterion** that currently governs clip selection in
+`Docs/Animation-Library.md`. That criterion exists *only* because all three tiers share one
+windup; attacks authored per tier can look like whatever they are. It would also retire the
+2026-08-12 finding that the coil has no room on a short clip, by removing the coil rather than
+solving it.
+
+Two things pull in its favour that were decided independently: per-branch hitboxes already exist,
+so a tier that becomes its own attack needs no new spatial plumbing, and the charged was already
+argued to want its own clip on mechanism.
+
+Not costed, not scheduled, and it interacts with item 9's string and item 12's punish maths. Like
+the chain-rules fork, it is cheapest to settle before those and expensive after.
 
 ## 2026-08-12 — Recovery stays at 1.0 although shorter felt better, and becomes an authored duration
 

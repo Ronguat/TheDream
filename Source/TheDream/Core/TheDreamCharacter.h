@@ -60,10 +60,38 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Movement", meta=(ClampMin="0.0"))
 	float StationaryTurnRateDegrees = 500.0f;
 
+	/**
+	 *  How much of StationaryTurnRateDegrees the character currently gets. 1 is free, 0 is frozen.
+	 *
+	 *  Runtime only, driven by SetFacingAuthority. It exists so an attack can take facing away
+	 *  *gradually* rather than at a stroke -- an instantaneous freeze mid-swing reads as a hitch,
+	 *  and there is no turn-in-place content to hide one.
+	 */
+	float FacingTurnScale = 1.0f;
+
+	float FacingTurnScaleTarget = 1.0f;
+
+	/** Units of scale per second. Non-positive snaps, which is what a zero-length fade means. */
+	float FacingTurnScaleRate = 0.0f;
+
 public:
 
 	/** Constructor */
 	ATheDreamCharacter();
+
+	/**
+	 *  Sets how freely the character may turn, optionally easing there over OverSeconds.
+	 *
+	 *  0 with a duration is how an attack commits: the swing's direction stops being negotiable
+	 *  shortly before its hitbox appears, rather than the instant it does. 1 gives facing back.
+	 *  Passing 0 seconds applies immediately.
+	 *
+	 *  **Whoever takes facing away is responsible for giving it back on every exit path**,
+	 *  including cancellation and death -- a stranded lock is a character who can never turn
+	 *  again, and nothing about it announces itself. UTDMeleeAttackAbility restores from
+	 *  EndAbility for exactly that reason.
+	 */
+	void SetFacingAuthority(float Target, float OverSeconds);
 
 protected:
 
@@ -100,8 +128,15 @@ protected:
 	 *  against a stale facing and send it sideways. UTDDodgeAbility::ResolveDodgeDirection
 	 *  already returns Bw on near-zero input and never reads facing at rest, so keying both
 	 *  off the same value means facing may only lag while nothing is looking at it.
+	 *
+	 *  **Below full authority the snap branch is forced off**, because it does not read
+	 *  RotationRate at all and therefore cannot be faded -- left on, it would jump the character
+	 *  to the camera on any frame with movement input, however far into a lock the attack was.
 	 */
 	void UpdateCameraRelativeFacing();
+
+	/** Eases FacingTurnScale toward its target. Called from Tick, deliberately not from a timer. */
+	void AdvanceFacingFade(float DeltaSeconds);
 
 protected:
 

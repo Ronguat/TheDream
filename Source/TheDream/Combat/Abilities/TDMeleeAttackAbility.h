@@ -4,12 +4,13 @@
 
 #include "CoreMinimal.h"
 #include "Combat/Abilities/TDGameplayAbility.h"
+#include "Combat/TDAttackHitbox.h"
 #include "TDMeleeAttackAbility.generated.h"
 
+class ATheDreamCharacter;
 class UAnimMontage;
 class UAbilityTask_MeleeTrace;
 class UGameplayEffect;
-class USkeletalMeshComponent;
 
 /**
  *  A single melee swing: play a montage, trace during its active frames, apply damage.
@@ -25,6 +26,17 @@ class UTDMeleeAttackAbility : public UTDGameplayAbility
 public:
 
 	virtual void ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData) override;
+
+	/**
+	 *  Gives facing back, then ends as usual.
+	 *
+	 *  **The single funnel is the point.** Every exit runs through here -- montage completed,
+	 *  blended out, interrupted, cancelled, and the CancelAllAbilities that death fires -- so
+	 *  restoring here cannot miss a path the way patching the four montage delegates could. A
+	 *  lock left standing is a character who can never turn again, with nothing to announce it,
+	 *  and the montage's blend-out already ends attacks earlier than they look finished.
+	 */
+	virtual void EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled) override;
 
 protected:
 
@@ -52,95 +64,54 @@ protected:
 	FGameplayTagContainer TargetImmunityTags;
 
 	/**
-	 *  Socket the blade hangs off. The pack's `Sword` socket, on hand_r.
+	 *  The volumes this attack strikes with, in the attacker's own frame.
 	 *
-	 *  Was `hand_r` until item 6, which was legacy from unarmed prototyping and already wrong:
-	 *  the character has held a sword since item 3b and the blade contributed nothing to what an
-	 *  attack hit.
+	 *  Authored, never derived from the weapon or the animation -- see FTDAttackHitbox for why.
+	 *  This replaced a swept capsule chain running blade-base to blade-tip off the `Sword`
+	 *  socket, which measured whatever the vendor's animator drew and could not describe a shield
+	 *  bash or a spin at all.
 	 *
-	 *  **Moving it changed reach, which is the point and is not a bug.** Hits land from a
-	 *  different distance now, so a target standing where it used to be struck may sit outside
-	 *  the new hitbox. Verified in play 2026-08-11: both characters damage and kill each other
-	 *  once spacing is adjusted, while still playing the unarmed punch montage.
+	 *  Used only when the swing being thrown does not supply its own; UTDChargedAttackAbility
+	 *  authors a set per branch so heavy and charged can genuinely out-range the light rather
+	 *  than out-ranging it by accident of clip choice.
+	 *
+	 *  **Empty means this attack cannot hit anything.** That is left legal rather than guarded,
+	 *  because a swing with no damaging volume is a coherent thing to author; it is also why the
+	 *  per-branch lookup falls back here instead of to nothing.
 	 */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Trace")
-	FName TraceSocket = FName("Sword");
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Hitbox")
+	TArray<FTDAttackHitbox> Hitboxes { FTDAttackHitbox() };
 
-	/**
-	 *  Socket-space direction the blade points, from grip toward tip. **+Z for this pack.**
-	 *
-	 *  Read off SM_Sword's own bounds rather than guessed: the mesh spans 0..100 on Z, ~25 cm on
-	 *  Y (the crossguard) and ~3.7 cm on X, and it is correct at identity on the `Sword` socket,
-	 *  so the socket's +Z *is* the blade. This shipped briefly as ForwardVector -- +X, the blade's
-	 *  *thickness* axis -- which projected the hitbox sideways out of the grip and connected with
-	 *  nothing. The failure is silent, so verify with bDrawDebugTrace, which draws the blade in
-	 *  yellow, rather than by whether hits seem to land.
-	 */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Trace")
-	FVector BladeAxisLocal = FVector::UpVector;
-
-	/**
-	 *  Distance from the socket to the blade's base, along BladeAxisLocal.
-	 *
-	 *  0 traces from the pommel, which is deliberate for now: it is generous rather than wrong,
-	 *  and where the grip ends is not readable from the mesh's bounds. Raise it during item 6's
-	 *  content pass if hits land off the handle in a way play notices.
-	 */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Trace")
-	float BladeStartCm = 0.0f;
-
-	/**
-	 *  Blade base-to-tip length in cm. **This is the attack's reach.**
-	 *
-	 *  Authored, and deliberately **never** measured from the attached weapon mesh. The `Sword`
-	 *  socket lives on the skeleton and exists whether or not a prop hangs off it, so a
-	 *  mesh-derived length would hand an unarmed character a well-formed *zero-length* trace --
-	 *  a hitbox that misses everything, with nothing null and nothing logged to say so.
-	 */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Trace", meta=(ClampMin="0.0"))
-	float BladeLengthCm = 100.0f;
-
-	/**
-	 *  Sample points along the blade, each swept from its own previous position.
-	 *
-	 *  Closes the gap *along* the blade the way the previous-to-current sweep closes the gap
-	 *  through time. Cost is linear: this many sweeps per tick per attacker. 1 collapses to the
-	 *  old single-point trace.
-	 */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Trace", meta=(ClampMin="1"))
-	int32 BladeTraceSegments = 5;
-
-	/**
-	 *  Capsule radius in cm around the blade -- its **thickness**, and its forgiveness.
-	 *
-	 *  Reach is BladeLengthCm. The 45 / 55 / 65 these carried were tuned when a swept sphere at
-	 *  `hand_r` *was* the entire hitbox, so radius and reach were the same number; on a blade
-	 *  they are added together and 45 doubles the range.
-	 *
-	 *  **Thickness is not a compromise on precision here, it is what delivers it.** An attack is
-	 *  a canned animation the player cannot aim -- not by looking up or down, not at all -- so a
-	 *  geometrically exact blade produces near misses nobody had the means to avoid, which reads
-	 *  as the game being finicky. Under this control scheme "precise" means landing in the same
-	 *  place at the same range every time, and that is a consistency property. Judge it with
-	 *  `TD.DebugMeleeTrace 1`, where the swept volume is visible against the sword itself.
-	 */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Trace", meta=(ClampMin="0.0"))
-	float TraceRadius = 15.0f;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Trace")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Hitbox")
 	bool bDrawDebugTrace = false;
+
+	/**
+	 *  How long facing eases into and out of its lock, in seconds.
+	 *
+	 *  An attack takes facing away because its hitbox is defined in the attacker's frame: a
+	 *  character free to snap toward the camera mid-release would drag the volume around with it,
+	 *  and the authored arc would mean nothing. Taking it away *instantly* reads as a hitch, so
+	 *  it is faded in over the run-up to the release window and faded back out afterwards.
+	 *
+	 *  Clamped at use to the commit-to-release gap, which is what is actually available -- 50 ms
+	 *  on all three branches today. That bleeds off roughly 12 degrees of turn, which removes the
+	 *  clunk without being consciously visible. If play wants more the gap has to widen, and that
+	 *  is a ladder decision rather than a free one; see Docs/Combat-Decisions.md.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Hitbox", meta=(ClampMin="0.0"))
+	float FacingLockFadeSeconds = 0.05f;
 
 	/** Damage for the swing currently being thrown. Overridden when a swing has variants. */
 	virtual float GetAttackDamage() const { return Damage; }
 
-	/** Trace radius for the swing currently being thrown. Longer attacks reach further. */
-	virtual float GetAttackTraceRadius() const { return TraceRadius; }
+	/** Hitboxes for the swing currently being thrown. Overridden when a swing has variants. */
+	virtual const TArray<FTDAttackHitbox>& GetAttackHitboxes() const { return Hitboxes; }
 
-	/** The mesh carrying TraceSocket, or null if the avatar has none. */
-	USkeletalMeshComponent* FindAvatarMesh() const;
+	/** The avatar as a ATheDreamCharacter, or null. The only thing that owns facing. */
+	ATheDreamCharacter* GetFacingCharacter() const;
 
-	/** Starts tracing. The task idles until a Melee Window notify opens on the montage. */
-	UAbilityTask_MeleeTrace* StartMeleeTrace(float Radius);
+	/** Starts the hitbox task. It idles until a Melee Window notify opens on the montage. */
+	UAbilityTask_MeleeTrace* StartMeleeTrace(const TArray<FTDAttackHitbox>& InHitboxes);
 
 	/**
 	 *  Plays AttackMontage, optionally from a named section, and ends the ability when it finishes.

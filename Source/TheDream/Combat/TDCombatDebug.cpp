@@ -18,5 +18,5 @@ TAutoConsoleVariable<int32> CVarTDDebugCombatTiming(
 TAutoConsoleVariable<int32> CVarTDDebugMeleeTrace(
 	TEXT("TD.DebugMeleeTrace"),
 	0,
-	TEXT("Draw the melee trace: blade line in yellow, spheres at each sampled point. 1 to enable."),
+	TEXT("Draw each authored melee hitbox: arcs at both radii across its vertical band. 1 to enable."),
 	ECVF_Cheat);
