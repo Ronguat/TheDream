@@ -70,6 +70,9 @@ dated entry. Add a row whenever an entry supersedes part of an older one.
 | 2026-08-12 — Two facing-fade bugs | the chained-attack sluggishness was caused by the fade suppressing the snap | 2026-08-12 — The real cause was an engine default (`bAllowPhysicsRotationDuringAnimRootMotion`; removing the fade did not move the bug) |
 | 2026-08-12 — The attack montage hovers because it is bound to the wrong skeleton | the whole entry — the skeleton was never the cause | 2026-08-12 — The hover was six centimetres of mesh offset |
 | 2026-08-12 — A hitbox is authored, not traced | the hover is "cosmetic, filed rather than fixed" and shared by every *root-motion* montage | 2026-08-12 — The hover was six centimetres of mesh offset (it is shared by every pose, root motion irrelevant, and it is fixed) |
+| 2026-08-10 — Sword and shield, rolls for every evade | the library has "no shield mesh at all" | **Never superseded by an entry — corrected in `Docs/Animation-Library.md`**, which records both the mesh (`Shield_Heater`) and why it was missed: it carries no `SM_` prefix, so a prefix-filtered search returned nothing. Found still uncorrected here by the 2026-08-12 audit. |
+| 2026-08-10 — The dodge is 0.4 s, judged before it had an animation | if the rate reads fast-forwarded, the lever is "trimming the sections" | 2026-08-10 — Animations play whole (same day, and it names this as the advice it supersedes; the row was never added). The rule is now also in `CLAUDE.md`: fit the clip to the duration, change the duration if it feels wrong. |
+| 2026-08-11 — The light is reactable at 250 ms | facing snaps on movement input and turns smoothly at rest | 2026-08-12 — Facing becomes one rate (one derived rate in all states, plus an idle rate) |
 
 ---
 
@@ -224,11 +227,18 @@ Kept because it is still true and no longer has a home: **the values were tuned 
 standing in for the whole hitbox**, so nothing carried forward from them numerically. The
 starting wedges are a fresh guess and have never been played.
 
-**Before a second `Release Window` notify exists (item 6, or item 9)** — *the melee trace opens
-on any `Event.Melee.WindowBegin` reaching that ASC.* `UAbilityTask_MeleeTrace` subscribes by tag
-and never checks which montage sent the event. Correct while exactly one montage carries the
-notify; silently wrong the moment a second does. Add the montage check **before** authoring the
-second notify, not after.
+**~~Before a second `Release Window` notify exists (item 6, or item 9)~~ — *the melee trace opens
+on any `Event.Melee.WindowBegin` reaching that ASC.*** **Discharged during item 6, and it sat here
+filed for a day after being fixed** — found by the 2026-08-12 doc audit, not by anyone reading this
+section. `UAbilityTask_MeleeTrace::IsWindowForThisAttack` now filters on **both** edges, deliberately:
+a foreign montage's window *ending* must not close ours, which would truncate an active swing rather
+than merely failing to start one. A null montage still means accept-any, which is the pre-item-6
+behaviour kept for abilities that do not set one.
+
+**That this survived is the argument for the rule above it.** The file says discharging a trap in
+the same commit that fixes it is the most load-bearing habit here, and this is what breaking it
+looks like: a fixed defect still warning the next reader off a fix that already exists. Item 9 was
+its trigger and would have hit it.
 
 **Before recovery and punish windows (item 12)** — *recovery is shorter than it looks, by exactly
 the montage's blend-out.* `UTDMeleeAttackAbility::StartAttackMontage` binds `HandleMontageFinished`
@@ -2001,6 +2011,12 @@ The consequence to carry into authoring: 0.4 s against 0.9 s clips is a **2.25×
 is inside the range the earlier entry warned about, and the lever if it reads fast-forwarded is
 trimming the sections, not raising the duration back up. See the open question above.
 
+> **Superseded the same day, by "Animations play whole" below.** Trimming is now forbidden: an
+> animation plays in full across the mechanical duration it belongs to, and the lever for a
+> fast-forwarded dodge is `DodgeSeconds`. The trailing pointer to "the open question above" is also
+> dangling — that section no longer exists. Both found by the 2026-08-12 audit, a day after the
+> superseding entry was written directly beneath this one without a table row being added.
+
 ## 2026-08-10 — No dodging in the air, and why it keys off state where the jump keys off action
 
 Found in play: you could dodge while airborne. Not intended, so `GA_Dodge` now refuses to
@@ -2280,6 +2296,11 @@ halfway through building something else.
 
 Note also that the library has **no shield mesh at all**, so the shield is a placeholder
 primitive until one is sourced. That is a prop gap and does not affect the animations.
+
+> **False, and corrected in `Docs/Animation-Library.md` rather than here.** The bundle ships
+> `SwordShield/DEMO/StaticMesh/Shield_Heater`, and it was missed because it carries **no `SM_`
+> prefix** while the search filtered on one — one of the three absence claims that produced this
+> project's standing unfiltered-search rule. The shield in play is the bundle's, not a primitive.
 
 **Every evade is a roll, in all eight directions.** The library has no forward dodge in any
 archetype, while rolls cover all eight — so the choice was between mixing two move types

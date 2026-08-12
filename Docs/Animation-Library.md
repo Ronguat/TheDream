@@ -237,7 +237,7 @@ number is how many clips share that move name across directions, `RM`/`IP` and q
 | `Roll` | 8 | All eight directions. The evade this project uses. |
 | `Dodge` | 10 | Backward and lateral only, no forward. |
 | `Flip` / `Dash` | 16 / 16 | Unused so far. |
-| `Hit` / `Death` | 5 / 5 | Hit reactions and knockdown, for focus item 3. |
+| `Hit` / `Death` | 5 / 5 | Hit reactions and knockdown, for focus item **11**. |
 | `Walk` / `Run` | 192 / 192 | Full directional locomotion set. |
 | `Idle1` / `Idle2` | 3 / 3 | |
 | `Sheath` / `Unsheath` | 3 / 3 | Only relevant if weapon swapping comes into scope. |
@@ -380,8 +380,11 @@ These are facts about the bundle, checked across all 6,576 assets, not impressio
 - **There is no forward dodge anywhere.** Every `Dodge` set is `Bw`, `L`, `R`, `BL`, `BR` —
   backward and lateral only, in every archetype. `Roll` covers all eight directions
   including forward. The library is expressing a convention: you do not dodge forward, you
-  roll forward. That is a design question for us, not a defect — see the open question in
-  `Docs/Combat-Decisions.md`.
+  roll forward. That is a design question for us, not a defect. **It has never been recorded as a
+  decision** — the reasoning nearest to it is "2026-08-10 — The evade is a dash, not a roll" in
+  `Docs/Combat-Decisions.md`, which settled the *clip family* and not whether a forward evade
+  should exist. This line pointed at an "open question" section that no longer exists until the
+  2026-08-12 audit.
 - **Every dodge is root motion.** There are zero in-place dodge clips. Root motion can be
   switched off on a montage and displacement driven in code, so this constrains the default
   rather than the ceiling, but authored displacement is what ships.

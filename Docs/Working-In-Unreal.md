@@ -564,10 +564,14 @@ of the system.
 
 ## Diagnosing timing
 
-`TD.DebugCombatTiming 1` turns on a per-attack trace of the attack phase model: windup
-rate wanted versus applied, coil start and derived rate, commit position and target, and
-each release window edge with the montage position it fired at. Off by default, costs
-nothing when off.
+`TD.DebugCombatTiming` gives a per-attack trace of the attack phase model: windup rate wanted
+versus applied, coil start and derived rate, commit position and target, each release window edge
+with the montage position it fired at, and the facing error at every ability facing lock.
+
+**It defaults to ON** *(corrected 2026-08-12 — this section and the header comment both said "off
+by default" while `TDCombatDebug.cpp` set it to `1`)*. Turn it **off** with
+`TD.DebugCombatTiming 0` once combat stops being the thing under test. It costs nothing when off,
+because the macro skips its arguments entirely.
 
 **Reach for it early.** Every real bug in that system was found by measuring, and
 reasoning about play rates on paper mis-diagnosed several of them confidently — including

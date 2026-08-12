@@ -14,7 +14,13 @@
  *  across the map; a coil that overran its own release window. Reasoning about play rates
  *  on paper mis-diagnosed two of those before the log settled them.
  *
- *  Per-attack output is off by default -- switch it on with `TD.DebugCombatTiming 1`.
+ *  **Per-attack output defaults to ON** while combat is under active development -- see the cvar's
+ *  own comment in the .cpp for why. Switch it off with `TD.DebugCombatTiming 0` once combat stops
+ *  being the thing under test.
+ *
+ *  This comment claimed the opposite until 2026-08-12, three lines above a definition that reads
+ *  `1`, and `Docs/Working-In-Unreal.md` had copied the error. Exactly the drift the decision log
+ *  keeps filing entries about: a confidently stated comment stops the next reader checking.
  *
  *  Warnings on this category are deliberately **not** gated. They report configuration
  *  that silently breaks an attack rather than crashing it, so they need to be visible
