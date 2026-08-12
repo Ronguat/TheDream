@@ -238,21 +238,21 @@ carries the number → name bridge; do not renumber anything to match it.
 
 Execution order, the only line that changes when the order does:
 
-> **~~Attack Ladder~~ → ~~Dodge~~ → ~~Sword & Shield~~ → ~~Input Buffer~~ → ~~Death~~ → ~~Dodge Distance~~ → ~~Attack Swap~~ → ~~[hover bug]~~ → ~~[facing pass]~~ → Lunge + Recovery → Block → Light String → Parry → Stun → Settings**
+> **~~Attack Ladder~~ → ~~Dodge~~ → ~~Sword & Shield~~ → ~~Input Buffer~~ → ~~Death~~ → ~~Dodge Distance~~ → ~~Attack Swap~~ → ~~[hover bug]~~ → ~~[facing pass]~~ → ~~Recovery~~ + Lunge → Block → Light String → Parry → Stun → Settings**
 
 **Structure Audit is deliberately absent from that line** — it is triggered by the combat model
 being verified good, not by a position; see its entry at the end.
 
-**Pick up at Lunge, which ships with Recovery as one slice** (2026-08-12). Both were moved ahead of
-Block on the same rule: **a number that another number is felt against gets authored first.**
-Spacing is measured against travel, and advantage on block is blockstun minus recovery — so
+**Pick up at Lunge. Recovery, its other half, shipped 2026-08-12** and is play-verified. Both were
+moved ahead of Block on the same rule: **a number that another number is felt against gets authored
+first.** Spacing is measured against travel, and advantage on block is blockstun minus recovery — so
 authoring either defensive number against a placeholder repeats the error the first move was made
 to avoid. Recovery also feeds the Light String's endlag, how long facing stays committed, and
 `InputBufferSeconds`. Reasoning and what was rejected are in `Docs/Combat-Decisions.md`.
 
-**Attack Ladder, Dodge, Sword & Shield, Input Buffer, Death, Dodge Distance and Attack Swap are
-done**, plus three things that were never items: the netcode groundwork Slices A and B, the **hover
-bug**, and the **facing pass**. The last two closed on 2026-08-12 and left three live rules, all
+**Attack Ladder, Dodge, Sword & Shield, Input Buffer, Death, Dodge Distance, Attack Swap and
+Recovery are done**, plus three things that were never items: the netcode groundwork Slices A and B,
+the **hover bug**, and the **facing pass**. The last two closed on 2026-08-12 and left three live rules, all
 also stated where they are enforced:
 
 - The mesh's relative Z and `InitCapsuleSize`'s half-height **must change together** — they are
@@ -298,7 +298,8 @@ them is in `Docs/Combat-Decisions.md`.
 
 ### Remaining
 
-In execution order. **Lunge and Recovery ship together**; the rest are sequential.
+In execution order. **Recovery shipped 2026-08-12; Lunge is the live half of that slice.** The rest
+are sequential.
 
 - **Lunge + Recovery** — authored attack displacement, and the punish window it gets tuned against. **One slice** (2026-08-12): each authors a phase of the attack that the animation currently decides by default, both expect per-tier clips to land while they are open, and Recovery's number is what every later defensive verdict is measured from. **Recovery is done; Lunge is next.** Measured while planning it, and load-bearing for both: a light attack travels **≈77 cm** on the clip's own root motion at scale 1.0, against a `MaxReachCm` of 150 — so an attack closes more than half its own reach while swinging, and the placed dummy at 200 cm sits **8 cm beyond standing reach** (the test is `CentreDistance − TargetRadius > MaxReachCm`, i.e. 200 − 42 = 158). Every hit that lands today does so *only* because of travel Lunge is about to take over.
   - **Lunge replaces root-motion scaling.** Added 2026-08-12 after play found `RootMotionScale` at 3.0 *"still a bit too animation-driven"*. A multiplier cannot decouple you from an authored curve; it only makes the animator's acceleration, pauses and stop three times larger. Lunge authors distance and timing outright, on the same terms the wedge already does for reach.
@@ -306,7 +307,7 @@ In execution order. **Lunge and Recovery ship together**; the rest are sequentia
   - **Lunge during the windup may not differ by tier**, inheriting the constraint that split `RootMotionScale` in two: the shared windup is what leaves the light without a distinguishing tell. **Today that property is an accident of the coil and will not survive the port** (measured 2026-08-12): a charged travels 65–75 cm against the light's 77 despite a windup 4.7× longer, because the coil freezes the montage and root motion is a function of montage *position*. A GAS root motion source runs on wall-clock time instead, so "travel X during windup" would carry a charged 4.7× further and announce the tier from frame one. **Lunge has to state the constraint explicitly rather than inherit it.**
   - **Lunge overrides an attack's root motion outright** (decided 2026-08-12) rather than adding to it — left alone the two add, and the authored distance becomes a lie by whatever the animation contributes. `RootMotionScale` goes to 0 for any attack Lunge drives; a scale surviving alongside it would put the animator back in the loop, which is what the mechanic exists to remove.
   - **Defensive moves are out of scope for Lunge, provisionally.** Dodges already function well on scaled root motion, the name does not fit them, and block and parry very likely want **no** root motion at all. Raised and set aside by the user rather than refused — an authored dodge direction is a coherent idea, just not one anything has asked for.
-  - ~~**Recovery becomes an authored `RecoverySeconds` with a derived play rate.**~~ **Done 2026-08-12.** Per branch, in absolute seconds, montage warped to fit — an attack is now three authored durations. `RecoveryPlayRate` is deleted. **Recovery ends at blend-out** (the user's call between the two resolutions the trap offered), so the authored number is the ability's real lifetime and the clip's last 0.25 s is follow-through that is mechanically over. Verified in play: light 0.268–0.271 s against 0.2667, charged 0.504–0.507 s against 0.500. **Tuned and play-verified 2026-08-12: light 0.40, heavy 0.50, charged 0.60** — the user's values, verdict *"very good and expected"*, and the first time the asset agrees with the spec's *charged has heavy endlag*. Heavy was thrown ~40 times, closing the branch the implementation pass never exercised.
+  - ~~**Recovery becomes an authored `RecoverySeconds` with a derived play rate.**~~ **Done 2026-08-12.** Per branch, in absolute seconds, montage warped to fit — an attack is now three authored durations. `RecoveryPlayRate` is deleted. **Recovery ends at blend-out** (the user's call between the two resolutions the trap offered), so the authored number is the ability's real lifetime and the clip's last 0.25 s is follow-through that is mechanically over. **Shipped and play-verified 2026-08-12: light 0.40, heavy 0.50, charged 0.60** — the user's values, verdict *"very good and expected"*, and the first time the asset agrees with the spec's *charged has heavy endlag*. Honoured within 8 ms at every value; heavy was thrown ~40 times, closing the branch the implementation pass never exercised. **It dropped one buffered tap and that was left alone** — filed as a watch, not a defect; see the trap.
   - **The blend-out boundary moves with the play rate** and this cost a bug already. With `BlendOutTriggerTime` negative the engine blends when the *remaining time at the current rate* hits the blend duration, so `Length - BlendTime` is right only at rate 1.0. Solved in `ComputeRecoveryPlayRate`; never reintroduce a fixed boundary.
   - Open until play: distance-plus-duration or distance-plus-curve, phase-relative or absolute window, per branch or per attack. **Tuned in tandem with re-authoring the wedges**, once each attack has its own animation — reach and travel are one felt quantity.
 - **Block** — the held guard, and the blockstun that arrives with it.
