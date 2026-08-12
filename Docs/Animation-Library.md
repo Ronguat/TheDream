@@ -305,33 +305,56 @@ a session and ruled out the eventual winner's whole family on arithmetic.
 Ordered by attack number so a family can be cleared in one sitting, not by duration — the
 review is per-family and the durations are in the table anyway.
 
+**Triage a family by watching its standalone `AttackN` clip first.** That file is all of the
+family's stages played as one fluid sequence, so a single preview tells you roughly what every
+stage contains. `Attack3` and `Attack6` were dismissed wholesale that way. This turns an N-clip
+review into one clip plus follow-ups only where something looked promising.
+
 | Clip | Length | What it is |
 |---|---:|---|
-| `Attack1_Stage1_Complete` | 3.000 | |
-| `Attack1_Stage2_Complete` | 1.367 | |
-| `Attack1_Stage3_Complete` | 1.567 | |
-| `Attack2_Stage1_Complete` | 1.333 | |
-| `Attack2_Stage2_Complete` | 1.633 | |
-| `Attack3_Stage1_Complete` | 1.767 | |
-| `Attack3_Stage2_Complete` | 1.133 | |
-| **`Attack4_Stage1_Complete`** | 0.967 | **Diagonal slash, top-right to bottom-left.** Steps forward, ends forward in idle. **Chosen baseline light.** |
-| **`Attack4_Stage2_Complete`** | 1.933 | **360° swing.** Reads too slow at 1×; wants speeding up. Good consecutive-light candidate. |
-| **`Attack4_Stage3_Complete`** | 1.000 | **Shield bash**, fairly stationary |
-| **`Attack4_Stage4_Complete`** | 2.300 | **Heavy stab + flourish** on withdraw. No forward travel. |
-| `Attack5` | 2.333 | *stage-less — the bare clip is the whole attack* |
-| `Attack6_Stage1_Complete` | 2.000 | |
-| `Attack6_Stage2_Complete` | 0.900 | |
-| `Attack6_Stage3_Complete` | 2.333 | |
-| `Attack7_Stage1_Complete` | 1.767 | |
-| **`Attack7_Stage2_Complete`** | 0.967 | **Shield bash**, steps forward |
-| `Attack7_Stage3_Complete` | 2.500 | |
-| `Attack8_Stage1_Complete` | 2.000 | |
-| `Attack8_Stage2_Complete` | 1.500 | |
-| `Attack8_Stage3_Complete` | 2.233 | |
-| `Attack9` | 2.533 | *stage-less* |
-| `Attack10` | 2.133 | *stage-less* |
+| `Attack1_Stage1_Complete` | 3.000 | Two consecutive spinning overheads, lots of forward motion. Two attacks in one clip — awkward, though multi-hit singles are not unheard of. |
+| `Attack1_Stage2_Complete` | 1.367 | Forward lunging uppercut **with the shield** |
+| `Attack1_Stage3_Complete` | 1.567 | Stationary left-to-right slash |
+| `Attack2_Stage1_Complete` | 1.333 | Step-forward jab **with the shield** |
+| `Attack2_Stage2_Complete` | 1.633 | **360° spinning left-to-right slash. Third-light-in-chain candidate** |
+| `Attack3_Stage1_Complete` | 1.767 | Rapid small Spartan-style manoeuvres. **No use here** |
+| `Attack3_Stage2_Complete` | 1.133 | As above. **No use here** |
+| **`Attack4_Stage1_Complete`** | 0.967 | **Diagonal slash, top-right → bottom-left.** Steps forward, settles. **CHOSEN LIGHT** |
+| **`Attack4_Stage2_Complete`** | 1.933 | **360° swing.** Reads too slow at 1×, wants speeding up. **Second-light candidate** |
+| `Attack4_Stage3_Complete` | 1.000 | **Shield bash**, fairly stationary |
+| `Attack4_Stage4_Complete` | 2.300 | Heavy stab + flourish on withdraw. No forward travel |
+| `Attack5` | 2.333 | Idle → brief defensive stance → step-forward left-to-right slash. Only plausible as a **canned counter-attack**, sped up |
+| `Attack6_Stage1-3_Complete` | 2.000 / 0.900 / 2.333 | HEMA-style mixed melee, heavy on kicks, little sword-and-shield. **No use here** |
+| `Attack7_Stage1_Complete` | 1.767 | Big stepping spinning overhead, top-left → bottom-right. **Heavy candidate**, but its windup resembles no light we have |
+| `Attack7_Stage2_Complete` | 0.967 | **Shield bash**, steps forward |
+| `Attack7_Stage3_Complete` | 2.500 | Execution animation. **No use here** |
+| `Attack8_Stage1_Complete` | 2.000 | Fencing-like flourishes. **No use here** |
+| `Attack8_Stage2_Complete` | 1.500 | Stepping forward, standard left-to-right slash. Solid but unremarkable; **windup crosses the body**, so it blends with less |
+| **`Attack8_Stage3_Complete`** | 2.233 | **Stepping overhead, top-right → bottom-left.** Windup cocks the arm back on the **right**, then swings forward over the right shoulder — **the most standard windup found, and the closest match to the chosen light** |
+| `Attack9` | 2.533 | Steps into a leaned-forward 3-hit combo but never travels. Canned-animation material only |
+| `Attack10` | 2.133 | Two stabs over and under the shield while advancing, shield held up defensively |
 
-**`Attack4` is fully reviewed.** The rest is open.
+**All 23 reviewed, 2026-08-11.** Families 3 and 6 are unusable for this project outright.
+
+### Windup compatibility is the selection criterion, not duration
+
+The single most useful thing the review surfaced, and it is a *design* constraint rather than an
+art one. This project's ladder **shares one windup across light, heavy and charged** — that is
+what makes the light unreactable (it never coils, so there is no tell) and makes reactability a
+property of the coil rather than of the press. Tiers are separated by hold duration and the
+commit checkpoint, not by different animations.
+
+So a heavy sourced from a clip whose windup looks nothing like the light's would announce itself
+from frame one, which **breaks the light's unreactability and the reactability model with it.**
+Clips must therefore be judged on whether their *wound-up approach* matches, not on how good the
+strike is in isolation:
+
+- `Attack4_Stage1_Complete` (light) — top-right → bottom-left, right-side windup
+- `Attack8_Stage3_Complete` — top-right → bottom-left, arm cocks back **right**, over the right shoulder
+
+Those two are the same swing family and are the strongest pairing found. By contrast
+`Attack8_Stage2_Complete` winds up *across the body* and `Attack7_Stage1_Complete` comes from
+top-left, so both would read as different attacks before they landed.
 
 **Combo families, for item 9.** Stage counts are `Attack4` **4**; `Attack1`/`6`/`7`/`8` **3**;
 `Attack2`/`3` **2**; `Attack5`/`9`/`10` none. A string uses the *fragments* mid-chain and a
