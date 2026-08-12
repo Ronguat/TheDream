@@ -65,6 +65,7 @@ dated entry. Add a row whenever an entry supersedes part of an older one.
 | 2026-08-11 — Dodge travel ships at the clips' authored distance | the eight directions agree, so one uniform scale is the right shape and no per-direction data is needed | 2026-08-11 — V3 becomes the base stance (true of V1's clips, false of V3's: spread 90.6 uu) |
 | 2026-08-11 — The training dummy gets the sword too | the blade's length is an authored number, `BladeLengthCm` | 2026-08-12 — A hitbox is authored, not traced (the *principle* survives and is why it generalised: authored beat mesh-derived, then authored volumes beat authored blades) |
 | 2026-08-11 — Dodge travel ships at the clips' authored distance | reach is unmeasurable because the trace follows `hand_r` and nobody knows where that socket is at the impact frame | 2026-08-12 — A hitbox is authored, not traced (reach is `MaxReachCm`, an authored number, so the dodge-versus-reach comparison is now simply readable) |
+| 2026-08-11 — The light is reactable at 250 ms | prefer scaling root motion over code-driven movement; code is the exception to pay for knowingly | 2026-08-12 — Root motion scaling is not enough control (play says a multiplier only amplifies the animator's curve; the netcode reason survives and is answered by GAS root motion *sources*, not by hand-rolled movement) |
 
 ---
 
@@ -386,6 +387,73 @@ when there are crouch or knockdown states worth cutting under.
 **Nothing here has been played.** The starting wedges are a guess: nobody has measured where the
 light's blade actually is at its impact frame, and the numbers that preceded them were tuned
 against a fist.
+
+## 2026-08-12 — Root motion scaling is not enough control; Lunge becomes its own mechanic
+
+**Play verdict, from the user, after tuning `RootMotionScale` to 3.0:** it *"feels nice, roughly,
+but it's still a bit too animation-driven for my tastes."* **This supersedes the preference stated
+in "2026-08-11 — The light is reactable at 250 ms", consequence two,** which said to prefer
+scaling root motion over code-driven movement and to treat code as the exception.
+
+**That entry named this exact outcome as the trigger for reversing it** — *"a clip that is
+stationary during the window that needs travel is the case that genuinely forces code. Pay that
+knowingly rather than by default."* What it did not anticipate is that the failure would be one of
+*shape* rather than *absence*. Scaling multiplies whatever curve the animator drew, so it
+faithfully reproduces their acceleration, their pauses and their stop, three times larger. The
+travel is not missing; it is someone else's, amplified. That is the general form worth keeping:
+**a multiplier cannot decouple you from an authored curve, it can only make the curve louder.**
+
+**The mechanic is named Lunge** and is authored without reference to the clip — distance and
+timing chosen by a designer, the animation left to disagree if it must, on the same terms the
+wedge already accepts. It is the spatial twin of what the hitbox change did: the attack decides
+what happens and the art is fitted to it, not consulted about it.
+
+**The netcode objection, and why it is answerable rather than fatal.** The 2026-08-11 preference
+was not aesthetic. Root motion is replicated by CMC for free, and the netcode audit called that
+*"the single most valuable accident in the codebase"* precisely because a hand-rolled displacement
+system would have to be rewritten to network. Naively, Lunge spends that accident.
+
+It does not have to. **GAS ships network-predicted movement in
+`UAbilityTask_ApplyRootMotion*`** — `ConstantForce`, `MoveToLocation`, `MoveToActorForce` — which
+drive CMC's *root motion source* system rather than the animation's. They are fully authored
+(distance, duration, easing curve, whether it overrides or adds to other movement), completely
+independent of the clip, **and predicted and replicated by the same machinery that makes animation
+root motion safe.** So the honest statement is not "code-driven movement costs us the network
+property"; it is **"hand-rolled code-driven movement would, and GAS's does not."** Lunge must be
+built on a root motion source. `SetActorLocation`, `AddMovementInput` and `LaunchCharacter` are
+all the version the audit was right to fear.
+
+**Two constraints carry over from the scale it replaces, unchanged.**
+
+*Lunge during the windup may not differ by tier*, for the reason the two-scale split exists: all
+three tiers share one windup so the light carries no distinguishing tell, and a charged that
+lunged further from the press would announce itself from frame one. Whatever Lunge's authored
+shape turns out to be, it inherits this.
+
+*And it must decide what happens to the clip's own root motion.* Left alone the two add, so the
+authored distance would be a lie by whatever the animation contributes. The likely answer is that
+Lunge takes `RootMotionScale` to 0 and owns displacement outright — which is the *decoupling* the
+user asked for, stated precisely.
+
+**Deliberately left open**, because none of it can be settled without play: whether Lunge is
+authored as a distance plus a duration or as a distance plus a curve, whether its window is
+phase-relative (windup / release / recovery) or absolute seconds, and whether it is per branch or
+per attack. Recorded as an item rather than designed here.
+
+## 2026-08-12 — The three wedges stay uniform until each attack has its own animation
+
+The user's call, made while tuning: all three tiers currently carry the same authored wedge, and
+that is deliberate rather than unfinished. Re-authoring waits until each attack has a bespoke
+animation, at which point reach and Lunge get tuned together.
+
+Worth an entry because the *state looks like an omission* — the spec says heavy has higher range
+and charged the highest, and the asset presently disagrees with the spec. Anyone reading
+`GA_Attack` without this would reasonably assume the per-branch differentiation was forgotten and
+"fix" it against a light that is the only tier whose animation has been chosen.
+
+The reasoning: reach and travel are one felt quantity, and the ladder cannot be differentiated
+honestly while two of its three tiers are still playing the light's clip. Differentiating now
+would tune heavy and charged against an animation neither will ship with.
 
 ## 2026-08-12 — Attack displacement is two scales, because the windup may not differ by tier
 
