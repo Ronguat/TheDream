@@ -208,10 +208,14 @@ audit in miniature; the rest is making sure nothing is left on the floor.
    Announce before closing the editor, always.
 2. **Leave nothing verified uncommitted.** Push anything finished. For anything deliberately left
    out, say so and why — pending *tuning* does not block a push, pending *correctness* does.
-3. **Check the docs you touched, with two greps.** `grep -n "supersede" Docs/Combat-Decisions.md` —
+3. **Check the docs you touched, with three greps.** `grep -n "supersede" Docs/Combat-Decisions.md` —
    every hit needs a row in the supersession table, and two were missing on 2026-08-12. Then confirm
    any cross-reference you wrote resolves to a section that exists; three pointed at a section that
-   had been deleted.
+   had been deleted. **Then, if you edited the known-traps section, confirm every trap still has its
+   bolded header** — an `Edit` that replaces a header instead of inserting before it leaves the body
+   orphaned, reading as prose belonging to whatever precedes it. That happened on 2026-08-12 and was
+   caught by luck rather than by a step; a trap that no longer announces itself is the one edit in
+   that file which cannot be reviewed.
 4. **Discharge what you fixed.** Did this session fix anything filed as a trap? Clear it *and say
    what discharged it*, in the same commit. Did anything supersede an entry, or make an absence
    claim? Rows and dates, per the rules above.

@@ -39,7 +39,10 @@ This is what makes a forced kill safe rather than a gamble,
 and it was the user's suggestion: with nothing dirty there is no "save changes?" prompt to strand
 a half-closed editor, and nothing to lose if the process dies instantly. Verified after the test
 kill — no crash dump was produced, and `Saved/Autosaves/PackageRestoreData.json` read
-`RestoreEnabled: false, Packages: []`, so the next launch had no restore prompt.
+`Packages: []`, so the next launch had no restore prompt. **`Packages` is the field that matters,
+not `RestoreEnabled`** — this was first recorded as `RestoreEnabled: false` and read `true` after an
+equally clean kill on 2026-08-12, so that flag is not a stable signal. An empty package list is what
+means nothing was stranded.
 
 **There is no graceful quit.** Checked across the whole toolset registry;
 `EditorToolset.EditorAppToolset` is PIE control, selection, camera and capture only, with no
