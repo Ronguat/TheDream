@@ -173,12 +173,19 @@ Deliberately **not** kept: per-system design docs. Local rationale belongs in he
 each other, so renumbering breaks cross-references for no gain. Execution order is stated here
 instead, and only this line changes when the order does:
 
-> **1 → 2 → 3 → 8 → 4 → 5 → 6 → 7 → 9 → 10 → 11 → 12 → 13 → 14**
+> **1 → 2 → 3 → 8 → 4 → 5 → 6 → [root-motion hover bug] → 13 → 7 → 9 → 10 → 11 → 12 → 14**
 
-**13 and 14 are appended, not placed** — added 2026-08-12 and given the next free numbers rather
-than a considered position. **13 (Lunge) almost certainly wants to move earlier**, since it is
-tuned in tandem with re-authoring the wedges and every spacing verdict from here is measured
-against travel that is currently the animator's. 14 is an audit and genuinely belongs last.
+**Pick up at the hover bug**, which is not a numbered item because it is a defect rather than a
+slice. **The character floats above the ground whenever a root-motion montage plays — attacks and
+dodges both**, locomotion not. It is cosmetic and does not affect hit detection, so it is first for
+sequencing reasons rather than severity: three hypotheses have been wrong, the last measurement
+reframed the whole problem, and it is cheap to finish while that is fresh rather than rediscover
+later. The next experiments are named in `Docs/Combat-Decisions.md` and none of them needs a build.
+
+**Then 13 (Lunge), moved ahead of 7** — every spacing verdict from here is measured against travel
+that is currently the animator's, and item 7's blockstun is explicitly "a duration based on the
+attack blocked". Settling offense's movement before measuring defense against it is cheaper than
+the reverse. 14 is an audit and genuinely belongs last.
 
 **Items 1, 2, 3, 8, 4 and 5 are done**, plus the netcode groundwork Slices A and B, which are not
 numbered items. Next is **item 6, the sword-and-shield attack swap**.

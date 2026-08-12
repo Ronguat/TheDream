@@ -97,16 +97,44 @@ says nothing about hit detection.
 *This replaces a trap filed hours earlier claiming the trace connected with nothing. It was
 wrong — see the diagnostic note below, which is the part worth keeping.*
 
-**Open bug — *the character hovers above the ground while attacking.*** Present for some time,
-cosmetic, and **two hypotheses have now been wrong.**
+**NEXT SESSION STARTS HERE. Open bug — *the character hovers while a root-motion montage plays.***
+Cosmetic, does not affect hit detection (the wedge is measured from the actor, not the mesh).
 
-*Disconfirmed 1:* the clip's `RootMotionRootLock = RefPose`. Killed by comparing against the
-dodge — same setting, same skeleton, no hover.
+**The decisive fact, found 2026-08-12 at the very end: the dodge hovers too.** That reframes
+everything below, and it arrived because the user happened to look. Attacks hover, dodges hover,
+locomotion does not. **The common factor is a root-motion montage playing**, not anything specific
+to attacks.
 
-*Disconfirmed 2:* the montage being built on Epic's skeleton while its clip was authored for
-GDHBundle's. `AM_Attack` was rebuilt from the sequence and carries GDH's skeleton, **and the hover
-survived it.** The rebuild was still worth doing — it removed a real `CompatibleSkeletons`
-dependency that would have broken the attack silently — but it was not this.
+*Disconfirmed, and the skeleton theory dies with this:* the montage being built on Epic's skeleton.
+`AM_Attack` was rebuilt on GDHBundle's and still hovers — and `AM_Dodge` was **always** on GDH's
+skeleton and hovers as well. Two independent refutations. The rebuild was still worth doing on its
+own terms, since it removed a real `CompatibleSkeletons` dependency, but it was never this.
+
+*Back on the table, having been wrongly excluded:* the clips' `RootMotionRootLock = RefPose`. It
+is set identically on both the attack and dodge clips — read directly, both of them — which now
+*fits* the evidence instead of contradicting it.
+
+**How it was wrongly excluded is the lesson, and it is the sharpest one from this session.** The
+hypothesis was killed by "the dodge has the same setting and does not hover." **Nobody ever checked
+whether the dodge hovers.** The user's report said the hover does not occur *during locomotion*,
+and that was silently converted into *the dodge is fine* — two different claims about two different
+systems, one of which was observed and one of which was assumed. A comparison case is only
+disconfirming if the case was actually *measured*; an assumed control is worse than no control,
+because it carries the authority of evidence while being a guess. This is the same error as the
+other two wrong diagnoses this session, one level further down: it corrupted not the conclusion but
+the test used to reject a conclusion.
+
+**Next experiments, cheapest first, none needing a build:**
+1. **Measure actor world Z at rest versus mid-montage.** Changes → the capsule is genuinely being
+   lifted, so it is translation. Unchanged → nothing moves the actor and the offset is in the
+   *pose*, i.e. the mesh's relation to the capsule. One reading rules out half the search space.
+2. If translation: set `RootMotionScale` to **0** on `GA_Attack` and attack. Hover stops → the
+   clips carry vertical root motion and the fix is to strip Z from what gets applied.
+3. If pose: change `RootMotionRootLock` to `AnimFirstFrame` on one clip and compare. It edits
+   vendor content, so try it on a copy or be ready to revert.
+
+**Whatever the cause, it is shared by every root-motion montage in the project**, so a fix belongs
+somewhere common rather than on the attack.
 
 **The next experiment, and it needs no build:** set `GA_Attack`'s `RootMotionScale` to **0** in the
 details panel and attack. That manipulates the suspected cause rather than observing it.
