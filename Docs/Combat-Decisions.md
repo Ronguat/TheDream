@@ -186,14 +186,35 @@ Note this replaces the trap that stood here until 2026-08-11 — that every timi
 confounded by inputs which never registered. That was item 8's whole justification and it is
 discharged.
 
-**Before the first multiplayer slice, added 2026-08-12** — *the attack facing lock is applied by
-the ability and nothing else, so a simulated proxy never gets it.* `SetFacingAuthority` is called
-from `UTDChargedAttackAbility` on the machine running the ability; `UpdateCameraRelativeFacing`
-runs from `Tick` on **every** character on **every** machine. A remote attacker's proxy therefore
-turns freely through a swing that is locked on the server, so the pose a client watches and the
-frame the server resolved hits in disagree. Harmless today with one machine, and it is the same
-"decide on the server, apply everywhere" shape as `bDead` / `bExhausted` — but facing is a float
-that fades rather than a bool, so the replicated form is not simply a third copy of that pattern.
+**Before the first multiplayer slice, added 2026-08-12, rewritten the same day** — *the attack
+facing lock is local state on the character and does not replicate.* `FacingTurnScale` and its
+two fade fields are plain floats, not even `UPROPERTY`, set by `SetFacingAuthority` from the
+ability. **This does not meet the project's own rule that new state is a replicated property or
+an attribute.** It is recorded as a knowing exception rather than an oversight.
+
+Why it is nonetheless *not* a teardown: `SetFacingAuthority` is the correct API either way, and
+what a networked version changes is who calls it and whether the decision replicates. That is an
+extension. Under `LocalPredicted` the owning client runs the ability and so applies the lock
+itself, and the server has authority and replicates rotation, so the two machines that matter
+agree.
+
+**The first draft of this trap said "harmless today" and that was the easy read, not the checked
+one.** What actually made it harmless was that a simulated proxy has no `Controller`, so
+`UCharacterMovementComponent::PhysicsRotation` returns before `bUseControllerDesiredRotation` can
+do anything — an engine implementation detail nobody here chose, propping up a rule this project
+had already written down. `UpdateCameraRelativeFacing` is now explicitly guarded to locally
+controlled or authority, so the correctness no longer rests on that.
+
+**The general form, which is the part worth carrying:** *"it works" and "it is guarded" are
+different claims, and a system that only works is one refactor in someone else's code away from
+not working.* The same distinction the Slice B entry draws between the server path being verified
+and the client path merely being written.
+
+Still owed when multiplayer is real: the fade is a float changing every frame, so replicating the
+*value* is wasteful — replicate the decision (this attack is in its lock phase) and let each
+machine run its own fade. That is "decide on the server, apply everywhere" again, but it is not a
+third copy of the `bDead` / `bExhausted` pattern, because what replicates is a phase rather than
+a bool.
 
 **Whenever `MaxWalkSpeed` changes** — *it is coupled to the blendspace's top row and nothing
 enforces the link.* `BS_SwordShield_Locomotion` places its run samples at Speed 500 because
@@ -231,6 +252,8 @@ kept in their own notes. What belongs here is only what to move once a verdict a
 | An attack hits things beside you that it visibly missed | `ArcDegrees`, or skew `ArcCentreDegrees` toward the side the blade crosses | `MaxReachCm`. Narrowing reach to fix a coverage problem shortens the attack everywhere to fix it in one direction. |
 | Attacks feel like they clip through you at point blank | `MinReachCm` — but expect it to feel worse | Nothing else. A hole at the centre is authorable and is almost always wrong: the attacker's own body is already there, so the case is rarer than it seems. |
 | The facing freeze reads abruptly | `FacingLockFadeSeconds`, then the commit→release gap it clamps to | `StationaryTurnRateDegrees`, which is locomotion's and would change how the character turns everywhere to fix how one attack ends. |
+| An attack does not close enough ground | `UTDMeleeAttackAbility::RootMotionScale`, which every tier shares | The clip, and **not** the per-branch scale if the complaint is about the whole ladder — that one cannot touch the windup at all. |
+| One *tier* does not lunge far enough | `FTDAttackBranch::RootMotionScale`, knowing it only affects travel after commit | A larger number, once it stops responding. Past that point the clip is stationary in the phase that needs travel, and the fix is a different clip — see the 2026-08-12 displacement entry. |
 
 Add a row whenever an entry below establishes that a fix belongs in one place rather than
 another. That is the reusable part of an entry; the argument around it is not.
@@ -363,6 +386,48 @@ when there are crouch or knockdown states worth cutting under.
 **Nothing here has been played.** The starting wedges are a guess: nobody has measured where the
 light's blade actually is at its impact frame, and the numbers that preceded them were tuned
 against a fist.
+
+## 2026-08-12 — Attack displacement is two scales, because the windup may not differ by tier
+
+Item 6's forward motion. The 2026-08-11 decision already said displacement is authored per attack
+and that scaling root motion beats driving movement in code. What that entry did not anticipate is
+**where the scale is allowed to change**, and the answer is not a matter of taste.
+
+**Travel during the windup must be identical across all three tiers.** The ladder is built on the
+tiers sharing one windup at one play rate, which is what leaves the light with no tell that
+distinguishes it from a heavy. A charged that pulled further forward from the press would announce
+itself from frame one — *the same failure as moving the coil earlier, arriving through the
+movement system instead of the animation one.* Nothing in the code would have stopped a per-branch
+scale being applied at activation, and it would have quietly cost the property the whole model
+exists to protect.
+
+So displacement is two numbers that multiply:
+
+| Knob | Applies from | Scope |
+|---|---|---|
+| `UTDMeleeAttackAbility::RootMotionScale` | the press | shared by every tier |
+| `FTDAttackBranch::RootMotionScale` | the commit checkpoint | that branch only |
+
+**The consequence to expect rather than discover: a branch can only differentiate the travel its
+clip performs after commit.** For the light that is 50 ms before the hitbox appears. If a tier
+needs to cover meaningfully more ground than that allows, the answer is **its own clip** — which
+the charged is already argued to want on two independent grounds — and not a larger number here.
+Whoever finds the charged's lunge unresponsive to `RootMotionScale` should read this before
+concluding the knob is broken.
+
+Applied through `ACharacter::SetAnimRootMotionTranslationScale` behind the same role gate
+`UAbilityTask_PlayMontageAndWait` uses, so a simulated proxy never scales movement the server has
+already accounted for. The task resets the scale to 1 when it is destroyed, which covers cancel,
+interrupt and death without a second cleanup path — the same reasoning that put the facing
+restore in `EndAbility`.
+
+**Deliberately not built: the dodge's target-distance-and-measurement shape.** `DodgeTargetDistanceCm`
+with per-direction `MeasuredTravelCm` exists because eight clips disagreed by 90.6 uu. All three
+attack tiers currently share **one** montage, so there is nothing to disagree — a plain scale is
+the cheaper experiment and it runs first, exactly as the dodge's did. **The moment the charged
+gets its own clip, this becomes the wrong shape**, because a scale authored against one clip's
+travel means nothing against another's. That is the trigger to switch, and it is foreseeable now
+rather than discoverable later.
 
 ## 2026-08-12 — The coil may not survive the faster light, and heavy would then blend from it
 

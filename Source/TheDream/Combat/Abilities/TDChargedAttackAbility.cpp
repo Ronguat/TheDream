@@ -224,6 +224,12 @@ void UTDChargedAttackAbility::CommitAttack()
 		Character->SetFacingAuthority(0.0f, FMath::Min(FacingLockFadeSeconds, FacingRunway));
 	}
 
+	// Branch-specific travel begins here and not one frame sooner. The windup is shared and
+	// identical across tiers by design, so displacement during it must be too -- a charged that
+	// pulled further forward than a light would be a tell from the press, which is the property
+	// the whole ladder is built to deny. See FTDAttackBranch::RootMotionScale.
+	ApplyRootMotionScale(RootMotionScale * Branch.RootMotionScale);
+
 	// The window's own length is only knowable once the notify fires, so the ability waits
 	// for it rather than duplicating the timeline.
 	if (UAbilityTask_WaitGameplayEvent* WaitTask = UAbilityTask_WaitGameplayEvent::WaitGameplayEvent(this, TDTags::Event_Melee_WindowBegin, nullptr, true, true))

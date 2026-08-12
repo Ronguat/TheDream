@@ -44,6 +44,27 @@ ATheDreamCharacter* UTDMeleeAttackAbility::GetFacingCharacter() const
 	return ActorInfo ? Cast<ATheDreamCharacter>(ActorInfo->AvatarActor.Get()) : nullptr;
 }
 
+void UTDMeleeAttackAbility::ApplyRootMotionScale(float Scale)
+{
+	ACharacter* Character = Cast<ACharacter>(GetAvatarActorFromActorInfo());
+	if (!Character)
+	{
+		return;
+	}
+
+	// The same gate UAbilityTask_PlayMontageAndWait uses. A simulated proxy must not scale its
+	// own root motion: its movement arrives replicated, and scaling it locally would apply the
+	// multiplier twice to a translation the server has already accounted for.
+	const bool bCanApply = Character->GetLocalRole() == ROLE_Authority
+		|| (Character->GetLocalRole() == ROLE_AutonomousProxy
+			&& GetNetExecutionPolicy() == EGameplayAbilityNetExecutionPolicy::LocalPredicted);
+
+	if (bCanApply)
+	{
+		Character->SetAnimRootMotionTranslationScale(Scale);
+	}
+}
+
 UAbilityTask_MeleeTrace* UTDMeleeAttackAbility::StartMeleeTrace(const TArray<FTDAttackHitbox>& InHitboxes)
 {
 	// AttackMontage is passed so the hitboxes only go live on *this* attack's Release Window. The
@@ -106,7 +127,9 @@ bool UTDMeleeAttackAbility::StartAttackMontage(FName StartSection, float PlayRat
 		}
 	}
 
-	UAbilityTask_PlayMontageAndWait* MontageTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(this, NAME_None, AttackMontage, PlayRate, StartSection);
+	UAbilityTask_PlayMontageAndWait* MontageTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(
+		this, NAME_None, AttackMontage, PlayRate, StartSection,
+		/*bStopWhenAbilityEnds=*/true, GetWindupRootMotionScale());
 	// Bound to four separate wrappers rather than two shared handlers, so the trace can say
 	// which delegate ended the attack. They have different causes and different fixes.
 	MontageTask->OnCompleted.AddDynamic(this, &UTDMeleeAttackAbility::HandleMontageCompleted);

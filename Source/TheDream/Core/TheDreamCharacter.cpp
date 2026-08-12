@@ -94,6 +94,23 @@ void ATheDreamCharacter::UpdateCameraRelativeFacing()
 		return;
 	}
 
+	// Simulated proxies do not decide their own facing; it arrives replicated from the server
+	// with the rest of the movement state. Everyone else runs this -- the owning client because
+	// it predicts, the server because it decides, and the training dummy because it is an
+	// unpossessed authority pawn whose death still has to stop it turning.
+	//
+	// This was benign before it was guarded, but only by accident: a simulated proxy has no
+	// Controller, so UCharacterMovementComponent::PhysicsRotation returns before
+	// bUseControllerDesiredRotation does anything. That is an engine implementation detail
+	// nobody here chose, and the attack facing lock is the first state to run through this
+	// function that the proxy cannot compute for itself -- it is set by the ability, which a
+	// proxy never runs. Relying on a stranger's early-out to keep that harmless is the shape of
+	// bug this project files traps about.
+	if (!IsLocallyControlled() && !HasAuthority())
+	{
+		return;
+	}
+
 	// Both rotation sources are switched off rather than merely left alone. Returning early
 	// without this would freeze them at whatever they were on the last live frame -- and if
 	// that frame had movement input, bUseControllerRotationYaw stays true and the character

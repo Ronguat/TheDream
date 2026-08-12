@@ -88,6 +88,25 @@ struct FTDAttackBranch
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Attack")
 	TArray<FTDAttackHitbox> Hitboxes;
+
+	/**
+	 *  Extra root-motion scale for this branch, multiplying the ability's, **from commit onward**.
+	 *
+	 *  1 means this branch travels exactly as far as the shared windup was already carrying it.
+	 *
+	 *  **It cannot apply any earlier, and that is the reactability model rather than a
+	 *  limitation.** All three tiers share one windup at one play rate precisely so the light
+	 *  carries no tell that distinguishes it from a heavy. A charged that lunged further from the
+	 *  press would announce itself from frame one -- exactly the failure that moving the coil
+	 *  earlier would cause, arriving through the movement system instead.
+	 *
+	 *  The consequence to expect rather than discover: **a branch can only differentiate the
+	 *  travel that its clip performs after the commit checkpoint.** If a tier needs to cover more
+	 *  ground than that allows, the answer is its own clip -- which the charged is already argued
+	 *  to want -- not a larger number here.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Attack", meta=(ClampMin="0.0"))
+	float RootMotionScale = 1.0f;
 };
 
 /**

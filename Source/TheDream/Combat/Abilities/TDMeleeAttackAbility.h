@@ -101,8 +101,36 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Hitbox", meta=(ClampMin="0.0"))
 	float FacingLockFadeSeconds = 0.05f;
 
+	/**
+	 *  Multiplier on the montage's authored root-motion translation, from the press onward.
+	 *
+	 *  **Displacement is authored per attack rather than taken from the clip** (2026-08-11): the
+	 *  vendor's attacks travel a fraction of what this design wants, and foot sliding is accepted
+	 *  as the price. Scaling root motion is deliberately preferred over driving movement in code,
+	 *  because a scaled root motion is still root motion and CMC replicates it for free.
+	 *
+	 *  **Scaling changes how much motion happens, never when.** A clip that stands still through
+	 *  the phase that needs travel cannot be fixed here at any value, and that is the one case
+	 *  that genuinely forces code. Check before reaching for a larger number.
+	 *
+	 *  On UTDChargedAttackAbility this governs the **shared windup**, and every tier gets it --
+	 *  see FTDAttackBranch::RootMotionScale for why it cannot be otherwise.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Motion", meta=(ClampMin="0.0"))
+	float RootMotionScale = 1.0f;
+
 	/** Damage for the swing currently being thrown. Overridden when a swing has variants. */
 	virtual float GetAttackDamage() const { return Damage; }
+
+	/**
+	 *  Applies a root-motion scale to the avatar, on the machines entitled to compute movement.
+	 *
+	 *  Mirrors the role check UAbilityTask_PlayMontageAndWait makes when it applies its own
+	 *  scale -- authority, plus the autonomous proxy when the ability is LocalPredicted, which
+	 *  ours are. The task also resets the scale to 1 when it is destroyed, so anything set here
+	 *  is cleaned up on every exit path including a cancel.
+	 */
+	void ApplyRootMotionScale(float Scale);
 
 	/** Hitboxes for the swing currently being thrown. Overridden when a swing has variants. */
 	virtual const TArray<FTDAttackHitbox>& GetAttackHitboxes() const { return Hitboxes; }
@@ -112,6 +140,9 @@ protected:
 
 	/** Starts the hitbox task. It idles until a Melee Window notify opens on the montage. */
 	UAbilityTask_MeleeTrace* StartMeleeTrace(const TArray<FTDAttackHitbox>& InHitboxes);
+
+	/** Root-motion scale the montage starts under. Branch-specific travel is applied at commit. */
+	virtual float GetWindupRootMotionScale() const { return RootMotionScale; }
 
 	/**
 	 *  Plays AttackMontage, optionally from a named section, and ends the ability when it finishes.
