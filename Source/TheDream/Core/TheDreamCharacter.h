@@ -93,6 +93,16 @@ public:
 	 */
 	void SetFacingAuthority(float Target, float OverSeconds);
 
+	/**
+	 *  Gives facing back only if something has taken it away.
+	 *
+	 *  The difference from SetFacingAuthority(1, x) is that this leaves an *in-flight* restore
+	 *  alone. An attack's unlock is deliberately spread across its recovery, and the ability ends
+	 *  at the montage's blend-out -- part-way through that fade. Calling the plain setter there
+	 *  would re-time a fade that is already going the right way and snap the tail of it.
+	 */
+	void EnsureFacingRestored(float OverSeconds);
+
 protected:
 
 	/** Drives the camera-relative facing rule. */

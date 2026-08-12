@@ -16,6 +16,18 @@ ATheDreamCharacter::ATheDreamCharacter()
 {
 	// Set size for collision capsule
 	GetCapsuleComponent()->InitCapsuleSize(42.f, 96.0f);
+
+	// Characters are invisible to the camera boom's collision probe, which sweeps on ECC_Camera.
+	// Without this the spring arm treats another combatant as an obstruction and yanks the camera
+	// forward -- and melee spends all of its time at exactly the range that triggers it, so an
+	// opponent standing where they are supposed to stand is what breaks the shot.
+	//
+	// Deliberately narrower than switching off bDoCollisionTest: level geometry must still push
+	// the camera in, or it ends up inside a wall. Only bodies are exempt. The cost is that the
+	// camera may pass through an opponent at very close range, which is the conventional trade
+	// and much less disruptive than the pull-in.
+	GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
+	GetMesh()->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
 		
 	// Facing is camera-relative, not movement-relative: the character faces where the camera
 	// looks so it can strafe and backpedal. These are only the at-rest defaults -- from the
@@ -75,6 +87,17 @@ void ATheDreamCharacter::SetFacingAuthority(float Target, float OverSeconds)
 	// time rather than inheriting a rate chosen for a journey that no longer applies.
 	const float Distance = FMath::Abs(FacingTurnScaleTarget - FacingTurnScale);
 	FacingTurnScaleRate = (OverSeconds > KINDA_SMALL_NUMBER) ? (Distance / OverSeconds) : 0.0f;
+}
+
+void ATheDreamCharacter::EnsureFacingRestored(float OverSeconds)
+{
+	// Already heading back to full authority, so leave the fade its authored pace.
+	if (FacingTurnScaleTarget >= 1.0f)
+	{
+		return;
+	}
+
+	SetFacingAuthority(1.0f, OverSeconds);
 }
 
 void ATheDreamCharacter::AdvanceFacingFade(float DeltaSeconds)

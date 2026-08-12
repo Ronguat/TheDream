@@ -264,6 +264,17 @@ private:
 	/** Sets the montage's play rate, if one is playing. Never called with 0. */
 	void SetMontagePlayRate(float PlayRate) const;
 
+	/**
+	 *  Real seconds of montage left from the playhead, at the recovery play rate. 0 if unknown.
+	 *
+	 *  Deliberately measured to the montage's *end* rather than to its blend-out, even though the
+	 *  ability ends at blend-out. The only caller is the facing unlock, and its fade runs on the
+	 *  character's tick rather than the ability's, so it survives the ability ending and finishes
+	 *  against the animation the player is actually watching. Anything that needs the *mechanical*
+	 *  recovery -- a punish window, say -- must subtract the blend, and that is item 12's problem.
+	 */
+	float GetRemainingMontageSeconds() const;
+
 	int32 SelectedBranchIndex = 0;
 	bool bAttackCommitted = false;
 	bool bInputHeld = true;

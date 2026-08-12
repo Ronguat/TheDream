@@ -28,11 +28,16 @@ void UTDMeleeAttackAbility::ActivateAbility(const FGameplayAbilitySpecHandle Han
 void UTDMeleeAttackAbility::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled)
 {
 	// Faded rather than restored instantly, so a cancel does not snap facing back any more
-	// abruptly than the attack took it away. A normal end simply re-targets a fade that is
-	// already running toward the same place, which costs nothing.
+	// abruptly than the attack took it away.
+	//
+	// EnsureFacingRestored, not the plain setter: an attack that plays out normally has already
+	// started a longer fade across its recovery, and this runs at the montage's *blend-out*,
+	// part-way through it. Re-timing that fade here would snap its tail -- which is the very
+	// thing the recovery fade exists to remove. This call is for the paths that never reached
+	// the release window's end: cancel, interrupt, and death mid-swing.
 	if (ATheDreamCharacter* Character = GetFacingCharacter())
 	{
-		Character->SetFacingAuthority(1.0f, FacingLockFadeSeconds);
+		Character->EnsureFacingRestored(FacingLockFadeSeconds);
 	}
 
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);

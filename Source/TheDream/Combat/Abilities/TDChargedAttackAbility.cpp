@@ -312,12 +312,17 @@ void UTDChargedAttackAbility::HandleReleaseWindowEnded(FGameplayEventData Payloa
 	// needed, so the montage terminated itself the instant the rate was applied.
 	SetMontagePlayRate(RecoveryPlayRate);
 
-	// Facing comes back the same way it went, mirrored, so recovery does not begin with a jolt.
-	// EndAbility restores it too and does so unconditionally -- this exists for the ordinary case
-	// where the attack plays out, that one for every case where it does not.
+	// Facing eases back across recovery rather than over the 50 ms the lock took to apply. The
+	// two ends are deliberately asymmetrical: going in, the fade has only the commit-to-release
+	// gap to live in, while coming out it has the whole tail of the swing and play reported the
+	// short version as snappy and unpolished.
+	//
+	// Measured from the montage rather than authored, because recovery has no authored duration
+	// yet -- it is whatever is left of the clip, which is item 12's whole subject. When
+	// RecoverySeconds exists this should read it instead, and the two will agree.
 	if (ATheDreamCharacter* Character = GetFacingCharacter())
 	{
-		Character->SetFacingAuthority(1.0f, FacingLockFadeSeconds);
+		Character->SetFacingAuthority(1.0f, GetRemainingMontageSeconds() * FacingUnlockRecoveryFraction);
 	}
 
 	TD_TIMING_LOG(TEXT("[%.3f] RELEASE OFF  pos=%.4f recoveryRate=%.3f"),
@@ -394,6 +399,22 @@ float UTDChargedAttackAbility::GetMontagePosition() const
 	const FGameplayAbilityActorInfo* ActorInfo = GetCurrentActorInfo();
 	UAnimInstance* AnimInstance = ActorInfo ? ActorInfo->GetAnimInstance() : nullptr;
 	return (AnimInstance && AttackMontage) ? AnimInstance->Montage_GetPosition(AttackMontage) : -1.0f;
+}
+
+float UTDChargedAttackAbility::GetRemainingMontageSeconds() const
+{
+	const float Position = GetMontagePosition();
+	if (Position < 0.0f || !AttackMontage)
+	{
+		return 0.0f;
+	}
+
+	// Divided by the recovery rate because the caller wants *real* seconds, and montage time is
+	// only wall-clock time at a rate of 1. This is read at the release window's end, which is the
+	// same instant HandleReleaseWindowEnded applies RecoveryPlayRate, so that is the rate the
+	// remainder will actually be played at.
+	const float MontageSecondsLeft = FMath::Max(0.0f, AttackMontage->GetPlayLength() - Position);
+	return MontageSecondsLeft / FMath::Max(RecoveryPlayRate, TDMinPlayRate);
 }
 
 void UTDChargedAttackAbility::SetMontagePlayRate(float PlayRate) const

@@ -252,7 +252,8 @@ kept in their own notes. What belongs here is only what to move once a verdict a
 | An attack reaches too far or not far enough | The branch's `MaxReachCm` | The animation, the clip choice, or the play rate. Reach stopped being a property of the art on 2026-08-12; if a swing looks like it should reach further than it does, that is an argument for changing the number *or* the clip, and only the number is balance. |
 | An attack hits things beside you that it visibly missed | `ArcDegrees`, or skew `ArcCentreDegrees` toward the side the blade crosses | `MaxReachCm`. Narrowing reach to fix a coverage problem shortens the attack everywhere to fix it in one direction. |
 | Attacks feel like they clip through you at point blank | `MinReachCm` — but expect it to feel worse | Nothing else. A hole at the centre is authorable and is almost always wrong: the attacker's own body is already there, so the case is rarer than it seems. |
-| The facing freeze reads abruptly | `FacingLockFadeSeconds`, then the commit→release gap it clamps to | `StationaryTurnRateDegrees`, which is locomotion's and would change how the character turns everywhere to fix how one attack ends. |
+| The facing freeze reads abruptly going *in* | `FacingLockFadeSeconds`, then the commit→release gap it clamps to | `StationaryTurnRateDegrees`, which is locomotion's and would change how the character turns everywhere to fix how one attack ends. |
+| Control returns too abruptly *after* a swing | `FacingUnlockRecoveryFraction` — a fraction, because it should stretch with recovery | `FacingLockFadeSeconds`. The two ends are asymmetrical on purpose: going in is boxed in by the commit→release gap, coming out has the whole tail. |
 | An attack does not close enough ground | `UTDMeleeAttackAbility::RootMotionScale`, which every tier shares | The clip, and **not** the per-branch scale if the complaint is about the whole ladder — that one cannot touch the windup at all. |
 | One *tier* does not lunge far enough | `FTDAttackBranch::RootMotionScale`, knowing it only affects travel after commit | A larger number, once it stops responding. Past that point the clip is stationary in the phase that needs travel, and the fix is a different clip — see the 2026-08-12 displacement entry. |
 
@@ -387,6 +388,47 @@ when there are crouch or knockdown states worth cutting under.
 **Nothing here has been played.** The starting wedges are a guess: nobody has measured where the
 light's blade actually is at its impact frame, and the numbers that preceded them were tuned
 against a fist.
+
+## 2026-08-12 — The facing unlock is asymmetrical with the lock, and bodies stop blocking the camera
+
+Two results from item 6's regression pass. Both are polish, and both are recorded because the
+shape is arguable rather than obvious.
+
+**The unlock spreads across half of recovery; the lock still takes 50 ms.** Play's verdict on the
+symmetrical version was that it read *"unpolished"* and snappy — and the asymmetry is not a
+compromise, it is the two ends having genuinely different constraints. **Going in, the fade is
+boxed in by the commit-to-release gap**: anything longer would still be moving when the hitbox
+appears, which is the failure the lock exists to prevent. **Coming out there is no deadline at
+all**, and the swing is settling anyway, so the fade has the whole tail to live in. Symmetry was
+the assumption, not the requirement, and nothing had tested it.
+
+**Authored as a fraction of recovery, which contradicts the tuning map's own advice one row
+above, deliberately.** That row says dodge recovery must be absolute seconds rather than a
+fraction, because it is a *punish window* judged against an attacker's startup and a fraction
+would silently shrink it below usable on any retune. **The distinguishing question is whether an
+opponent is on the other side of the number.** Nobody is punished by a facing ease; it is polish
+on an animation, and it *should* stretch when the animation does. Recorded because the two rules
+look contradictory side by side and the next reader deserves the criterion rather than the verdict.
+
+**Restoration had to learn to leave an in-flight fade alone.** `EndAbility` fires at the montage's
+*blend-out*, which is part-way through a recovery-length fade, so restoring unconditionally there
+would re-time a fade already going the right way and snap exactly the tail this change exists to
+smooth. `EnsureFacingRestored` acts only when facing is still held. **The general form: a
+guaranteed-cleanup path and a gradual-transition path want opposite things from the same call**,
+and the cleanup one is the one that must yield, because it is the one that cannot know why it ran.
+
+Note the fade runs on the *character's* tick rather than the ability's, so it completes after the
+ability has ended. That is what makes measuring against the montage's true end honest instead of
+against blend-out — the fade is chasing the animation the player watches, not the ability's
+lifetime. Anything wanting *mechanical* recovery must still subtract the blend, which is item 12's.
+
+**Combatants no longer block the camera boom's collision probe.** The spring arm sweeps on
+`ECC_Camera`, and characters blocked it, so an opponent at melee range yanked the camera forward —
+*melee spends all of its time at exactly the distance that triggers this*, which is why it read as
+a bug rather than as the camera doing its job. Fixed by making capsule and mesh ignore that one
+channel, deliberately rather than by switching off `bDoCollisionTest`: level geometry must still
+push the camera in or it ends up inside a wall. The accepted cost is the camera passing through an
+opponent at very close range, which is the conventional trade and far less disruptive.
 
 ## 2026-08-12 — Root motion scaling is not enough control; Lunge becomes its own mechanic
 

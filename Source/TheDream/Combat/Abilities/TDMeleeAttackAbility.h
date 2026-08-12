@@ -102,6 +102,24 @@ protected:
 	float FacingLockFadeSeconds = 0.05f;
 
 	/**
+	 *  How much of recovery the character spends easing back into full control of its facing.
+	 *
+	 *  The *unlock* is not symmetrical with the lock, and play is why. Going in, the fade has
+	 *  only the commit-to-release gap to live in -- 50 ms, three frames -- because anything
+	 *  longer would still be moving when the hitbox appears. Coming out there is no such
+	 *  deadline, and 50 ms was reported as reading "unpolished" and snappy at exactly the moment
+	 *  the swing should be settling.
+	 *
+	 *  **A fraction rather than absolute seconds, which is the opposite of the call made for
+	 *  dodge recovery, and deliberately so.** That one is a *punish window* and is judged against
+	 *  an attacker's startup, so expressing it as a fraction would silently shrink it below
+	 *  usable whenever the dodge was retuned. This is polish on a settling animation with no
+	 *  opponent on the other side of it, so it *should* stretch when recovery does.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Hitbox", meta=(ClampMin="0.0", ClampMax="1.0"))
+	float FacingUnlockRecoveryFraction = 0.5f;
+
+	/**
 	 *  Multiplier on the montage's authored root-motion translation, from the press onward.
 	 *
 	 *  **Displacement is authored per attack rather than taken from the clip** (2026-08-11): the
