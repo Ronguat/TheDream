@@ -72,6 +72,27 @@ struct FTDAttackBranch
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Attack", meta=(ClampMin="0.01"))
 	float ReleaseSeconds = 0.09f;
 
+	/**
+	 *  How long this branch is helpless after its hitbox closes. **This is the punish window.**
+	 *
+	 *  Authored in absolute seconds and the montage warps to fit, exactly as windup and release
+	 *  already do -- so an attack is three durations and the animation is fitted to them rather
+	 *  than consulted about them.
+	 *
+	 *  **It is measured to the montage's blend-out, because that is where the ability actually
+	 *  ends** and therefore where the attacker can act again. The clip keeps playing for the
+	 *  blend's duration afterwards; that tail is follow-through a spectator sees and is
+	 *  mechanically over. Settled deliberately on 2026-08-12 rather than discovered by tuning:
+	 *  the alternative was waiting for OnCompleted and making the blend real committed time,
+	 *  which would have lengthened every punish window by the blend. Recovery *is* the punish
+	 *  window, and what gates the next action is the ability ending, so the authored number is
+	 *  the one that cannot disagree with the mechanic.
+	 *
+	 *  Raising it makes this branch more punishable. It is a balance number and nothing else.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Attack", meta=(ClampMin="0.01"))
+	float RecoverySeconds = 0.2667f;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Attack", meta=(ClampMin="0.0"))
 	float Damage = 15.0f;
 
@@ -124,8 +145,12 @@ struct FTDAttackBranch
  *     up later, they are held back here.
  *   - Release, stretched to the branch's authored ReleaseSeconds so the hitbox lasts as
  *     long as it should rather than as long as the windup arithmetic left over.
+ *   - Recovery, stretched to the branch's authored RecoverySeconds, measured to the montage's
+ *     blend-out because that is where the ability ends and the attacker can act again.
  *
- *  Recovery is deliberately unmanaged; whatever time is left simply plays out.
+ *  So an attack is three authored durations and the animation is fitted to all three. Recovery
+ *  was the last one to stop being "whatever is left of the montage" (2026-08-12); until then a
+ *  clip picked for its swing was silently setting the punish window.
  *
  *  Two rules the implementation exists to enforce. **Every rate is computed from the
  *  montage's measured position, never from where it was assumed to be** -- the timer that
@@ -177,19 +202,10 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Timing", meta=(ClampMin="0.0"))
 	float CoilEndSeconds = 0.35f;
 
-	/**
-	 *  Play rate for the montage once the damaging window closes.
-	 *
-	 *  Recovery is currently *whatever is left of the montage*, so its length is set by the clip
-	 *  rather than chosen — and a clip picked for its swing has no opinion about how long a
-	 *  punish window should be. This makes the tail authorable without pretending to be Recovery,
-	 *  which is where recovery gets a real design: windows in absolute time, and punish maths.
-	 *
-	 *  1.0 is authored speed. Raising it shortens recovery, which shortens the punish window,
-	 *  so it is a **balance** number wearing an animation number's clothes. Move it knowing that.
-	 */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Timing", meta=(ClampMin="0.01"))
-	float RecoveryPlayRate = 1.0f;
+	// RecoveryPlayRate lived here until 2026-08-12 and is gone: recovery is authored as a
+	// duration on the branch (FTDAttackBranch::RecoverySeconds) and its rate is derived, which
+	// is what windup and release already do. An authored rate could not be a punish window --
+	// it set one indirectly, through however long the clip's tail happened to be.
 
 	/** Optional section played on activation. None starts the montage from the beginning. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Timing")
@@ -254,6 +270,30 @@ private:
 	 *  it back, never by a later branch accelerating.
 	 */
 	float ComputeWindupPlayRate() const;
+
+	/**
+	 *  Recovery rate: carries the montage from where it actually is to the blend-out boundary
+	 *  in the branch's authored RecoverySeconds.
+	 *
+	 *  Takes the measured position rather than assuming the release ended where the notify says,
+	 *  for the same reason every other rate here does -- the window closes a frame or two late
+	 *  and a rate derived from the assumed end compounds that error across the longest phase.
+	 *
+	 *  Returns a negative value when the montage has no room left, which is a real authoring
+	 *  outcome rather than an error: a clip whose tail is shorter than the blend cannot host any
+	 *  recovery at all. The caller warns and leaves the rate alone.
+	 */
+	float ComputeRecoveryPlayRate(float FromPosition, float TargetSeconds) const;
+
+	/**
+	 *  Montage position at which blend-out begins, which is where the ability ends.
+	 *
+	 *  **Takes a play rate because the boundary is not fixed.** Unless the montage authors a
+	 *  BlendOutTriggerTime, the engine starts blending when the *remaining time* at the current
+	 *  rate equals the blend's duration -- so a slower recovery pushes the boundary later in the
+	 *  clip. Passing the wrong rate here silently misplaces the end of the ability.
+	 */
+	float GetBlendOutStartSeconds(float PlayRate) const;
 
 	/** Real seconds since this activation. */
 	float GetElapsedSeconds() const;

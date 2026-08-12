@@ -245,24 +245,32 @@ the same commit that fixes it is the most load-bearing habit here, and this is w
 looks like: a fixed defect still warning the next reader off a fix that already exists. Light String
 was its trigger and would have hit it.
 
-**Before Recovery** — *recovery is shorter than it looks, by exactly
-the montage's blend-out.* `UTDMeleeAttackAbility::StartAttackMontage` binds `HandleMontageFinished`
-to both `OnCompleted` and `OnBlendOut`, and `OnBlendOut` fires when blending *starts* — so the
-ability ends and `State.Attacking` / `State.Attacking.Committed` come off `BlendOut.blendTime`
-before the swing visually finishes. That is **0.25 s** on `AM_Attack`, large beside a
-200 ms light. Mechanical and visible recovery differ, and recovery *is* the punish window. Settle
-it deliberately: either recovery ends at blend-out and the animation is authored to agree, or the
-ability waits for `OnCompleted` and blend-out becomes dead time. **Do not discover this by tuning
-around it** — it is also the true cause of the debug attacker resetting before its swing looked
-done, which was patched with a delay rather than diagnosed.
+**~~Before Recovery~~ — *recovery is shorter than it looks, by exactly the montage's blend-out.***
+**Discharged 2026-08-12** by `FTDAttackBranch::RecoverySeconds`, which settles it the first way the
+trap offered: **recovery ends at blend-out**, and the authored duration is measured to that
+boundary, with the montage warped to fit. The blend still plays afterwards and is still
+mechanically over; it is now follow-through by design rather than by accident.
 
-**When Recovery authors a real recovery** — *re-check `InputBufferSeconds`, which was sized
-against a recovery nobody chose.* The window was tuned to its current value by play on
-2026-08-11 and works well, but what it is bridging is an attack's *ability* lifetime, and that
-still ends at montage blend-out rather than at an authored recovery — the Recovery trap below.
-Change what an attack's tail is and the window is measuring a different thing, without anything
-announcing it. Its ceiling is set by the longest lockout the design refuses to shorten, which is
-exhaustion; see the 200 ms entry.
+Two things from it are kept because they are still true. **Mechanical and visible recovery differ**,
+and always will under this resolution — a spectator sees 0.25 s more attack than the attacker is
+committed to. And the blend-out is still the true cause of the debug attacker resetting before its
+swing looked done, which was patched with a delay rather than diagnosed.
+
+**And one thing the trap did not know, found the same day and worth more than the rest:** *the
+blend-out boundary is not a fixed montage position — it moves with the play rate.* With
+`BlendOutTriggerTime` negative, the engine begins blending when the montage's **remaining time at
+the current rate** equals the blend duration, so halving the rate halves the distance from the end.
+Anything deriving a rate against a fixed `Length - BlendTime` is right only at rate 1.0. See the
+dated entry; the correct solution is `R = (Length - Position) / (RecoverySeconds + BlendTime)`.
+
+**Now live, and the reason has changed** — *re-check `InputBufferSeconds`, which was sized against
+a recovery nobody chose.* It still ends at montage blend-out, but that boundary is now an
+**authored** `RecoverySeconds` rather than whatever the clip had left (2026-08-12), so the window
+is bridging a number somebody picked. Today's value reproduces the old tail almost exactly
+(0.2667 s, measured 0.268–0.271), so nothing has moved yet and the re-check is not urgent — **it
+becomes urgent the first time recovery is tuned by feel**, which is the point of having the knob.
+The window was tuned by play on 2026-08-11 and works well. Its ceiling is set by the longest
+lockout the design refuses to shorten, which is exhaustion; see the 200 ms entry.
 
 Note this replaces the trap that stood here until 2026-08-11 — that every timing verdict was
 confounded by inputs which never registered. That was Input Buffer's whole justification and it is
@@ -340,6 +348,8 @@ kept in their own notes. What belongs here is only what to move once a verdict a
 | The facing freeze reads abruptly going *in* | **Nothing — the freeze is a hard lock by design.** `FacingLockFadeSeconds` was the answer here for one day and is deleted; see retired names | A fade that scales rotation authority, which is what that property was. Any value below full authority disabled the snap branch that then existed, so the fade did not soften the handoff, it replaced the whole lock with smooth turning. |
 | An ability's direction can be steered when it should be committed | `SetAbilityFacingLocked(true)` for its duration | `bAllowPhysicsRotationDuringAnimRootMotion`. Turning it back off fixes one ability by re-breaking every other, which is how the dodge got a committed direction it never declared. |
 | Control returning after a swing reads abruptly | Where the lock *ends* — it now runs to `EndAbility`, and the idle rate handles the catch-up gently when nothing else is happening | An interp on the rotation rate. It was the obvious fix and turned out to be unnecessary twice over: the two rates already cover both cases, and the failure modes that killed the original fade were artifacts of a snap branch that no longer exists. |
+| An attack is too punishable, or not punishable enough | The branch's `RecoverySeconds`, in absolute seconds — it *is* the punish window | The clip, its length, or any play rate. Recovery stopped being a property of the animation on 2026-08-12; the montage is warped to fit the number, never consulted about it. |
+| Recovery does not last what it is authored to | Whether something else set the montage rate after `RELEASE OFF` — the trace prints the derived rate and the blend-out boundary it solved for | A correction factor on `RecoverySeconds`. The boundary moves with the play rate, so a fudge tuned at one recovery length is wrong at every other; the rate-dependence is solved for in `ComputeRecoveryPlayRate` and any residual error is a different bug. |
 | An attack does not close enough ground | `UTDMeleeAttackAbility::RootMotionScale`, which every tier shares | The clip, and **not** the per-branch scale if the complaint is about the whole ladder — that one cannot touch the windup at all. |
 | One *tier* does not lunge far enough | `FTDAttackBranch::RootMotionScale`, knowing it only affects travel after commit | A larger number, once it stops responding. Past that point the clip is stationary in the phase that needs travel, and the fix is a different clip — see the 2026-08-12 displacement entry. |
 | The character floats, sinks, or its feet do not meet the ground | The mesh component's relative Z, which must be the negative of `InitCapsuleSize`'s half-height | Anything in the animations. Clip settings, root motion, root lock and skeletons were all investigated and all innocent; the offset is static and visible in the level viewport with nothing playing. Check it there before opening a single animation. |
@@ -414,8 +424,58 @@ concludes the log is wrong rather than merely old. Add a row whenever a name cha
 | `FacingLockFadeSeconds`, `FacingUnlockRecoveryFraction`, `FacingTurnScale` | Deleted 2026-08-12. Facing is a hard lock, and the smoothing these were meant to provide **proved unnecessary** rather than deferred — the lock running to `EndAbility` plus `IdleTurnRateDegrees` covers the case they would have smoothed. |
 | `StationaryTurnRateDegrees` | **`TurnRateDegrees`**, renamed 2026-08-12 when facing stopped having a separate moving mode. No longer stationary-only, and no longer cosmetic — it decides where an attack points. |
 | `bSnapFacingWhileMoving` | Never shipped. A temporary A/B switch for the facing pass, deleted with the snap branch it selected. |
+| `RecoveryPlayRate` | **`FTDAttackBranch::RecoverySeconds`**, 2026-08-12. Recovery is authored as a duration per branch and its rate is derived, as windup and release already were. A rate could only set the punish window indirectly, through however long the clip's tail happened to be. |
 
 ---
+
+## 2026-08-12 — Recovery is authored, and the blend-out boundary moves with the play rate
+
+Recovery becomes `FTDAttackBranch::RecoverySeconds`, authored per branch in absolute seconds with
+the play rate derived — the same shape windup and release already had. An attack is now three
+authored durations and the animation is fitted to all three. `RecoveryPlayRate` is gone.
+
+**The resolution chosen, from the two the trap offered: recovery ends at blend-out.** The user's
+call. The alternative was making the ability wait for `OnCompleted`, which would have made the
+blend real committed time and lengthened every punish window by 0.25 s. The argument for this side
+is that recovery *is* the punish window and what gates the attacker's next action is the ability
+ending, so the authored number should be the one that cannot disagree with the mechanic. The cost
+accepted knowingly: **a spectator sees about a quarter second more attack than the attacker is
+committed to.** That gap is now a design position rather than an accident.
+
+**It is not quite a no-op, and the reason is the interesting part.** Recovery used to be whatever
+montage remained, played at rate 1.0 — so it silently inherited the release notify's jitter, which
+closes a frame or two late (measured 0.462–0.476 against an authored 0.450). Recovery was therefore
+~0.252 s and varied. Authored at 0.2667 it is now 0.268–0.271 s and does not vary. The light's
+lifetime grew by roughly 0.03 s, which is the jitter being removed rather than a tuning change.
+
+### The blend-out boundary is not a fixed position
+
+The defect worth recording, because it was invisible in the first test and obvious in the second.
+
+`BlendOutTriggerTime` is negative on `AM_Attack`, which means "blend so it finishes as the montage
+does". The engine implements that in **time, not position**: it begins blending once the montage's
+remaining duration *at the current play rate* falls below the blend time. So the boundary sits at
+`Length - BlendTime * Rate`, and slowing recovery pushes it later into the clip.
+
+The first implementation treated it as the fixed `Length - BlendTime`. At the light's derived rate
+of 0.94 that produced 0.282 s against an authored 0.267 — a 6% error indistinguishable from frame
+jitter, and it passed. Authoring a charged at 0.500 s dropped the rate to ~0.5 and the same bug
+produced **0.744 s, 49% long.** Correct solution:
+
+>     (Length - BlendTime*R - Position) / R = RecoverySeconds
+>  => R = (Length - Position) / (RecoverySeconds + BlendTime)
+
+The blend cancels out of the position but not out of the time, which is exactly why the naive form
+is wrong and why it is wrong by more the slower recovery is authored.
+
+**The general form, and the reason this is an entry rather than a comment: a derivation verified at
+one value is not verified.** The error scaled with the very quantity being introduced, so the test
+that would catch it is the one that uses the feature for its purpose — authoring *different*
+recoveries per tier — rather than the one that proves the code runs. The first test used identical
+values on all three branches and confirmed nothing except that nothing had broken.
+
+Measured after the fix: light 0.268/0.270/0.271 s against 0.2667, charged 0.507/0.505/0.504 s
+against 0.500. Within about a frame, biased late, as everything else here is.
 
 ## 2026-08-12 — Items get names, Recovery moves up to join Lunge, and the audit gets a trigger
 

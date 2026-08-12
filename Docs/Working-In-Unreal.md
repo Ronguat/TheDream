@@ -648,6 +648,34 @@ happen".** A capped mixed query answers "what happened recently", which is a dif
 and looks identical. This is the standing absence rule in its logging form — the filter was mine,
 and a filter that misses proves nothing.
 
+**`GetLogEntries` silently defaults `category` to `"LogsToolset"`** *(2026-08-12)*, which is not a
+real category, so any call omitting it fails with `Log category 'LogsToolset' not found` — an error
+that reads like the log system is broken rather than like an argument is missing. **Pass
+`category: ""` explicitly, every time.**
+
+**`StartPIE` takes a `startTransform` that overrides the player spawn for that session only**
+*(2026-08-12)*. This is how to measure something that a player pawn is standing in the way of,
+without editing the level: nothing is dirtied and nothing needs reverting. It was worth finding —
+the alternative on the day was moving `PlayerStart` in `L_CombatTest`, which would have dirtied a
+level to run one experiment.
+
+**Measuring an actor's own movement requires nothing else touching it, and a capsule counts.**
+*(2026-08-12, caught by the user watching the viewport.)* Measuring the training dummy's attack
+travel by sampling its position gave a confidently wrong number, because the dummy was pressed
+against the player's capsule — blocked while in contact, released as it slid past, deflected
+sideways. Two 42 cm radii touch at 84 cm of separation, so the contamination began long before the
+two looked close. **This is "an assumed control is worse than no control" in its spatial form:** the
+displacement was real, measured and not the thing being measured.
+
+**Simulate mode stalled where PIE did not, and this is unexplained** *(2026-08-12)*. In
+`bSimulate: true` the dummy's looping auto-attack timer stopped firing after ~30 s of world time and
+never resumed, with no `ACTIVATE` and no `REFUSED`; the ability had ended cleanly every time and the
+timer does not depend on anything that was changed. Normal PIE, unfocused, ran 13 attacks unattended
+in the same conditions. **Prefer normal PIE for anything timed** until somebody works out what
+Simulate is doing. Note the intermediate conclusion — "the sim only ticks when the editor has focus"
+— was wrong and was contradicted by data already collected in the same session; the editor being in
+the background is not the variable.
+
 **Not every state is traced, so check what the trace covers before reading anything into its
 silence.** `TD_TIMING_LOG` emits ACTIVATE, COIL START, ESCALATE, COMMIT, RELEASE, DODGE,
 DODGE END, BUFFER, REFUSED, DEATH and REVIVE — and **nothing for exhaustion**. Absence of

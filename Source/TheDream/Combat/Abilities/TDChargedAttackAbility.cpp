@@ -307,7 +307,30 @@ void UTDChargedAttackAbility::HandleReleaseWindowEnded(FGameplayEventData Payloa
 	// release stays applied for the rest of the montage, which is what sent recovery through
 	// at 3.28x and -- above about 2.8x -- left less montage-time remaining than the blend-out
 	// needed, so the montage terminated itself the instant the rate was applied.
-	SetMontagePlayRate(RecoveryPlayRate);
+	//
+	// The rate is derived from the branch's authored RecoverySeconds rather than authored
+	// directly, so what a designer sets is the punish window itself.
+	const float RecoveryFrom = GetMontagePosition();
+	const float TargetSeconds = Branches.IsValidIndex(SelectedBranchIndex)
+		? Branches[SelectedBranchIndex].RecoverySeconds
+		: 0.0f;
+
+	const float RecoveryRate = ComputeRecoveryPlayRate(RecoveryFrom, TargetSeconds);
+	if (RecoveryRate > 0.0f)
+	{
+		SetMontagePlayRate(RecoveryRate);
+	}
+	else
+	{
+		// Ungated, and deliberately alongside the coil and notify-drift warnings: all three are
+		// authored data having quietly stopped fitting the clip. This one leaves recovery running
+		// at whatever the release left applied, so the punish window silently stops being the
+		// authored one rather than visibly breaking.
+		UE_LOG(LogTDCombatTiming, Warning,
+			TEXT("Recovery has no montage left: window closed at %.4f, blend-out begins at %.4f. ")
+			TEXT("RecoverySeconds %.3f cannot be honoured -- the clip's tail is too short."),
+			RecoveryFrom, GetBlendOutStartSeconds(1.0f), TargetSeconds);
+	}
 
 	// Facing is deliberately *not* released here, and this used to be where it happened, on the
 	// argument that recovery is not part of the commitment. Play disagreed on 2026-08-12: control
@@ -322,8 +345,9 @@ void UTDChargedAttackAbility::HandleReleaseWindowEnded(FGameplayEventData Payloa
 	// close the full 180 degree ceiling, and it puts a combo's redirection exactly where a player
 	// can see it happen.
 
-	TD_TIMING_LOG(TEXT("[%.3f] RELEASE OFF  pos=%.4f recoveryRate=%.3f"),
-		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f, GetMontagePosition(), RecoveryPlayRate);
+	TD_TIMING_LOG(TEXT("[%.3f] RELEASE OFF  pos=%.4f rate=%.3f (want %.3fs to blendOut %.4f)"),
+		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f, RecoveryFrom, RecoveryRate,
+		TargetSeconds, GetBlendOutStartSeconds(RecoveryRate));
 }
 
 void UTDChargedAttackAbility::HandleReleaseWindowBegan(FGameplayEventData Payload)
@@ -384,6 +408,74 @@ float UTDChargedAttackAbility::ComputeWindupPlayRate() const
 	}
 
 	return FMath::Max(ReleaseStartSeconds / Branches[0].ReleaseAtSeconds, TDMinPlayRate);
+}
+
+float UTDChargedAttackAbility::GetBlendOutStartSeconds(float PlayRate) const
+{
+	if (!AttackMontage)
+	{
+		return -1.0f;
+	}
+
+	const float Length = AttackMontage->GetPlayLength();
+	const float TriggerTime = AttackMontage->BlendOutTriggerTime;
+
+	// A trigger time is an authored montage position, measured back from the end, and it does
+	// not care how fast the montage is playing.
+	if (TriggerTime >= 0.0f)
+	{
+		return Length - TriggerTime;
+	}
+
+	// **Without one, the boundary moves with the play rate**, which is the whole subtlety here.
+	// A negative trigger means "blend so it finishes as the montage does", and the engine tests
+	// that in *time* rather than position: it begins blending once the remaining montage would
+	// take less than the blend's duration to play. Halve the rate and the blend starts half as
+	// far from the end.
+	//
+	// Found in play on 2026-08-12 and worth stating rather than re-deriving. Treating this as
+	// the fixed position `Length - BlendTime` is right only at rate 1.0, so the error hides at
+	// the rates a first test happens to produce: at 0.94 recovery ran 6% long and looked like
+	// jitter; at 0.50, authored for a charged, it ran 49% long -- 0.744s against an authored
+	// 0.500s.
+	return Length - AttackMontage->BlendOut.GetBlendTime() * FMath::Max(PlayRate, TDMinPlayRate);
+}
+
+float UTDChargedAttackAbility::ComputeRecoveryPlayRate(float FromPosition, float TargetSeconds) const
+{
+	if (!AttackMontage || FromPosition < 0.0f || TargetSeconds <= 0.0f)
+	{
+		return -1.0f;
+	}
+
+	const float Length = AttackMontage->GetPlayLength();
+	const float Remaining = Length - FromPosition;
+	if (Remaining <= KINDA_SMALL_NUMBER)
+	{
+		return -1.0f;
+	}
+
+	const float TriggerTime = AttackMontage->BlendOutTriggerTime;
+	if (TriggerTime >= 0.0f)
+	{
+		// Fixed boundary: cover the montage up to it in the authored time.
+		const float ToBoundary = (Length - TriggerTime) - FromPosition;
+		return (ToBoundary <= KINDA_SMALL_NUMBER)
+			? -1.0f
+			: FMath::Max(ToBoundary / TargetSeconds, TDMinPlayRate);
+	}
+
+	// Rate-dependent boundary. Solving for the rate R that makes recovery last exactly
+	// TargetSeconds, given that the blend begins BlendTime*R before the montage's end:
+	//
+	//     (Length - BlendTime*R - FromPosition) / R = TargetSeconds
+	//  => Length - FromPosition = R * (TargetSeconds + BlendTime)
+	//  => R = (Length - FromPosition) / (TargetSeconds + BlendTime)
+	//
+	// The blend cancels out of the position but not out of the time, which is exactly why the
+	// naive form is wrong and why it is wrong by more the slower the recovery is authored.
+	const float BlendTime = AttackMontage->BlendOut.GetBlendTime();
+	return FMath::Max(Remaining / (TargetSeconds + BlendTime), TDMinPlayRate);
 }
 
 float UTDChargedAttackAbility::GetElapsedSeconds() const
