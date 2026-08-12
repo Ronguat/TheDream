@@ -245,6 +245,37 @@ concludes the log is wrong rather than merely old. Add a row whenever a name cha
 
 ---
 
+## 2026-08-11 — Chain rules come as a package: the light guarantee and heavy→light are coupled
+
+**Noted, not decided.** Recorded because the coupling is invisible in the rules as written, and
+someone will eventually propose relaxing half of it.
+
+`CLAUDE.md` states two chain rules that look independent: *"Any hit in the string guarantees the
+rest"* and *"Some heavies can chain into further heavies; never into lights."* They are the same
+decision seen twice. **The guarantee is why heavy→light must be forbidden** — allow both and a
+heavy becomes an opener into guaranteed damage, which is a confirm off a move that is already
+safe on block and knocks down.
+
+So there are two coherent models, and the project is currently in the first:
+
+| | Lights guarantee follow-ups | Heavy → light |
+|---|---|---|
+| **DKO-shaped — current** | yes | **forbidden** |
+| **New World-shaped** | **no** | allowed |
+
+The user raised the second while looking at animations, and named the constraint that keeps it
+honest: going New World means *"lights do not guarantee follow-up lights."* Either package is
+defensible. Mixing them is not — take the guarantee from one and the chaining freedom from the
+other and light offense becomes a confirm off everything.
+
+Kept as an open fork rather than a ruling, because nothing has been played that bears on it yet.
+What it changes if revisited: item 9's string, blockstun values in item 7, and the punish maths in
+item 12 — so it is cheapest to settle before item 9 and expensive after.
+
+Also settled in passing, by feel rather than argument: **heavy into heavy stays**, which is what
+the rule already said, and **charged does not chain out of** — consistent with the heavy endlag
+its design already carries.
+
 ## 2026-08-11 — V3 becomes the base stance, and one uniform dodge scale does not survive the swap
 
 Two reversals, both driven by play, both superseding entries that reasoned well from what was
