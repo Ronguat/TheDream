@@ -303,11 +303,22 @@ heavy's ~240 ms coil→damaging window; nobody had noticed the light was standin
 
 The user's report: *"250 ms is reactable for me in PIE when I'm focused."*
 
-**The caveat belongs with the finding, not against it.** PIE against a stationary dummy with full
-attention is the easiest possible case to react in — no mixups, no movement, no competing
-options. Live PvP is harder, so the honest reading is *"250 ms is closer to the edge than the
-model assumed"* rather than *"250 ms is reactable in a match."* The direction is settled; the
-magnitude is not, and should be re-measured against something that fights back.
+**I hedged this and the hedge was wrong.** The original entry argued that PIE against a
+stationary dummy is the easiest possible case, so the finding meant *"250 ms is closer to the edge
+than assumed"* rather than *"250 ms is reactable in a match."* The user corrected it 2026-08-12
+with evidence I had no way to derive: they can react to a 250 ms light **every time, with zero
+practice**, and they reached top-25 nationally in both New World and Divine Knockout — where the
+same phenomenon was reported and the developers never acknowledged it.
+
+**The load-bearing point is about who the game is for.** Strong players manage their mental stack
+well enough to *simulate the vacuum* in the middle of chaos, so "it is harder in a real match" is
+not the reassurance it sounds like. It is precisely the reasoning that ships combat only the
+developers enjoy. Where a design targets players who will pick it apart, the vacuum number is the
+real number.
+
+**So 250 ms is reactable, full stop**, and the light moves to hitting at 200 ms with its input
+boundary at 150 ms — that boundary being the measured floor for *trivially consistent* inputs from
+the same prior focus testing, not a guess.
 
 **Consequence one: lights get faster.** Two separate knobs, and they are easy to confuse. The
 *mechanical* release time is `ReleaseAtSeconds` (250 ms). *Where the strike visually lands in the
