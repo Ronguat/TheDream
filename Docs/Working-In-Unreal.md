@@ -130,11 +130,25 @@ the user's console font: it writes `FaceName` (forced to Lucida Console) without
 `FontSize`, so both the face and the size reset. It is not the build or `dotnet` that does it —
 a bare `Get-ItemProperty` reproduced it — so it is the tool invocation itself, every time.
 
-**The damage is not undoable from here, so the rule is the whole defence.** Nothing on disk or
-in the registry records what the font *was*, so the only repair is the user setting it back by
-hand. Searched 2026-08-12 across `Docs/`, `CLAUDE.md` and every commit
-(`git log -S "FaceName" --all`, `-S "font" --all`): no repair procedure has ever been recorded,
-only this prevention.
+**The repair, now that it is known** *(2026-08-12 — the user's preset is **Consolas, size 14**)*.
+Nothing on disk records what the font was, so this is the value to restore, not a value to
+derive. From Bash:
+
+```bash
+K="HKCU\Console\%SystemRoot%_System32_WindowsPowerShell_v1.0_powershell.exe"
+reg add "$K" //v FaceName   //t REG_SZ    //d Consolas //f
+reg add "$K" //v FontSize   //t REG_DWORD //d 917504   //f   # 0xE0000: height 14, auto width
+reg add "$K" //v FontFamily //t REG_DWORD //d 54       //f   # 0x36, TrueType
+```
+
+`FontSize` packs height in the high word and width in the low word, so 14pt is `14 << 16`.
+Only **new** console windows read it. **Note `//v` rather than `/v`** — MSYS rewrites a leading
+single slash as a path and `reg` fails with a bare `Invalid syntax`; this is the same escaping
+`taskkill //F //IM` needs.
+
+Before this was worked out, a search across `Docs/`, `CLAUDE.md` and every commit
+(`git log -S "FaceName" --all`, `-S "font" --all`) found no repair recorded anywhere — only the
+prevention. Hence writing it down.
 
 **"Bash cannot do this" is nearly always wrong, and believing it is what breaks the rule.** This
 is the failure mode in practice — not forgetting the rule, but hitting something Bash seemed
