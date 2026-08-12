@@ -22,7 +22,20 @@ running by watching a build fail. Neither is necessary.
 | Save everything dirty | `AssetTools.save_assets` with `asset_paths: []` |
 | Close | `taskkill //F //IM UnrealEditor.exe` — exits in ~2s |
 
-**Always save-all before closing.** This is what makes a forced kill safe rather than a gamble,
+**Always save-all before closing, and then check `git status` before pulling the trigger.**
+Calling `save_assets` is not the check — *seeing the files listed as modified* is. On 2026-08-12 a
+`set_properties` write to `GA_Attack`'s CDO was lost entirely because the editor was killed
+without a save, and the loss was invisible: the values read back correctly right up until the
+restart, and the next play session silently used the old timings. The user detected it from
+gameplay feel before any tooling did.
+
+**Two failure modes wear the same face and only the disk check separates them.** A write that is
+*saved but not yet live* needs a restart and is perfectly safe. A write that was *never saved* is
+already gone. Both look identical from inside the running editor, because the in-memory value
+reads back fine either way. `git status` is the only thing that distinguishes them, it costs one
+command, and it must happen **before** the kill rather than after.
+
+This is what makes a forced kill safe rather than a gamble,
 and it was the user's suggestion: with nothing dirty there is no "save changes?" prompt to strand
 a half-closed editor, and nothing to lose if the process dies instantly. Verified after the test
 kill — no crash dump was produced, and `Saved/Autosaves/PackageRestoreData.json` read
