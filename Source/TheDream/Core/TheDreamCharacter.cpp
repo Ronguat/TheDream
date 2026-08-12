@@ -174,7 +174,8 @@ void ATheDreamCharacter::UpdateCameraRelativeFacing()
 	// Nothing scales between the two. Attacks freeze facing through IsFacingLocked() above and
 	// hand it straight back; a version that faded was built and removed the same day, because
 	// any scale below full authority disabled the snap that then existed. That failure mode is
-	// gone with the snap itself, but interpolation is still unowned work to revisit.
+	// gone with the snap itself, and interpolation proved unnecessary once the lock ran to
+	// EndAbility -- IdleTurnRateDegrees already covers the catch-up it would have smoothed.
 	bUseControllerRotationYaw = false;
 	Movement->bUseControllerDesiredRotation = true;
 }

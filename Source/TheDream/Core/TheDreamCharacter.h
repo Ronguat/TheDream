@@ -141,9 +141,9 @@ protected:
 	 *  branch**, so the fade did not merely soften the handoff, it left the character on smooth
 	 *  turning for its whole duration. Chaining lights with the camera turned meant each swing
 	 *  landed a little nearer to where you were looking and never at it. Precision beats polish
-	 *  here; the smoothing is deferred, and **no item currently owns it** -- it was parked against
-	 *  "the polish audit" when that was item 14, which has since become Structure Audit and is not
-	 *  a polish slice. Raise it before assuming somebody is coming for it.
+	 *  here, and the smoothing turned out not to need a scale at all. Holding the lock to
+	 *  EndAbility and letting IdleTurnRateDegrees close the gap covers the case a fade would have
+	 *  softened, without any value that can disable the snap.
 	 */
 	bool bAbilityFacingLocked = false;
 

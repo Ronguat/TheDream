@@ -89,9 +89,9 @@ protected:
 	// release window's end, both instantly. FacingLockFadeSeconds and
 	// FacingUnlockRecoveryFraction existed here for one day, 2026-08-12, and were removed by
 	// play: every value below full authority disables the camera snap, so the fades left chained
-	// attacks perpetually behind the camera. Smoothing is unowned work -- it was parked against
-	// item 14 before that became Structure Audit -- and it will need a mechanism that does not
-	// gate the snap on the same number.
+	// attacks perpetually behind the camera. The smoothing it was meant to provide arrived by
+	// another route and needs nothing further: the lock now runs to EndAbility and
+	// IdleTurnRateDegrees covers the catch-up, so no value gates the snap on rotation authority.
 
 	/**
 	 *  Multiplier on the montage's authored root-motion translation, from the press onward.

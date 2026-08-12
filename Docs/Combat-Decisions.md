@@ -337,8 +337,7 @@ kept in their own notes. What belongs here is only what to move once a verdict a
 | An attack reaches too far or not far enough | The branch's `MaxReachCm` | The animation, the clip choice, or the play rate. Reach stopped being a property of the art on 2026-08-12; if a swing looks like it should reach further than it does, that is an argument for changing the number *or* the clip, and only the number is balance. |
 | An attack hits things beside you that it visibly missed | `ArcDegrees`, or skew `ArcCentreDegrees` toward the side the blade crosses | `MaxReachCm`. Narrowing reach to fix a coverage problem shortens the attack everywhere to fix it in one direction. |
 | Attacks feel like they clip through you at point blank | `MinReachCm` — but expect it to feel worse | Nothing else. A hole at the centre is authorable and is almost always wrong: the attacker's own body is already there, so the case is rarer than it seems. |
-| The facing freeze reads abruptly going *in* | `FacingLockFadeSeconds`, then the commit→release gap it clamps to | `StationaryTurnRateDegrees`, which is locomotion's and would change how the character turns everywhere to fix how one attack ends. |
-| Control returns too abruptly after a swing | **Nothing, for now.** Interpolating facing is deferred and **no item owns it** — it was parked against item 14 before that became Structure Audit, which is not a polish slice | A fade that scales rotation authority. The original failure — any value below full authority disabling the snap — cannot recur now that there is no snap branch, but the fade was *also* a jump-cut at handoff, and that half is untouched. Re-read the two facing-fade entries before rebuilding it. |
+| The facing freeze reads abruptly going *in* | **Nothing — the freeze is a hard lock by design.** `FacingLockFadeSeconds` was the answer here for one day and is deleted; see retired names | A fade that scales rotation authority, which is what that property was. Any value below full authority disabled the snap branch that then existed, so the fade did not soften the handoff, it replaced the whole lock with smooth turning. |
 | An ability's direction can be steered when it should be committed | `SetAbilityFacingLocked(true)` for its duration | `bAllowPhysicsRotationDuringAnimRootMotion`. Turning it back off fixes one ability by re-breaking every other, which is how the dodge got a committed direction it never declared. |
 | Control returning after a swing reads abruptly | Where the lock *ends* — it now runs to `EndAbility`, and the idle rate handles the catch-up gently when nothing else is happening | An interp on the rotation rate. It was the obvious fix and turned out to be unnecessary twice over: the two rates already cover both cases, and the failure modes that killed the original fade were artifacts of a snap branch that no longer exists. |
 | An attack does not close enough ground | `UTDMeleeAttackAbility::RootMotionScale`, which every tier shares | The clip, and **not** the per-branch scale if the complaint is about the whole ladder — that one cannot touch the windup at all. |
@@ -382,15 +381,15 @@ this table is how they stay readable. Do not renumber anything to match them.
 
 **Item 14 is the one row that is not a straight rename.** It was "a structural audit of what is
 designer-facing"; it is now the project's structure entire, and it is triggered by the combat model
-being verified good rather than holding a position in the order. Two consequences for anyone
-following an old reference into it:
+being verified good rather than holding a position in the order. One consequence for anyone
+following an old reference into it: **anything deferred to item 14 on *polish* grounds is pointing
+at something that is no longer a polish slice**, and needs checking rather than assuming a home.
 
-- Entries and header comments that parked **facing interpolation** against "the polish audit, item
-  14" are now pointing at something that is not a polish slice. **That work is unowned**, and it is
-  recorded as unowned rather than quietly reassigned — a feel task hidden behind a trigger that
-  requires feel to be verified would be circular, and would never run.
-- Anything else deferred to item 14 on *polish* grounds deserves the same check before it is
-  assumed to have a home.
+The one known case turned out to be already resolved. **Facing interpolation** was parked against
+"the polish audit, item 14" in two header comments and the tuning map, and it is **done** — see the
+2026-08-12 entry on holding the lock through recovery. The lock running to `EndAbility` plus
+`IdleTurnRateDegrees` covers the case an interp would have smoothed, which the commit that shipped
+it says outright. Nothing is owed.
 
 ---
 
@@ -412,7 +411,7 @@ concludes the log is wrong rather than merely old. Add a row whenever a name cha
 | `GetAttackTraceRadius()` | `GetAttackHitboxes()` |
 | `AM_LightAttack_01` | **`AM_Attack`**, rebuilt on GDHBundle's skeleton 2026-08-12. One montage serves all three tiers, so the old name was always a misnomer. |
 | `bAttackFacingLocked`, `SetAttackFacingLocked()` | `bAbilityFacingLocked`, `SetAbilityFacingLocked()` — the dodge uses it too. |
-| `FacingLockFadeSeconds`, `FacingUnlockRecoveryFraction`, `FacingTurnScale` | Deleted 2026-08-12. Facing is a hard lock; interpolation is deferred and unowned. |
+| `FacingLockFadeSeconds`, `FacingUnlockRecoveryFraction`, `FacingTurnScale` | Deleted 2026-08-12. Facing is a hard lock, and the smoothing these were meant to provide **proved unnecessary** rather than deferred — the lock running to `EndAbility` plus `IdleTurnRateDegrees` covers the case they would have smoothed. |
 | `StationaryTurnRateDegrees` | **`TurnRateDegrees`**, renamed 2026-08-12 when facing stopped having a separate moving mode. No longer stationary-only, and no longer cosmetic — it decides where an attack points. |
 | `bSnapFacingWhileMoving` | Never shipped. A temporary A/B switch for the facing pass, deleted with the snap branch it selected. |
 
@@ -469,14 +468,32 @@ it has existed is one that never runs, and "deferred until systems settle" is a 
 position, so it should be written as one. **The trigger is the combat model being verified good in
 play** — the prototype's actual finish line, and the first moment reorganising stops being wasted.
 
-**It also orphaned something, which is the part worth carrying.** Facing interpolation had been
-parked against "the polish audit, item 14" in two header comments, the tuning map and the
-retired-names table. Item 14 was never a polish slice in `CLAUDE.md` — it was structural there and
-polish in the C++ comments, one item quietly carrying two jobs, which only became visible when the
-item was renamed. Reassigning the work to Structure Audit would have been the tidy move and the
-wrong one: **a feel task behind a trigger that requires feel to be verified is circular.** It is
-recorded as unowned in all four places instead. The general form: *renaming a thing forces you to
-say what it is, and that is when you find out it was two things.*
+**It looked like it had orphaned something, and the correction is the part worth carrying.**
+Facing interpolation had been parked against "the polish audit, item 14" in two header comments and
+the tuning map. Item 14 was never a polish slice in `CLAUDE.md` — it was structural there and polish
+in the C++ comments, one item quietly carrying two jobs, which only became visible when the item was
+renamed.
+
+**Corrected inline the same day, on the user's challenge: the work is not orphaned, it is done.**
+This paragraph originally recorded it as unowned in four places, and that was wrong — a factual
+error rather than a reversal, so it is fixed here rather than superseded. The interp shipped as
+something better than an interp: the lock running to `EndAbility` plus `IdleTurnRateDegrees`. The
+commit that did it says so explicitly — *"an interp window at the release boundary was considered
+and proved unnecessary."*
+
+**How the error was possible is the useful part.** The tuning map carried **three rows for one
+complaint**, added in three consecutive commits on 2026-08-12: `f57ce1c` named `FacingLockFadeSeconds`,
+`6bfbb73` said the work was deferred, and `801df58` said it was solved and that an interp is the
+wrong fix. Only the last is current; the first names a deleted property. Reading the middle row and
+believing it was reasonable and produced a false claim in five places, which is precisely the
+duplication failure the 2026-08-12 audit catalogued — **restated here in its most instructive form,
+because the duplicates were three answers to one question rather than two copies of one answer.**
+A stale row does not announce itself, and a *newer* row elsewhere in the same table does not correct
+it. Both stale rows are now gone.
+
+The general form worth keeping: *renaming a thing forces you to say what it is, and that is when you
+find out it was two things* — **and then to check whether the second thing is still true**, which is
+the step that was skipped here.
 
 ## 2026-08-12 — Facing becomes one rate, and the rate is derived from the light's commit
 
