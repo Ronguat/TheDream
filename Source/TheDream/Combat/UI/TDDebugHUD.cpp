@@ -39,12 +39,26 @@ void ATDDebugHUD::DrawHUD()
 		// in them, so the bars hold still instead of hopping down the screen every time a
 		// state tag clears or an ability ends.
 		const float LineHeight = BarHeight + TDPanelLineSpacing;
-		const float PanelHeight = LineHeight * (bShowGameplayTags ? 4.0f : 3.0f);
+		float PanelLines = bShowGameplayTags ? 4.0f : 3.0f;
+		if (bShowFacingError)
+		{
+			PanelLines += 1.0f;
+		}
+		const float PanelHeight = LineHeight * PanelLines;
 
 		const float PanelX = ((static_cast<float>(Canvas->SizeX) - BarWidth) * 0.5f) + ScreenPadding.X;
 		const float PanelY = static_cast<float>(Canvas->SizeY) - ScreenPadding.Y - PanelHeight;
 
-		DrawCombatantPanel(LocalCharacter, PanelX, PanelY, 1.0f, false);
+		const float UsedHeight = DrawCombatantPanel(LocalCharacter, PanelX, PanelY, 1.0f, false);
+
+		// Local player only: the error is measured against the control rotation, which is the
+		// aim the player is actually holding. A remote character has no controller here.
+		if (bShowFacingError)
+		{
+			const FString FacingText = FString::Printf(TEXT("facing %+.1f deg   lock %+.1f deg"),
+				LocalCharacter->GetFacingErrorDegrees(), LocalCharacter->GetFacingErrorAtLockDegrees());
+			DrawText(FacingText, TextColor, PanelX, PanelY + UsedHeight, nullptr, 1.0f);
+		}
 	}
 
 	if (!bShowRemoteCharacters)

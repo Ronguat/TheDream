@@ -70,6 +70,17 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category="Debug|Content")
 	bool bShowGameplayTags = true;
 
+	/**
+	 *  Show how far facing trails the camera, live and as sampled at the last facing lock.
+	 *
+	 *  **Temporary, for the facing polish pass.** The "lock" figure is the one that matters:
+	 *  an attack's wedge freezes at the commit checkpoint, so that error is the angle between
+	 *  where the player was aiming and where the attack actually points. Local player only --
+	 *  it reads the controller, which a remote character does not have here.
+	 */
+	UPROPERTY(EditDefaultsOnly, Category="Debug|Content")
+	bool bShowFacingError = true;
+
 	UPROPERTY(EditDefaultsOnly, Category="Debug|Colours")
 	FLinearColor HealthColor = FLinearColor(0.85f, 0.15f, 0.15f, 1.0f);
 

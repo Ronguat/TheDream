@@ -134,6 +134,13 @@ suspected cause and watching the symptom fail to move.
 construction. The rename came with it — one montage serves light, heavy and charged, so
 `AM_LightAttack_01` was always a misnomer and `AM_Attack` matches `GA_Attack`.
 
+**Whenever the light's `HoldUntilSeconds` changes — including via items 12 and 13** — *`TurnRateDegrees`
+is derived from it and nothing enforces the link.* The rate is 180° ÷ the light's commit time, which
+makes 1200 the slowest value that can always bring facing round before the attack's wedge freezes.
+Move the commit and the guarantee lapses silently: the character simply starts committing attacks
+partway through a turn, which is invisible without the `FACING LOCK` trace and was measured at 71%
+of flick-attacks landing outside their own wedge before it was found. Recompute both together.
+
 **Before block (item 7)** — *exhaustion can become permanent.* `ActivationBlockedTags` gates
 activation, not continuation, so a block held through zero keeps draining and keeps
 `State.StaminaRegenPaused` applied. Regen is now the **only** thing that ends exhaustion, so
@@ -283,7 +290,9 @@ kept in their own notes. What belongs here is only what to move once a verdict a
 | Dodge travels too far or short | `AnimRootMotionTranslationScale` on the montage task | The play rate. Rate changes *duration*, never *distance* — a faster dash covers the same ground in less time. |
 | Dodge is too safe | A recovery window in **absolute** time, i-frames derived as `DodgeSeconds - RecoverySeconds` | A *fraction* of the dodge. What makes recovery punishable is how it compares to an attack's startup, and a fraction shrinks the punish window below usable whenever the dodge is retuned faster. |
 | An attack is too reactable, or not enough | `CoilEndSeconds`, or moving where the coil starts | The windup length. Reactability is measured from the **tell**, not the press — a longer windup with the same coil changes nothing. |
-| The snap-to-camera pop reads badly | `StationaryTurnRateDegrees`, or blending the snap over a frame or two | Reverting to always-smooth. That reintroduces stale facing on the first frame of input and sends dodges sideways. |
+| The snap-to-camera pop reads badly | **Nothing — the snap is gone.** Facing is one smooth rate in both states as of 2026-08-12 | *(This row used to forbid always-smooth on the grounds that it sends dodges sideways. That was wrong: a dodge resolves its direction relative to facing and travels relative to the same facing, so lag cancels. Disproven in play.)* |
+| Attacks do not land where the player aimed | `TurnRateDegrees`, and check the `FACING LOCK` trace for the error at commit | The wedge's `ArcDegrees`. Widening the arc to cover a facing that arrived late hides an aim bug behind a bigger hitbox, and does it in every direction at once. |
+| `TurnRateDegrees` feels too fast or slow | Nothing, without re-deriving it. It is 180° ÷ the light's `HoldUntilSeconds`, the slowest rate that always arrives before the wedge freezes | Lowering it for feel. Below the derived value there are flicks the character cannot finish, and the attack silently points somewhere the player did not aim — which is what 500 was doing to 71% of flick-attacks. |
 | Feet slide during locomotion | `MaxWalkSpeed`, set from the `_RM` clips' measured displacement | The animation's rate. 500 came from Epic's template and was never measured; derive the speed from the clip rather than scaling the clip to an unchosen number. |
 | An action feels unresponsive at low stamina | Nothing — find what is gating it | Adding or restoring a cost gate. Costs are paid, never required; if an input silently does nothing, `CostGameplayEffectClass` or `CommitAbility` has crept back in. |
 | Exhaustion feels too long or short | `StaminaRegenPerSecond`, since recovery *is* the duration | A duration knob. There isn't one — `ExhaustionSeconds` was deleted deliberately so no second number can disagree with the bar. |
@@ -292,7 +301,7 @@ kept in their own notes. What belongs here is only what to move once a verdict a
 | An attack hits things beside you that it visibly missed | `ArcDegrees`, or skew `ArcCentreDegrees` toward the side the blade crosses | `MaxReachCm`. Narrowing reach to fix a coverage problem shortens the attack everywhere to fix it in one direction. |
 | Attacks feel like they clip through you at point blank | `MinReachCm` — but expect it to feel worse | Nothing else. A hole at the centre is authorable and is almost always wrong: the attacker's own body is already there, so the case is rarer than it seems. |
 | The facing freeze reads abruptly going *in* | `FacingLockFadeSeconds`, then the commit→release gap it clamps to | `StationaryTurnRateDegrees`, which is locomotion's and would change how the character turns everywhere to fix how one attack ends. |
-| Control returns too abruptly after a swing | **Nothing, for now.** Interpolating facing is deferred to item 14 | Any fade between the snap and smooth branches. It was built and removed the same day: every value below full authority disables the snap, so chained attacks never catch the camera. A working version must not gate the snap on the same number it eases. |
+| Control returns too abruptly after a swing | **Nothing, for now.** Interpolating facing is deferred to item 14 | A fade that scales rotation authority. The original failure — any value below full authority disabling the snap — cannot recur now that there is no snap branch, but the fade was *also* a jump-cut at handoff, and that half is untouched. Re-read the two facing-fade entries before rebuilding it. |
 | An ability's direction can be steered when it should be committed | `SetAbilityFacingLocked(true)` for its duration | `bAllowPhysicsRotationDuringAnimRootMotion`. Turning it back off fixes one ability by re-breaking every other, which is how the dodge got a committed direction it never declared. |
 | An attack does not close enough ground | `UTDMeleeAttackAbility::RootMotionScale`, which every tier shares | The clip, and **not** the per-branch scale if the complaint is about the whole ladder — that one cannot touch the windup at all. |
 | One *tier* does not lunge far enough | `FTDAttackBranch::RootMotionScale`, knowing it only affects travel after commit | A larger number, once it stops responding. Past that point the clip is stationary in the phase that needs travel, and the fix is a different clip — see the 2026-08-12 displacement entry. |
@@ -323,8 +332,120 @@ concludes the log is wrong rather than merely old. Add a row whenever a name cha
 | `AM_LightAttack_01` | **`AM_Attack`**, rebuilt on GDHBundle's skeleton 2026-08-12. One montage serves all three tiers, so the old name was always a misnomer. |
 | `bAttackFacingLocked`, `SetAttackFacingLocked()` | `bAbilityFacingLocked`, `SetAbilityFacingLocked()` — the dodge uses it too. |
 | `FacingLockFadeSeconds`, `FacingUnlockRecoveryFraction`, `FacingTurnScale` | Deleted 2026-08-12. Facing is a hard lock; interpolation is item 14's. |
+| `StationaryTurnRateDegrees` | **`TurnRateDegrees`**, renamed 2026-08-12 when facing stopped having a separate moving mode. No longer stationary-only, and no longer cosmetic — it decides where an attack points. |
+| `bSnapFacingWhileMoving` | Never shipped. A temporary A/B switch for the facing pass, deleted with the snap branch it selected. |
 
 ---
+
+## 2026-08-12 — Facing becomes one rate, and the rate is derived from the light's commit
+
+**Facing had two modes: snap to the camera whenever there was movement input, turn smoothly at
+500°/s otherwise. It now has one, 1200°/s, in both states.** Asked for as visual polish — the snap
+"looked like a bug rather than a feature" — and it turned out to be sitting on a live gameplay
+defect nobody had looked for.
+
+### The defect, measured before anything was changed
+
+An attack's wedge is authored in the actor's frame and freezes at the commit checkpoint. So
+whatever facing has managed to turn by then *is* where the attack points. At 500°/s the light's
+150 ms commit funds **75°** of turn, which is less than a 90° flick.
+
+28 stationary flick-then-attack reps at the original settings:
+
+| | Value |
+|---|---|
+| Mean absolute error at commit | **48.4°** |
+| Max | 99.8° |
+| Errors > 30°, i.e. outside the attack's own 60° wedge | **20 of 28 (71%)** |
+
+**Seven of every ten flick-attacks could not have hit what the player was pointing at.** This was
+live, in the stationary case — the stance a spacing game attacks from most — and it had never been
+examined because the snap made the *moving* case exact and nothing displayed the difference.
+
+### 1200 is derived, not chosen
+
+> rate = 180° ÷ the light's `HoldUntilSeconds` → 180 / 0.15 = **1200°/s**
+
+180° is the largest yaw error that can exist, since the delta normalises to ±180. So 1200 is the
+slowest rate that can always close the gap before the wedge freezes, **from any orientation, for
+any input where aim was settled before the press.** Below it, some flicks cannot finish in time;
+above it buys nothing, because the camera has run out of angle to gain.
+
+Measured: at 1000°/s, 92% of stationary attacks committed with error exactly 0. The user's own
+test at 1200 confirmed the remaining cases are all continuous spinning.
+
+**This couples the rate to the ladder.** If the light's commit moves, the guarantee lapses silently
+— the same unenforced two-file coupling as `MaxWalkSpeed` and the locomotion blendspace. It is
+stated in the header and in the tuning map, and that is all that holds it.
+
+### What the snap actually bought, and what parity costs
+
+The snap assigned yaw from the controller every frame, so its aim error was **identically zero,
+always** — confirmed across 18 attacks reading `err=0.0` without exception. That is what was given
+up, and it is not nothing:
+
+| While moving | Aim error at commit |
+|---|---|
+| Snap | exactly 0.0°, always |
+| Smooth @1200 | 86% exactly 0, mean 5.7°, thin tail under provocation |
+
+Against a ±30° half-arc a 5.7° mean is noise, and hits are measured to the target's body with the
+arc widened by the capsule it subtends — so even the 30° worst case for a completed flick still
+connects. **Play preferred parity and the cost is recorded rather than denied.**
+
+### The old objection was real about the pop and wrong about the dodge
+
+The tuning map forbade exactly this change, on the grounds that always-smooth "reintroduces stale
+facing on the first frame of input and sends dodges sideways." **That half is false, by reading and
+then by play.** `ResolveDodgeDirection` resolves the direction *relative to facing* and the montage
+travels relative to that *same* facing, so lag cancels out of the result entirely; only the 45°
+quantisation survives. Dodges went the right way on every test.
+
+Worth keeping as a pattern: **a warning can be right about the symptom it was written for and wrong
+about the mechanism it blames.** The pop was real. The dodge reasoning was never tested.
+
+### Decoupling the visual from the wedge was raised and rejected
+
+The user asked whether facing and hitbox placement could be decoupled — visually smooth, mechanically
+exact. Not heresy: it is the third axis of what this project already did to space (authored wedges)
+and time (authored durations). Rejected on two grounds.
+
+**Benefit and cost scale together.** Decoupling only does anything when the two diverge, and
+divergence is exactly when it is harmful — a 180° flick would leave the body 100° from the hitbox.
+Where it is safe it is unnecessary; where it is necessary it is unsafe.
+
+**And it would break the tell.** This spec states that reactability is measured from the tell, not
+the press. The defender reads your body. A hitbox that disagrees with the body does not make an
+attack unreadable — it makes it *misreadable*, so the defender who reads correctly and steps out of
+the visible arc is hit anyway. That objection is specific to PvP; single-player it would be fine.
+
+### Two things that came free
+
+**The smooth branch is a turn cap.** Rate-limiting facing is exactly the mechanism that would bound
+fast-spin abuse, and it arrived by deleting the branch that had no rate at all. The "drillbit spin"
+of a character whipping round with the camera is gone, and it cannot return while this is the only
+rotation path.
+
+**The error is now instrumented.** `FACING LOCK` on `LogTDCombatTiming` samples the yaw error at the
+instant an ability takes facing, and the debug HUD shows it live and held. Kept past the pass that
+built it, because the rate is derived from a commit time that items 12 and 13 both move, and because
+this class of defect is invisible without it. It is also the reason any of the above are numbers:
+reading a figure off a HUD while flicking the camera and pressing attack is not something a person
+can do, which was established by trying.
+
+### Left open
+
+**A buffered light's release timing reads as ambiguous**, reported in play. Two effects stack: the
+inherent one, that a buffered press waits before firing so press-to-hit varies across the buffer
+window; and the fixable one, that the ability ends at montage **blend-out** ~0.25 s before the swing
+visibly finishes, so the animation a player calibrates against is late relative to when the buffer
+actually fires. The second is item 12's trap, already filed. Only reported as bad while spinning,
+and the user's ruling was that spinning is not good-faith input.
+
+**Dodge clip selection reads as arbitrary sometimes**, and is correct. Eight 45° buckets mean the
+clip can be up to 22.5° from the stick. Facing lag now shifts the bucket boundaries slightly, which
+is likely why it became noticeable. Direction is always right. Fixing it means blending adjacent
+dashes, which is real work for a cosmetic gain.
 
 ## 2026-08-12 — The hover was six centimetres of mesh offset, and foot IK had been hiding it
 

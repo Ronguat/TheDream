@@ -11,6 +11,8 @@
 #include "EnhancedInputSubsystems.h"
 #include "InputActionValue.h"
 #include "TheDream.h"
+// Temporary, with the facing polish pass: the lock error is logged on LogTDCombatTiming.
+#include "Combat/TDCombatDebug.h"
 
 ATheDreamCharacter::ATheDreamCharacter()
 {
@@ -68,10 +70,15 @@ ATheDreamCharacter::ATheDreamCharacter()
 	// direction must now say so through ATheDreamCharacter::SetAbilityFacingLocked.
 	GetCharacterMovement()->bAllowPhysicsRotationDuringAnimRootMotion = true;
 
-	// RotationRate.Yaw is rewritten every frame from StationaryTurnRateDegrees, so editing it
+	// RotationRate.Yaw is rewritten every frame from TurnRateDegrees, so editing it
 	// on a Blueprint does nothing and reverts invisibly. Change that property instead. Only
 	// pitch and roll, which nothing drives, are actually authored here.
-	GetCharacterMovement()->RotationRate = FRotator(0.0f, 500.0f, 0.0f);
+	//
+	// The yaw seeded here is cosmetic and exists so the value is never garbage on frame zero;
+	// it is deliberately the same number as TurnRateDegrees' default so a reader does not find
+	// two rates and have to work out which one wins. It stayed at 500 for a while after the
+	// real one moved, which is exactly the confusion worth avoiding.
+	GetCharacterMovement()->RotationRate = FRotator(0.0f, 1200.0f, 0.0f);
 
 	// Note: For faster iteration times these variables, and many more, can be tweaked in the Character Blueprint
 	// instead of recompiling to adjust them
@@ -131,6 +138,14 @@ void ATheDreamCharacter::UpdateCameraRelativeFacing()
 		return;
 	}
 
+	// Debug only, and sampled before the lock check so it keeps reporting while an ability holds
+	// facing -- watching the error grow during a swing is how you see what the freeze cost.
+	if (const AController* FacingController = GetController())
+	{
+		FacingErrorDegrees = FMath::FindDeltaAngleDegrees(
+			GetActorRotation().Yaw, FacingController->GetControlRotation().Yaw);
+	}
+
 	// Both rotation sources are switched off rather than merely left alone. Returning early
 	// without this would freeze them at whatever they were on the last live frame -- and if
 	// that frame had movement input, bUseControllerRotationYaw stays true and the character
@@ -142,29 +157,49 @@ void ATheDreamCharacter::UpdateCameraRelativeFacing()
 		return;
 	}
 
-	// Only the smooth branch reads RotationRate, but it is written unconditionally so the
-	// value stays live-tunable in PIE rather than latching whatever it was at construction.
-	Movement->RotationRate.Yaw = StationaryTurnRateDegrees;
+	// Written every frame rather than once at construction, so the rate stays live-tunable in
+	// PIE. That is what let it be swept mid-session against the debug HUD's lock readout, and
+	// it is how the 1200 was arrived at rather than guessed.
+	Movement->RotationRate.Yaw = TurnRateDegrees;
 
-	// Deliberately the exact source UTDDodgeAbility::ResolveDodgeDirection reads. If these
-	// two ever disagree about what "no input" means, a dodge pressed on the first frame of
-	// movement resolves against a facing that is still catching up. Reading one value means
-	// they cannot disagree -- including about how stale that value is.
-	FVector Input = Movement->GetLastInputVector();
-	Input.Z = 0.0f;
-
-	const bool bHasMoveInput = !Input.IsNearlyZero();
-
-	// Snapped or smooth, never both: bUseControllerRotationYaw wins over the movement
-	// component's desired-rotation path, so leaving both on would silently disable the turn.
+	// One rotation source, always. bUseControllerRotationYaw is the *snap* -- it assigns yaw
+	// from the controller every frame, ignoring RotationRate entirely -- and it is deliberately
+	// never enabled now. Leaving it on would silently disable the smooth turn below, since it
+	// wins over the movement component's desired-rotation path.
 	//
-	// Note there is no partial state between these two. Attacks freeze facing through
-	// IsFacingLocked() above and hand it straight back; nothing scales the rate. A version that
-	// faded between them was built and removed the same day -- the fade suppressed the snap for
-	// its whole duration, so chained attacks never caught up to the camera. See
-	// bAbilityFacingLocked.
-	bUseControllerRotationYaw = bHasMoveInput;
-	Movement->bUseControllerDesiredRotation = !bHasMoveInput;
+	// Nothing scales between the two. Attacks freeze facing through IsFacingLocked() above and
+	// hand it straight back; a version that faded was built and removed the same day, because
+	// any scale below full authority disabled the snap that then existed. That failure mode is
+	// gone with the snap itself, but interpolation is still item 14's to revisit.
+	bUseControllerRotationYaw = false;
+	Movement->bUseControllerDesiredRotation = true;
+}
+
+void ATheDreamCharacter::SetAbilityFacingLocked(bool bLocked)
+{
+	// Sample on the rising edge only: the error at the moment facing was taken is the number
+	// that describes where the attack's wedge ended up pointing. Computed here rather than read
+	// from the cached value, because an ability can call this either side of the character's
+	// tick and a frame of skew is most of a 150 ms commit window.
+	if (bLocked && !bAbilityFacingLocked)
+	{
+		if (const AController* FacingController = GetController())
+		{
+			FacingErrorAtLockDegrees = FMath::FindDeltaAngleDegrees(
+				GetActorRotation().Yaw, FacingController->GetControlRotation().Yaw);
+
+			// Kept past the pass that added it, behind the existing cvar. This number cannot be
+			// read off a HUD by the same person performing the flick, and it is the only way the
+			// aim consequence of TurnRateDegrees is visible at all -- which matters because that
+			// rate is derived from the light's commit time, and items 12 and 13 both move things
+			// near it. Carries the rate so a sweep cannot be misattributed afterwards.
+			TD_TIMING_LOG(TEXT("FACING LOCK  err=%+.1f deg  rate=%.0f"),
+				FacingErrorAtLockDegrees,
+				TurnRateDegrees);
+		}
+	}
+
+	bAbilityFacingLocked = bLocked;
 }
 
 void ATheDreamCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)

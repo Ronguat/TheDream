@@ -50,15 +50,53 @@ protected:
 	UInputAction* MouseLookAction;
 
 	/**
-	 *  How fast the character turns to face the camera *while standing still*, in degrees/sec.
+	 *  How fast the character turns to face the camera, in degrees/sec. One rate, whether
+	 *  moving or standing still.
 	 *
 	 *  Deliberately its own value rather than CharacterMovement's RotationRate, which it
 	 *  drives: the two were one concern while facing followed movement and are two now.
-	 *  Facing snaps instantly the moment there is movement input, so this rate only ever
-	 *  applies at rest -- see UpdateCameraRelativeFacing().
+	 *
+	 *  **This is an aim value, not a cosmetic one.** An attack's wedge is authored in the
+	 *  actor's frame and freezes at the commit checkpoint, so whatever this rate has turned by
+	 *  then *is* where the attack points. It is therefore derived rather than chosen:
+	 *
+	 *      rate = 180 degrees / the light's HoldUntilSeconds  ->  180 / 0.15 = 1200
+	 *
+	 *  180 is the largest yaw error that can exist, since the delta is normalised to +/-180.
+	 *  So 1200 is the slowest rate that can *always* close the gap before the wedge freezes,
+	 *  from any starting orientation, for any input where aim was settled before the press.
+	 *  Below it there are flicks the character cannot finish in time: at 500 it covered only
+	 *  75 degrees, and 71% of measured flick-attacks committed with the target outside their
+	 *  own 60 degree wedge.
+	 *
+	 *  **Move this if the light's HoldUntilSeconds moves**, or the guarantee quietly lapses.
+	 *  Nothing enforces the link -- the two live in different files, like MaxWalkSpeed and the
+	 *  locomotion blendspace.
+	 *
+	 *  It does not bound error from turning *after* the press; that is by design, since windup
+	 *  is meant to be steerable and the rate is what limits how far a committed swing can be
+	 *  redirected. Read the debug HUD's "lock" figure to see where any given attack froze.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Movement", meta=(ClampMin="0.0"))
-	float StationaryTurnRateDegrees = 500.0f;
+	float TurnRateDegrees = 1200.0f;
+
+	/** Debug only: signed yaw from facing to the camera right now. Positive means camera is right. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Movement", Transient)
+	float FacingErrorDegrees = 0.0f;
+
+	/**
+	 *  Debug only: the same error, sampled at the instant an ability took facing away.
+	 *
+	 *  This is the number that matters, because it is the frame the attack's wedge stops
+	 *  tracking the camera. A live error is only ever a hint about it.
+	 *
+	 *  Also written to the log on every lock, ungated, because reading a figure off a HUD in the
+	 *  same moment you are flicking the camera and pressing attack turned out not to be a thing a
+	 *  person can do. The log line carries the rate and mode with it so a sweep is
+	 *  self-describing.
+	 */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Movement", Transient)
+	float FacingErrorAtLockDegrees = 0.0f;
 
 	/**
 	 *  Set while an *ability* owns the character's facing. Runtime only, never authored.
@@ -94,7 +132,13 @@ public:
 	 *  again, and nothing about it announces itself. Both callers clear it from `EndAbility`
 	 *  for exactly that reason, which is the one place every exit converges.
 	 */
-	void SetAbilityFacingLocked(bool bLocked) { bAbilityFacingLocked = bLocked; }
+	void SetAbilityFacingLocked(bool bLocked);
+
+	/** Debug only: live yaw error between facing and the camera, in degrees. */
+	float GetFacingErrorDegrees() const { return FacingErrorDegrees; }
+
+	/** Debug only: yaw error sampled when facing was last taken by an ability, in degrees. */
+	float GetFacingErrorAtLockDegrees() const { return FacingErrorAtLockDegrees; }
 
 protected:
 
@@ -122,21 +166,23 @@ protected:
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 
 	/**
-	 *  Snaps facing to the camera while there is movement input; turns smoothly while there
-	 *  is not. Runs every frame.
+	 *  Turns facing toward the camera at TurnRateDegrees. Runs every frame.
 	 *
 	 *  The character is camera-relative rather than facing its own input, which is what lets
-	 *  it strafe and backpedal and what lets all eight dodge directions resolve. Snapping is
-	 *  right while moving and wrong at rest, where a static idle has nothing to hide an
-	 *  instant rotation pop and the library has no turn-in-place clip to cover it.
+	 *  it strafe and backpedal and what lets all eight dodge directions resolve.
 	 *
-	 *  **The condition is movement input, never velocity, and that is load-bearing.** Keyed
-	 *  on movement this would break the dodge exactly where dodges are pressed: standing
-	 *  still mid-turn, pressing forward and dodge on one frame would resolve the dodge
-	 *  against a stale facing and send it sideways. UTDDodgeAbility::ResolveDodgeDirection
-	 *  already returns Bw on near-zero input and never reads facing at rest, so keying both
-	 *  off the same value means facing may only lag while nothing is looking at it.
+	 *  **One rate in both states, since 2026-08-12.** Facing used to *snap* whenever there was
+	 *  movement input and turn smoothly only at rest, on the reasoning that a static idle has
+	 *  nothing to hide a rotation pop while a moving character does. Two things retired that:
+	 *  the snap read as a bug rather than a feature in play, and the snap's supposed safety
+	 *  argument -- that smooth turning would send dodges sideways -- turned out to be false.
+	 *  UTDDodgeAbility::ResolveDodgeDirection resolves the direction *relative to facing* and
+	 *  the montage then travels relative to that same facing, so lag cancels out of the result
+	 *  entirely; only the 45 degree quantisation survives. Confirmed in play.
 	 *
+	 *  What the snap really bought was an aim error of identically zero, because facing was
+	 *  assigned to the camera every frame. Giving it up costs a measured 5.7 degree mean
+	 *  against a 60 degree wedge, with 86% of attacks still exact. See TurnRateDegrees.
 	 */
 	void UpdateCameraRelativeFacing();
 
