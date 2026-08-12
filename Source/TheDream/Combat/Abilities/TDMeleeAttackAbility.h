@@ -111,14 +111,21 @@ protected:
 	int32 BladeTraceSegments = 5;
 
 	/**
-	 *  Sphere radius in cm swept at each blade sample -- the blade's **thickness**, not its reach.
+	 *  Capsule radius in cm around the blade -- its **thickness**, and its forgiveness.
 	 *
-	 *  Reach is BladeLengthCm. The 45 / 55 / 65 values these carried were tuned against a fist
-	 *  standing in for the whole hitbox, so they are not merely rescaled by the move to a blade;
-	 *  they measure a different thing now and need re-judging in play.
+	 *  Reach is BladeLengthCm. The 45 / 55 / 65 these carried were tuned when a swept sphere at
+	 *  `hand_r` *was* the entire hitbox, so radius and reach were the same number; on a blade
+	 *  they are added together and 45 doubles the range.
+	 *
+	 *  **Thickness is not a compromise on precision here, it is what delivers it.** An attack is
+	 *  a canned animation the player cannot aim -- not by looking up or down, not at all -- so a
+	 *  geometrically exact blade produces near misses nobody had the means to avoid, which reads
+	 *  as the game being finicky. Under this control scheme "precise" means landing in the same
+	 *  place at the same range every time, and that is a consistency property. Judge it with
+	 *  `TD.DebugMeleeTrace 1`, where the swept volume is visible against the sword itself.
 	 */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Trace", meta=(ClampMin="1.0"))
-	float TraceRadius = 45.0f;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Trace", meta=(ClampMin="0.0"))
+	float TraceRadius = 15.0f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Trace")
 	bool bDrawDebugTrace = false;

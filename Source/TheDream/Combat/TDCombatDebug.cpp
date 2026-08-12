@@ -12,3 +12,11 @@ TAutoConsoleVariable<int32> CVarTDDebugCombatTiming(
 	1,
 	TEXT("Trace attack phase timings: windup rate, coil, commit, and release window edges. 1 to enable."),
 	ECVF_Cheat);
+
+// Off by default: it draws every frame of every active window on every combatant, and unlike
+// the timing trace it is only wanted while a specific geometry question is open.
+TAutoConsoleVariable<int32> CVarTDDebugMeleeTrace(
+	TEXT("TD.DebugMeleeTrace"),
+	0,
+	TEXT("Draw the melee trace: blade line in yellow, spheres at each sampled point. 1 to enable."),
+	ECVF_Cheat);

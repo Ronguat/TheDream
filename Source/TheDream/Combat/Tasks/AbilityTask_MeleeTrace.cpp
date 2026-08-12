@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Combat/Tasks/AbilityTask_MeleeTrace.h"
+#include "Combat/TDCombatDebug.h"
 #include "Combat/TDGameplayTags.h"
 #include "AbilitySystemComponent.h"
 #include "Components/SkeletalMeshComponent.h"
@@ -176,28 +177,63 @@ void UAbilityTask_MeleeTrace::TickTask(float DeltaTime)
 	FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(TDMeleeTrace), false, Avatar);
 	QueryParams.AddIgnoredActor(Avatar);
 
-	const FCollisionShape Sphere = FCollisionShape::MakeSphere(TraceRadius);
+	// Either the ability's own flag or the console toggle. The cvar exists so the question
+	// "where is this blade actually sweeping" costs a keypress instead of an editor restart.
+	const bool bDraw = bDrawDebugTrace || TDShouldDrawMeleeTrace();
 
-	for (int32 Index = 0; Index < CurrentPoints.Num(); ++Index)
+	// A capsule per blade segment rather than a sphere per sample point. Spheres coupled
+	// TraceRadius to BladeTraceSegments -- drop the radius below half the sample spacing and
+	// the blade grows holes between its own samples -- so thickness could not be tuned without
+	// also tuning density. A capsule spans the segment by construction, which makes the radius
+	// mean thickness and nothing else.
+	//
+	// Deliberately *not* line traces, though the blade is geometrically a line. Exact hit
+	// detection rewards precision only where the player has precise control, and here an attack
+	// is a canned animation that cannot be aimed -- not even by looking up or down. A near miss
+	// would then be something the player had no means to avoid, which reads as the game being
+	// finicky rather than as their own imprecision. What reads as *precise* under this control
+	// scheme is landing in the same place at the same range every time, so thickness is what
+	// delivers the spacing goal rather than compromising it.
+	for (int32 Index = 0; Index + 1 < CurrentPoints.Num(); ++Index)
 	{
-		const FVector CurrentLocation = CurrentPoints[Index];
-		const FVector StartLocation = bHasPrevious ? PreviousBladePoints[Index] : CurrentLocation;
+		const FVector CurrentA = CurrentPoints[Index];
+		const FVector CurrentB = CurrentPoints[Index + 1];
+		const FVector PreviousA = bHasPrevious ? PreviousBladePoints[Index] : CurrentA;
+		const FVector PreviousB = bHasPrevious ? PreviousBladePoints[Index + 1] : CurrentB;
+
+		const FVector Segment = CurrentB - CurrentA;
+		const float SegmentLength = Segment.Size();
+		if (SegmentLength <= KINDA_SMALL_NUMBER)
+		{
+			continue;
+		}
+
+		// UE measures a capsule's half height including its hemispherical caps, so the
+		// cylindrical part only spans the segment once the radius is added back.
+		const FCollisionShape Capsule = FCollisionShape::MakeCapsule(TraceRadius, SegmentLength * 0.5f + TraceRadius);
+		const FQuat Orientation = FQuat::FindBetweenNormals(FVector::UpVector, Segment / SegmentLength);
+
+		// Each segment sweeps from where it was last frame to where it is now, so a swing that
+		// rotates fast is covered by its own arc rather than by one capsule's translation.
+		const FVector StartLocation = (PreviousA + PreviousB) * 0.5f;
+		const FVector CurrentLocation = (CurrentA + CurrentB) * 0.5f;
 
 		TArray<FHitResult> Hits;
 		World->SweepMultiByChannel(
 			Hits,
 			StartLocation,
 			CurrentLocation,
-			FQuat::Identity,
+			Orientation,
 			ECC_Pawn,
-			Sphere,
+			Capsule,
 			QueryParams);
 
 #if ENABLE_DRAW_DEBUG
-		if (bDrawDebugTrace)
+		if (bDraw)
 		{
-			DrawDebugSphere(World, CurrentLocation, TraceRadius, 8, FColor::Red, false, 1.0f);
-			DrawDebugLine(World, StartLocation, CurrentLocation, FColor::Red, false, 1.0f);
+			DrawDebugCapsule(World, CurrentLocation, SegmentLength * 0.5f + TraceRadius, TraceRadius,
+				Orientation, FColor::Red, false, 1.0f);
+			DrawDebugLine(World, StartLocation, CurrentLocation, FColor::Silver, false, 1.0f);
 		}
 #endif
 
@@ -221,7 +257,7 @@ void UAbilityTask_MeleeTrace::TickTask(float DeltaTime)
 #if ENABLE_DRAW_DEBUG
 	// The blade itself, so its authored length can be judged against the weapon on screen --
 	// which is the only way to tell BladeLengthCm is wrong, since nothing else reports it.
-	if (bDrawDebugTrace && CurrentPoints.Num() > 1)
+	if (bDraw && CurrentPoints.Num() > 1)
 	{
 		DrawDebugLine(World, CurrentPoints[0], CurrentPoints.Last(), FColor::Yellow, false, 1.0f, 0, 1.5f);
 	}
