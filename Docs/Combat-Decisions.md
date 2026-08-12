@@ -245,6 +245,51 @@ concludes the log is wrong rather than merely old. Add a row whenever a name cha
 
 ---
 
+## 2026-08-12 — The coil has no room on a short clip, and the light's floor is not `HoldUntilSeconds`
+
+Found while swapping the punch for a real sword clip. Three findings, in ascending order of how
+much they constrain the design.
+
+**The release window's authored width and its mechanical duration are separate numbers, and their
+ratio is a play rate nobody chose.** The notify on `AM_LightAttack_01` is **0.2952** of montage
+wide; `ReleaseSeconds` is **0.09**. The ability stretches one to the other, so the swing plays its
+damaging frames at **3.28×** — reported by play as the release passing "in what feels like a
+microsecond". Neither number is wrong on its own. **When they match, the strike plays at 1.0×
+through its own active frames**, which is the only setting where the animation and the mechanic
+agree. Author the notify to the frames where the blade genuinely sweeps, then choose
+`ReleaseSeconds` as a gameplay call, and expect to reconcile them.
+
+**The light's floor is `HoldUntilSeconds` *plus frame jitter*, not `HoldUntilSeconds`.** I claimed
+`ReleaseAtSeconds` 0.22 was reachable against a 0.2 hold boundary. On paper it is; in practice
+20 ms is about one frame at 60 fps. The escalation timer actually fired at **0.212–0.224 s**, and
+at the resulting rate the montage reached the damage point at **0.220 s** — so the strike went
+live at the same instant the game decided whether it was a light or a heavy. The coil was skipped
+seven times out of seven with a **negative** distance, and the heavy played as *"a slow light
+attack"*, which is exactly what an uncoiled heavy is. **Leave several frames of margin**; 0.25
+against a 0.2 boundary is comfortable, 0.24 is the practical floor.
+
+**The structural finding, which no tuning fixes.** The coil must hold the montage between where
+escalation fires and `ReleaseStartSeconds`. On this clip that gap is **0.016–0.028 of montage**,
+and it has to be spread across the wait for the charged's commit at 0.7 s — a coil play rate
+around **0.03–0.05×**, which is a freeze rather than a slowdown.
+
+The cause is a ratio, not a value: **the damage point sits at 27.6% of a 0.967 s clip, while the
+charged waits 750 ms.** The windup rate is derived from the *light's* timing, so it carries the
+montage to the damage point quickly and everything after must be stalled in what little montage
+remains. Moving the notify later buys coil room and spends it on a fast-forwarded windup; moving
+it earlier does the reverse. There is no setting that gives both.
+
+**This is the real argument for the charged branching to its own clip** — previously made on
+appearance, and now on mechanism: a longer clip with a later damage point is the only thing that
+gives the coil somewhere to live. It does **not** rescue the heavy, which shares the light's clip
+and has the same squeeze. If the heavy reads as frozen rather than held, the heavy needs its own
+clip too, and the "one animation, three tiers" economy is gone.
+
+Worth noting the two ungated warnings both earned their keep here. *Coil skipped* named the
+second problem outright, and *Release Window opened at X but ReleaseStartSeconds is Y* is what
+made the first diagnosable at all. Both were written speculatively; both were the first thing to
+say something true.
+
 ## 2026-08-11 — The light is reactable at 250 ms, and three consequences of admitting it
 
 Found in play while judging attack candidates. **This supersedes the offense model's claim that
