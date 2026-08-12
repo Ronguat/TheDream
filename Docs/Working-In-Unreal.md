@@ -60,6 +60,13 @@ the engine is still booting — an MCP call in that window fails with `Unable to
 reliable readiness signal is **an actual MCP call returning a result**; poll one rather than
 trusting `tasklist` or the port.
 
+`SceneTools.get_current_level` is the cheapest probe — no arguments, and its answer is worth having
+anyway. **Poll it rather than sleeping a fixed interval** *(the rule was already here and was not
+followed on 2026-08-12: two reopens each blind-waited 40s, and boot is nearer 30)*. A blind wait is
+wrong in both directions — it wastes the difference when boot is quick, and returns too early when
+something makes it slow, which is the case that produces a confusing `Unable to connect` rather than
+a slow success.
+
 Note this project's MCP server initialises on engine startup, so a reopened editor reconnects on
 its own. That is a project configuration, not engine default — do not assume it elsewhere.
 
@@ -658,6 +665,20 @@ that reads like the log system is broken rather than like an argument is missing
 without editing the level: nothing is dirtied and nothing needs reverting. It was worth finding —
 the alternative on the day was moving `PlayerStart` in `L_CombatTest`, which would have dirtied a
 level to run one experiment.
+
+**`L_CombatTest`'s floor is one scaled `Engine/BasicShapes/Plane`, and its size is a measurement
+constraint** *(enlarged 2026-08-12: scale 20 → 100, so 2000×2000 becomes 10000×10000 centred on the
+origin, edges at ±5000)*. It was enlarged because accumulating displacement over several attacks is
+how attack travel is measured, and the dummy walked off the old floor mid-run — at 77 cm a swing it
+had ~15 attacks of runway, and Lunge is expected to author nearer 230, which would have given it
+five. Verify any change with two `SceneTools.trace_world` probes, one inside the floor and one
+beyond it, so the check can actually fail.
+
+A kill volume and a teleport-home volume were both considered and rejected for this: the first
+injects death, ragdoll and the debug revive into measurement runs, which are ability-gating states,
+and the second would duplicate `ReturnToDebugAutoAttackHome`, which already *is* the teleport-home
+mechanism. The gameplay question — what should happen when a *player* falls off — is deliberately
+left to the Stun slice, where respawn rules are already open.
 
 **Measuring an actor's own movement requires nothing else touching it, and a capsule counts.**
 *(2026-08-12, caught by the user watching the viewport.)* Measuring the training dummy's attack
