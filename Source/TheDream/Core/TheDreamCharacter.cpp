@@ -160,7 +160,11 @@ void ATheDreamCharacter::UpdateCameraRelativeFacing()
 	// Written every frame rather than once at construction, so the rate stays live-tunable in
 	// PIE. That is what let it be swept mid-session against the debug HUD's lock readout, and
 	// it is how the 1200 was arrived at rather than guessed.
-	Movement->RotationRate.Yaw = TurnRateDegrees;
+	//
+	// The idle rate is a separate concern and cannot affect aim: the fast rate resumes on the
+	// press, so the attack's whole windup runs at TurnRateDegrees regardless of how far facing
+	// had drifted beforehand. See IdleTurnRateDegrees.
+	Movement->RotationRate.Yaw = IsIdle() ? IdleTurnRateDegrees : TurnRateDegrees;
 
 	// One rotation source, always. bUseControllerRotationYaw is the *snap* -- it assigns yaw
 	// from the controller every frame, ignoring RotationRate entirely -- and it is deliberately
@@ -173,6 +177,28 @@ void ATheDreamCharacter::UpdateCameraRelativeFacing()
 	// gone with the snap itself, but interpolation is still item 14's to revisit.
 	bUseControllerRotationYaw = false;
 	Movement->bUseControllerDesiredRotation = true;
+}
+
+bool ATheDreamCharacter::IsIdle() const
+{
+	const UCharacterMovementComponent* Movement = GetCharacterMovement();
+	if (!Movement)
+	{
+		return false;
+	}
+
+	// Airborne is never idle. Either a jump put us here, which was a press, or we walked off
+	// something, which was one moments ago -- and in both cases a slow turn on a character with
+	// no ground contact is the opposite of what the idle rate exists for.
+	if (Movement->IsFalling())
+	{
+		return false;
+	}
+
+	FVector Input = Movement->GetLastInputVector();
+	Input.Z = 0.0f;
+
+	return Input.IsNearlyZero();
 }
 
 void ATheDreamCharacter::SetAbilityFacingLocked(bool bLocked)

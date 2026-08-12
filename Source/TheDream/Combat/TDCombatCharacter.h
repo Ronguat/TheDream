@@ -131,6 +131,20 @@ protected:
 	 */
 	virtual bool IsFacingLocked() const override { return bDead || Super::IsFacingLocked(); }
 
+	/**
+	 *  Idle additionally means no ability running and no press waiting to be answered.
+	 *
+	 *  ANDed with Super rather than replacing it, so movement input and being airborne still
+	 *  count as activity. Deliberately keyed on *any* active ability rather than a list of
+	 *  state tags: attacking, dodging, and every future block, parry and stun are covered
+	 *  without this function being revisited, which is the whole reason the rule is "zero
+	 *  presses" rather than "not attacking".
+	 *
+	 *  The buffered press counts too. A press that was refused and stored is still a press --
+	 *  the player has asked for something and is waiting on it, which is not idling.
+	 */
+	virtual bool IsIdle() const override;
+
 	/** The actual launch, as opposed to Jump() which only records the press. Starts the regen pause. */
 	virtual void OnJumped_Implementation() override;
 

@@ -112,6 +112,38 @@ void ATDCombatCharacter::TickStaminaRegen(float DeltaSeconds)
 		StaminaRegenPerSecond * DeltaSeconds);
 }
 
+bool ATDCombatCharacter::IsIdle() const
+{
+	if (!Super::IsIdle())
+	{
+		return false;
+	}
+
+	// A press that was refused and stored is still a press. The player has asked for something
+	// and is waiting on it, which is not idling.
+	if (BufferedInput.IsSet())
+	{
+		return false;
+	}
+
+	if (!AbilitySystem)
+	{
+		return true;
+	}
+
+	// Any active ability at all, rather than a list of state tags. Attacking and dodging are
+	// covered today; block, parry and every stun state are covered without editing this.
+	for (const FGameplayAbilitySpec& Spec : AbilitySystem->GetActivatableAbilities())
+	{
+		if (Spec.IsActive())
+		{
+			return false;
+		}
+	}
+
+	return true;
+}
+
 bool ATDCombatCharacter::IsStaminaRegenPaused() const
 {
 	const UWorld* World = GetWorld();

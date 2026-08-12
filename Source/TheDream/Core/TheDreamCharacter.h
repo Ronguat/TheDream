@@ -80,6 +80,25 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Movement", meta=(ClampMin="0.0"))
 	float TurnRateDegrees = 1200.0f;
 
+	/**
+	 *  How fast the character turns while genuinely idle -- see IsIdle().
+	 *
+	 *  Exists because the derived rate above is *right* and still reads badly in one place: a
+	 *  character standing in a looping idle, spun on the spot by a camera, with no turn-in-place
+	 *  clip in the library to cover it. Everywhere else 1200 looks like intent; there it looks
+	 *  like a prop being rotated.
+	 *
+	 *  **This one is free to tune by feel, and TurnRateDegrees is not.** That asymmetry is the
+	 *  point of splitting them, and it is safe for a specific reason rather than by luck: the
+	 *  aim guarantee is stated against the *worst possible* gap of 180 degrees, not a typical
+	 *  one, so however far facing drifts while idling, the windup still closes it. What makes
+	 *  that hold is that the fast rate resumes at the **press**, not at the commit checkpoint --
+	 *  the whole 150 ms windup runs at TurnRateDegrees. Had the rate been fitted to observed
+	 *  flick sizes instead of derived from the ceiling, this split would have broken it.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Movement", meta=(ClampMin="0.0"))
+	float IdleTurnRateDegrees = 300.0f;
+
 	/** Debug only: signed yaw from facing to the camera right now. Positive means camera is right. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Movement", Transient)
 	float FacingErrorDegrees = 0.0f;
@@ -161,6 +180,24 @@ protected:
 	 *  replace it, or it silently discards the attack lock.
 	 */
 	virtual bool IsFacingLocked() const { return bAbilityFacingLocked; }
+
+	/**
+	 *  Whether the character is doing *nothing at all*, which selects IdleTurnRateDegrees.
+	 *
+	 *  **Idle means zero button presses of any kind**, not merely "not moving" and not merely
+	 *  "not attacking". Stated that way deliberately: a list of exceptions would need extending
+	 *  by every slice that adds an action, and would be wrong in between. Block and parry will
+	 *  cost nothing here.
+	 *
+	 *  A hook rather than a check, for the same reason IsFacingLocked() is one -- this class
+	 *  knows nothing about combat. The base answers only what it can see: no movement input and
+	 *  feet on the ground. Falling counts as activity because you either jumped, which is a
+	 *  press, or walked off something, which was one a moment ago.
+	 *
+	 *  An override must AND with `Super::`, never replace it, or it reports a sprinting
+	 *  character as idle.
+	 */
+	virtual bool IsIdle() const;
 
 	/** Initialize input action bindings */
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;

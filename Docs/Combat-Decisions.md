@@ -293,6 +293,8 @@ kept in their own notes. What belongs here is only what to move once a verdict a
 | The snap-to-camera pop reads badly | **Nothing — the snap is gone.** Facing is one smooth rate in both states as of 2026-08-12 | *(This row used to forbid always-smooth on the grounds that it sends dodges sideways. That was wrong: a dodge resolves its direction relative to facing and travels relative to the same facing, so lag cancels. Disproven in play.)* |
 | Attacks do not land where the player aimed | `TurnRateDegrees`, and check the `FACING LOCK` trace for the error at commit | The wedge's `ArcDegrees`. Widening the arc to cover a facing that arrived late hides an aim bug behind a bigger hitbox, and does it in every direction at once. |
 | `TurnRateDegrees` feels too fast or slow | Nothing, without re-deriving it. It is 180° ÷ the light's `HoldUntilSeconds`, the slowest rate that always arrives before the wedge freezes | Lowering it for feel. Below the derived value there are flicks the character cannot finish, and the attack silently points somewhere the player did not aim — which is what 500 was doing to 71% of flick-attacks. |
+| The character spins on the spot like a prop while standing around | `IdleTurnRateDegrees`, freely — it cannot affect aim, because the fast rate resumes at the press and the whole windup runs on it | `TurnRateDegrees`. The two exist separately so this complaint has somewhere safe to go; answering it with the derived rate trades a cosmetic problem for a hit-detection one. |
+| An action feels like it turns too slowly to start | Whether `IsIdle()` is wrongly returning true for it — every ability and every buffered press should already exclude it | `IdleTurnRateDegrees`. Raising it to fix one action's start hides a classification bug and drags the idle look back toward the pop it was added to remove. |
 | Feet slide during locomotion | `MaxWalkSpeed`, set from the `_RM` clips' measured displacement | The animation's rate. 500 came from Epic's template and was never measured; derive the speed from the clip rather than scaling the clip to an unchosen number. |
 | An action feels unresponsive at low stamina | Nothing — find what is gating it | Adding or restoring a cost gate. Costs are paid, never required; if an input silently does nothing, `CostGameplayEffectClass` or `CommitAbility` has crept back in. |
 | Exhaustion feels too long or short | `StaminaRegenPerSecond`, since recovery *is* the duration | A duration knob. There isn't one — `ExhaustionSeconds` was deleted deliberately so no second number can disagree with the bar. |
@@ -419,6 +421,37 @@ the press. The defender reads your body. A hitbox that disagrees with the body d
 attack unreadable — it makes it *misreadable*, so the defender who reads correctly and steps out of
 the visible arc is hit anyway. That objection is specific to PvP; single-player it would be fine.
 
+### And then a second rate, which does not undercut the first
+
+**Added within the hour, at the user's request: `IdleTurnRateDegrees`, 300°/s, while the character
+is doing nothing at all.** 1200 is right everywhere it matters and reads badly in exactly one place
+— a looping idle, spun on the spot by the camera, with no turn-in-place clip in the library to cover
+it. Everywhere else it looks like intent; there it looks like a prop being rotated.
+
+**This looks like it should break the aim guarantee and cannot**, for a reason worth stating because
+it was luck turned into design: the guarantee is derived from the **worst possible** gap of 180°,
+not from observed flick sizes. So however far facing drifts while idling, the windup still closes
+it. What makes that true in practice is that the fast rate resumes at the **press** — `State.Attacking`
+goes on at activation, so the entire 150 ms windup runs at 1200 regardless of what preceded it.
+Had 1200 been fitted to the measured distribution instead of the ceiling, this split would have
+broken it silently. **Derive from the bound, not from the data, and later requests come free.**
+
+Verified rather than assumed: ~40 facing locks across deliberate edge cases, including attacking out
+of a slow idle turn, produced two non-zero readings (−21.6° and +3.6°) and no error outside the
+wedge at all.
+
+**Idle means zero button presses of any kind** — the user's formulation, and a better rule than the
+"stationary and not attacking" first proposed. A list of exceptions needs extending by every slice
+that adds an action and is wrong in between; block, parry and every stun state cost nothing under
+this one. Implemented as a virtual `IsIdle()` following `IsFacingLocked()`'s precedent: the Core
+character answers only what it can see (no movement input, feet on the ground) and `ATDCombatCharacter`
+ANDs in "no ability active and no buffered press". Keyed on *any* active ability rather than state
+tags, so it never needs revisiting.
+
+**The two rates are now split by whether they are allowed to be tuned by feel**, which is the more
+useful distinction than fast-versus-slow: `TurnRateDegrees` is derived and moving it silently breaks
+aim; `IdleTurnRateDegrees` cannot affect aim by construction and is pure taste.
+
 ### Two things that came free
 
 **The smooth branch is a turn cap.** Rate-limiting facing is exactly the mechanism that would bound
@@ -435,12 +468,18 @@ can do, which was established by trying.
 
 ### Left open
 
-**A buffered light's release timing reads as ambiguous**, reported in play. Two effects stack: the
-inherent one, that a buffered press waits before firing so press-to-hit varies across the buffer
-window; and the fixable one, that the ability ends at montage **blend-out** ~0.25 s before the swing
-visibly finishes, so the animation a player calibrates against is late relative to when the buffer
-actually fires. The second is item 12's trap, already filed. Only reported as bad while spinning,
-and the user's ruling was that spinning is not good-faith input.
+**~~A buffered light's release timing reads as ambiguous.~~ Closed the same day, as accepted
+behaviour rather than a defect** — the user's call, on the grounds that it was only bad while
+spinning the camera and the alternative was unappealing. Recorded rather than dropped because the
+two contributing effects are worth knowing: the inherent one, that a buffered press waits before
+firing so press-to-hit varies across the buffer window; and the incidental one, that the ability
+ends at montage **blend-out** ~0.25 s before the swing visibly finishes, so the animation a player
+calibrates against is late relative to when the buffer actually fires.
+
+**Expect it to change anyway when item 12 lands.** Authoring a real `RecoverySeconds` has to decide
+whether recovery ends at blend-out or at the montage's true end, and either answer moves this. It
+is closed as "not worth acting on", not as "settled forever" — which is the distinction that stops
+someone reopening it as a surprise regression.
 
 **Dodge clip selection reads as arbitrary sometimes**, and is correct. Eight 45° buckets mean the
 clip can be up to 22.5° from the stick. Facing lag now shifts the bucket boundaries slightly, which
