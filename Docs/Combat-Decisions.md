@@ -66,6 +66,8 @@ dated entry. Add a row whenever an entry supersedes part of an older one.
 | 2026-08-11 — The training dummy gets the sword too | the blade's length is an authored number, `BladeLengthCm` | 2026-08-12 — A hitbox is authored, not traced (the *principle* survives and is why it generalised: authored beat mesh-derived, then authored volumes beat authored blades) |
 | 2026-08-11 — Dodge travel ships at the clips' authored distance | reach is unmeasurable because the trace follows `hand_r` and nobody knows where that socket is at the impact frame | 2026-08-12 — A hitbox is authored, not traced (reach is `MaxReachCm`, an authored number, so the dodge-versus-reach comparison is now simply readable) |
 | 2026-08-11 — The light is reactable at 250 ms | prefer scaling root motion over code-driven movement; code is the exception to pay for knowingly | 2026-08-12 — Root motion scaling is not enough control (play says a multiplier only amplifies the animator's curve; the netcode reason survives and is answered by GAS root motion *sources*, not by hand-rolled movement) |
+| 2026-08-12 — The facing unlock is asymmetrical with the lock | facing fades into and out of its lock, over 50 ms in and half of recovery out | 2026-08-12 — The real cause was an engine default (the fades were deleted the same day: any value below full authority disables the snap, so chained attacks never caught the camera) |
+| 2026-08-12 — Two facing-fade bugs | the chained-attack sluggishness was caused by the fade suppressing the snap | 2026-08-12 — The real cause was an engine default (`bAllowPhysicsRotationDuringAnimRootMotion`; removing the fade did not move the bug) |
 
 ---
 
@@ -94,6 +96,36 @@ says nothing about hit detection.
 
 *This replaces a trap filed hours earlier claiming the trace connected with nothing. It was
 wrong — see the diagnostic note below, which is the part worth keeping.*
+
+**Open bug — *the character hovers above the ground while attacking.*** Present for some time,
+cosmetic, and **two hypotheses have now been wrong.**
+
+*Disconfirmed 1:* the clip's `RootMotionRootLock = RefPose`. Killed by comparing against the
+dodge — same setting, same skeleton, no hover.
+
+*Disconfirmed 2:* the montage being built on Epic's skeleton while its clip was authored for
+GDHBundle's. `AM_Attack` was rebuilt from the sequence and carries GDH's skeleton, **and the hover
+survived it.** The rebuild was still worth doing — it removed a real `CompatibleSkeletons`
+dependency that would have broken the attack silently — but it was not this.
+
+**The next experiment, and it needs no build:** set `GA_Attack`'s `RootMotionScale` to **0** in the
+details panel and attack. That manipulates the suspected cause rather than observing it.
+- Hover *stops* → the clip carries **vertical** root motion and the capsule is genuinely being
+  lifted. The fix is to strip Z from the applied root motion, not to touch the animation.
+- Hover *persists* → nothing is moving the capsule and the offset is in the **pose**, which means
+  the mesh's relation to the capsule rather than the character's position in the world.
+
+**The cheap discriminator before even that:** read the actor's world Z at rest and mid-swing. If it
+changes, it is translation; if it does not, it is pose. That distinction rules out half the search
+space and costs one measurement.
+
+*Filed rather than fixed because the session ended, and because guessing a third time is worse
+than leaving it open.* It does not affect hit detection — the wedge is measured from the actor,
+not the mesh.
+
+**What the rebuild did settle:** build a montage *from its clip*, never empty-then-assign, so the
+skeleton is right by construction. And the rename came with it — one montage serves light, heavy
+and charged, so `AM_LightAttack_01` was always a misnomer and `AM_Attack` matches `GA_Attack`.
 
 **Before block (item 7)** — *exhaustion can become permanent.* `ActivationBlockedTags` gates
 activation, not continuation, so a block held through zero keeps draining and keeps
@@ -168,8 +200,8 @@ second notify, not after.
 the montage's blend-out.* `UTDMeleeAttackAbility::StartAttackMontage` binds `HandleMontageFinished`
 to both `OnCompleted` and `OnBlendOut`, and `OnBlendOut` fires when blending *starts* — so the
 ability ends and `State.Attacking` / `State.Attacking.Committed` come off `BlendOut.blendTime`
-before the swing visually finishes. That is **0.25 s** on `AM_LightAttack_01`, large beside a
-250 ms light. Mechanical and visible recovery differ, and recovery *is* the punish window. Settle
+before the swing visually finishes. That is **0.25 s** on `AM_Attack`, large beside a
+200 ms light. Mechanical and visible recovery differ, and recovery *is* the punish window. Settle
 it deliberately: either recovery ends at blend-out and the animation is authored to agree, or the
 ability waits for `OnCompleted` and blend-out becomes dead time. **Do not discover this by tuning
 around it** — it is also the true cause of the debug attacker resetting before its swing looked
@@ -253,7 +285,8 @@ kept in their own notes. What belongs here is only what to move once a verdict a
 | An attack hits things beside you that it visibly missed | `ArcDegrees`, or skew `ArcCentreDegrees` toward the side the blade crosses | `MaxReachCm`. Narrowing reach to fix a coverage problem shortens the attack everywhere to fix it in one direction. |
 | Attacks feel like they clip through you at point blank | `MinReachCm` — but expect it to feel worse | Nothing else. A hole at the centre is authorable and is almost always wrong: the attacker's own body is already there, so the case is rarer than it seems. |
 | The facing freeze reads abruptly going *in* | `FacingLockFadeSeconds`, then the commit→release gap it clamps to | `StationaryTurnRateDegrees`, which is locomotion's and would change how the character turns everywhere to fix how one attack ends. |
-| Control returns too abruptly *after* a swing | `FacingUnlockRecoveryFraction` — a fraction, because it should stretch with recovery | `FacingLockFadeSeconds`. The two ends are asymmetrical on purpose: going in is boxed in by the commit→release gap, coming out has the whole tail. |
+| Control returns too abruptly after a swing | **Nothing, for now.** Interpolating facing is deferred to item 14 | Any fade between the snap and smooth branches. It was built and removed the same day: every value below full authority disables the snap, so chained attacks never catch the camera. A working version must not gate the snap on the same number it eases. |
+| An ability's direction can be steered when it should be committed | `SetAbilityFacingLocked(true)` for its duration | `bAllowPhysicsRotationDuringAnimRootMotion`. Turning it back off fixes one ability by re-breaking every other, which is how the dodge got a committed direction it never declared. |
 | An attack does not close enough ground | `UTDMeleeAttackAbility::RootMotionScale`, which every tier shares | The clip, and **not** the per-branch scale if the complaint is about the whole ladder — that one cannot touch the windup at all. |
 | One *tier* does not lunge far enough | `FTDAttackBranch::RootMotionScale`, knowing it only affects travel after commit | A larger number, once it stops responding. Past that point the clip is stationary in the phase that needs travel, and the fix is a different clip — see the 2026-08-12 displacement entry. |
 
@@ -278,6 +311,9 @@ concludes the log is wrong rather than merely old. Add a row whenever a name cha
 | `TraceSocket`, `BladeAxisLocal`, `BladeStartCm`, `BladeLengthCm`, `BladeTraceSegments` | Deleted 2026-08-12. An attack's volume is `FTDAttackHitbox`, authored in the attacker's frame. |
 | `TraceRadius` (per branch and per ability) | Deleted 2026-08-12. Reach is `MaxReachCm`; there is no thickness knob, because a wedge has no thickness. |
 | `GetAttackTraceRadius()` | `GetAttackHitboxes()` |
+| `AM_LightAttack_01` | **`AM_Attack`**, rebuilt on GDHBundle's skeleton 2026-08-12. One montage serves all three tiers, so the old name was always a misnomer. |
+| `bAttackFacingLocked`, `SetAttackFacingLocked()` | `bAbilityFacingLocked`, `SetAbilityFacingLocked()` — the dodge uses it too. |
+| `FacingLockFadeSeconds`, `FacingUnlockRecoveryFraction`, `FacingTurnScale` | Deleted 2026-08-12. Facing is a hard lock; interpolation is item 14's. |
 
 ---
 
@@ -388,6 +424,141 @@ when there are crouch or knockdown states worth cutting under.
 **Nothing here has been played.** The starting wedges are a guess: nobody has measured where the
 light's blade actually is at its impact frame, and the numbers that preceded them were tuned
 against a fist.
+
+## 2026-08-12 — The real cause was an engine default, and the facing fade was a red herring
+
+**The bug:** standing still, turn the camera 180°, chain light attacks, and each swing lands a
+little nearer to where you are looking without ever arriving. Sluggish, and the opposite of the
+precision the design is for.
+
+**The cause, and it was never ours:** `bAllowPhysicsRotationDuringAnimRootMotion` defaults to
+**false** in `UCharacterMovementComponent`. It gates `PhysicsRotation()`, which is what implements
+`bUseControllerDesiredRotation` — our **smooth** turn. So for the entire duration of any montage
+carrying root motion, a stationary character cannot turn at all. Attacks have root motion, so this
+has been true since attacks existed. Turning only happened in the gaps between montages, which is
+exactly what "a little nearer each time" looks like.
+
+The **snap** branch was unaffected throughout, because `bUseControllerRotationYaw` is applied by
+`APawn::FaceRotation` through the Controller rather than by CMC. That asymmetry is the whole
+puzzle: **the bug existed only while stationary**, and any test that held a movement key would
+have shown a perfectly responsive character.
+
+**Two wrong diagnoses preceded the right one, and the pattern in them is worth more than the fix.**
+
+*First:* the facing fade was blamed, on the grounds that any scale below 1 disables the snap. That
+is **true**, and it was not the cause. A *sufficient* explanation was mistaken for the *actual*
+one, and the fade was deleted without the bug moving. **A mechanism that would produce the symptom
+is not evidence that it did.**
+
+*Second:* the hover bug's first hypothesis was `RootMotionRootLock` on the attack clip,
+disconfirmed by checking the dodge — same setting, same skeleton, no hover.
+
+Both were caught the same way, and it is the transferable part: **find a case where the system
+works and compare.** The dodge disconfirmed the hover hypothesis; standing-versus-moving
+disconfirmed the fade hypothesis and located the real one in a single test that changed no code.
+*A working case is the cheapest instrument available, and neither of these needed a build.*
+
+**Enabling the flag then broke the dodge, which is the interesting half.** Dodges became steerable
+mid-animation — too much control for a move costing half the stamina bar. The reason is worth
+stating precisely: **the dodge never asked for a committed direction, it inherited one** from a
+suppression that was never about dodges at all. Root motion carries a character along the
+montage's authored path *relative to its facing*, so a character free to turn steers the dodge
+itself.
+
+So the dodge now locks facing explicitly, through the same `bAbilityFacingLocked` the attack uses,
+and the property is renamed from `bAttackFacingLocked` because it stopped being an attack concept
+the moment a second ability needed it. **The general form: when a behaviour turns out to have been
+free, someone has been relying on it without declaring it — and the fix is to declare it, not to
+restore the accident.** This project has the same shape recorded twice already: root motion
+replicating for free, and CMC's missing-Controller early-out keeping an unguarded facing update
+harmless.
+
+**The flag lives in `ATheDreamCharacter`'s constructor, beside the movement settings it belongs
+with**, and the Blueprint override that first proved it was cleared. A Blueprint override silently
+shadows a C++ default — identical values today, and a trap the moment anyone changes the C++ one.
+
+## 2026-08-12 — Two facing-fade bugs, and how both got past a green regression pass
+
+The fade shipped broken in both directions. Recorded because neither failure was in the code's
+logic — one was in a *comment*, and one was in an assumption about two systems being continuous.
+
+**The hard lock never arrived, because `FInterpConstantTo` does not snap on a zero rate.** Its
+step is `InterpSpeed * DeltaTime`, so a rate of 0 gives a step of 0 and it returns the current
+value unchanged — every frame, permanently. `SetFacingAuthority(0, 0)` at the release window's
+opening therefore *froze* the scale wherever the 50 ms commit fade had reached rather than forcing
+it to zero, and 50 ms is three frames, so it routinely had not arrived. The character stayed
+partly steerable through the frames its hitbox was live — the exact condition the lock exists to
+prevent.
+
+**The code carried a comment asserting the opposite**, written at the same time as the call that
+depended on it. **An assumption stated confidently in a comment is not evidence, and it is worse
+than no comment**, because it stops the next reader checking. Nothing verified it and it was
+wrong.
+
+**The unlock ended in a jump-cut, because the two rotation modes are not continuous.** The smooth
+branch turns at a rate; the snap branch teleports. The fade eased the rate from 0 up to full and
+then, the instant the scale reached 1, handed over to the snap — so **the last step of a blend was
+the largest one**, covering whatever yaw error had accumulated while the camera moved and the
+character could not. Fading a parameter across a boundary does not smooth the boundary. Fixed with
+`bFacingHandoffPending`, which keeps the smooth branch in charge until the gap is under about one
+frame of turn, and latches so ordinary locomotion is untouched.
+
+**How both got past a regression pass that genuinely was green.** The pass verified the build
+*before* the recovery-length unlock existed. The unlock was then written, compiled, and committed
+in the same batch — under a message whose first line reported the regression pass as clean. **It
+was clean, about different code.** The rule is that pending *correctness* verification blocks a
+push, and this violated it in the way that is hardest to notice: not by skipping verification, but
+by bundling unverified work into a commit whose message described verifying something else.
+
+The user caught it in play and named the reason it survived their own testing too — 50 ms is at
+the edge of perceptibility, so *"I wasn't sure if I could even perceive 50ms, so I didn't
+scrutinize it enough."* **A change small enough to be hard to perceive is not a change small
+enough to skip verifying**; it is one that needs a deliberate test rather than a glance.
+
+> **Wrong, confirmed in play 2026-08-12.** `AM_Attack` was rebuilt on GDHBundle's skeleton and
+> **the hover survived it.** The reasoning below is a second disconfirmed hypothesis, kept because
+> the *method* it argues for is the one that eventually matters and because two wrong diagnoses on
+> one bug is itself the lesson. The rebuild was still correct on its own terms — it removed a real
+> `CompatibleSkeletons` dependency — it simply was not this. The live bug and the next experiment
+> are in the known-traps section.
+>
+> The error worth naming: the skeletons *did* differ, and that difference *was* real, so a true
+> observation was promoted to a cause because it was the only difference anyone had found. **A
+> difference that explains the symptom is not the same as the difference that causes it**, which
+> is the identical mistake made about the facing fade an hour earlier — twice in one session, on
+> two unrelated bugs.
+
+## 2026-08-12 — The attack montage hovers because it is bound to the wrong skeleton
+
+Diagnosed, not yet fixed — the fix is the user's call. Filed here because the *method* mattered
+more than the finding, and because the first hypothesis was wrong.
+
+**Symptom, present for some time and only raised once it started to matter:** the character floats
+just above the ground while attacking, and not during locomotion.
+
+**The first hypothesis was `RootMotionRootLock = RefPose` on the attack clip, and it was
+disconfirmed by checking the dodge**, which is also root motion and does not hover. Both clips
+carry the identical setting, and both sit on the identical skeleton. *A property that is the same
+on the working case and the broken case explains neither.*
+
+**What actually differs is the montage.** `AM_Dodge` is built on GDHBundle's `SK_Mannequin`;
+`AM_LightAttack_01` is built on **Epic's**, at `/Game/Characters/Mannequins/`. `RefPose` locks the
+root bone to the *reference pose* — resolved against the montage's skeleton — so the attack pins a
+GDH-authored clip's root to Epic's ref pose height, and the two mannequins disagree about it. Root
+motion is what makes the lock active, which is why locomotion is unaffected.
+
+**This is a second symptom of a fragility already on the regression checklist.** That entry
+records the Epic-skeleton binding as load-bearing for the reverse `CompatibleSkeletons` entry, and
+warns that losing it makes the attack stop playing *silently*. Nobody had connected the same
+binding to a visible-but-tolerated art bug sitting next to it. **A known-fragile arrangement is
+worth re-reading whenever anything nearby looks wrong**, because the second consequence of a
+compromise rarely announces that it shares a cause with the first.
+
+Two candidate fixes, deliberately not chosen here: retarget the clip's `RootMotionRootLock` to
+`AnimFirstFrame`, which is one property write but edits vendor content; or rebuild
+`AM_LightAttack_01` on GDH's skeleton, which addresses the root cause and drops the
+`CompatibleSkeletons` dependency, at the cost of re-placing the `Release Window` notify by hand
+since montages are not scriptable.
 
 ## 2026-08-12 — The facing unlock is asymmetrical with the lock, and bodies stop blocking the camera
 

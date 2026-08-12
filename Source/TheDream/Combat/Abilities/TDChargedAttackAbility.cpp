@@ -209,19 +209,16 @@ void UTDChargedAttackAbility::CommitAttack()
 	// is why CoilEndSeconds must stay below ReleaseStartSeconds.
 	StartMeleeTrace(GetAttackHitboxes());
 
-	// Facing begins tightening now and is frozen by the time the hitbox appears. The volume is
-	// defined in the attacker's frame, so a swing free to snap toward the camera mid-release
-	// would carry its own arc around with it and the authored coverage would mean nothing.
+	// Facing freezes here, instantly. The hitbox is defined in the attacker's frame, so a swing
+	// free to track the camera mid-release would carry its own arc around with it and the
+	// authored coverage would mean nothing.
 	//
 	// Commit is the right moment on design grounds as well as geometric ones: it is already the
 	// boundary past which nothing can be cancelled, so this makes commitment spatial as well as
-	// temporal, and it deliberately leaves the whole windup steerable. The fade cannot exceed the
-	// runway that actually exists, hence the clamp -- overrunning it would mean facing was still
-	// moving on the frame the hitbox went live.
-	const float FacingRunway = FMath::Max(0.0f, Branch.ReleaseAtSeconds - Branch.HoldUntilSeconds);
+	// temporal, and it deliberately leaves the whole windup steerable.
 	if (ATheDreamCharacter* Character = GetFacingCharacter())
 	{
-		Character->SetFacingAuthority(0.0f, FMath::Min(FacingLockFadeSeconds, FacingRunway));
+		Character->SetAbilityFacingLocked(true);
 	}
 
 	// Branch-specific travel begins here and not one frame sooner. The windup is shared and
@@ -312,17 +309,12 @@ void UTDChargedAttackAbility::HandleReleaseWindowEnded(FGameplayEventData Payloa
 	// needed, so the montage terminated itself the instant the rate was applied.
 	SetMontagePlayRate(RecoveryPlayRate);
 
-	// Facing eases back across recovery rather than over the 50 ms the lock took to apply. The
-	// two ends are deliberately asymmetrical: going in, the fade has only the commit-to-release
-	// gap to live in, while coming out it has the whole tail of the swing and play reported the
-	// short version as snappy and unpolished.
-	//
-	// Measured from the montage rather than authored, because recovery has no authored duration
-	// yet -- it is whatever is left of the clip, which is item 12's whole subject. When
-	// RecoverySeconds exists this should read it instead, and the two will agree.
+	// Facing comes back the instant the hitbox stops existing, which is the earliest moment it
+	// can without compromising the swing -- recovery is not part of the commitment. EndAbility
+	// clears it again for the paths that never reach here.
 	if (ATheDreamCharacter* Character = GetFacingCharacter())
 	{
-		Character->SetFacingAuthority(1.0f, GetRemainingMontageSeconds() * FacingUnlockRecoveryFraction);
+		Character->SetAbilityFacingLocked(false);
 	}
 
 	TD_TIMING_LOG(TEXT("[%.3f] RELEASE OFF  pos=%.4f recoveryRate=%.3f"),
@@ -344,12 +336,13 @@ void UTDChargedAttackAbility::HandleReleaseWindowBegan(FGameplayEventData Payloa
 	const FTDAttackBranch& Branch = Branches[SelectedBranchIndex];
 	const float ActualStart = GetMontagePosition();
 
-	// Hard lock, and deliberately ahead of every early return below. The fade started at commit
-	// should already have arrived; this is what guarantees it, so a branch whose runway was zero
-	// or whose window reported a bad length still gets a stable frame to resolve hits in.
+	// Redundant with the lock applied at commit, and kept deliberately, ahead of every early
+	// return below. The invariant worth defending is "facing is frozen whenever a hitbox is
+	// live", and this is the only place that can assert it at the moment it becomes true rather
+	// than inferring it from an earlier call having happened.
 	if (ATheDreamCharacter* Character = GetFacingCharacter())
 	{
-		Character->SetFacingAuthority(0.0f, 0.0f);
+		Character->SetAbilityFacingLocked(true);
 	}
 
 	// ReleaseStartSeconds is hand-copied from the notify's placement, so it can silently
@@ -399,22 +392,6 @@ float UTDChargedAttackAbility::GetMontagePosition() const
 	const FGameplayAbilityActorInfo* ActorInfo = GetCurrentActorInfo();
 	UAnimInstance* AnimInstance = ActorInfo ? ActorInfo->GetAnimInstance() : nullptr;
 	return (AnimInstance && AttackMontage) ? AnimInstance->Montage_GetPosition(AttackMontage) : -1.0f;
-}
-
-float UTDChargedAttackAbility::GetRemainingMontageSeconds() const
-{
-	const float Position = GetMontagePosition();
-	if (Position < 0.0f || !AttackMontage)
-	{
-		return 0.0f;
-	}
-
-	// Divided by the recovery rate because the caller wants *real* seconds, and montage time is
-	// only wall-clock time at a rate of 1. This is read at the release window's end, which is the
-	// same instant HandleReleaseWindowEnded applies RecoveryPlayRate, so that is the rate the
-	// remainder will actually be played at.
-	const float MontageSecondsLeft = FMath::Max(0.0f, AttackMontage->GetPlayLength() - Position);
-	return MontageSecondsLeft / FMath::Max(RecoveryPlayRate, TDMinPlayRate);
 }
 
 void UTDChargedAttackAbility::SetMontagePlayRate(float PlayRate) const

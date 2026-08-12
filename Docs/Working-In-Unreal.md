@@ -299,6 +299,19 @@ So reserve `set_properties` for cases where a human edit is impractical, prefer 
 anything a designer would touch anyway, and restart the editor before trusting a programmatic
 write.
 
+**But check the running value before spending an editor restart on this rule** *(2026-08-12)*.
+`ReleaseStartSeconds` was written 0.3046 → 0.30 through `set_properties`, saved, and **not**
+restarted — and the ability's own `COMMIT` line reported the derived windup rate as **1.500**
+(0.30 ÷ 0.20) rather than 1.523. The new value was live. The user had opened the Blueprint editor
+in between, which can recompile and reinstance, so this does **not** overturn the rule above: it
+is one case where the rule's remedy was unnecessary, with a confound that cannot be separated
+after the fact.
+
+The transferable part is the method, not the result. **Where a derived value is already printed,
+reading it settles the question faster than reasoning about which write path was taken** — this
+took one PIE run against an argument that was heading for a full editor cycle. It is the same
+principle that made `DodgeSeconds` diagnosable: *where a value drives behaviour, print the value.*
+
 This cost a false bug investigation — an hour spent believing the airborne check was broken when
 it was correct from the moment it was written. The tell, in hindsight: *the same code behaved
 differently across an editor restart with no rebuild in between.* That is never a logic bug.
@@ -444,13 +457,17 @@ standing set for combat work:
 - Locomotion and jump still work, whenever input or movement code was touched. (This used to
   read "template locomotion"; since 2026-08-11 it is our own `ABP_Combat` and
   `BS_SwordShield_Locomotion`, not Epic's.)
-- **The light attack still plays its montage**, whenever anything touches meshes, skeletons or
-  animation assets. The character's mesh sits on `GDHBundle`'s skeleton while
-  `AM_LightAttack_01` is bound to Epic's, and it only plays because GDH's `SK_Mannequin` holds
-  a reverse `CompatibleSkeletons` entry. Lose that and the attack stops **silently** — the
-  ability still runs and still logs its timing, because `LogTDCombatTiming` reports the
-  ability's own state. The tell is the absence of `RELEASE BEGIN`/`END`, which come from a
-  notify on the montage and therefore only fire if the montage is really playing.
+- **The attack still plays its montage**, whenever anything touches meshes, skeletons or
+  animation assets. The tell that it is *not* playing is the absence of `RELEASE BEGIN`/`END`:
+  those come from a notify on the montage, so they only fire if the montage really ran, while
+  everything else in `LogTDCombatTiming` reports the ability's own state and looks perfectly
+  healthy either way. **An attack that silently deals no damage is the failure mode here.**
+
+  *This used to warn that `AM_LightAttack_01` played only by grace of a reverse
+  `CompatibleSkeletons` entry, our mesh being on `GDHBundle`'s skeleton and the montage on
+  Epic's. Discharged 2026-08-12: `AM_Attack` is built from its clip and so carries GDH's
+  skeleton directly. The check stays because the silent-failure shape does — any skeleton or
+  mesh change can still break montage playback without a single error.*
 - `LogAbilitySystem` is free of new warnings
 - **Death and revive leave nothing stranded**, whenever movement, regen or ability state is
   touched. Die *in mid-air* specifically: `DisableMovement` stops the fall, so `Landed()` never

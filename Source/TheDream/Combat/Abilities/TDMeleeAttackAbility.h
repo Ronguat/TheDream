@@ -85,39 +85,12 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Hitbox")
 	bool bDrawDebugTrace = false;
 
-	/**
-	 *  How long facing eases into and out of its lock, in seconds.
-	 *
-	 *  An attack takes facing away because its hitbox is defined in the attacker's frame: a
-	 *  character free to snap toward the camera mid-release would drag the volume around with it,
-	 *  and the authored arc would mean nothing. Taking it away *instantly* reads as a hitch, so
-	 *  it is faded in over the run-up to the release window and faded back out afterwards.
-	 *
-	 *  Clamped at use to the commit-to-release gap, which is what is actually available -- 50 ms
-	 *  on all three branches today. That bleeds off roughly 12 degrees of turn, which removes the
-	 *  clunk without being consciously visible. If play wants more the gap has to widen, and that
-	 *  is a ladder decision rather than a free one; see Docs/Combat-Decisions.md.
-	 */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Hitbox", meta=(ClampMin="0.0"))
-	float FacingLockFadeSeconds = 0.05f;
-
-	/**
-	 *  How much of recovery the character spends easing back into full control of its facing.
-	 *
-	 *  The *unlock* is not symmetrical with the lock, and play is why. Going in, the fade has
-	 *  only the commit-to-release gap to live in -- 50 ms, three frames -- because anything
-	 *  longer would still be moving when the hitbox appears. Coming out there is no such
-	 *  deadline, and 50 ms was reported as reading "unpolished" and snappy at exactly the moment
-	 *  the swing should be settling.
-	 *
-	 *  **A fraction rather than absolute seconds, which is the opposite of the call made for
-	 *  dodge recovery, and deliberately so.** That one is a *punish window* and is judged against
-	 *  an attacker's startup, so expressing it as a fraction would silently shrink it below
-	 *  usable whenever the dodge was retuned. This is polish on a settling animation with no
-	 *  opponent on the other side of it, so it *should* stretch when recovery does.
-	 */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Hitbox", meta=(ClampMin="0.0", ClampMax="1.0"))
-	float FacingUnlockRecoveryFraction = 0.5f;
+	// Facing has no tuning knobs by design. An attack freezes it at commit and returns it at the
+	// release window's end, both instantly. FacingLockFadeSeconds and
+	// FacingUnlockRecoveryFraction existed here for one day, 2026-08-12, and were removed by
+	// play: every value below full authority disables the camera snap, so the fades left chained
+	// attacks perpetually behind the camera. Smoothing is item 14's, and it will need a
+	// mechanism that does not gate the snap on the same number.
 
 	/**
 	 *  Multiplier on the montage's authored root-motion translation, from the press onward.

@@ -2,6 +2,7 @@
 
 #include "Combat/Abilities/TDDodgeAbility.h"
 #include "Combat/TDCombatCharacter.h"
+#include "Core/TheDreamCharacter.h"
 #include "Combat/TDCombatDebug.h"
 #include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
 #include "AbilitySystemComponent.h"
@@ -95,6 +96,23 @@ void UTDDodgeAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, c
 	}
 
 	DodgeDirection = ResolveDodgeDirection();
+
+	// Facing freezes for the whole dodge, so the direction resolved a line ago is the direction
+	// travelled. Root motion carries the character along the montage's authored path *relative to
+	// its facing*, so a character free to turn mid-dodge steers the dodge itself.
+	//
+	// **This became necessary rather than merely correct on 2026-08-12**, when
+	// bAllowPhysicsRotationDuringAnimRootMotion was enabled to fix attacks: until then the engine
+	// suppressed rotation during any root-motion montage, and the dodge inherited a committed
+	// direction it had never asked for. Play found the difference immediately -- steerable dodges
+	// read as too much control for a move that costs half the stamina bar.
+	//
+	// Set after ResolveDodgeDirection deliberately; that call reads facing, and locking first
+	// would only freeze the same value it is about to use.
+	if (ATheDreamCharacter* Character = Cast<ATheDreamCharacter>(GetAvatarActorFromActorInfo()))
+	{
+		Character->SetAbilityFacingLocked(true);
+	}
 
 	if (const AActor* Avatar = GetAvatarActorFromActorInfo())
 	{
@@ -237,6 +255,14 @@ void UTDDodgeAbility::EndAbility(const FGameplayAbilitySpecHandle Handle, const 
 	if (UWorld* World = GetWorld())
 	{
 		World->GetTimerManager().ClearTimer(DodgeTimerHandle);
+	}
+
+	// Facing comes back here, where every exit converges -- the duration timer, a cancel, and the
+	// CancelAllAbilities that death fires. Idempotent, so running twice costs nothing, and the
+	// abnormal paths cannot be missed. A stranded lock is a character who can never turn again.
+	if (ATheDreamCharacter* Character = Cast<ATheDreamCharacter>(GetAvatarActorFromActorInfo()))
+	{
+		Character->SetAbilityFacingLocked(false);
 	}
 
 	// Horizontal only: vertical travel is gravity and ground, not the dodge, and including it

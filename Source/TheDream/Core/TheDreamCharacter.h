@@ -61,18 +61,23 @@ protected:
 	float StationaryTurnRateDegrees = 500.0f;
 
 	/**
-	 *  How much of StationaryTurnRateDegrees the character currently gets. 1 is free, 0 is frozen.
+	 *  Set while an *ability* owns the character's facing. Runtime only, never authored.
 	 *
-	 *  Runtime only, driven by SetFacingAuthority. It exists so an attack can take facing away
-	 *  *gradually* rather than at a stroke -- an instantaneous freeze mid-swing reads as a hitch,
-	 *  and there is no turn-in-place content to hide one.
+	 *  Named for abilities rather than attacks because the dodge uses it too, and it is the
+	 *  dodge that makes it load-bearing: with bAllowPhysicsRotationDuringAnimRootMotion enabled
+	 *  the engine no longer stops a root-motion montage from being steered, so anything that
+	 *  wants a committed direction has to say so. Previously the dodge got that for free from a
+	 *  suppression it did not ask for.
+	 *
+	 *  A plain bool, and the fact that it is not a scale is a decision rather than an omission.
+	 *  It shipped on 2026-08-12 as a float faded in and out over time, so a swing eased into and
+	 *  out of its freeze, and play killed it the same day: **any scale below 1 disables the snap
+	 *  branch**, so the fade did not merely soften the handoff, it left the character on smooth
+	 *  turning for its whole duration. Chaining lights with the camera turned meant each swing
+	 *  landed a little nearer to where you were looking and never at it. Precision beats polish
+	 *  here; the smoothing is deferred to the polish audit, item 14.
 	 */
-	float FacingTurnScale = 1.0f;
-
-	float FacingTurnScaleTarget = 1.0f;
-
-	/** Units of scale per second. Non-positive snaps, which is what a zero-length fade means. */
-	float FacingTurnScaleRate = 0.0f;
+	bool bAbilityFacingLocked = false;
 
 public:
 
@@ -80,28 +85,16 @@ public:
 	ATheDreamCharacter();
 
 	/**
-	 *  Sets how freely the character may turn, optionally easing there over OverSeconds.
+	 *  Takes facing away for the duration of an ability, or gives it straight back.
 	 *
-	 *  0 with a duration is how an attack commits: the swing's direction stops being negotiable
-	 *  shortly before its hitbox appears, rather than the instant it does. 1 gives facing back.
-	 *  Passing 0 seconds applies immediately.
+	 *  Instant in both directions, deliberately -- see bAbilityFacingLocked.
 	 *
 	 *  **Whoever takes facing away is responsible for giving it back on every exit path**,
 	 *  including cancellation and death -- a stranded lock is a character who can never turn
-	 *  again, and nothing about it announces itself. UTDMeleeAttackAbility restores from
-	 *  EndAbility for exactly that reason.
+	 *  again, and nothing about it announces itself. Both callers clear it from `EndAbility`
+	 *  for exactly that reason, which is the one place every exit converges.
 	 */
-	void SetFacingAuthority(float Target, float OverSeconds);
-
-	/**
-	 *  Gives facing back only if something has taken it away.
-	 *
-	 *  The difference from SetFacingAuthority(1, x) is that this leaves an *in-flight* restore
-	 *  alone. An attack's unlock is deliberately spread across its recovery, and the ability ends
-	 *  at the montage's blend-out -- part-way through that fade. Calling the plain setter there
-	 *  would re-time a fade that is already going the right way and snap the tail of it.
-	 */
-	void EnsureFacingRestored(float OverSeconds);
+	void SetAbilityFacingLocked(bool bLocked) { bAbilityFacingLocked = bLocked; }
 
 protected:
 
@@ -117,8 +110,13 @@ protected:
 	 *
 	 *  Note that disabling *movement* does not disable facing. The two are separate systems
 	 *  and a dead character was still turning in place until this existed.
+	 *
+	 *  Attacks route through here too, rather than through a second mechanism. This path already
+	 *  clears *both* rotation flags and returns, which is precisely what a hard freeze needs, and
+	 *  it was already the tested one. An override must therefore OR with `Super::` rather than
+	 *  replace it, or it silently discards the attack lock.
 	 */
-	virtual bool IsFacingLocked() const { return false; }
+	virtual bool IsFacingLocked() const { return bAbilityFacingLocked; }
 
 	/** Initialize input action bindings */
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
@@ -139,14 +137,8 @@ protected:
 	 *  already returns Bw on near-zero input and never reads facing at rest, so keying both
 	 *  off the same value means facing may only lag while nothing is looking at it.
 	 *
-	 *  **Below full authority the snap branch is forced off**, because it does not read
-	 *  RotationRate at all and therefore cannot be faded -- left on, it would jump the character
-	 *  to the camera on any frame with movement input, however far into a lock the attack was.
 	 */
 	void UpdateCameraRelativeFacing();
-
-	/** Eases FacingTurnScale toward its target. Called from Tick, deliberately not from a timer. */
-	void AdvanceFacingFade(float DeltaSeconds);
 
 protected:
 

@@ -122,8 +122,14 @@ protected:
 	/** Blocked while exhausted, per the design: no defensive actions and no jump. */
 	virtual void Jump() override;
 
-	/** The dead do not turn to face the camera. */
-	virtual bool IsFacingLocked() const override { return bDead; }
+	/**
+	 *  The dead do not turn to face the camera -- **and neither does a character mid-swing.**
+	 *
+	 *  ORed with Super rather than replacing it. The base holds the attack lock, so returning
+	 *  only bDead here would discard it silently: attacks would keep tracking the camera through
+	 *  their own release window and drag an actor-frame hitbox around with them.
+	 */
+	virtual bool IsFacingLocked() const override { return bDead || Super::IsFacingLocked(); }
 
 	/** The actual launch, as opposed to Jump() which only records the press. Starts the regen pause. */
 	virtual void OnJumped_Implementation() override;
