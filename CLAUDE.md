@@ -148,12 +148,16 @@ Three files carry knowledge the code cannot. Read them before working in their a
 - **`Docs/Combat-Decisions.md`** — dated log of combat decisions and the reasoning behind them, plus two working sections at the top: **known traps**, latent defects filed against the slice that trips them, and the **tuning map**, which knob to move when a verdict comes back and which obvious-looking knob is wrong. Append an entry whenever a gameplay choice is made that a future reader could reasonably second-guess; never rewrite an entry to match new code, supersede it with a new one.
 - **`Docs/Animation-Library.md`** — where animations come from, the naming convention that makes 5,319 of them searchable, what the library does *not* contain, and how to migrate one in without dragging a duplicate skeleton behind it. Read before asking for or importing any animation.
 
-**Durable knowledge belongs in these files, not in an assistant's per-machine memory.** Anything a future contributor would need — combat reasoning, tooling behaviour, rules and current facts — goes in the repo, where it can be reviewed and corrected. Memory keeps only what is genuinely session- or machine-scoped, and *points* at the repo rather than restating it: `Docs/Working-In-Unreal.md` exists precisely because those notes were once memory-only and therefore invisible. Duplicating instead of pointing is its own failure — a second copy is what let a wrong claim survive unchallenged.
+**Durable knowledge belongs in these files, not in an assistant's per-machine memory.** Anything a future contributor would need — combat reasoning, tooling behaviour, rules and current facts — goes in the repo, where it can be reviewed and corrected. Memory keeps only what is genuinely session- or machine-scoped, and *points* at the repo rather than restating it: `Docs/Working-In-Unreal.md` exists precisely because those notes were once memory-only and therefore invisible.
+
+**One fact, one home; everywhere else points at it.** This applies *inside* the repo, not only between memory and repo — including between two items in this file, and between a doc and a code comment. **The 2026-08-12 audit found eight wrong claims and three were this**, each a fact stated twice where only one copy was updated: a dodge scale contradicted between items 2 and 5, a cvar default documented as off in two places while the code set it on, a shield mesh recorded as absent in one file and present in another. A second copy does not reinforce a fact, it creates something nobody reviews.
+
+The pattern that works is already in use here — *"`GA_Attack`'s `Branches` array is authoritative for live values"*. **Prefer naming the authority over restating the value**, especially for anything that lives in code. Numbers still belong in prose where they carry an argument, but then they are a *measurement with a date*, not a live value.
 
 Deliberately **not** kept: per-system design docs. Local rationale belongs in header comments, which are read at the moment the code is; a doc that describes a system drifts out of sync and then gets trusted over the code.
 
 ## Working Rules
-- **The loop is: objective → measure → plan → greenlight → execute.** Named by the user 2026-08-12,
+- **The loop is: objective → *read the traps* → measure → plan → greenlight → execute.** Named by the user 2026-08-12,
   after it turned a two-session bug hunt into a measured one-line fix. Given an objective, do all the
   reading and measuring needed to actually understand the problem, **then present a plan and stop.**
   Three parts carry the weight. *Measuring comes before planning*, so the plan is built on numbers
@@ -163,6 +167,11 @@ Deliberately **not** kept: per-system design docs. Local rationale belongs in he
   editor closes, rebuilds, asset writes and verification through to the end rather than handing
   steps back one at a time. If a measurement taken mid-execution changes what should happen, that is
   a **new plan** and needs its own greenlight; say so and stop rather than quietly widening scope.
+  **Reading the traps is a step, not a hope.** Before measuring, grep `Docs/Combat-Decisions.md`'s
+  known-traps section for the item number in play and say what it turned up. That section asks to be
+  re-read at the start of the slice it is filed against, and on 2026-08-12 that failed exactly as an
+  unenforced instruction does: a trap discharged during item 6 sat filed for a day and was found by
+  an audit rather than by anyone reading it. One grep, at the moment it is most relevant.
 - **Combat and gameplay work is deliberate, not vibed.** Minimize assumptions and state the reasoning, even when it is slower. If a gameplay question has more than one defensible answer, raise it rather than picking one quietly — and record the choice in `Docs/Combat-Decisions.md`. Unprompted initiative is welcome for debug and tooling conveniences (adding a readout to the debug HUD, say); it is not welcome for anything that changes how the game plays.
 - **When play and rationale disagree, play wins.** This file and `Docs/Combat-Decisions.md` are full of carefully argued positions. They exist to make choices legible, not to defend them against evidence — a designed distinction that does not survive contact with feel gets dropped, and the entry recording it gets superseded rather than argued for. Do not treat a persuasive past entry as a commitment.
 - Always propose a short plan before creating or modifying multiple assets.
@@ -183,7 +192,37 @@ Deliberately **not** kept: per-system design docs. Local rationale belongs in he
   reasoning intact, because that is project knowledge rather than credit.
 - **Instrument before theorising.** When behaviour is wrong and the cause is not obvious, enable a trace before proposing an explanation, and prefer an experiment that manipulates the suspected cause over one that only observes it. See `Docs/Working-In-Unreal.md`.
 - **Never claim something does not exist based on a filtered or derived view.** A search that finds something proves it exists; a search that finds nothing proves only that your filter did not match. Three wrong claims in `Docs/Animation-Library.md` came from exactly this — a prefix filter, a first-token summary, and a mismatched granularity — each reported as absence. Before writing "there is no X", search the authoritative source unfiltered, try synonyms and known misspellings, and quote the command you ran. If you cannot show the search, do not make the claim; say you did not find it and name where you looked.
+  **And date every absence claim you write down, with what you searched.** Absence claims rot faster than any other kind, because they are statements about a world that keeps changing around them — the 2026-08-12 audit found two that had gone stale, including "nothing places the dummy below the player" about a level that has a ramp. `Docs/Animation-Library.md` shows the form to copy: *"checked 2026-08-10 across all 6,576 rows of the index"*. A dated, scoped claim tells the next reader its shelf life; a bare one is indistinguishable from a guess and will be trusted like a fact.
 - **If you edited this file during a session, re-read all of it before finishing.** Edits made hours apart contradict each other easily. Check for stale claims and for rationale that belongs in `Docs/Combat-Decisions.md` — this file states rules and current facts, not arguments. Do not delete lines you did not write without asking: most of them are scar tissue from something that went wrong once.
+
+## Closing down a session
+
+Run this when the user says they are winding down, or when a session ends on a finished item. It
+exists because the 2026-08-12 audit found eight wrong claims across the docs, and **every one of
+them was cheap to catch at a boundary and expensive to trip over later**. Steps 3 and 4 are the
+audit in miniature; the rest is making sure nothing is left on the floor.
+
+1. **Make the editor state safe.** `AssetTools.save_assets` with an empty list, then **`git status`
+   — and read it.** Calling save is not the check; *seeing the files listed* is. A write that was
+   never saved and a write that is saved but not yet live look identical from inside the editor.
+   Announce before closing the editor, always.
+2. **Leave nothing verified uncommitted.** Push anything finished. For anything deliberately left
+   out, say so and why — pending *tuning* does not block a push, pending *correctness* does.
+3. **Check the docs you touched, with two greps.** `grep -n "supersede" Docs/Combat-Decisions.md` —
+   every hit needs a row in the supersession table, and two were missing on 2026-08-12. Then confirm
+   any cross-reference you wrote resolves to a section that exists; three pointed at a section that
+   had been deleted.
+4. **Discharge what you fixed.** Did this session fix anything filed as a trap? Clear it *and say
+   what discharged it*, in the same commit. Did anything supersede an entry, or make an absence
+   claim? Rows and dates, per the rules above.
+5. **Update the focus.** If the next item changed, `Current Focus` is the only place that says so —
+   and completed items keep one line plus whatever they left behind that can still bite.
+6. **Check memory is still pointing, not restating.** Only `combat-prototype-state` normally needs
+   touching, and only if the state actually moved. Anything a future contributor would need belongs
+   in the repo instead.
+7. **Hand off explicitly.** Where to pick up, what is verified versus merely written, and what is
+   open. **Name anything claimed but not verified** — that is the item most likely to be believed
+   next session and least likely to be re-checked.
 
 ## Current Focus
 

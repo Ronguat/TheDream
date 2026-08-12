@@ -82,6 +82,11 @@ Latent defects and unverified assumptions in code that **already exists**, each 
 the slice that makes it bite. Re-read this when starting that slice, not at session start — a
 flat list read once is forgotten by the time it matters.
 
+**That re-read is now a step in `CLAUDE.md`'s working loop rather than a request made here**, because
+asking politely did not work: a trap discharged during item 6 sat filed for a day afterwards and was
+found by a documentation audit, not by anyone starting the slice it was filed against. Grep this
+section for the item number before measuring anything.
+
 These are not design questions. Nothing here needs play to settle; they need checking.
 
 **Discharge a trap in the same commit that fixes it.** This section is the most load-bearing part
