@@ -22,7 +22,7 @@ code cannot drift from itself. Audited on the day this bar was set: 9 of the fir
 cleared it; the rest explained the current design, which the codebase does better.
 
 **How to read this file.** The sections above the first dated entry — **known traps**, the
-**tuning map**, **what has been superseded**, and **retired names** — are the working part, and
+**tuning map**, **what has been superseded**, **retired item numbers** and **retired names** — are the working part, and
 they are short on purpose. The dated entries below are an archive. Read the working sections
 when starting a slice; grep the entries when you want to know *why* something is the shape it
 is. Do not read it front to back.
@@ -83,9 +83,9 @@ the slice that makes it bite. Re-read this when starting that slice, not at sess
 flat list read once is forgotten by the time it matters.
 
 **That re-read is now a step in `CLAUDE.md`'s working loop rather than a request made here**, because
-asking politely did not work: a trap discharged during item 6 sat filed for a day afterwards and was
-found by a documentation audit, not by anyone starting the slice it was filed against. Grep this
-section for the item number before measuring anything.
+asking politely did not work: a trap discharged during Attack Swap sat filed for a day afterwards and
+was found by a documentation audit, not by anyone starting the slice it was filed against. Grep this
+section for the item's name before measuring anything.
 
 These are not design questions. Nothing here needs play to settle; they need checking.
 
@@ -96,7 +96,7 @@ discharged it and keep anything from it that is still true — the Slice B entry
 the client path being unexercised rather than simply disappearing. Removing a trap silently is the
 one edit here that cannot be reviewed, because nothing is left to review.
 
-**Mid-item-6 — *reach has changed and the placed spacing has not.*** Filed when the trace moved
+**Mid-Attack-Swap — *reach has changed and the placed spacing has not.*** Filed when the trace moved
 onto the blade, and **still live after 2026-08-12's swap to authored hitboxes**, which is the
 third time reach has moved in two days. `MaxReachCm` is now the authored answer per branch, so
 the *re-judge `TraceRadius`* half is discharged — that property no longer exists — but the
@@ -142,7 +142,7 @@ suspected cause and watching the symptom fail to move.
 construction. The rename came with it — one montage serves light, heavy and charged, so
 `AM_LightAttack_01` was always a misnomer and `AM_Attack` matches `GA_Attack`.
 
-**Before the charged or heavy gets its own clip, and during item 13** — *the coil is a freeze, and
+**Before the charged or heavy gets its own clip, and during Lunge + Recovery** — *the coil is a freeze, and
 this is now measured rather than predicted.* The 2026-08-12 entry "The coil has no room on a short
 clip" predicted a coil play rate of 0.03–0.05× from the arithmetic. Measured the same day across
 ~40 heavy and charged throws on the current timings: **`rate=0.049` to `rate=0.097`**, mean around
@@ -160,16 +160,16 @@ were both silent across every throw, and escalation lands at 151–169 ms agains
 about a frame late as the spec claims. **What it is, is the concrete argument for the charged and
 heavy getting their own clips**, which is otherwise only argued on appearance: a longer clip with a
 later damage point is the only thing that gives the coil somewhere to live. Expect this to surface
-during item 13, since re-authoring reach and travel per tier is when bespoke clips would land anyway.
+during Lunge + Recovery, since re-authoring reach and travel per tier is when bespoke clips would land anyway.
 
-**Whenever the light's `HoldUntilSeconds` changes — including via items 12 and 13** — *`TurnRateDegrees`
+**Whenever the light's `HoldUntilSeconds` changes — including via Lunge + Recovery** — *`TurnRateDegrees`
 is derived from it and nothing enforces the link.* The rate is 180° ÷ the light's commit time, which
 makes 1200 the slowest value that can always bring facing round before the attack's wedge freezes.
 Move the commit and the guarantee lapses silently: the character simply starts committing attacks
 partway through a turn, which is invisible without the `FACING LOCK` trace and was measured at 71%
 of flick-attacks landing outside their own wedge before it was found. Recompute both together.
 
-**Before block (item 7)** — *exhaustion can become permanent.* `ActivationBlockedTags` gates
+**Before Block** — *exhaustion can become permanent.* `ActivationBlockedTags` gates
 activation, not continuation, so a block held through zero keeps draining and keeps
 `State.StaminaRegenPaused` applied. Regen is now the **only** thing that ends exhaustion, so
 stalling it stalls the exit condition forever. Related: the stamina delegate only fires on a
@@ -222,7 +222,7 @@ timer is the i-frame problem in this same paragraph, which is the hardest item o
 count taken across a whole module measures the module, not the debt** — the same filtered-view
 error the absence rule exists for, in its counting form.
 
-**~~Before the sword-and-shield attack swap (item 6)~~ — *the melee trace follows `hand_r`.***
+**~~Before Attack Swap~~ — *the melee trace follows `hand_r`.***
 **Discharged 2026-08-12, twice over.** The trace moved to the blade on 2026-08-11, and on
 2026-08-12 the whole socket-following approach was replaced by authored `FTDAttackHitbox` wedges
 — so `TraceSocket`, `BladeAxisLocal`, `BladeStartCm`, `BladeLengthCm`, `BladeTraceSegments` and
@@ -232,8 +232,8 @@ Kept because it is still true and no longer has a home: **the values were tuned 
 standing in for the whole hitbox**, so nothing carried forward from them numerically. The
 starting wedges are a fresh guess and have never been played.
 
-**~~Before a second `Release Window` notify exists (item 6, or item 9)~~ — *the melee trace opens
-on any `Event.Melee.WindowBegin` reaching that ASC.*** **Discharged during item 6, and it sat here
+**~~Before a second `Release Window` notify exists (Attack Swap, or Light String)~~ — *the melee trace opens
+on any `Event.Melee.WindowBegin` reaching that ASC.*** **Discharged during Attack Swap, and it sat here
 filed for a day after being fixed** — found by the 2026-08-12 doc audit, not by anyone reading this
 section. `UAbilityTask_MeleeTrace::IsWindowForThisAttack` now filters on **both** edges, deliberately:
 a foreign montage's window *ending* must not close ours, which would truncate an active swing rather
@@ -242,10 +242,10 @@ behaviour kept for abilities that do not set one.
 
 **That this survived is the argument for the rule above it.** The file says discharging a trap in
 the same commit that fixes it is the most load-bearing habit here, and this is what breaking it
-looks like: a fixed defect still warning the next reader off a fix that already exists. Item 9 was
-its trigger and would have hit it.
+looks like: a fixed defect still warning the next reader off a fix that already exists. Light String
+was its trigger and would have hit it.
 
-**Before recovery and punish windows (item 12)** — *recovery is shorter than it looks, by exactly
+**Before Recovery** — *recovery is shorter than it looks, by exactly
 the montage's blend-out.* `UTDMeleeAttackAbility::StartAttackMontage` binds `HandleMontageFinished`
 to both `OnCompleted` and `OnBlendOut`, and `OnBlendOut` fires when blending *starts* — so the
 ability ends and `State.Attacking` / `State.Attacking.Committed` come off `BlendOut.blendTime`
@@ -256,16 +256,16 @@ ability waits for `OnCompleted` and blend-out becomes dead time. **Do not discov
 around it** — it is also the true cause of the debug attacker resetting before its swing looked
 done, which was patched with a delay rather than diagnosed.
 
-**When item 12 authors a real recovery** — *re-check `InputBufferSeconds`, which was sized
+**When Recovery authors a real recovery** — *re-check `InputBufferSeconds`, which was sized
 against a recovery nobody chose.* The window was tuned to its current value by play on
 2026-08-11 and works well, but what it is bridging is an attack's *ability* lifetime, and that
-still ends at montage blend-out rather than at an authored recovery — the item 12 trap below.
+still ends at montage blend-out rather than at an authored recovery — the Recovery trap below.
 Change what an attack's tail is and the window is measuring a different thing, without anything
 announcing it. Its ceiling is set by the longest lockout the design refuses to shorten, which is
 exhaustion; see the 200 ms entry.
 
 Note this replaces the trap that stood here until 2026-08-11 — that every timing verdict was
-confounded by inputs which never registered. That was item 8's whole justification and it is
+confounded by inputs which never registered. That was Input Buffer's whole justification and it is
 discharged.
 
 **Before the first multiplayer slice, added 2026-08-12, rewritten the same day** — *the attack
@@ -338,7 +338,7 @@ kept in their own notes. What belongs here is only what to move once a verdict a
 | An attack hits things beside you that it visibly missed | `ArcDegrees`, or skew `ArcCentreDegrees` toward the side the blade crosses | `MaxReachCm`. Narrowing reach to fix a coverage problem shortens the attack everywhere to fix it in one direction. |
 | Attacks feel like they clip through you at point blank | `MinReachCm` — but expect it to feel worse | Nothing else. A hole at the centre is authorable and is almost always wrong: the attacker's own body is already there, so the case is rarer than it seems. |
 | The facing freeze reads abruptly going *in* | `FacingLockFadeSeconds`, then the commit→release gap it clamps to | `StationaryTurnRateDegrees`, which is locomotion's and would change how the character turns everywhere to fix how one attack ends. |
-| Control returns too abruptly after a swing | **Nothing, for now.** Interpolating facing is deferred to item 14 | A fade that scales rotation authority. The original failure — any value below full authority disabling the snap — cannot recur now that there is no snap branch, but the fade was *also* a jump-cut at handoff, and that half is untouched. Re-read the two facing-fade entries before rebuilding it. |
+| Control returns too abruptly after a swing | **Nothing, for now.** Interpolating facing is deferred and **no item owns it** — it was parked against item 14 before that became Structure Audit, which is not a polish slice | A fade that scales rotation authority. The original failure — any value below full authority disabling the snap — cannot recur now that there is no snap branch, but the fade was *also* a jump-cut at handoff, and that half is untouched. Re-read the two facing-fade entries before rebuilding it. |
 | An ability's direction can be steered when it should be committed | `SetAbilityFacingLocked(true)` for its duration | `bAllowPhysicsRotationDuringAnimRootMotion`. Turning it back off fixes one ability by re-breaking every other, which is how the dodge got a committed direction it never declared. |
 | Control returning after a swing reads abruptly | Where the lock *ends* — it now runs to `EndAbility`, and the idle rate handles the catch-up gently when nothing else is happening | An interp on the rotation rate. It was the obvious fix and turned out to be unnecessary twice over: the two rates already cover both cases, and the failure modes that killed the original fade were artifacts of a snap branch that no longer exists. |
 | An attack does not close enough ground | `UTDMeleeAttackAbility::RootMotionScale`, which every tier shares | The clip, and **not** the per-branch scale if the complaint is about the whole ladder — that one cannot touch the windup at all. |
@@ -348,6 +348,49 @@ kept in their own notes. What belongs here is only what to move once a verdict a
 
 Add a row whenever an entry below establishes that a fix belongs in one place rather than
 another. That is the reusable part of an entry; the argument around it is not.
+
+---
+
+## Retired item numbers
+
+**Items were numbered 1–15 until 2026-08-12 and are named now.** The numbers were stable
+identifiers that carried no meaning, so every cross-reference cost a lookup — and the traps above
+had already started writing *"before block (item 7)"* on their own, which is what a scheme looks
+like when it has stopped paying for itself. Names keep the property the numbers were chosen for:
+**a name does not change when the order does.**
+
+**The 39 references below this line still say "item 6".** Dated entries are never rewritten, so
+this table is how they stay readable. Do not renumber anything to match them.
+
+| Entries say | Item is now | |
+|---|---|---|
+| item 1 | **Attack Ladder** | done |
+| item 2 | **Dodge** | done |
+| item 3 (and 3b, 3c) | **Sword & Shield** | done; the letters were sub-points, not items |
+| item 4 | **Death** | done |
+| item 5 | **Dodge Distance** | done |
+| item 6 | **Attack Swap** | done |
+| item 7 | **Block** | |
+| item 8 | **Input Buffer** | done |
+| item 9 | **Light String** | |
+| item 10 | **Parry** | |
+| item 11 | **Stun** | |
+| item 12 | **Recovery** | ships with Lunge as one slice |
+| item 13 | **Lunge** | ships with Recovery as one slice |
+| item 14 | **Structure Audit** | **widened and re-scoped 2026-08-12** — see below |
+| item 15 | **Settings** | |
+
+**Item 14 is the one row that is not a straight rename.** It was "a structural audit of what is
+designer-facing"; it is now the project's structure entire, and it is triggered by the combat model
+being verified good rather than holding a position in the order. Two consequences for anyone
+following an old reference into it:
+
+- Entries and header comments that parked **facing interpolation** against "the polish audit, item
+  14" are now pointing at something that is not a polish slice. **That work is unowned**, and it is
+  recorded as unowned rather than quietly reassigned — a feel task hidden behind a trigger that
+  requires feel to be verified would be circular, and would never run.
+- Anything else deferred to item 14 on *polish* grounds deserves the same check before it is
+  assumed to have a home.
 
 ---
 
@@ -369,11 +412,71 @@ concludes the log is wrong rather than merely old. Add a row whenever a name cha
 | `GetAttackTraceRadius()` | `GetAttackHitboxes()` |
 | `AM_LightAttack_01` | **`AM_Attack`**, rebuilt on GDHBundle's skeleton 2026-08-12. One montage serves all three tiers, so the old name was always a misnomer. |
 | `bAttackFacingLocked`, `SetAttackFacingLocked()` | `bAbilityFacingLocked`, `SetAbilityFacingLocked()` — the dodge uses it too. |
-| `FacingLockFadeSeconds`, `FacingUnlockRecoveryFraction`, `FacingTurnScale` | Deleted 2026-08-12. Facing is a hard lock; interpolation is item 14's. |
+| `FacingLockFadeSeconds`, `FacingUnlockRecoveryFraction`, `FacingTurnScale` | Deleted 2026-08-12. Facing is a hard lock; interpolation is deferred and unowned. |
 | `StationaryTurnRateDegrees` | **`TurnRateDegrees`**, renamed 2026-08-12 when facing stopped having a separate moving mode. No longer stationary-only, and no longer cosmetic — it decides where an attack points. |
 | `bSnapFacingWhileMoving` | Never shipped. A temporary A/B switch for the facing pass, deleted with the snap branch it selected. |
 
 ---
+
+## 2026-08-12 — Items get names, Recovery moves up to join Lunge, and the audit gets a trigger
+
+Three changes to the plan, made together because scrutinising the order is what exposed all three.
+The mechanical details are in `CLAUDE.md` and in the retired-item-numbers table above; what is
+recorded here is what was rejected.
+
+**Numbers → names.** The numbers were introduced as *stable identifiers, not sequence*, and that
+part worked — the order changed repeatedly and nothing broke. What they never did was mean
+anything, so every reference cost a lookup. The evidence that the scheme had stopped paying was
+already in this file: the traps had spontaneously begun writing *"before block (item 7)"* and
+*"before recovery and punish windows (item 12)"*, appending the name because the number would not
+carry the reader. The three things that were **never** numbered — the hover bug, the facing pass,
+Slices A and B — are the ones anybody can recall unaided.
+
+Two alternatives were rejected. **Rewriting the archive's 39 references** would violate the rule
+that dated entries are never rewritten, which exists for better reasons than this one problem;
+the bridge table costs one screen and breaks nothing. **Keeping the number as a hidden ID beside
+the name** was rejected as two identifiers for one thing, which is the duplication rule this
+project keeps relearning — a second copy is not reinforcement, it is something nobody reviews.
+
+The cost being accepted knowingly: **a name can be wrong in a way a number cannot.** A number never
+claims anything, so it can never drift; `Lunge` will be a lie if the mechanic outgrows it. That is
+the same exposure any renamed symbol carries here, and it gets the same treatment — a row in the
+table above, exactly as `StationaryTurnRateDegrees` got when it stopped being stationary-only.
+
+**Recovery moves up four places to ship with Lunge.** It sat second-to-last among the gameplay
+items. The argument that moved it is the one that had already moved Lunge ahead of Block, applied
+one step further: advantage on block is *blockstun minus recovery*, two numbers and one felt
+quantity, so authoring blockstun against a recovery nobody chose is the same error as measuring
+spacing against travel nobody chose. Recovery also feeds the Light String's endlag, how long facing
+stays committed, and `InputBufferSeconds` — four consumers, all of which would otherwise be tuned
+against whatever is left of a montage.
+
+**What settled it was noticing which item was already decided.** Recovery's shape was fixed on
+2026-08-12 — an authored `RecoverySeconds` with a derived play rate — while Block, Light String,
+Parry and Stun all still carry open design questions. An implementation item with a settled shape,
+queued behind four unsettled ones and feeding numbers into all of them, is backwards regardless of
+the rest of the argument.
+
+**Merging it with Lunge rather than merely reordering it** is the smaller point and the more
+practical one: both author a phase of the attack that the animation currently decides by default,
+and both are named in the coil trap as the moment bespoke per-tier clips would land. Run apart,
+the attack gets torn open twice against two different clip sets.
+
+**Structure Audit is widened, and given a trigger instead of a position.** The user's call on both.
+It was an audit of designer-facing property categories; it is now the project's structure entire.
+*Last* was rejected as a schedule: an audit parked at the end of a list that has grown every session
+it has existed is one that never runs, and "deferred until systems settle" is a condition, not a
+position, so it should be written as one. **The trigger is the combat model being verified good in
+play** — the prototype's actual finish line, and the first moment reorganising stops being wasted.
+
+**It also orphaned something, which is the part worth carrying.** Facing interpolation had been
+parked against "the polish audit, item 14" in two header comments, the tuning map and the
+retired-names table. Item 14 was never a polish slice in `CLAUDE.md` — it was structural there and
+polish in the C++ comments, one item quietly carrying two jobs, which only became visible when the
+item was renamed. Reassigning the work to Structure Audit would have been the tidy move and the
+wrong one: **a feel task behind a trigger that requires feel to be verified is circular.** It is
+recorded as unowned in all four places instead. The general form: *renaming a thing forces you to
+say what it is, and that is when you find out it was two things.*
 
 ## 2026-08-12 — Facing becomes one rate, and the rate is derived from the light's commit
 

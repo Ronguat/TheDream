@@ -89,8 +89,9 @@ protected:
 	// release window's end, both instantly. FacingLockFadeSeconds and
 	// FacingUnlockRecoveryFraction existed here for one day, 2026-08-12, and were removed by
 	// play: every value below full authority disables the camera snap, so the fades left chained
-	// attacks perpetually behind the camera. Smoothing is item 14's, and it will need a
-	// mechanism that does not gate the snap on the same number.
+	// attacks perpetually behind the camera. Smoothing is unowned work -- it was parked against
+	// item 14 before that became Structure Audit -- and it will need a mechanism that does not
+	// gate the snap on the same number.
 
 	/**
 	 *  Multiplier on the montage's authored root-motion translation, from the press onward.

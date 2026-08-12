@@ -104,7 +104,7 @@ protected:
 	 *
 	 *  Per-direction scales are derived from this and MeasuredTravelCm, so retuning distance is
 	 *  one number rather than eight -- the same reason recovery is authored in absolute time
-	 *  rather than as a fraction. Defaults to 405, which is what item 5's play pass judged good
+	 *  rather than as a fraction. Defaults to 405, which is what Dodge Distance's play pass judged good
 	 *  on the V1 clips (measured mean 404.9); V3's untouched mean is 413, within 2%.
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Dodge", meta=(ClampMin="1.0"))

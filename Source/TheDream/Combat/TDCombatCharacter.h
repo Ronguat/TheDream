@@ -269,15 +269,15 @@ protected:
 	/**
 	 *  Collapse into a ragdoll on death.
 	 *
-	 *  Item 4's death is otherwise *inert* rather than legible -- the character simply stops
-	 *  and nothing announces it, which was the first thing play reported. A ragdoll is the
-	 *  cheapest unambiguous read, and it needs no animation content, which matters because
-	 *  the directional `Death_<DIR>` clips belong to item 11.
+	 *  The minimal death shipped by the Death slice is otherwise *inert* rather than legible --
+	 *  the character simply stops and nothing announces it, which was the first thing play
+	 *  reported. A ragdoll is the cheapest unambiguous read, and it needs no animation content,
+	 *  which matters because the directional `Death_<DIR>` clips belong to Stun.
 	 *
 	 *  Requires a physics asset on the mesh or physics silently does nothing. Ours has one
 	 *  (`PA_Mannequin`, on the bundle's `SKM_Manny`); a mesh without one dies standing up.
 	 *
-	 *  Exposed so item 11 can turn it off when death gets real animation, rather than having
+	 *  Exposed so Stun can turn it off when death gets real animation, rather than having
 	 *  to unpick it from code.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat|Death")
@@ -286,10 +286,10 @@ protected:
 	/**
 	 *  Debug only: seconds after death before reviving at full. 0 disables the auto-revive.
 	 *
-	 *  Item 4 is deliberately the *minimum* death: a state that stops the character acting, so
-	 *  the health bar means something and damage observations after a kill are not garbage.
+	 *  Death is deliberately the *minimum*: a state that stops the character acting, so the
+	 *  health bar means something and damage observations after a kill are not garbage.
 	 *  Respawn rules, whether death routes through knockdown, and whether the dummy should die
-	 *  at all are item 11's, and a debug revive is what lets this ship without answering them.
+	 *  at all are Stun's, and a debug revive is what lets this ship without answering them.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat|Debug", meta=(ClampMin="0.0"))
 	float DebugAutoReviveSeconds = 3.0f;

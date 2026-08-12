@@ -60,7 +60,7 @@ namespace
 		// without it a second montage carrying this notify would open every listening trace --
 		// including one belonging to an attack that is not the montage playing. Correct while
 		// exactly one montage carries the notify, and silently wrong the moment a second does,
-		// which is what item 6 creates. UAbilityTask_MeleeTrace compares this against the
+		// which is what Attack Swap creates. UAbilityTask_MeleeTrace compares this against the
 		// montage its own ability is playing.
 		Payload.OptionalObject = SourceAnimation;
 

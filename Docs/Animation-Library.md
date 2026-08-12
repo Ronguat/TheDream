@@ -293,7 +293,7 @@ roughly 3×. **Reach for `_Complete`, not the standalone form.**
 
 ### Every complete single attack in `SwordSwordAnimV3` RM
 
-**23 clips.** This is the candidate pool for item 6 and beyond — everything in V3 that is one
+**23 clips.** This is the candidate pool for Attack Swap and beyond — everything in V3 that is one
 self-contained strike. Durations measured 2026-08-11. The **What it is** column is filled in by
 preview only; blank means nobody has looked yet.
 
@@ -356,11 +356,11 @@ Those two are the same swing family and are the strongest pairing found. By cont
 `Attack8_Stage2_Complete` winds up *across the body* and `Attack7_Stage1_Complete` comes from
 top-left, so both would read as different attacks before they landed.
 
-**Combo families, for item 9.** Stage counts are `Attack4` **4**; `Attack1`/`6`/`7`/`8` **3**;
+**Combo families, for Light String.** Stage counts are `Attack4` **4**; `Attack1`/`6`/`7`/`8` **3**;
 `Attack2`/`3` **2**; `Attack5`/`9`/`10` none. A string uses the *fragments* mid-chain and a
 `_Complete` to terminate — so a family's stage count is a usable hit count for a string, unlike
 for standalone attacks. **`Attack4` is the only four-stage family**, and it is where the chosen
-light came from, so one coherent set can serve items 6 and 9 together.
+light came from, so one coherent set can serve Attack Swap and Light String together.
 
 The bare `AttackN` form of a family *with* stages (e.g. `Attack4` at 4.867 s) is the entire
 multi-stage combo idle-to-idle, not a single strike. Not a candidate here.
@@ -450,7 +450,7 @@ These are facts about the bundle, checked across all 6,576 assets, not impressio
   | `SwordSwordAnimV3` | **discrete block actions** | `Block1`/`Block2`, each with `_Idle` and `_Hit`, plus `Block1_Parry` |
 
   That maps onto this project's two mechanics almost exactly: **block holds** (V1's idiom, and V1
-  is already the pack the dodge and locomotion come from, so item 7 has no stance problem at all),
+  is already the pack the dodge and locomotion come from, so Block has no stance problem at all),
   while **parry is a 400 ms discrete action** — which is what V3's `Block*` family is. All 19 of
   these clips are **already migrated**; none needs a migrate.
 

@@ -174,7 +174,7 @@ void ATheDreamCharacter::UpdateCameraRelativeFacing()
 	// Nothing scales between the two. Attacks freeze facing through IsFacingLocked() above and
 	// hand it straight back; a version that faded was built and removed the same day, because
 	// any scale below full authority disabled the snap that then existed. That failure mode is
-	// gone with the snap itself, but interpolation is still item 14's to revisit.
+	// gone with the snap itself, but interpolation is still unowned work to revisit.
 	bUseControllerRotationYaw = false;
 	Movement->bUseControllerDesiredRotation = true;
 }
@@ -217,7 +217,7 @@ void ATheDreamCharacter::SetAbilityFacingLocked(bool bLocked)
 			// Kept past the pass that added it, behind the existing cvar. This number cannot be
 			// read off a HUD by the same person performing the flick, and it is the only way the
 			// aim consequence of TurnRateDegrees is visible at all -- which matters because that
-			// rate is derived from the light's commit time, and items 12 and 13 both move things
+			// rate is derived from the light's commit time, and Lunge + Recovery moves things
 			// near it. Carries the rate so a sweep cannot be misattributed afterwards.
 			TD_TIMING_LOG(TEXT("FACING LOCK  err=%+.1f deg  rate=%.0f"),
 				FacingErrorAtLockDegrees,

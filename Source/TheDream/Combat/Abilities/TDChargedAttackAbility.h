@@ -182,7 +182,7 @@ protected:
 	 *
 	 *  Recovery is currently *whatever is left of the montage*, so its length is set by the clip
 	 *  rather than chosen — and a clip picked for its swing has no opinion about how long a
-	 *  punish window should be. This makes the tail authorable without pretending to be item 12,
+	 *  punish window should be. This makes the tail authorable without pretending to be Recovery,
 	 *  which is where recovery gets a real design: windows in absolute time, and punish maths.
 	 *
 	 *  1.0 is authored speed. Raising it shortens recovery, which shortens the punish window,

@@ -273,7 +273,7 @@ bool UTDChargedAttackAbility::IsWindowForThisAttack(const FGameplayEventData& Pa
 	// The notify broadcasts to the whole ASC and carries no ownership, so without this any
 	// montage carrying a Release Window would drive this attack's play rate. Harmless while
 	// exactly one montage carries the notify; silently wrong the moment a second does, which
-	// is what item 6's content pass creates. UAbilityTask_MeleeTrace guards the same way.
+	// is what Attack Swap's content pass creates. UAbilityTask_MeleeTrace guards the same way.
 	//
 	// Null AttackMontage means accept any, which is the behaviour before this guard existed.
 	if (!AttackMontage)

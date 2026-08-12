@@ -141,7 +141,9 @@ protected:
 	 *  branch**, so the fade did not merely soften the handoff, it left the character on smooth
 	 *  turning for its whole duration. Chaining lights with the camera turned meant each swing
 	 *  landed a little nearer to where you were looking and never at it. Precision beats polish
-	 *  here; the smoothing is deferred to the polish audit, item 14.
+	 *  here; the smoothing is deferred, and **no item currently owns it** -- it was parked against
+	 *  "the polish audit" when that was item 14, which has since become Structure Audit and is not
+	 *  a polish slice. Raise it before assuming somebody is coming for it.
 	 */
 	bool bAbilityFacingLocked = false;
 
