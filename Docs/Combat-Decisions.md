@@ -162,7 +162,25 @@ heavy getting their own clips**, which is otherwise only argued on appearance: a
 later damage point is the only thing that gives the coil somewhere to live. Expect this to surface
 during Lunge + Recovery, since re-authoring reach and travel per tier is when bespoke clips would land anyway.
 
-**Whenever the light's `HoldUntilSeconds` changes — including via Lunge + Recovery** — *`TurnRateDegrees`
+**Whenever the ladder's reactability is judged — heavy and charged run ~70 ms longer than their
+authored numbers, and the coil is where it goes.** *Measured 2026-08-12, across both recovery play
+sessions.* Totals against arithmetic: light authored 0.75 s and measured 0.758–0.771 (**+0.01**),
+heavy authored 1.10 and measured 1.172 (**+0.07**), charged authored 1.45 and measured 1.515–1.525
+(**+0.07**).
+
+**Recovery is not the source** — it was measured directly in the same runs and lands within 8 ms of
+authored at every tier. The light is the tier that never coils and it is the tier with no overhead,
+which is what points at the coil. It also predates authored recovery: charged measured 1.17 against
+an arithmetic 1.10 before any of this existed.
+
+Filed rather than fixed because **it is not obviously a defect and the fix depends on which number
+is the lie.** If the hitbox genuinely goes live ~70 ms after `ReleaseAtSeconds` claims, heavy and
+charged are more reactable than authored, which compounds the heavy's already-known problem. If
+instead the overhead sits after the damaging window, the spec numbers are honest and only the total
+is long. **Nobody has separated those two**, and the release-window trace can: compare the world
+time at `COMMIT` against the `RELEASE` line's, per tier. Do that before touching a timing.
+
+**Whenever the light's `HoldUntilSeconds` changes — including via Lunge** — *`TurnRateDegrees`
 is derived from it and nothing enforces the link.* The rate is 180° ÷ the light's commit time, which
 makes 1200 the slowest value that can always bring facing round before the attack's wedge freezes.
 Move the commit and the guarantee lapses silently: the character simply starts committing attacks
@@ -263,14 +281,18 @@ the current rate** equals the blend duration, so halving the rate halves the dis
 Anything deriving a rate against a fixed `Length - BlendTime` is right only at rate 1.0. See the
 dated entry; the correct solution is `R = (Length - Position) / (RecoverySeconds + BlendTime)`.
 
-**Now live, and the reason has changed** — *re-check `InputBufferSeconds`, which was sized against
-a recovery nobody chose.* It still ends at montage blend-out, but that boundary is now an
-**authored** `RecoverySeconds` rather than whatever the clip had left (2026-08-12), so the window
-is bridging a number somebody picked. Today's value reproduces the old tail almost exactly
-(0.2667 s, measured 0.268–0.271), so nothing has moved yet and the re-check is not urgent — **it
-becomes urgent the first time recovery is tuned by feel**, which is the point of having the knob.
-The window was tuned by play on 2026-08-11 and works well. Its ceiling is set by the longest
-lockout the design refuses to shorten, which is exhaustion; see the 200 ms entry.
+**~~Re-check `InputBufferSeconds`, which was sized against a recovery nobody chose.~~ Checked
+2026-08-12, and it is now a *watch* rather than a re-check.** Recovery was tuned to 0.40 / 0.50 /
+0.60 and played, and the window did drop exactly one input — a light tap expiring 260 ms after
+press while chaining. **Left at 0.20 deliberately**: the user did not feel it, and there is no
+value that is simply correct, because a buffer long enough to never drop a tap during a 0.75 s
+swing queues an attack most of a swing ahead. Full account and the arithmetic in the dated entry.
+
+**What makes it live again**, in rough order of likelihood: recovery tuned longer still, the light
+string making rapid tapping the primary input pattern, or a dropped input reported in normal play.
+Read the `BUFFER` trace before touching the number — `expired` is a window question, and no line at
+all means the press never reached the character. Its ceiling is set by the longest lockout the
+design refuses to shorten, which is exhaustion; see the 200 ms entry.
 
 Note this replaces the trap that stood here until 2026-08-11 — that every timing verdict was
 confounded by inputs which never registered. That was Input Buffer's whole justification and it is
@@ -427,6 +449,48 @@ concludes the log is wrong rather than merely old. Add a row whenever a name cha
 | `RecoveryPlayRate` | **`FTDAttackBranch::RecoverySeconds`**, 2026-08-12. Recovery is authored as a duration per branch and its rate is derived, as windup and release already were. A rate could only set the punish window indirectly, through however long the clip's tail happened to be. |
 
 ---
+
+## 2026-08-12 — Recovery's first authored values pass play, and expose the input buffer
+
+Two PIE sessions by the user, one on the defaults and one on authored values. Verdict on the
+second: *"it all felt very good and expected"*. The values that earned it, and the first time the
+asset has agreed with the spec's *charged has heavy endlag*:
+
+| | Light | Heavy | Charged |
+|---|---|---|---|
+| `RecoverySeconds` | 0.40 | 0.50 | 0.60 |
+
+Honoured within 8 ms at every value (light 0.401–0.407, charged 0.602–0.608, heavy confirmed
+through its total), with no warning of any kind across either session. **Heavy was thrown ~40
+times**, which closes the one branch the implementation pass never exercised.
+
+**The interesting part is what it cost the input buffer.** Exactly one input was dropped in the
+whole log:
+
+> `[5.917] BUFFER InputTag.Attack: released after 52ms held`
+> `[6.124] BUFFER InputTag.Attack: expired, 260ms after press`
+
+Chaining light taps — 70, 64, 62, 52 ms in about two seconds — the fourth expired unfired. The
+arithmetic: a light's lifetime is now 0.20 + 0.15 + **0.40** = 0.75 s and `InputBufferSeconds` is
+**0.20**, so tapping faster than a swing buffers a press that cannot be honoured in time. Session
+one had ~20 taps and zero expiries; session two had one in forty-five seconds. Held presses were
+unaffected and two fired 333 ms late — **a held button never expires, so it is specifically taps
+that this exposes.**
+
+**Nothing was changed, and that is the decision.** Asked whether it was felt, the user reported
+nothing beyond what they would *"chalk up to skill issue"*. Play wins over the prediction, but the
+evidence is weak in a specific way worth naming: *an observer who knows what they are testing for
+is a poor detector of a subtle drop*, so this is "not felt once" rather than "does not matter". It
+is recorded with its number so the next person can act without re-deriving it.
+
+**What would change the answer**: recovery being tuned longer, a light string that makes rapid
+tapping the primary input pattern, or anyone reporting a dropped input in normal play. The knob is
+`InputBufferSeconds` and the trace tells you which case you are in — `expired` is a window
+question, no line at all means the press never reached the character.
+
+**The tension to know before reaching for it:** a buffer long enough never to drop a tap during a
+0.75 s swing is a buffer that queues an attack most of a swing ahead, which is a different and
+worse feel. There is no value that is simply correct.
 
 ## 2026-08-12 — Recovery is authored, and the blend-out boundary moves with the play rate
 
