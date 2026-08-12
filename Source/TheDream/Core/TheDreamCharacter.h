@@ -109,10 +109,11 @@ protected:
 	 *  This is the number that matters, because it is the frame the attack's wedge stops
 	 *  tracking the camera. A live error is only ever a hint about it.
 	 *
-	 *  Also written to the log on every lock, ungated, because reading a figure off a HUD in the
-	 *  same moment you are flicking the camera and pressing attack turned out not to be a thing a
-	 *  person can do. The log line carries the rate and mode with it so a sweep is
-	 *  self-describing.
+	 *  Also written to the log on every lock, behind TD.DebugCombatTiming, because reading a
+	 *  figure off a HUD in the same moment you are flicking the camera and pressing attack turned
+	 *  out not to be a thing a person can do. The line carries the rate with it so a sweep is
+	 *  self-describing. It does **not** record which ability took facing, so attacks and dodges
+	 *  are indistinguishable in it -- add that before trying to attribute a bad reading.
 	 */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Movement", Transient)
 	float FacingErrorAtLockDegrees = 0.0f;
@@ -125,6 +126,14 @@ protected:
 	 *  the engine no longer stops a root-motion montage from being steered, so anything that
 	 *  wants a committed direction has to say so. Previously the dodge got that for free from a
 	 *  suppression it did not ask for.
+	 *
+	 *  **For an attack it runs from the commit checkpoint to the end of the ability, recovery
+	 *  included** (2026-08-12). It used to end when the release window closed, on the argument
+	 *  that recovery is not part of the commitment; play found the handback abrupt, and being
+	 *  committed to a direction through the punish window is the same commitment the recovery
+	 *  already imposes. The aim guarantee is indifferent to this -- it lives between the press and
+	 *  the commit checkpoint -- and a chained attack redirects during the *next* windup, which is
+	 *  where a spectator can actually read it.
 	 *
 	 *  A plain bool, and the fact that it is not a scale is a decision rather than an omission.
 	 *  It shipped on 2026-08-12 as a float faded in and out over time, so a swing eased into and

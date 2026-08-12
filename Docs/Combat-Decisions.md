@@ -305,6 +305,7 @@ kept in their own notes. What belongs here is only what to move once a verdict a
 | The facing freeze reads abruptly going *in* | `FacingLockFadeSeconds`, then the commit→release gap it clamps to | `StationaryTurnRateDegrees`, which is locomotion's and would change how the character turns everywhere to fix how one attack ends. |
 | Control returns too abruptly after a swing | **Nothing, for now.** Interpolating facing is deferred to item 14 | A fade that scales rotation authority. The original failure — any value below full authority disabling the snap — cannot recur now that there is no snap branch, but the fade was *also* a jump-cut at handoff, and that half is untouched. Re-read the two facing-fade entries before rebuilding it. |
 | An ability's direction can be steered when it should be committed | `SetAbilityFacingLocked(true)` for its duration | `bAllowPhysicsRotationDuringAnimRootMotion`. Turning it back off fixes one ability by re-breaking every other, which is how the dodge got a committed direction it never declared. |
+| Control returning after a swing reads abruptly | Where the lock *ends* — it now runs to `EndAbility`, and the idle rate handles the catch-up gently when nothing else is happening | An interp on the rotation rate. It was the obvious fix and turned out to be unnecessary twice over: the two rates already cover both cases, and the failure modes that killed the original fade were artifacts of a snap branch that no longer exists. |
 | An attack does not close enough ground | `UTDMeleeAttackAbility::RootMotionScale`, which every tier shares | The clip, and **not** the per-branch scale if the complaint is about the whole ladder — that one cannot touch the windup at all. |
 | One *tier* does not lunge far enough | `FTDAttackBranch::RootMotionScale`, knowing it only affects travel after commit | A larger number, once it stops responding. Past that point the clip is stationary in the phase that needs travel, and the fix is a different clip — see the 2026-08-12 displacement entry. |
 | The character floats, sinks, or its feet do not meet the ground | The mesh component's relative Z, which must be the negative of `InitCapsuleSize`'s half-height | Anything in the animations. Clip settings, root motion, root lock and skeletons were all investigated and all innocent; the offset is static and visible in the level viewport with nothing playing. Check it there before opening a single animation. |
@@ -451,6 +452,46 @@ tags, so it never needs revisiting.
 **The two rates are now split by whether they are allowed to be tuned by feel**, which is the more
 useful distinction than fast-versus-slow: `TurnRateDegrees` is derived and moving it silently breaks
 aim; `IdleTurnRateDegrees` cannot affect aim by construction and is pure taste.
+
+### And the facing lock then grew to cover recovery, by deleting code
+
+**Same day, once the rates were settled: the attack's facing lock now runs from the commit
+checkpoint to the end of the ability rather than to the end of the release window.** Raised by the
+user, who found the handback at the release window's close read as unnatural and suspected it was
+their own earlier design call. It was.
+
+**This is a combat change, not polish, and is recorded as chosen.** Recovery stops being steerable,
+which is a real defensive nerf: recovery *is* the punish window, and you are now committed to a
+direction throughout it. The justification is that this makes the commitment consistent — recovery
+already imposes a temporal commitment, and this makes it spatial too, exactly as commit does for the
+release window.
+
+**It cost nothing to the aim guarantee, and the reason is worth keeping**: the guarantee lives
+entirely between the press and the commit checkpoint, so where the lock *ends* cannot touch it. What
+does change is that a chained attack begins its windup with whatever gap accumulated across the
+entire previous attack, rather than a gap mostly closed during a free recovery. That is fine because
+the windup is sized against the 180° ceiling rather than against typical gaps — the same property
+that made the idle rate free. **Deriving from the bound keeps paying.**
+
+An initial worry that this "spends the safety margin" was overstated and is retracted: the failure
+is graceful, not a cliff. Missing a 180° close by 2° of frame jitter yields a 2° error against a
+±30° half-arc.
+
+**The implementation is a deletion.** `EndAbility` was already the guaranteed restore path — the one
+every exit converges on, including cancel and death — so extending the lock meant removing the
+early unlock and letting the safety net become the mechanism. An interp window at the release
+boundary was considered and proved unnecessary, because **the idle rate added an hour earlier
+already covers the case it would have smoothed**: a player who attacks and then does nothing is
+idle, so the catch-up runs at 300°/s and eases round; a player who chains or moves is not idle, and
+1200°/s is what they want. Two rates that were added for an unrelated reason turned out to make a
+third change simpler.
+
+**Two consequences to expect rather than discover.** "End of recovery" mechanically means montage
+**blend-out**, ~0.25 s before the swing visibly finishes, so a sliver of visible tail still has free
+facing — the item-12 trap, again. And **item 12's `RecoverySeconds` now has two jobs**: it will set
+how long you are committed to a direction as well as how long you are punishable. Those are both
+commitment and plausibly want the same number, but it should be a knowing choice when that slice
+lands.
 
 ### Two things that came free
 

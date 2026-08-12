@@ -309,13 +309,18 @@ void UTDChargedAttackAbility::HandleReleaseWindowEnded(FGameplayEventData Payloa
 	// needed, so the montage terminated itself the instant the rate was applied.
 	SetMontagePlayRate(RecoveryPlayRate);
 
-	// Facing comes back the instant the hitbox stops existing, which is the earliest moment it
-	// can without compromising the swing -- recovery is not part of the commitment. EndAbility
-	// clears it again for the paths that never reach here.
-	if (ATheDreamCharacter* Character = GetFacingCharacter())
-	{
-		Character->SetAbilityFacingLocked(false);
-	}
+	// Facing is deliberately *not* released here, and this used to be where it happened, on the
+	// argument that recovery is not part of the commitment. Play disagreed on 2026-08-12: control
+	// snapping back the instant the hitbox expired read as unnatural, and recovery is exactly the
+	// window an attack is supposed to be punishable in -- being committed to a direction through
+	// it is the same commitment, expressed spatially. The lock now runs to EndAbility.
+	//
+	// It costs nothing to the aim guarantee, which lives entirely between the press and the
+	// commit checkpoint and is untouched by where the lock ends. What it does change is that a
+	// chained attack starts its windup with whatever gap accumulated during the whole previous
+	// attack rather than a mostly-closed one -- which is fine, because the windup is sized to
+	// close the full 180 degree ceiling, and it puts a combo's redirection exactly where a player
+	// can see it happen.
 
 	TD_TIMING_LOG(TEXT("[%.3f] RELEASE OFF  pos=%.4f recoveryRate=%.3f"),
 		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f, GetMontagePosition(), RecoveryPlayRate);
