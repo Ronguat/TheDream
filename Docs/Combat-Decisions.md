@@ -134,6 +134,26 @@ suspected cause and watching the symptom fail to move.
 construction. The rename came with it — one montage serves light, heavy and charged, so
 `AM_LightAttack_01` was always a misnomer and `AM_Attack` matches `GA_Attack`.
 
+**Before the charged or heavy gets its own clip, and during item 13** — *the coil is a freeze, and
+this is now measured rather than predicted.* The 2026-08-12 entry "The coil has no room on a short
+clip" predicted a coil play rate of 0.03–0.05× from the arithmetic. Measured the same day across
+~40 heavy and charged throws on the current timings: **`rate=0.049` to `rate=0.097`**, mean around
+0.072. The montage advances at 5–10% speed for the whole coil, which is a freeze with a slight drift
+rather than a slowdown.
+
+**The 2× spread between throws is itself the diagnosis.** The rate is derived from the montage
+distance *remaining* to `ReleaseStartSeconds`, and that distance is only about 0.06 of montage — so
+a single frame of jitter in where escalation fires (observed positions 0.2265 to 0.2533) swings the
+derived rate by a factor of two. It is a small difference between two nearly-equal numbers, which is
+what "no room" looks like in the arithmetic rather than in the animation.
+
+Nothing is broken by it and no warning fires — the ungated *coil skipped* and *notify drift* checks
+were both silent across every throw, and escalation lands at 151–169 ms against an authored 150,
+about a frame late as the spec claims. **What it is, is the concrete argument for the charged and
+heavy getting their own clips**, which is otherwise only argued on appearance: a longer clip with a
+later damage point is the only thing that gives the coil somewhere to live. Expect this to surface
+during item 13, since re-authoring reach and travel per tier is when bespoke clips would land anyway.
+
 **Whenever the light's `HoldUntilSeconds` changes — including via items 12 and 13** — *`TurnRateDegrees`
 is derived from it and nothing enforces the link.* The rate is 180° ÷ the light's commit time, which
 makes 1200 the slowest value that can always bring facing round before the attack's wedge freezes.
