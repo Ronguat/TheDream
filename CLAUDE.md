@@ -372,7 +372,17 @@ In execution order, and all sequential. **Lunge + Recovery both shipped 2026-08-
    - **Shipped: authored lunge duration.** `FTDAttackBranch::LungeDurationSeconds`, because duration
      used to be derived from `ReleaseSeconds` — a hitbox-liveness number setting a movement feel. The
      lunge ran at 1000 cm/s against a 1012 cm/s dodge, which is why it did not read as a burst.
-     **0.12 on every branch is a placeholder, not a considered value**; it has not been felt.
+     **0.12 on every branch is live and is an assistant-chosen placeholder, not a felt value.** It is
+     what makes the lunge a burst with no curve attached; restoring the old 0.20 without curves would
+     bring back the too-slow-and-too-far complaint that prompted the change.
+   - **Parked 2026-08-13: lunge strength curves.** `C_Lunge_Base` and `C_Lunge_Attack` exist under
+     `Combat/Data/`, are roughly authored, and are **deliberately wired to nothing** — every
+     `LungeStrengthCurve` is `None`, so they are inert. Moved to the audit's trigger by the user as
+     last-10% feel work rather than functionality. **Do not wire them without re-checking the means:**
+     a curve's mean must be 1.0 or it silently scales the authored distance, and curve keys cannot be
+     read back through the toolset, so the only verification is measuring travel in play — which the
+     test level currently *cannot* do, because the gate truncates both lunges at 200 cm. Measuring
+     means moving the dummy out past ~800 cm first.
    - **Designed, not built: the aim half.** Post-commit only, a single capped correction at commit
      that rotates the *character* and not the camera, eligibility as a narrow long `FTDAttackHitbox`,
      selection by smallest bearing with distance breaking ties, skipping `TargetImmunityTags`. The
@@ -406,6 +416,12 @@ What prompted it is still the smallest concrete example: property categories mix
 *animation* data and give no sign which is which. `ReleaseStartSeconds` is a hand-copied measurement
 of a notify's position sitting beside `ReleaseAtSeconds`, which is a genuine design knob, and the
 wedges are authored under `Combat|Timing` when they are spacing.
+
+**Lunge strength curves are parked against this same trigger** (2026-08-13, the user's call), and are
+listed here rather than in the sequence for that reason. They are *not* structural work — the reason
+they share the trigger is that they are last-10% feel tuning, which is the same thing verified-good
+is a precondition for. Assets exist and are wired to nothing; see Target Lock for the state and the
+warning about curve means.
 
 **The trigger is the combat model being verified good in play.** Deferring the audit is right —
 anything reorganised before the systems settle gets reorganised again — but *last* is not a

@@ -269,6 +269,32 @@ back intact, while the write accomplishes nothing** *(reported once, twice in on
 session)*. Round-trip verification is the obvious check and it is not sufficient — the
 write lands, just somewhere nothing reads.
 
+**Refined 2026-08-13, and the refinement matters: whether a CDO write goes live is
+*property-dependent*, and reading the CDO back cannot tell you.** Two writes to `GA_Attack`'s CDO,
+seconds apart in one session, behaved differently in the same PIE run:
+
+| Property | On the CDO | On the live ability instance |
+|---|---|---|
+| `LungeStrengthCurve` — a direct object reference | curve | **`None`** |
+| `Branches[*].lungeStrengthCurve` — refs inside a struct array | curve | **curve** |
+
+After an editor restart, both read correctly on the instance. So the rule below is directionally
+right — a restart does fix it — but "a CDO property set this way is not live" is too broad: one of
+these two was live immediately.
+
+**The check is the runtime instance, not the CDO and not the file.** The CDO reported the new value
+correctly the whole time, before and after the restart, so every read-back was green while the game
+was using a stale value. This is the standing "verify against the artefact" rule in its sharpest
+form yet — here the artefact is neither the asset nor the bytes on disk but the **live object**.
+
+Getting at it: read `ActivatableAbilities` on the actor's `AbilitySystemComponent` during PIE. Each
+spec carries `nonReplicatedInstances`, whose `refPath` is the live ability object, and
+`ObjectTools.get_properties` reads it like anything else. The GAS inspector toolset cannot do this —
+`GetGrantedAbilities` returns ability *names* only.
+
+**No mechanism is offered for why the two differed.** Two sufficient explanations presented
+themselves and this project's record on picking between those without evidence is poor.
+
 **A Blueprint CDO property set this way is not live in the current editor session**
 *(confirmed 2026-08-10)*. `bBlockedWhileAirborne` was set on `GA_Dodge`'s CDO, read back true,
 saved, and confirmed changed on disk by `git status` — and PIE ignored it completely, twice, in
@@ -456,6 +482,18 @@ Confirmed traps:
   there. Never assume either outcome.
 
 ## Not scriptable at all
+
+**`UCurveFloat`'s keys** *(confirmed 2026-08-13)*. `list_properties` on a CurveFloat returns
+`assetImportData` and nothing else — `FloatCurve` is a bare `UPROPERTY()` with no edit specifier, so
+the reflection layer cannot see it. Keys can be neither read nor written. Creating the asset *is*
+scriptable by duplicating any existing CurveFloat (`/Niagara/DefaultAssets/Curves/Templates/LinearRampUp`
+is a convenient linear starting point), so the workable split is **script the asset, have a human
+author the keys** — the same shape as montage sections.
+
+A consequence worth knowing before relying on a curve: since the keys cannot be read back, a curve's
+mean cannot be verified through the toolset. For anything using the `StrengthOverTime` contract,
+where the mean must be 1.0 or the authored distance silently changes, the only check is measuring the
+distance actually travelled in play.
 
 *(reported once)* These need a human in the editor:
 
