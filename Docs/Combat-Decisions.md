@@ -329,6 +329,39 @@ reach *down* during the reach/travel re-author and not think of this. Note the a
 it easy to miss: **standoff is per ability and reach is per branch**, so one number has to stay below
 the smallest of three that are edited in a different part of the same asset.
 
+**Before Light String and before Stun** — *knockback and the next attack's travel are one budget, and
+nothing connects them.* A displacement that pushes a target further than the following attack can
+cover — today base 100 + branch 200 + `MaxReachCm` 150 — makes a chain structurally unable to link.
+It will read as the combo being broken rather than as knockback being too strong, because the number
+that has to change lives in a different system from the symptom.
+
+Filed before knockback exists rather than after, since this is exactly the kind of value that gets
+tuned in isolation for impact feel and then breaks something two slices away.
+
+*Two things that make it less urgent than it sounds, both from the user, 2026-08-13.* The per-tick
+gate already handles displacement natively — a knocked-back target is the retreating-target case,
+which is the one the gate was rewritten to serve, so linking survives being pushed. **The
+pre-shortened clamp we deleted would have been actively hostile here**: knockback pushes them out,
+the travel was already zeroed on their behalf, and the link becomes impossible. Good thing it went
+before knockback arrived rather than after.
+
+And the constraint binds *finishers and heavies* rather than the linking hits, because lights are
+intended to have low knockback by design. **That intent is recorded as illustration, not
+commitment** — the user was explicit that they did not want to promise the pattern yet: lights link
+into each other, dropping a chain leaves both parties awkwardly close in a scramble, and finishing it
+is a knockdown into oki. Useful as a worked example even if it turns out not to be the design.
+
+**Whenever `LungeStandoffCm` is tuned — it is also the spacing of every linked exchange.** Filed
+2026-08-13, following from the low-knockback intent above. If lights barely displace, each hit in a
+chain re-closes to exactly the gate distance, so two characters sit pinned at 84 + `LungeStandoffCm`
+(currently 124 cm) for the whole chain. The number will be *judged* on the slide it was authored to
+fix and *felt* mostly as how far apart people stand while trading — one number, two jobs, and the
+second is the one nobody will think of while tuning it.
+
+Note this property is exactly what an end-lunge-on-hit rule would trade away: ending on contact makes
+final spacing depend on where in the release window the hitbox caught them, so a chain breathes
+instead of sitting still. Not yet decided either way.
+
 **Before Block** — *exhaustion can become permanent.* `ActivationBlockedTags` gates
 activation, not continuation, so a block held through zero keeps draining and keeps
 `State.StaminaRegenPaused` applied. Regen is now the **only** thing that ends exhaustion, so
