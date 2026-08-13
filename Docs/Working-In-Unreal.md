@@ -699,6 +699,11 @@ sideways. Two 42 cm radii touch at 84 cm of separation, so the contamination beg
 two looked close. **This is "an assumed control is worse than no control" in its spatial form:** the
 displacement was real, measured and not the thing being measured.
 
+**Editor log timestamps are UTC; git commits are local.** *(2026-08-12.)* A log line reading
+`2026.08.13-02.07` and a commit reading `2026-08-12 17:26 -0600` are the same evening. Check before
+dating a doc entry from a log timestamp — an entry dated a day ahead of the commit that carries it
+is the kind of small wrongness this project's dated claims depend on not having.
+
 **The debug auto-attacker is a measuring instrument, and it has a configuration that silently
 invalidates it** *(2026-08-12, after it produced a wrong number that was reported before anyone
 checked)*. Travel is measured by letting it swing and reading where it stops, which needs
