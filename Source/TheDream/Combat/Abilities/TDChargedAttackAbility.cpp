@@ -210,6 +210,11 @@ void UTDChargedAttackAbility::CommitAttack()
 
 	const FTDAttackBranch& Branch = Branches[SelectedBranchIndex];
 
+	// First of the two slide samples. Taken before facing is frozen below, so it records where the
+	// target was when the attacker still had authority over its own aim -- the release sample then
+	// says how much of that was spent sliding rather than swinging.
+	LogTargetGeometry(TEXT("commit "));
+
 	// Past this point the attack can no longer be cancelled into a defensive action. Applied
 	// before anything else here so nothing can observe a committed attack that is not marked.
 	if (CommittedTag.IsValid())
@@ -398,6 +403,10 @@ void UTDChargedAttackAbility::HandleReleaseWindowBegan(FGameplayEventData Payloa
 
 	const FTDAttackBranch& Branch = Branches[SelectedBranchIndex];
 	const float ActualStart = GetMontagePosition();
+
+	// Second slide sample. The bearing's change since commit is how far the attacker travelled
+	// around a target its wedge could not follow, and it is the number Target Lock is judged on.
+	LogTargetGeometry(TEXT("release"));
 
 	// Redundant with the lock applied at commit, and kept deliberately, ahead of every early
 	// return below. The invariant worth defending is "facing is frozen whenever a hitbox is

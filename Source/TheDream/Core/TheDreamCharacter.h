@@ -246,6 +246,22 @@ public:
 	/** Debug only: yaw error sampled when facing was last taken by an ability, in degrees. */
 	float GetFacingErrorAtLockDegrees() const { return FacingErrorAtLockDegrees; }
 
+	/**
+	 *  Re-applies the camera-probe exemption to the capsule and the mesh.
+	 *
+	 *  **Every SetCollisionProfileName call on either component silently undoes it**, because a
+	 *  profile replaces the whole response table rather than merging into it. That is invisible at
+	 *  the call site: ragdolling sets the mesh to `Ragdoll` and the revive sets it back to
+	 *  `CharacterMesh`, and both read as restoring a known-good state while actually dropping a
+	 *  per-channel override the constructor set. The symptom is a corpse the spring arm collides
+	 *  with -- and because the revive does not restore it either, a revived character whose mesh
+	 *  blocks the camera permanently from then on.
+	 *
+	 *  So the exemption lives here rather than inline in the constructor, and anything touching a
+	 *  collision profile on these two components calls it afterwards.
+	 */
+	void ApplyCameraCollisionExemption();
+
 protected:
 
 	/** Drives the camera-relative facing rule. */

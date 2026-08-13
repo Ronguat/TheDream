@@ -268,12 +268,19 @@ carries the number → name bridge; do not renumber anything to match it.
 
 Execution order, the only line that changes when the order does:
 
-> **~~Attack Ladder~~ → ~~Dodge~~ → ~~Sword & Shield~~ → ~~Input Buffer~~ → ~~Death~~ → ~~Dodge Distance~~ → ~~Attack Swap~~ → ~~[hover bug]~~ → ~~[facing pass]~~ → ~~Recovery~~ + ~~Lunge~~ → Block → Light String → Parry → Stun → Settings**
+> **~~Attack Ladder~~ → ~~Dodge~~ → ~~Sword & Shield~~ → ~~Input Buffer~~ → ~~Death~~ → ~~Dodge Distance~~ → ~~Attack Swap~~ → ~~[hover bug]~~ → ~~[facing pass]~~ → ~~Recovery~~ + ~~Lunge~~ → Target Lock → Block → Light String → Parry → Stun → Settings**
 
 **Structure Audit is deliberately absent from that line** — it is triggered by the combat model
 being verified good, not by a position; see its entry at the end.
 
-**Pick up at Block. Lunge and Recovery both shipped 2026-08-12** and are play-verified. Both were
+**Pick up at Target Lock, which is part-built and awaiting a feel verdict.** Its clamp and
+instrumentation shipped 2026-08-13 and are *measured* but not *played* — the aim half is designed in
+full, recorded in `Docs/Combat-Decisions.md`, and deliberately unbuilt until the play session sizes
+it. **Target Lock was inserted ahead of Block on 2026-08-13**, from play: Lunge made attacks at
+anything but maximum range feel awkward, and being happy with what is already in comes before adding
+more.
+
+**Lunge and Recovery both shipped 2026-08-12** and are play-verified. Both were
 moved ahead of Block on the same rule: **a number that another number is felt against gets authored
 first.** Spacing is measured against travel, and advantage on block is blockstun minus recovery — so
 authoring either defensive number against a placeholder repeats the error the first move was made
@@ -281,9 +288,12 @@ to avoid. Recovery also feeds the Light String's endlag, how long facing stays c
 `InputBufferSeconds`. Reasoning and what was rejected are in `Docs/Combat-Decisions.md`.
 
 **Two things Lunge deliberately did not finish, and neither blocks Block:**
-- **Reach and the placed spacing are stale, and worse than before** — a light now travels 300 cm at
-  a dummy placed 200 cm away with a `MaxReachCm` of 150. Filed as a live trap. It waits because all
-  three are one felt quantity and two of the three tiers still play the light's clip.
+- **Reach and the placed spacing still need authoring together**, but the question changed on
+  2026-08-13 when Target Lock's clamp landed. It was *"a light travels 300 cm at a dummy 200 cm away
+  with a `MaxReachCm` of 150"*, i.e. overshoot; overshoot is now impossible, and the measured
+  reading is the opposite — the branch lunge clamps to **0** at that spacing, so a light authoring
+  300 cm performs 100. Still a live trap, still one felt quantity, and now tunable against something
+  that works rather than around a defect.
 - **The seam and the curve.** Base and branch lunges meet at a speed discontinuity, fixable by the
   distance *ratio* alone; a `StrengthOverTime` curve for the onset is the separate, optional half.
   The arithmetic for both is in the decision entry.
@@ -338,12 +348,34 @@ them is in `Docs/Combat-Decisions.md`.
    - **The base lunge follows facing, and that is load-bearing rather than cosmetic.** Rotation during that window *is* the aim guarantee, so a world-fixed lunge cannot be made safe by freezing rotation. Built on `FTDRootMotionSource_FacingForce`, a first-class `FRootMotionSource` subclass — predicted and replicated like the stock ones, and explicitly not hand-rolled movement.
    - **One value now sets three things**: `Branches[0].HoldUntilSeconds` fixes where the tiers become distinguishable, how long the base lunge runs, and (by derivation) `TurnRateDegrees`. Two are derived in code; the turn rate is still copied by hand. See the trap.
    - **A strength curve must average 1.0** across its range or the authored distance is silently wrong. Seam continuity is a separate matter and needs no curve: it is the distance *ratio*.
-   - **Reach and the placed dummy spacing are stale and worse than before** — a light travels 300 cm at a dummy 200 cm away with a `MaxReachCm` of 150. Deliberately deferred; all three are one felt quantity and two tiers still play the light's clip.
+   - **Reach and the placed dummy spacing still want authoring together with travel** — one felt quantity, and two tiers still play the light's clip. ***The overshoot this line used to describe is gone***, closed by Target Lock's clamp on 2026-08-13; what is open now is what the authored distances should be given the clamp decides them at close range. See Target Lock.
    - **Attacks became grounded-only and movement-locked**, which was never written down before. See the Offense section.
 
 ### Remaining
 
 In execution order, and all sequential. **Lunge + Recovery both shipped 2026-08-12**; see Done.
+
+- **Target Lock** — attacks reach the target you aimed at. **Part-built 2026-08-13.** *A player who
+  aims correctly and spaces correctly will reach their target; it never decides whether they were
+  close enough.* Two halves, and the governing rule is that it **may correct where you are pointed,
+  never whether you were in range** — so it cannot rescue a spacing miss and whiff punish is
+  untouched.
+   - **Shipped: the lunge clamp.** A capsule sweep along each lunge path, stopping `LungeStandoffCm`
+     short of the first pawn. Geometric rather than target-driven, deliberately — a selection test
+     has a boundary and a boundary is a cliff. **Measured, not played:** six attacks at 200 cm showed
+     zero slide (identical bearing at commit and release) and the branch lunge clamping 200 → 0. That
+     last number is the open question, not a defect: **a light authoring 300 cm of travel now
+     performs 100 at the placed spacing**, so the standoff and the authored distances want tuning
+     together in the reach/travel pass below.
+   - **Designed, not built: the aim half.** Post-commit only, a single capped correction at commit
+     that rotates the *character* and not the camera, eligibility as a narrow long `FTDAttackHitbox`,
+     selection by smallest bearing with distance breaking ties, skipping `TargetImmunityTags`. The
+     play session sizes the wedge and settles minimum-sufficient correction against snap-to-centre.
+     Full reasoning and everything rejected is in `Docs/Combat-Decisions.md`; do not re-derive it.
+   - **`LungeStandoffCm` must stay below every branch's `MaxReachCm`** or the clamp starts *causing*
+     whiffs by parking the attacker outside its own hitbox. Filed as a trap; standoff is per ability
+     and reach is per branch, which is what makes it easy to miss.
+   - **Idea recorded, not decided: dodge intangibility.** Try only after the clamp has been felt.
 
 - **Block** — the held guard, and the blockstun that arrives with it.
    - **Idea, noted 2026-08-11, not decided: use V1 as a *blocking* locomotion set.** If V3 becomes the neutral stance, V1's pervasive guard-forward pose stops being a drawback and becomes exactly the right material for the one state where a raised shield is correct. That is an **authored** block stance rather than a synthesized upper-body blend, which is the alternative **Sword & Shield** deferred (its art-seam note). It does not fully dissolve the art seam — V1's directions still disagree with each other — but it means any blend is correcting a guard pose rather than inventing one. Cheap to note now, expensive to rediscover. Blockstun disables offense and parry for a duration set by the attack blocked; it is the first *reactive* stun state and pulls in plumbing hitstun will also need. Content verified 2026-08-10, all in `SwordAndShieldAnimV1` (our pack): `DefenseStart` / `Defense_Loop` / `DefenseEnd` for the held guard, **plus eight `Defense_Hit_*` clips** — four directional block impacts and four die-while-blocking variants. The impacts are what blockstun reads as, and nothing previously recorded that they exist.

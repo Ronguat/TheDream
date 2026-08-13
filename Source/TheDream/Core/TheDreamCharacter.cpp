@@ -44,9 +44,11 @@ ATheDreamCharacter::ATheDreamCharacter()
 	// the camera in, or it ends up inside a wall. Only bodies are exempt. The cost is that the
 	// camera may pass through an opponent at very close range, which is the conventional trade
 	// and much less disruptive than the pull-in.
-	GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
-	GetMesh()->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
-		
+	//
+	// Setting it once here is not enough -- see ApplyCameraCollisionExemption, which is why this
+	// is a call rather than the two lines it used to be.
+	ApplyCameraCollisionExemption();
+
 	// Facing is camera-relative, not movement-relative: the character faces where the camera
 	// looks so it can strafe and backpedal. These are only the at-rest defaults -- from the
 	// first frame onward UpdateCameraRelativeFacing() owns both yaw flags.
@@ -104,6 +106,19 @@ ATheDreamCharacter::ATheDreamCharacter()
 	// Character) are set in BP_PlayerCharacter, to avoid direct content references in C++. It uses
 	// GDHBundle's SKM_Manny rather than Epic's SKM_Manny_Simple, because the Sword and Shield
 	// sockets the props attach to exist only on that mesh -- see Docs/Animation-Library.md.
+}
+
+void ATheDreamCharacter::ApplyCameraCollisionExemption()
+{
+	if (UCapsuleComponent* Capsule = GetCapsuleComponent())
+	{
+		Capsule->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
+	}
+
+	if (USkeletalMeshComponent* SkeletalMesh = GetMesh())
+	{
+		SkeletalMesh->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
+	}
 }
 
 void ATheDreamCharacter::Tick(float DeltaSeconds)

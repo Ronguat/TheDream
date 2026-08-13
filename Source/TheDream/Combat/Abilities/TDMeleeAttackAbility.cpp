@@ -10,6 +10,10 @@
 #include "AbilitySystemBlueprintLibrary.h"
 #include "AbilitySystemComponent.h"
 #include "GameFramework/Character.h"
+#include "GameFramework/Pawn.h"
+#include "Components/CapsuleComponent.h"
+#include "Engine/OverlapResult.h"
+#include "Engine/World.h"
 #include "Animation/AnimInstance.h"
 #include "Animation/AnimMontage.h"
 
@@ -39,6 +43,19 @@ void UTDMeleeAttackAbility::StartLunge(float DistanceCm, float DurationSeconds, 
 		return;
 	}
 
+	// Target Lock, applied here rather than at the two call sites so the base lunge and the
+	// per-branch one cannot disagree about it. The duration is deliberately *not* scaled with the
+	// distance: a clamped lunge covers less ground in the same time, which is what makes arriving
+	// at a near target read as closing rather than as a shorter, faster twitch.
+	DistanceCm = ClampLungeToTarget(DistanceCm);
+	if (DistanceCm <= 0.0f)
+	{
+		// Already at the standoff, so there is nothing to travel. Starting a zero-distance root
+		// motion source would be harmless but would still clamp velocity on finish, and the
+		// character is exactly where the lunge wanted to put it.
+		return;
+	}
+
 	UAbilityTask_FacingLunge* LungeTask = UAbilityTask_FacingLunge::ApplyFacingLunge(
 		this,
 		NAME_None,
@@ -58,6 +75,135 @@ void UTDMeleeAttackAbility::StartLunge(float DistanceCm, float DurationSeconds, 
 	{
 		LungeTask->ReadyForActivation();
 	}
+}
+
+float UTDMeleeAttackAbility::ClampLungeToTarget(float DistanceCm) const
+{
+	const ACharacter* Avatar = Cast<ACharacter>(GetAvatarActorFromActorInfo());
+	const UCapsuleComponent* Capsule = Avatar ? Avatar->GetCapsuleComponent() : nullptr;
+	UWorld* World = Avatar ? Avatar->GetWorld() : nullptr;
+	if (!Capsule || !World || DistanceCm <= 0.0f)
+	{
+		return DistanceCm;
+	}
+
+	const FVector Start = Avatar->GetActorLocation();
+	const FVector Direction = Avatar->GetActorForwardVector().GetSafeNormal2D();
+	if (Direction.IsNearlyZero())
+	{
+		return DistanceCm;
+	}
+
+	FCollisionQueryParams Params(SCENE_QUERY_STAT(TDLungeClamp), /*bTraceComplex=*/false, Avatar);
+
+	// Swept with the character's own capsule on ECC_Pawn, so this is the movement component's
+	// collision test asked one span early rather than an approximation of it. SweepMulti rather
+	// than SweepSingle because the first blocking hit may be world geometry: a wall is not what
+	// this clamp is for -- sliding along a flat surface is fine and lunging into one is already
+	// handled -- so the hits are walked in order and the nearest *pawn* is the one that counts.
+	TArray<FHitResult> Hits;
+	World->SweepMultiByChannel(
+		Hits,
+		Start,
+		Start + Direction * DistanceCm,
+		FQuat::Identity,
+		ECC_Pawn,
+		FCollisionShape::MakeCapsule(Capsule->GetScaledCapsuleRadius(), Capsule->GetScaledCapsuleHalfHeight()),
+		Params);
+
+	for (const FHitResult& Hit : Hits)
+	{
+		if (!Hit.GetActor() || !Hit.GetActor()->IsA<APawn>())
+		{
+			continue;
+		}
+
+		// bStartPenetrating reports Distance 0, which is the right answer rather than a degenerate
+		// one: a character already inside the standoff has nowhere to travel and should not.
+		const float Clamped = FMath::Clamp(Hit.Distance - LungeStandoffCm, 0.0f, DistanceCm);
+
+		TD_TIMING_LOG(TEXT("[%.3f] LUNGE      clamp %.1f -> %.1f  (pawn '%s' at %.1f, standoff %.1f)"),
+			World->GetTimeSeconds(),
+			DistanceCm,
+			Clamped,
+			*Hit.GetActor()->GetName(),
+			Hit.Distance,
+			LungeStandoffCm);
+
+		return Clamped;
+	}
+
+	return DistanceCm;
+}
+
+void UTDMeleeAttackAbility::LogTargetGeometry(const TCHAR* Phase) const
+{
+	if (!TDShouldTraceCombatTiming())
+	{
+		return;
+	}
+
+	const AActor* Avatar = GetAvatarActorFromActorInfo();
+	UWorld* World = Avatar ? Avatar->GetWorld() : nullptr;
+	if (!Avatar || !World)
+	{
+		return;
+	}
+
+	// Generous on purpose. This is a diagnostic, and a probe sized to the wedge could only ever
+	// confirm what the wedge already decided -- the interesting samples are the ones just outside
+	// it, because those are the misses being investigated.
+	static constexpr float ProbeRadiusCm = 1000.0f;
+
+	const FVector Origin = Avatar->GetActorLocation();
+
+	TArray<FOverlapResult> Overlaps;
+	World->OverlapMultiByObjectType(
+		Overlaps,
+		Origin,
+		FQuat::Identity,
+		FCollisionObjectQueryParams(ECC_Pawn),
+		FCollisionShape::MakeSphere(ProbeRadiusCm),
+		FCollisionQueryParams(SCENE_QUERY_STAT(TDTargetGeometry), /*bTraceComplex=*/false, Avatar));
+
+	const AActor* Nearest = nullptr;
+	float NearestDistance = TNumericLimits<float>::Max();
+	for (const FOverlapResult& Overlap : Overlaps)
+	{
+		const AActor* Candidate = Overlap.GetActor();
+		if (!Candidate || Candidate == Avatar || !Candidate->IsA<APawn>())
+		{
+			continue;
+		}
+
+		const float Distance = FVector::Dist2D(Candidate->GetActorLocation(), Origin);
+		if (Distance < NearestDistance)
+		{
+			NearestDistance = Distance;
+			Nearest = Candidate;
+		}
+	}
+
+	if (!Nearest)
+	{
+		TD_TIMING_LOG(TEXT("[%.3f] TARGET     %s  no pawn within %.0f cm"),
+			World->GetTimeSeconds(), Phase, ProbeRadiusCm);
+		return;
+	}
+
+	// Bearing is signed and relative to the attacker's facing, so the *difference* between the
+	// commit sample and the release sample is the slide -- which is the number this exists for.
+	const FVector Delta = Nearest->GetActorLocation() - Origin;
+	const float BearingDegrees = FMath::FindDeltaAngleDegrees(
+		Avatar->GetActorRotation().Yaw,
+		FMath::RadiansToDegrees(FMath::Atan2(Delta.Y, Delta.X)));
+
+	TD_TIMING_LOG(TEXT("[%.3f] TARGET     %s  '%s' dist=%.1f bearing=%+.1f"),
+		World->GetTimeSeconds(),
+		Phase,
+		*Nearest->GetName(),
+		NearestDistance,
+		BearingDegrees);
 }
 
 void UTDMeleeAttackAbility::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled)

@@ -144,6 +144,37 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Motion")
 	TObjectPtr<UCurveFloat> LungeStrengthCurve = nullptr;
 
+	/**
+	 *  Target Lock, translational half: how far short of a body a lunge stops, in centimetres.
+	 *
+	 *  **The bug this exists for is sliding, not overshooting.** A lunge that drives into a
+	 *  blocking capsule keeps its tangential component, and the tangential fraction grows as you
+	 *  slide toward the target's side -- so travel converts almost directly into arc around them.
+	 *  The contact circle is 528 cm around, so the 100 cm base lunge alone can carry you 68 degrees
+	 *  round a target *before commit*, and a light's full 300 cm is 205 degrees. Facing freezes at
+	 *  commit and the wedge is defined in the attacker's frame, so the wedge does not follow you
+	 *  round. That is why attacks at anything but maximum range felt awkward.
+	 *
+	 *  **Clamped against geometry, never against a selected target**, and that is deliberate. A
+	 *  selection test has a boundary, and a boundary is a cliff: a candidate at 29 degrees would
+	 *  clamp to nothing while one at 31 travelled the full authored distance, from the same input.
+	 *  The sweep has no cliff because it *is* the collision test -- anything it declines to clamp
+	 *  against is something the character would not have collided with.
+	 *
+	 *  **It only ever shortens.** The authored distance stays the ceiling, so a whiff still travels
+	 *  in full and the punish window is untouched; at maximum range, with nothing in the path, or
+	 *  into empty air the clamp is a no-op and the attack behaves exactly as it did before Target
+	 *  Lock existed. Those are consequences of the arithmetic rather than cases handled by name.
+	 *
+	 *  **Keep it below MaxReachCm or the clamp starts causing whiffs**, by stopping the attacker
+	 *  short of the target's own hitbox -- silently, and looking like a hit-detection fault. Nothing
+	 *  enforces the relationship because reach is authored per branch and this is per ability, so
+	 *  the realistic way to break it is to tune reach *down* and not think of this. See the trap in
+	 *  Docs/Combat-Decisions.md.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Motion", meta=(ClampMin="0.0"))
+	float LungeStandoffCm = 40.0f;
+
 	/** Damage for the swing currently being thrown. Overridden when a swing has variants. */
 	virtual float GetAttackDamage() const { return Damage; }
 
@@ -179,6 +210,34 @@ protected:
 	 *  checkpoint, so the post-commit lunge is fixed-direction without asking to be.
 	 */
 	void StartLunge(float DistanceCm, float DurationSeconds, UCurveFloat* StrengthCurve);
+
+	/**
+	 *  Shortens a lunge so it stops LungeStandoffCm before the first pawn in its path.
+	 *
+	 *  Returns the distance unchanged when nothing is in the way, which is the common case and the
+	 *  one that keeps long-range attacks feeling untouched. See LungeStandoffCm for why this is a
+	 *  sweep rather than a target lookup.
+	 *
+	 *  **Evaluated once, against the facing at the moment the span begins.** The lunge itself
+	 *  re-reads facing every movement tick, so a player who turns hard mid-lunge follows a curved
+	 *  path this straight sweep did not measure. Turning *away* only under-travels, which is
+	 *  harmless; turning *toward* can still drive into a body. The base lunge is the exposed one,
+	 *  being the only span where facing is free -- 0.15 s and 100 cm of it. Left as a known
+	 *  approximation rather than solved with a per-tick re-clamp, which would be more correct and
+	 *  considerably more machinery; whether it matters is what the TARGET trace is for.
+	 */
+	float ClampLungeToTarget(float DistanceCm) const;
+
+	/**
+	 *  Traces distance and bearing to the nearest other pawn, for diagnosing the slide.
+	 *
+	 *  Sampled at commit and again when the release window opens, so the *change* in bearing across
+	 *  those two points is how far the attacker slid around the target while its wedge was frozen.
+	 *  One sample cannot show that, which is why nothing could previously measure the defect that
+	 *  Target Lock exists to fix -- the melee trace silently skips every candidate its filter
+	 *  rejects, so a miss leaves no record of how it missed.
+	 */
+	void LogTargetGeometry(const TCHAR* Phase) const;
 
 	/**
 	 *  Plays AttackMontage, optionally from a named section, and ends the ability when it finishes.

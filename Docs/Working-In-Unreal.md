@@ -108,6 +108,17 @@ If asset writes are needed, confirm the tools actually respond before promising 
 lookups return the `UEDPIE_0_` duplicated world's actors — which is exactly what you
 want for inspecting live state, and exactly wrong for authoring.
 
+**And exactly wrong for measuring a placement** *(confirmed 2026-08-13)*. A PIE actor's transform is
+where it has *ended up*, not where it was placed: it has settled under gravity, and anything that
+can be pushed has been pushed. `BP_TrainingDummy` read `x=175.81, z=98.15` in a live PIE world and
+`x=200, z=100` in the editor world — a 24 cm drift accumulated during play. The PIE figure was
+written up as a correction to a documented 200 cm spacing, and the documentation was right.
+
+The tell is available and easy to miss: `z` had also moved, by the couple of centimetres a capsule
+settles. **If z is not the placed value either, nothing about that transform is the placed one.**
+The `UEDPIE_0_` prefix is in the ref path of every such reading, so the check costs nothing —
+**re-read it in the editor world before writing any placement number down.**
+
 ## Building C++
 
 **Live Coding patches exist only in the memory of the process that compiled them.** A

@@ -343,7 +343,13 @@ void ATDCombatCharacter::StartRagdoll()
 		Capsule->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	}
 
+	// The profile replaces the whole response table, so it drops the camera-probe exemption the
+	// constructor set on this mesh -- which is why the spring arm starts colliding with corpses.
+	// Re-applied rather than avoided: the Ragdoll profile is genuinely what the simulated body
+	// wants, it just must not be the last word on ECC_Camera.
 	SkeletalMesh->SetCollisionProfileName(TEXT("Ragdoll"));
+	ApplyCameraCollisionExemption();
+
 	SkeletalMesh->SetAllBodiesSimulatePhysics(true);
 	SkeletalMesh->SetSimulatePhysics(true);
 	SkeletalMesh->WakeAllRigidBodies();
@@ -361,7 +367,12 @@ void ATDCombatCharacter::StopRagdoll()
 	SkeletalMesh->SetSimulatePhysics(false);
 	SkeletalMesh->SetAllBodiesSimulatePhysics(false);
 	SkeletalMesh->PutAllRigidBodiesToSleep();
+
+	// Same trap on the way back, and this half is the worse one: restoring `CharacterMesh` reads
+	// as returning to the known-good state, so the exemption stays dropped for the rest of the
+	// character's life rather than only while the body is on the floor.
 	SkeletalMesh->SetCollisionProfileName(TEXT("CharacterMesh"));
+	ApplyCameraCollisionExemption();
 
 	// Reattached explicitly: simulation detaches the mesh from the capsule in all but name,
 	// and setting the relative transform without reattaching leaves it in world space.

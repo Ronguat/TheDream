@@ -116,6 +116,24 @@ than its entire standing distance. Reach and the placed spacing have to be re-au
 with the lunge distances, because all three are one felt quantity — and until they are, no spacing
 verdict from this level means anything.
 
+**Half-answered 2026-08-13 by Target Lock's clamp, and the half that remains changed shape.**
+Overshoot is no longer possible — travel is clamped to stop short of a body, so the failure the
+paragraph above describes cannot occur. What replaced it is the opposite reading: with the clamp in,
+the *authored* distances barely run at the placed spacing at all. Measured over six attacks at
+200 cm, the base lunge ran in full (~100 cm, the sweep correctly finding nothing in reach of it) and
+the branch lunge was clamped **200 → 0** every time, because the attacker was already 13.5 cm from
+contact and inside the 40 cm standoff. A light that authors 300 cm of travel is now performing 100.
+
+So the numbers still need re-authoring together and the trap stays open, but the question is no
+longer "how do we stop overshooting" — it is **what the authored distances should be given that the
+clamp is what actually decides them at close range.** That is the reach/travel/spacing pass, and it
+now has a working clamp to be tuned against rather than being tuned around a defect.
+
+*And the placed spacing is 200 cm, which this trap said all along.* A reading of 175.8 was taken on
+2026-08-13 and reported as a correction to it; it was measured in a live PIE world where the dummy
+had drifted 24 cm during play. The trap was right and the correction was wrong. See
+`Docs/Working-In-Unreal.md` on why a PIE-world transform is not a placed transform.
+
 **~~Open bug — the character hovers while a root-motion montage plays.~~ Discharged 2026-08-12.**
 It was never about montages, root motion, skeletons or clips. The mesh component sat at Z **−90**
 under a **96** capsule half-height, so the feet floated exactly **6 cm** in every pose on both
@@ -295,6 +313,18 @@ only because the C++ binds `Started` and `Completed`, which fire once each per p
 `ETriggerEvent::Triggered` — an ordinary-looking change — would produce a per-frame activation
 attempt, a per-frame refusal trace, and per-frame buffer churn, for as long as the button is held.
 The asset and the binding have to be read together; neither is wrong alone.
+
+**Whenever `LungeStandoffCm` or any branch's `MaxReachCm` moves** — *the two are coupled and
+nothing enforces it.* The clamp stops a lunge `LungeStandoffCm` before contact, so the attacker
+finishes at `84 + LungeStandoffCm` centre-to-centre. Reach is measured to the target's body, so the
+attack lands only while `LungeStandoffCm < MaxReachCm`. Above that the clamp **causes** whiffs by
+parking the attacker outside the hitbox it just aimed — silently, and looking exactly like a
+hit-detection fault rather than a spacing one.
+
+Today's values leave a wide margin (40 against 150) and the realistic way to break it is to tune
+reach *down* during the reach/travel re-author and not think of this. Note the asymmetry that makes
+it easy to miss: **standoff is per ability and reach is per branch**, so one number has to stay below
+the smallest of three that are edited in a different part of the same asset.
 
 **Before Block** — *exhaustion can become permanent.* `ActivationBlockedTags` gates
 activation, not continuation, so a block held through zero keeps draining and keeps
@@ -582,6 +612,161 @@ concludes the log is wrong rather than merely old. Add a row whenever a name cha
 | `RecoveryPlayRate` | **`FTDAttackBranch::RecoverySeconds`**, 2026-08-12. Recovery is authored as a duration per branch and its rate is derived, as windup and release already were. A rate could only set the punish window indirectly, through however long the clip's tail happened to be. |
 
 ---
+
+## 2026-08-13 — Target Lock, and the bug it exists for is sliding rather than overshooting
+
+A new item, raised by the user from play after Lunge shipped: attacks against anything but a
+maximum-range target felt awkward, described as lunging past someone and *sliding off their capsule*
+before the release window even began.
+
+**The mechanism, once it was measured rather than guessed.** Two capsules in contact orbit at 84 cm
+centre-to-centre, so the contact circle is 528 cm around. A lunge driving into a blocking body keeps
+its tangential component, and that fraction approaches the whole speed as you slide toward their
+side — so travel converts almost directly into arc. The 100 cm base lunge is 68° of it and a light's
+full 300 cm is 205°, which is behind them. Facing freezes at commit and the wedge is authored in the
+attacker's frame, so **the wedge does not follow you round.** At maximum range you never touch the
+capsule, never slide, and never see any of it — which is exactly the shape of the complaint.
+
+So this was not one bad number. It was three separately-correct decisions interacting: authored
+travel that is large, capsules that block, and a wedge frozen to a body being pushed sideways.
+
+### The governing rule, which is what makes it safe in a spacing game
+
+**Target Lock may correct where you are pointed. It may never correct whether you were close
+enough.** The clamp only shortens travel; the aim half only rotates. Neither can convert a spacing
+miss into a hit, so whiff punish is untouched — and "barely outspacing an attack feels identical"
+stops being something to tune toward and becomes arithmetic. It was the user's constraint and it
+turned out to be the design's spine rather than an acceptance criterion.
+
+### The clamp is geometric, and that is the load-bearing choice
+
+The obvious build is to acquire a target and clamp toward it. **Rejected, because a selection test
+has a boundary and a boundary is a cliff**: a candidate at 29° would clamp to nearly nothing while
+one at 31° travelled the full authored distance, from the same input. That is precisely the
+"imprecise" feel the system exists to avoid.
+
+Instead the lunge sweeps the character's own capsule along its path and stops `LungeStandoffCm`
+short of the first pawn. The sweep **is** the collision test rather than an approximation of it, so
+anything it declines to clamp against is something the character would not have collided with. Three
+properties fall out rather than being handled: no-op at maximum range, no-op with an empty path,
+no-op on a whiff into air. It also cannot pick the wrong target in 1vX, because it clamps against
+whatever is actually in the way, which is definitionally the thing that would have been slid off.
+
+**It is not blind to i-framing targets, and that is deliberate.** `TDDodgeAbility` adds a tag and
+never touches collision, so a dodging character is invulnerable and still solid. A clamp that
+ignored them would drive into a body and slide off it — the original defect, returning in the one
+case the player is least able to explain. The *aim* half skips them; the clamp cannot.
+
+### Measured the day it landed
+
+Six dummy attacks at the placed 200 cm. Commit and release samples read `dist=97.5 bearing=+0.0` and
+`dist=97.5 bearing=+0.0` — identical, on every attack, which is the no-slide signature. The base
+lunge ran in full because the sweep correctly found nothing within its 100 cm, and the branch lunge
+clamped **200 → 0** because the attacker was already 13.5 cm from contact, inside a 40 cm standoff.
+
+That last figure is the tuning question this hands forward: a light authoring 300 cm of travel now
+performs 100 at this spacing. The clamp is doing its job; whether the authored numbers and the
+standoff are right is the reach/travel/spacing pass, which now has something working to be judged
+against.
+
+### The name, and two that were dropped
+
+**Target Lock**, chosen by the user. *Soft lock* was rejected because *softlock* is an established
+term for an unrecoverable stuck state and would read as a bug class in a combat module. *Target
+Assist* was rejected as vaguer: "assist" says nothing about mechanism, and **the lock is real** —
+`CommitAttack` already calls `SetAbilityFacingLocked`, so the system names what it locks onto rather
+than borrowing a metaphor. The distinction from lock-on is that a lock-on is persistent and
+player-toggled, while this is evaluated once, discharged at commit, and never re-evaluated: a system
+that cannot be held is not a lock-on.
+
+### The aim half, designed and deliberately not built yet
+
+Settled in discussion and left for the measurement to size, so the record is here rather than in
+code that does not exist:
+
+- **Post-commit only**, because the windup is the one window where the player is actively steering
+  and correcting someone mid-aim is how assist comes to feel intrusive. After commit the player has
+  no agency by design, so the correction takes nothing away.
+- **A single correction at the commit instant, then frozen.** Continuous tracking is homing, and
+  homing means a defender's movement cannot make you whiff.
+- **It rotates the character, not the camera.** Forcing the camera is what would make an
+  invisible system conspicuous.
+- **Eligibility is an `FTDAttackHitbox`** — the same struct as the damage volume, authored longer in
+  reach and notably narrower in arc. Reusing it inherits the subtended-angle widening, so an
+  authored ±10° reads as ±14.8° at 500 cm and ±40° at contact: tight where the player is declaring
+  intent, forgiving where they obviously meant the person they are standing on. **The wedge's width
+  is the dial between the player declaring intent and the system inferring it.**
+- **Selection is smallest bearing, ties broken by distance.** Angular priority because angle is
+  expressed intent while distance is the player's own responsibility — and it is what lets a player
+  deliberately take the *further* of two targets. Distance-weighted selection was rejected as
+  producing the more offensive failure ("I aimed at the far one and it grabbed the near one"). The
+  tiebreak exists for determinism rather than for occlusion: unstable ordering would let client and
+  server pick different targets and rotate the attack to two different places.
+- **It skips `TargetImmunityTags` holders**, using the existing property rather than a second
+  immunity list.
+- **Correction is the minimum sufficient angle, not a snap to centre.** Already inside the damage
+  wedge means rotate zero. Two reasons, and the second is the stronger: it is less intrusive, and a
+  snap-to-centre would **actively undo a lead** — a player aiming where a moving target will be,
+  rotated back onto where it is, by the system meant to help them.
+- **An occlusion test was proposed and dropped.** Co-linear targets produce near-identical
+  corrections, and the clamp stops at the first body regardless of selection, so the outcome barely
+  depends on which was picked. Where selection *does* change the outcome the bearings differ, which
+  means it is two distinct targets rather than occlusion.
+
+**The chain chomp is the acceptance case**, and it falls out rather than being built: the clamp
+lengthens monotonically with target distance until it saturates at the authored value, and it
+saturates exactly where contact stops being reachable. So a target just past that boundary leaves
+the attacker rotated onto them, travelling full distance, and arriving short — locked on, committed,
+out of range. It only happens because the assist wedge reaches further than the damage wedge, so
+"longer reach, narrower arc" and the chain chomp are one decision.
+
+### Left open, and one idea recorded rather than decided
+
+The clamp is evaluated **once per span, against the facing at its start**, while the lunge re-reads
+facing every movement tick. A player turning hard mid-lunge therefore follows a curve the straight
+sweep did not measure — turning away only under-travels, turning toward can still drive into a body.
+The base lunge is the exposed one, being the only span where facing is free. Left as a known
+approximation rather than solved with a per-tick re-clamp, which would be more correct and
+considerably more machinery.
+
+Also open: whether a fast-moving target becomes unhittable without homing. The real quantity is the
+**50 ms between commit and the hitbox opening**, identical on all three tiers, which is the whole
+leading window. At today's only speed a target crosses 25 cm in it, comfortably inside the wedge, so
+the case does not currently exist. The knobs if it ever does are move speed, that 50 ms, or the
+damage wedge's arc — and only the last belongs to Target Lock.
+
+**Dodge intangibility, raised by the user and deliberately deferred**: making dodgers pass through
+other capsules. Worth trying only after the clamp has been felt, on the reasoning that much of what
+makes bodies feel obstructive is attacks driving into them, so the clamp may dissolve the case. It
+has one genuinely elegant consequence — an attacker lunging at an intangible dodger sails *through*
+and past them, landing in recovery with their back turned, which converts a successful dodge into a
+positional punish for free. And two real costs: it is a strict buff to an option that already gets
+400 ms of i-frames for 50 stamina, and **exit depenetration needs a rule**, since ending a dodge
+inside someone resolves as either a shove or a teleport. In PvP that is a position disagreement,
+which is worse to reconcile than a damage one.
+
+## 2026-08-13 — The camera boom collided with corpses because a collision profile is not a merge
+
+`ATheDreamCharacter`'s constructor exempts the capsule and the mesh from `ECC_Camera` so the spring
+arm does not treat a combatant as an obstruction. `ATDCombatCharacter::StartRagdoll` then called
+`SetCollisionProfileName("Ragdoll")` on the mesh — and **a profile replaces the whole response table
+rather than merging into it**, so the exemption was silently dropped and the boom started colliding
+with the body.
+
+Found by reading, from a user report of "jarring artifacts" around dead players. Worth recording for
+the second-order half, which nobody had observed yet: `StopRagdoll` sets the profile back to
+`CharacterMesh` and **also** does not restore the exemption, so a revived character's mesh blocks the
+camera permanently from then on. The bug outlives the ragdoll, and the debug revive makes it
+reachable.
+
+The fix is `ATheDreamCharacter::ApplyCameraCollisionExemption`, called by the constructor and after
+both profile sets. It is a function rather than three copies of two lines specifically so the next
+profile set has somewhere obvious to call — **the general form being that a per-channel override and
+a profile assignment are not composable, and the profile always wins.**
+
+Verified as far as reading and reflection go: the exemption reads back on a live mesh after the
+refactor. **The artefact itself — a camera that no longer collides with a corpse — has not been
+observed**, because it needs a death, and the automated run does not produce one.
 
 ## 2026-08-12 — An attack owns your movement, and the rule existed only in the designer's head
 
