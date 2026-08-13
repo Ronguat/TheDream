@@ -161,10 +161,15 @@ void ATheDreamCharacter::UpdateCameraRelativeFacing()
 	// PIE. That is what let it be swept mid-session against the debug HUD's lock readout, and
 	// it is how the 1200 was arrived at rather than guessed.
 	//
-	// The idle rate is a separate concern and cannot affect aim: the fast rate resumes on the
-	// press, so the attack's whole windup runs at TurnRateDegrees regardless of how far facing
-	// had drifted beforehand. See IdleTurnRateDegrees.
-	Movement->RotationRate.Yaw = IsIdle() ? IdleTurnRateDegrees : TurnRateDegrees;
+	// Three rates, and only one of them is an aim value. The fast rate resumes on the press and
+	// the whole first 150 ms of every attack runs at it, which is where the guarantee lives --
+	// so both of the others apply only outside that window and cannot affect aim at any value.
+	// The coil rate wins over idle because an attack is being held, which is not idle by any
+	// reading; in practice IsIdle() is already false then, and the order is stated rather than
+	// relied upon. See IdleTurnRateDegrees and CoilTurnRateDegrees.
+	Movement->RotationRate.Yaw = bAbilityCoiling
+		? CoilTurnRateDegrees
+		: (IsIdle() ? IdleTurnRateDegrees : TurnRateDegrees);
 
 	// One rotation source, always. bUseControllerRotationYaw is the *snap* -- it assigns yaw
 	// from the controller every frame, ignoring RotationRate entirely -- and it is deliberately
@@ -229,6 +234,16 @@ void ATheDreamCharacter::SetAbilityFacingLocked(bool bLocked)
 	bAbilityFacingLocked = bLocked;
 }
 
+void ATheDreamCharacter::SetAbilityCoiling(bool bCoiling)
+{
+	bAbilityCoiling = bCoiling;
+}
+
+void ATheDreamCharacter::SetAbilityMovementLocked(bool bLocked)
+{
+	bAbilityMovementLocked = bLocked;
+}
+
 void ATheDreamCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 {
 	// Set up action bindings
@@ -271,6 +286,20 @@ void ATheDreamCharacter::Look(const FInputActionValue& Value)
 
 void ATheDreamCharacter::DoMove(float Right, float Forward)
 {
+	// An ability owning movement means the player cannot walk out of it. Gated on the *input*
+	// rather than by disabling the movement component, because the ability itself still has to
+	// move: an attack's lunge, a dodge's dash and any future knockback all run through CMC, and
+	// DisableMovement would stop those too.
+	//
+	// Returning before AddMovementInput also leaves GetLastInputVector() empty, which is what
+	// IsIdle() reads -- harmless, because ATDCombatCharacter::IsIdle() already returns false
+	// while any ability is active, so a swinging character can never pick up the idle turn rate.
+	// Verified rather than assumed, 2026-08-12.
+	if (IsMovementLocked())
+	{
+		return;
+	}
+
 	if (GetController() != nullptr)
 	{
 		// find out which way is forward

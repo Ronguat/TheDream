@@ -68,7 +68,23 @@ void UTDChargedAttackAbility::ActivateAbility(const FGameplayAbilitySpecHandle H
 		World->GetTimeSeconds(), GetMontagePosition(), WindupRate,
 		ActualMontageRate(GetCurrentActorInfo(), AttackMontage));
 
+	// The base lunge, shared by every tier and identical in wall-clock length whichever branch
+	// this turns out to be -- it ends at the first branch's boundary, which is the last instant
+	// before the ladder can be told apart. Deliberately not called via the parent's
+	// ActivateAbility, which this class does not run because it would start the trace too early.
+	StartLunge(LungeDistanceCm, GetBaseLungeDurationSeconds(), LungeStrengthCurve);
+
 	ScheduleCheckpoint(Branches[0].HoldUntilSeconds);
+}
+
+float UTDChargedAttackAbility::GetBaseLungeDurationSeconds() const
+{
+	// Derived from the ladder rather than authored beside it. The base lunge has to end exactly
+	// where the tiers become distinguishable, and that boundary already has a home; a second
+	// copy of it would be one more pair of numbers nothing keeps married. Same discipline as
+	// TurnRateDegrees, which is derived from this identical value and is filed as a trap
+	// precisely because *it* is not enforced.
+	return Branches.Num() > 0 ? Branches[0].HoldUntilSeconds : Super::GetBaseLungeDurationSeconds();
 }
 
 void UTDChargedAttackAbility::InputReleased(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo)
@@ -141,6 +157,17 @@ void UTDChargedAttackAbility::HandleCheckpoint()
 void UTDChargedAttackAbility::EnterCoil()
 {
 	bCoiling = true;
+
+	// Facing slows here, and only here. The coil is the tell, and it is also the last window in
+	// which the attack can be aimed -- so this is a cap on how far a held attack may be
+	// redirected once a defender has had time to react to it, not a visual flourish. It cannot
+	// touch the aim guarantee: that is discharged by the first 150 ms at the full rate, which
+	// every tier has already run before reaching this line. The character owns the rate; the
+	// ability only reports the phase. Cleared in EndAbility, where every exit converges.
+	if (ATheDreamCharacter* Character = GetFacingCharacter())
+	{
+		Character->SetAbilityCoiling(true);
+	}
 
 	// Measured, not assumed. The checkpoint timer fires a frame or two late, so the
 	// montage is always a little past where the maths would have put it; deriving the
@@ -224,8 +251,15 @@ void UTDChargedAttackAbility::CommitAttack()
 	// Branch-specific travel begins here and not one frame sooner. The windup is shared and
 	// identical across tiers by design, so displacement during it must be too -- a charged that
 	// pulled further forward than a light would be a tell from the press, which is the property
-	// the whole ladder is built to deny. See FTDAttackBranch::RootMotionScale.
-	ApplyRootMotionScale(RootMotionScale * Branch.RootMotionScale);
+	// the whole ladder is built to deny. See FTDAttackBranch::LungeDistanceCm.
+	//
+	// The duration runs to the end of the release window, and is measured from *now* rather than
+	// from the authored HoldUntilSeconds: the checkpoint timer fires a frame or two late, and
+	// every other rate in this file is derived from where things actually are for the same
+	// reason. Identical at 200 ms on all three branches today, but derived, so it follows if
+	// ReleaseSeconds is ever retuned per tier.
+	const float LungeDuration = (Branch.ReleaseAtSeconds + Branch.ReleaseSeconds) - GetElapsedSeconds();
+	StartLunge(Branch.LungeDistanceCm, LungeDuration, Branch.LungeStrengthCurve);
 
 	// The window's own length is only knowable once the notify fires, so the ability waits
 	// for it rather than duplicating the timeline.

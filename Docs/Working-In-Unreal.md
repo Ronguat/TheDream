@@ -456,6 +456,14 @@ Confirmed traps:
   all, and `duplicate` fails with a bare `false` (see the trap above). A human makes the empty
   asset; everything after that is scriptable.
 
+**But creation is per-toolset, not a blanket limitation** *(confirmed 2026-08-12)*. `AssetTools`
+having no create function says nothing about the others. `MaterialTools.create_material`,
+`create_function`, `create_parameter_collection` and `MaterialInstanceTools.create` all work, and a
+whole material graph can be built end to end — `add_expression`, `connect_expressions`,
+`connect_to_output`, then `recompile`, which raises if the shader fails. `M_TestFloorGrid` and its
+instance were authored that way with no human in the loop. Check the toolset that owns the asset
+type before concluding a thing cannot be made.
+
 This is why renaming an AnimNotify class is expensive: placed notifies serialize against
 the class path, so a rename breaks them and they must be re-placed by hand.
 
@@ -690,6 +698,31 @@ against the player's capsule — blocked while in contact, released as it slid p
 sideways. Two 42 cm radii touch at 84 cm of separation, so the contamination began long before the
 two looked close. **This is "an assumed control is worse than no control" in its spatial form:** the
 displacement was real, measured and not the thing being measured.
+
+**The debug auto-attacker is a measuring instrument, and it has a configuration that silently
+invalidates it** *(2026-08-12, after it produced a wrong number that was reported before anyone
+checked)*. Travel is measured by letting it swing and reading where it stops, which needs
+`DebugAutoAttackResetDelaySeconds` **plus the attack's full length** to fit inside
+`DebugAutoAttackInterval`. Exceed it and the reset fires *mid-attack*, teleporting the attacker home
+part-way through a swing — and the numbers still look plausible.
+
+A charged runs ~1.45 s, so at the 3 s interval a 2.0 s reset delay overruns by 0.45 s. The heavy
+overruns too, at 1.15 + 2.0. **A heavy travel figure measured that way was reported as fact and had
+to be withdrawn.** 1.0 s clears all three tiers. Interval is read once when the timer is set in
+`BeginPlay`, so changing it at runtime does nothing — only the delay is live.
+
+**And a periodic world will alias against a periodic sampler.** Polling actor position through
+round-trips that happen to land near a multiple of the 3 s attack cycle returns the same phase every
+time: nine consecutive samples came back on the same plateau, which reads exactly like "the
+character never moves" and is really "I only ever looked at one moment". The fix is to vary the
+spacing deliberately, or fire a batch in one message and a single afterwards — not to take more
+samples at the same cadence.
+
+**The `TimeDilation` route is closed.** Slowing the world would make all of this easy, and
+`AWorldSettings::TimeDilation` is present in reflection but rejects writes through
+`ObjectTools.set_properties`. `AActor::CustomTimeDilation` is writable but is the wrong tool for
+anything timer-driven, since world timers do not scale with it — the montage would crawl while the
+ability's checkpoints fired on schedule.
 
 **Simulate mode stalled where PIE did not, and this is unexplained** *(2026-08-12)*. In
 `bSimulate: true` the dummy's looping auto-attack timer stopped firing after ~30 s of world time and

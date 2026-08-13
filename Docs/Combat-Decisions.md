@@ -73,6 +73,8 @@ dated entry. Add a row whenever an entry supersedes part of an older one.
 | 2026-08-10 — Sword and shield, rolls for every evade | the library has "no shield mesh at all" | **Never superseded by an entry — corrected in `Docs/Animation-Library.md`**, which records both the mesh (`Shield_Heater`) and why it was missed: it carries no `SM_` prefix, so a prefix-filtered search returned nothing. Found still uncorrected here by the 2026-08-12 audit. |
 | 2026-08-10 — The dodge is 0.4 s, judged before it had an animation | if the rate reads fast-forwarded, the lever is "trimming the sections" | 2026-08-10 — Animations play whole (same day, and it names this as the advice it supersedes; the row was never added). The rule is now also in `CLAUDE.md`: fit the clip to the duration, change the duration if it feels wrong. |
 | 2026-08-11 — The light is reactable at 250 ms | facing snaps on movement input and turns smoothly at rest | 2026-08-12 — Facing becomes one rate (one derived rate in all states, plus an idle rate) |
+| 2026-08-12 — Attack displacement is two scales | displacement is two multipliers on the clip's root motion, and a branch can only differentiate the travel its clip performs after commit | 2026-08-12 — Lunge is two authored distances (both scales are deleted; displacement is authored in centimetres and the clip contributes nothing, so what a branch can differentiate no longer depends on the clip at all) |
+| 2026-08-12 — Root motion scaling is not enough control | the likely answer is that Lunge takes `RootMotionScale` to 0 and owns displacement outright | 2026-08-12 — Lunge is two authored distances (taking the scale to 0 does **not** work: animation root motion suppresses root motion sources whether or not it is scaled, so the character stops moving entirely. The montage must carry no root motion) |
 
 ---
 
@@ -106,6 +108,13 @@ says nothing about hit detection.
 
 *This replaces a trap filed hours earlier claiming the trace connected with nothing. It was
 wrong — see the diagnostic note below, which is the part worth keeping.*
+
+**Sharply worse as of 2026-08-12, and now the blocking item rather than a background one.** Lunge
+authors travel outright, and the first values played put a light at **400 cm of travel** against a
+dummy placed at **200 cm** with a `MaxReachCm` of **150**. Attacks now overshoot the target by more
+than its entire standing distance. Reach and the placed spacing have to be re-authored *together*
+with the lunge distances, because all three are one felt quantity — and until they are, no spacing
+verdict from this level means anything.
 
 **~~Open bug — the character hovers while a root-motion montage plays.~~ Discharged 2026-08-12.**
 It was never about montages, root motion, skeletons or clips. The mesh component sat at Z **−90**
@@ -162,30 +171,130 @@ heavy getting their own clips**, which is otherwise only argued on appearance: a
 later damage point is the only thing that gives the coil somewhere to live. Expect this to surface
 during Lunge + Recovery, since re-authoring reach and travel per tier is when bespoke clips would land anyway.
 
-**Whenever the ladder's reactability is judged — heavy and charged run ~70 ms longer than their
-authored numbers, and the coil is where it goes.** *Measured 2026-08-12, across both recovery play
-sessions.* Totals against arithmetic: light authored 0.75 s and measured 0.758–0.771 (**+0.01**),
-heavy authored 1.10 and measured 1.172 (**+0.07**), charged authored 1.45 and measured 1.515–1.525
-(**+0.07**).
+**~~Whenever the ladder's reactability is judged — heavy and charged run ~70 ms longer than their
+authored numbers, and the coil is where it goes.~~ The reactability half is discharged 2026-08-12:
+the hitbox is on time on every tier.** Measured from the trace's own world clock, press to
+`RELEASE BEGIN`: light **202–207 ms** against an authored 200, heavy **506–508** against 500,
+charged **751–754** against 750. The heavy carries the *same* +6 ms bias as the light, which never
+coils — so the coil is not delaying anything, and heavy and charged are **not** more reactable than
+authored. Whatever runs long sits after the damaging window, which is the outcome the trap called
+harmless.
+
+That is the question it asked, answered: *"if the hitbox genuinely goes live ~70 ms after
+`ReleaseAtSeconds` claims, heavy and charged are more reactable than authored… nobody has separated
+those two."* Separated by comparing press-to-release across tiers, which is what it proposed.
+
+**Not fully closed, and deliberately left here:** the *total* overhead was never re-measured,
+because the trace has no ability-end line and nothing prints one. So this records where the
+overhead is **not**, rather than what remains. Anyone wanting the total needs to add the line first.
+
+The original measurement, kept because it is the evidence: totals against arithmetic — light
+authored 0.75 s and measured 0.758–0.771 (**+0.01**), heavy authored 1.10 and measured 1.172
+(**+0.07**), charged authored 1.45 and measured 1.515–1.525 (**+0.07**).
 
 **Recovery is not the source** — it was measured directly in the same runs and lands within 8 ms of
 authored at every tier. The light is the tier that never coils and it is the tier with no overhead,
 which is what points at the coil. It also predates authored recovery: charged measured 1.17 against
 an arithmetic 1.10 before any of this existed.
 
-Filed rather than fixed because **it is not obviously a defect and the fix depends on which number
-is the lie.** If the hitbox genuinely goes live ~70 ms after `ReleaseAtSeconds` claims, heavy and
-charged are more reactable than authored, which compounds the heavy's already-known problem. If
-instead the overhead sits after the damaging window, the spec numbers are honest and only the total
-is long. **Nobody has separated those two**, and the release-window trace can: compare the world
-time at `COMMIT` against the `RELEASE` line's, per tier. Do that before touching a timing.
+**And the inference from it was wrong, which is the part worth keeping.** "The light is the tier
+with no overhead and the tier that never coils" pointed at the coil, and the coil was innocent —
+the light also had no overhead *because it starts closest to its own release*, and both facts have
+the same cause without one causing the other. The measurement that settled it did not compare tiers
+at all; it compared each tier against its own authored number. **A correlation across tiers
+suggested the mechanism, and only a per-tier absolute measurement could test it.**
 
-**Whenever the light's `HoldUntilSeconds` changes — including via Lunge** — *`TurnRateDegrees`
-is derived from it and nothing enforces the link.* The rate is 180° ÷ the light's commit time, which
-makes 1200 the slowest value that can always bring facing round before the attack's wedge freezes.
-Move the commit and the guarantee lapses silently: the character simply starts committing attacks
-partway through a turn, which is invisible without the `FACING LOCK` trace and was measured at 71%
-of flick-attacks landing outside their own wedge before it was found. Recompute both together.
+**Whenever the light's `HoldUntilSeconds` changes** — *`TurnRateDegrees` is derived from it and
+nothing enforces the link.* The rate is 180° ÷ the light's commit time, which makes 1200 the slowest
+value that can always bring facing round before the attack's wedge freezes. Move the commit and the
+guarantee lapses silently: the character simply starts committing attacks partway through a turn,
+which is invisible without the `FACING LOCK` trace and was measured at 71% of flick-attacks landing
+outside their own wedge before it was found. Recompute both together.
+
+**That number now has a second dependent, added 2026-08-12 — the base lunge ends on the same
+boundary.** `UTDChargedAttackAbility::GetBaseLungeDurationSeconds()` returns `Branches[0].HoldUntilSeconds`
+rather than an authored copy, deliberately, so *that* link cannot drift. But it means one value now
+sets three things: when the tiers become distinguishable, how long the shared lunge runs, and the
+turn rate that must close 180° inside it. Two of the three are derived in code and safe; the turn
+rate is the one still copied by hand.
+
+**A consequence worth knowing before it surprises someone:** the maximum rotation possible during
+the base lunge is `TurnRateDegrees × HoldUntilSeconds` = exactly **180°**, by construction. A
+corkscrew lunge is therefore impossible without changing one of those two numbers, and a *lower*
+turn rate during that window would break the aim guarantee rather than tame anything. This was
+raised as a proposed cap and rejected on those grounds.
+
+**Whenever an attack montage is swapped, or any new ability drives a root motion source** —
+*animation root motion suppresses root motion sources completely, and scaling it to zero does not
+help.* `UCharacterMovementComponent::PerformMovement` says so in its own comment: *"Animation root
+motion overrides Velocity and currently doesn't allow any other root motion sources"*, and the
+branch it guards is `if (HasAnimRootMotion())` — which stays true no matter what
+`SetAnimRootMotionTranslationScale` is set to.
+
+So a montage carrying root motion produces **zero** lunge, not a doubled one. Measured 2026-08-12:
+the character stood perfectly still through a dozen charged attacks while every authored distance
+read back correctly. The fix is that `AM_Attack` plays the library's in-place (`_IP`) clip rather
+than the `_RM` one — same length to four decimals, same skeleton, so no notify drift.
+
+**This is enforced in code, not by memory**: `StartAttackMontage` logs an ungated warning when
+`AttackMontage->HasRootMotion()` and a lunge distance are both non-zero. Trust the warning over
+this paragraph, and never "fix" a suppressed lunge by scaling something.
+
+The reason it is worth a trap rather than a comment: **the failure is silent and the obvious remedy
+is the wrong one.** Zeroing the animation's contribution is what everyone tries first, it reads as
+correct, and it produces a character that does not move at all — a symptom easily blamed on the new
+system rather than on the old one still winning.
+
+**Before Light String — a buffered attack aims where the camera is when it *fires*, not when it was
+pressed.** Filed 2026-08-12, from play. The `FACING LOCK` trace reads ±0.0° and is *correct*: the
+body is aligned with the camera at commit. What it cannot see is that the commit happened up to
+**~440 ms after the press** — buffer wait plus the 150 ms windup — and the camera moved during it.
+
+So the aim guarantee holds and the attack still goes somewhere the player did not choose. **A clean
+`FACING LOCK` is not a clean bill of health**; it answers an angle question, and this is a time
+question. Neither trace shows it alone — `BUFFER` knows the lateness, `FACING LOCK` knows the angle,
+and nothing correlates them. Logging the camera yaw delta between press and commit would.
+
+**It scales with the lunge**, which is what promotes it from a curiosity: at 400 cm of travel you
+now go the wrong way, where before you only swung the wrong way.
+
+**The user's worst-case test, to run when Light String lands** — a three-light chain in 1vX, first
+attack on target A, second on target B 180° away, third back on A. That is the case where camera
+movement between press and commit is both maximal *and* deliberate, rather than the flailing that
+surfaced it. Deferred on the judgement that good-faith play against normally-moving targets does not
+reach it; the chain test is what would falsify that.
+
+**Two defensible behaviours, and only one has been felt:** aim at activation (current — the attack
+tracks your latest intent) or aim latched at press (the attack honours the moment of decision).
+Most action games do the first. This one is a spacing game, and the first is what felt wrong.
+
+**Unexplained, filed 2026-08-12 — one burst of per-frame activation attempts that never
+reproduced.** During airborne-input testing, `REFUSED … airborne` fired on **15 consecutive frames**
+(world 13.710–13.842, ~8.8 ms apart). Everywhere else in that log and in a deliberately heavier
+follow-up test, refusals sit **110–210 ms** apart, which is a human mashing.
+
+**Two explanations were killed by evidence, and no third is offered.** Held input repeating: the
+ability input binds `ETriggerEvent::Started` / `Completed`, once per press. A buffered press
+retrying each tick: no `stored` line within four seconds either side, and no `fired` or `expired`
+closing it out. No project code calls `CanActivateAbility` except the override that logs.
+
+**It is not a correctness problem** — every refusal in the burst was the correct answer, and the
+airborne rule is verified working. What it costs is instrument trust: a per-frame event drowns
+low-frequency ones inside any capped `GetLogEntries` window, which `Docs/Working-In-Unreal.md`
+already files as a way logs lie about absence.
+
+**What would identify it next time, and is now in place:** the `REFUSED` line carries the avatar's
+name. It did not before, and because abilities are `InstancedPerActor` the player's and the training
+dummy's instances are *both* legitimately `GA_Attack_C_0` — so the log could not say whose refusal
+it was, and "was this the dummy?" could not be ruled out. That gap is what made the burst
+unresolvable rather than the burst itself being subtle.
+
+**Whenever an ability's input binding is changed** — *`IA_Attack` carries an `InputTriggerDown`,
+which holds the action in the Triggered state every frame the button is down.* Nothing spams today
+only because the C++ binds `Started` and `Completed`, which fire once each per press. Rebinding to
+`ETriggerEvent::Triggered` — an ordinary-looking change — would produce a per-frame activation
+attempt, a per-frame refusal trace, and per-frame buffer churn, for as long as the button is held.
+The asset and the binding have to be read together; neither is wrong alone.
 
 **Before Block** — *exhaustion can become permanent.* `ActivationBlockedTags` gates
 activation, not continuation, so a block held through zero keeps draining and keeps
@@ -294,6 +403,22 @@ Read the `BUFFER` trace before touching the number — `expired` is a window que
 all means the press never reached the character. Its ceiling is set by the longest lockout the
 design refuses to shorten, which is exhaustion; see the 200 ms entry.
 
+**The third trigger fired 2026-08-12: 13 dropped presses out of 88 buffered, about one in seven.**
+All expiries clustered at **256–306 ms after press**. Not caused by the lunge — attack durations
+were untouched — but by tapping faster than the 0.75 s attack cycle, hard enough that *every* press
+in the session was buffered. Left at 0.20 pending a decision, because the session was deliberately
+abusive rather than representative.
+
+**Two things that measurement clarified about the number itself.** First, the window runs from the
+**release**, not the press: while the button is down the expiry is pushed forward every tick
+(`ExpiryWorldTime = Now + InputBufferSeconds`), and that stops on release. A 90 ms tap therefore
+gets ~290 ms of real grace, which is why the expiries cluster where they do rather than at 200.
+
+Second, and this is the consideration the original entry did not have: **the window is also a cap
+on how stale a buffered attack's aim can be.** Lengthening it drops fewer inputs *and* allows more
+aim drift; shortening it does the reverse. See the buffered-aim trap above. There is no value that
+is simply correct because the same number is answering two questions that want opposite answers.
+
 Note this replaces the trap that stood here until 2026-08-11 — that every timing verdict was
 confounded by inputs which never registered. That was Input Buffer's whole justification and it is
 discharged.
@@ -321,6 +446,12 @@ controlled or authority, so the correctness no longer rests on that.
 different claims, and a system that only works is one refactor in someone else's code away from
 not working.* The same distinction the Slice B entry draws between the server path being verified
 and the client path merely being written.
+
+**A second local-state exception joined it 2026-08-12: `bAbilityMovementLocked`**, driven by
+`UTDGameplayAbility::bLocksMovement`. Same category, same knowing exception, recorded here rather
+than as a second trap because it is the same fact about the same character. It is *input*
+suppression, so the machine that owns the input is the one that must honour it — and a simulated
+proxy has no input to suppress, which is why it is more clearly local than the facing lock is.
 
 Still owed when multiplayer is real: the fade is a float changing every frame, so replicating the
 *value* is wasteful — replicate the decision (this attack is in its lock phase) and let each
@@ -356,7 +487,7 @@ kept in their own notes. What belongs here is only what to move once a verdict a
 | Dodge is too safe | A recovery window in **absolute** time, i-frames derived as `DodgeSeconds - RecoverySeconds` | A *fraction* of the dodge. What makes recovery punishable is how it compares to an attack's startup, and a fraction shrinks the punish window below usable whenever the dodge is retuned faster. |
 | An attack is too reactable, or not enough | `CoilEndSeconds`, or moving where the coil starts | The windup length. Reactability is measured from the **tell**, not the press — a longer windup with the same coil changes nothing. |
 | The snap-to-camera pop reads badly | **Nothing — the snap is gone.** Facing is one smooth rate in both states as of 2026-08-12 | *(This row used to forbid always-smooth on the grounds that it sends dodges sideways. That was wrong: a dodge resolves its direction relative to facing and travels relative to the same facing, so lag cancels. Disproven in play.)* |
-| Attacks do not land where the player aimed | `TurnRateDegrees`, and check the `FACING LOCK` trace for the error at commit | The wedge's `ArcDegrees`. Widening the arc to cover a facing that arrived late hides an aim bug behind a bigger hitbox, and does it in every direction at once. |
+| Attacks do not land where the player aimed | `TurnRateDegrees`, and check the `FACING LOCK` trace for the error at commit — **but a clean trace does not exonerate**, see the buffered-aim trap | The wedge's `ArcDegrees`. Widening the arc to cover a facing that arrived late hides an aim bug behind a bigger hitbox, and does it in every direction at once. |
 | `TurnRateDegrees` feels too fast or slow | Nothing, without re-deriving it. It is 180° ÷ the light's `HoldUntilSeconds`, the slowest rate that always arrives before the wedge freezes | Lowering it for feel. Below the derived value there are flicks the character cannot finish, and the attack silently points somewhere the player did not aim — which is what 500 was doing to 71% of flick-attacks. |
 | The character spins on the spot like a prop while standing around | `IdleTurnRateDegrees`, freely — it cannot affect aim, because the fast rate resumes at the press and the whole windup runs on it | `TurnRateDegrees`. The two exist separately so this complaint has somewhere safe to go; answering it with the derived rate trades a cosmetic problem for a hit-detection one. |
 | An action feels like it turns too slowly to start | Whether `IsIdle()` is wrongly returning true for it — every ability and every buffered press should already exclude it | `IdleTurnRateDegrees`. Raising it to fix one action's start hides a classification bug and drags the idle look back toward the pop it was added to remove. |
@@ -372,8 +503,10 @@ kept in their own notes. What belongs here is only what to move once a verdict a
 | Control returning after a swing reads abruptly | Where the lock *ends* — it now runs to `EndAbility`, and the idle rate handles the catch-up gently when nothing else is happening | An interp on the rotation rate. It was the obvious fix and turned out to be unnecessary twice over: the two rates already cover both cases, and the failure modes that killed the original fade were artifacts of a snap branch that no longer exists. |
 | An attack is too punishable, or not punishable enough | The branch's `RecoverySeconds`, in absolute seconds — it *is* the punish window | The clip, its length, or any play rate. Recovery stopped being a property of the animation on 2026-08-12; the montage is warped to fit the number, never consulted about it. |
 | Recovery does not last what it is authored to | Whether something else set the montage rate after `RELEASE OFF` — the trace prints the derived rate and the blend-out boundary it solved for | A correction factor on `RecoverySeconds`. The boundary moves with the play rate, so a fudge tuned at one recovery length is wrong at every other; the rate-dependence is solved for in `ComputeRecoveryPlayRate` and any residual error is a different bug. |
-| An attack does not close enough ground | `UTDMeleeAttackAbility::RootMotionScale`, which every tier shares | The clip, and **not** the per-branch scale if the complaint is about the whole ladder — that one cannot touch the windup at all. |
-| One *tier* does not lunge far enough | `FTDAttackBranch::RootMotionScale`, knowing it only affects travel after commit | A larger number, once it stops responding. Past that point the clip is stationary in the phase that needs travel, and the fix is a different clip — see the 2026-08-12 displacement entry. |
+| An attack does not close enough ground | `UTDMeleeAttackAbility::LungeDistanceCm`, the base lunge every tier shares | The clip, and **not** a branch's value if the complaint is about the whole ladder. The base lunge is the only displacement that exists before the tiers can be told apart. |
+| One *tier* does not lunge far enough | That branch's `LungeDistanceCm`, which runs from the commit checkpoint to the end of the release window | The base lunge. Raising that to lengthen one tier lengthens all three, and does it in the one span a defender must not be able to read a tier from. |
+| The lunge jerks or stalls at the commit boundary | The **ratio** between the two distances. Speed is `Distance ÷ Duration`, so the seam is continuous when `D_branch = D_base × (T_branch ÷ T_base)` — today 1.333× | Either distance alone. Each one sets a speed, and it is the mismatch between them that is felt; changing one without the other moves the discontinuity rather than removing it. |
+| A lunge travels a different distance than it is authored | Whether the montage plays an in-place (`_IP`) clip, and whether a strength curve averages 1.0 | The distance. Animation root motion suppresses root motion sources outright, so a montage with root motion produces *no* lunge at all, and a curve whose mean is not 1 scales the distance silently. Both are settings, not tuning. |
 | The character floats, sinks, or its feet do not meet the ground | The mesh component's relative Z, which must be the negative of `InitCapsuleSize`'s half-height | Anything in the animations. Clip settings, root motion, root lock and skeletons were all investigated and all innocent; the offset is static and visible in the level viewport with nothing playing. Check it there before opening a single animation. |
 | Feet look right while moving but wrong during attacks | The same mesh Z — a discrepancy that only shows inside montages is foot IK masking it everywhere else | The montage or the clip. `ABP_Combat`'s Control Rig silently absorbs a constant offset, so "only montages are wrong" means "only montages lack the correction". |
 
@@ -449,6 +582,174 @@ concludes the log is wrong rather than merely old. Add a row whenever a name cha
 | `RecoveryPlayRate` | **`FTDAttackBranch::RecoverySeconds`**, 2026-08-12. Recovery is authored as a duration per branch and its rate is derived, as windup and release already were. A rate could only set the punish window indirectly, through however long the clip's tail happened to be. |
 
 ---
+
+## 2026-08-12 — An attack owns your movement, and the rule existed only in the designer's head
+
+Found in play, immediately after Lunge shipped: movement input works during an attack. WASD walks
+you sideways through your own windup, and jump launches you out of a recovery you are supposed to be
+committed to. **This was never a decision that got reversed — it was an assumption that had never
+been written down**, and so had never been implemented or questioned. The user's own framing, and
+the reason it belongs in `CLAUDE.md` rather than only here: a gap between the designer's brain and
+the documentation.
+
+Three rules, all now stated in the Offense section:
+
+- Movement input — WASD *and* jump — is suppressed for the ability's whole lifetime, windup through
+  recovery.
+- Attacks cannot be *started* while airborne.
+- The ability's own displacement is unaffected. The lunge still moves you.
+
+**Why "the lunge already overrides movement" was a false comfort.** It is true during the lunge:
+the root motion source runs in Override mode, so input genuinely does nothing. But the coil carries
+no lunge, and neither does recovery — and those are 550 ms and 600 ms respectively on a charged.
+The half of the attack that looked covered was the half nobody could walk out of anyway.
+
+### Input, not movement — and the distinction is the whole design
+
+The lock suppresses `DoMove` and `Jump` rather than disabling the movement component. Disabling
+movement would also stop the lunge, the dodge's dash and any future knockback, because all of those
+run *through* CMC. The rule being expressed is **"you may not move yourself"**, not "you may not
+move", and only one of those is implementable by turning movement off.
+
+### Two places it could have gone, and why it went on the shared base
+
+`bLocksMovement` sits on `UTDGameplayAbility` beside `bBlockedWhileAirborne`, applied in that
+class's `ActivateAbility` and released in its `EndAbility`. The alternative — having the attack
+ability call a lock directly, as it does for facing — was rejected because **opting in should not be
+separable from opting into the release.** A checkbox cannot be half-implemented.
+
+That choice creates one hazard, which is why the release is guarded on a per-instance
+`bTookMovementLock` rather than on the property: `EndAbility` runs on the shared base for *every*
+ability, so an unguarded release would let any ability's ending hand movement back while a different
+one still owned it. Guarding on `bLocksMovement` instead would strand the lock if the flag were ever
+toggled off mid-run. Only "did **I** take this" answers the real question. Same shape as
+`bAttackCommitted` guarding the committed tag's removal.
+
+**Deliberately deferred to the structure audit, at the user's suggestion:** making jump and crouch
+into abilities. `ATDCombatCharacter::Jump()` now restates its *third* lockout — dead, exhausted, and
+movement-locked — and its own comment already called itself "the one place that rule is not
+centralised". That is the argument for the conversion, recorded rather than acted on. When it
+happens, the seam is this same flag or a `State.MovementLocked` tag in their `ActivationBlockedTags`;
+neither requires undoing this.
+
+### What this closes and what it opens
+
+**Air attacks are out, and that is a design decision rather than a technical limit** — the flag was
+built with the opposite case in mind and its own comment says an air attack is a legitimate thing to
+want later. Turning them back on is a checkbox.
+
+Two consequences inherited from rules decided elsewhere, both correct and both worth expecting:
+the refusal **gates activation, not continuation**, so a lunge that carries you off a ledge does not
+interrupt the swing; and the airborne refusal is **deliberately not buffered**, so an attack pressed
+in the air is dropped rather than replayed on the touchdown frame.
+
+**Verified by measurement:** `REFUSED GA_Attack_C_0: airborne (mode=3)` with the dummy dropped from
+4000 units, and attacks resuming on landing — so the gate is transient rather than sticky. The
+movement and jump suppression is implemented and its enabling flag is proven live by that same CDO
+write, but **input suppression itself has not been confirmed by a keypress**; that needs a human.
+
+## 2026-08-12 — Lunge is two authored distances, and the boundaries were already there
+
+Displacement is now authored in centimetres, per attack, on the same terms space and time already
+were. This supersedes the two-multiplier design in "Attack displacement is two scales" and settles
+everything "Root motion scaling is not enough control" left open. `UTDMeleeAttackAbility::RootMotionScale`
+and `FTDAttackBranch::RootMotionScale` are both deleted.
+
+**Two spans, and neither needed a new timing knob** — which is the part worth recording, because
+the first design did:
+
+| | Span | Scope |
+|---|---|---|
+| `UTDMeleeAttackAbility::LungeDistanceCm` | press → `Branches[0].HoldUntilSeconds` | shared by every tier |
+| `FTDAttackBranch::LungeDistanceCm` | commit → end of the release window | that branch only |
+
+Both durations are *derived* — the base from the first branch's boundary, the branch's as
+`(ReleaseAtSeconds + ReleaseSeconds) − elapsed`. Lunge added two distances and **zero** timing
+values, because the boundaries it needs already existed for other reasons.
+
+**The coil gets no lunge, and that falls out rather than being ruled.** The base span ends where the
+tiers become distinguishable; the branch span starts at commit; the coil is the gap between them.
+That matters more than it looks: the coil is the *only* phase whose duration differs between tiers,
+so excluding it is what makes wall-clock displacement safe. The earlier entry worried that a GAS
+root motion source runs on wall time and would therefore carry a charged 4.7× further than a light —
+true, and it never arises, because nothing lunges during the span that differs.
+
+**The user's framing produced this, and it is simpler than the one it replaced.** The proposal on
+the table was an approach lunge, an explicit rule excluding the coil, and a strike lunge. Theirs was
+"a standard lunge covering the first 150 ms, and the authored one active after commit" — same
+result, one fewer rule, and the exclusion is a consequence instead of an instruction.
+
+### The base lunge follows facing, and play reversed the argument for fixing it
+
+Shipped world-fixed, on the reasoning that only the post-commit half can be steered safely. Play
+rejected it: the user wanted it aimable and said so after testing.
+
+**Why fixing it was wrong, stated properly now that it is settled.** Animation root motion is
+applied in the actor's local frame, so attack travel has *always* turned with the player — a
+world-fixed lunge was a regression, not a missing feature. Worse, it cannot be made safe by
+freezing rotation, because rotation during that window is exactly what the aim guarantee is:
+`TurnRateDegrees × Branches[0].HoldUntilSeconds` = 180°, the whole worst-case gap. So the choice was
+never "fixed or steerable"; it was **"steerable, or the attack points wherever the body got to"** —
+which is the defect measured at 71% of flick-attacks, reintroduced deliberately.
+
+The mitigation that made a fixed lunge tolerable was to keep it under the capsule radius (42 cm) so
+a full 180° divergence displaced less than the character's own width. That ceiling **retires with
+the fixed direction**: divergence is impossible when movement follows the body, so the base lunge is
+free to be as large as it feels right. The user's first tuned value was 200 cm.
+
+**It is not hand-rolled movement, which was the objection it had to answer.** `FTDRootMotionSource_FacingForce`
+is a `FRootMotionSource` subclass — the same first-class extension point every stock source uses,
+with `Clone`, `Matches`, `NetSerialize`, `GetScriptStruct` and `WithNetSerializer` traits — so it is
+predicted and replayed by the machinery that made animation root motion safe. It stores a *speed*
+and builds direction from `GetActorForwardVector()` each `PrepareRootMotion`, which is also why it
+is cheaper on the wire than the stock source: the direction never travels, because each machine
+reads it from a rotation that already replicates. `SetActorLocation`, `AddMovementInput` and
+`LaunchCharacter` remain the versions the netcode audit was right to fear.
+
+Reading facing during `PrepareRootMotion` should replay correctly under prediction, since rotation
+is saved-move data. **That is mechanism-level reasoning, not a measurement** — nothing here has run
+two machines.
+
+**One source serves both lunges, and that is a consequence rather than a convenience.** Facing is
+frozen from commit to `EndAbility`, so a facing-following source and a fixed one are identical
+there. Steerability became a property of the phase instead of a setting, which deleted a branch.
+
+### Three proposals rejected, each for a different reason
+
+**Freezing rotation during the base lunge** — rejected. It would retroactively break
+`IdleTurnRateDegrees`, which is classified as free-to-tune *only* because the fast rate resumes at
+the press and closes any drift; with no rotation there, attacking out of a slow idle turn commits to
+wherever the idle rate had reached. A cosmetic knob would have become an aim-breaking one at a
+distance, which is the failure shape this file exists to catch.
+
+**A separate turn-rate cap for the base lunge**, to prevent "drillbit" spins — rejected as
+unnecessary and unsafe. The maximum rotation across that span is already exactly 180° by
+construction, so a corkscrew cannot happen; and any value below the derived rate breaks the
+guarantee to solve a problem that does not exist.
+
+**Delaying the facing lock from commit to the start of release**, to give heavy and charged a
+visible "settle into aim" — rejected, and the arithmetic is why. Aim is already closed by the first
+150 ms, so that window buys *only* tracking of a defender who has had time to react, in the most
+valuable position possible: immediately before the hitbox. It is a pure power increase on the two
+moves the design most wants punishable, with no correctness case behind it.
+
+What survived from that proposal is the coil rate. `CoilTurnRateDegrees` (600, the user's value)
+slows facing during the coil, and it is safe at **any** value including zero for the same reason the
+lock delay was rejected: the guarantee is discharged before the coil begins, so everything after it
+is tracking rather than aiming. It joins `IdleTurnRateDegrees` on the tune-by-feel side of the split.
+
+### The curve contract, and what is still open
+
+A `StrengthOverTime` curve multiplies the force each tick, so **it must average 1.0 across its range
+or the authored distance is silently wrong**. For a straight-line curve that means the two endpoints
+sum to 2. Continuity across the commit seam is a separate matter and needs no curve at all: speed is
+`Distance ÷ Duration`, so the seam vanishes when `D_branch = D_base × (T_branch ÷ T_base)`.
+
+Open, and deliberately not decided here: the distances themselves, whether the base lunge wants an
+ease-out curve, and whether the dodge should be untethered from vendor root motion the same way.
+The last is a separate item and was raised by the user on the strength of this pattern working
+three times now — authored wedges took space off the art, authored durations took time, Lunge took
+displacement, and the dodge is the last system still reading a number off a clip.
 
 ## 2026-08-12 — Recovery's first authored values pass play, and expose the input buffer
 

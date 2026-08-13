@@ -6,6 +6,7 @@
 #include "Combat/TDCombatDebug.h"
 #include "Core/TheDreamCharacter.h"
 #include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
+#include "Combat/Tasks/AbilityTask_FacingLunge.h"
 #include "AbilitySystemBlueprintLibrary.h"
 #include "AbilitySystemComponent.h"
 #include "GameFramework/Character.h"
@@ -18,10 +19,44 @@ void UTDMeleeAttackAbility::ActivateAbility(const FGameplayAbilitySpecHandle Han
 
 	StartMeleeTrace(GetAttackHitboxes());
 
+	// The base lunge starts on the same frame as the montage, deliberately: it *is* the
+	// responsiveness of the press, and a frame of stillness first is exactly what it exists to
+	// remove. Shared by every tier -- per-tier travel begins at the commit checkpoint.
+	StartLunge(LungeDistanceCm, GetBaseLungeDurationSeconds(), LungeStrengthCurve);
+
 	// A plain swing has no derived timing, so it plays at the montage's authored speed.
 	if (!StartAttackMontage(NAME_None, 1.0f))
 	{
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
+	}
+}
+
+void UTDMeleeAttackAbility::StartLunge(float DistanceCm, float DurationSeconds, UCurveFloat* StrengthCurve)
+{
+	AActor* Avatar = GetAvatarActorFromActorInfo();
+	if (!Avatar || DistanceCm <= 0.0f || DurationSeconds <= 0.0f)
+	{
+		return;
+	}
+
+	UAbilityTask_FacingLunge* LungeTask = UAbilityTask_FacingLunge::ApplyFacingLunge(
+		this,
+		NAME_None,
+		DistanceCm,
+		DurationSeconds,
+		StrengthCurve,
+		// Velocity is clamped to nothing when the lunge ends, so no momentum survives into the
+		// next phase. Without this a lunge hands its speed to whatever follows -- for the light
+		// that is the branch lunge, which would then overshoot its own authored distance, and
+		// for a cancelled attack it is a character who keeps sliding after the swing is gone.
+		ERootMotionFinishVelocityMode::ClampVelocity,
+		FVector::ZeroVector,
+		/*ClampVelocityOnFinish=*/0.0f,
+		/*bEnableGravity=*/true);
+
+	if (LungeTask)
+	{
+		LungeTask->ReadyForActivation();
 	}
 }
 
@@ -34,6 +69,11 @@ void UTDMeleeAttackAbility::EndAbility(const FGameplayAbilitySpecHandle Handle, 
 	if (ATheDreamCharacter* Character = GetFacingCharacter())
 	{
 		Character->SetAbilityFacingLocked(false);
+
+		// Same reasoning, same place. A coil that was cancelled before its commit checkpoint
+		// would otherwise leave the character turning at the coil rate forever, which is a
+		// slow, silent version of the stranded lock above.
+		Character->SetAbilityCoiling(false);
 	}
 
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
@@ -43,27 +83,6 @@ ATheDreamCharacter* UTDMeleeAttackAbility::GetFacingCharacter() const
 {
 	const FGameplayAbilityActorInfo* ActorInfo = GetCurrentActorInfo();
 	return ActorInfo ? Cast<ATheDreamCharacter>(ActorInfo->AvatarActor.Get()) : nullptr;
-}
-
-void UTDMeleeAttackAbility::ApplyRootMotionScale(float Scale)
-{
-	ACharacter* Character = Cast<ACharacter>(GetAvatarActorFromActorInfo());
-	if (!Character)
-	{
-		return;
-	}
-
-	// The same gate UAbilityTask_PlayMontageAndWait uses. A simulated proxy must not scale its
-	// own root motion: its movement arrives replicated, and scaling it locally would apply the
-	// multiplier twice to a translation the server has already accounted for.
-	const bool bCanApply = Character->GetLocalRole() == ROLE_Authority
-		|| (Character->GetLocalRole() == ROLE_AutonomousProxy
-			&& GetNetExecutionPolicy() == EGameplayAbilityNetExecutionPolicy::LocalPredicted);
-
-	if (bCanApply)
-	{
-		Character->SetAnimRootMotionTranslationScale(Scale);
-	}
 }
 
 UAbilityTask_MeleeTrace* UTDMeleeAttackAbility::StartMeleeTrace(const TArray<FTDAttackHitbox>& InHitboxes)
@@ -128,9 +147,32 @@ bool UTDMeleeAttackAbility::StartAttackMontage(FName StartSection, float PlayRat
 		}
 	}
 
+	// **An attack montage must play an in-place clip, because Lunge drives the movement.**
+	//
+	// Not a preference. CharacterMovementComponent, in PerformMovement: "Animation root motion
+	// overrides Velocity and currently doesn't allow any other root motion sources" -- so while a
+	// root-motion montage plays, every UAbilityTask_ApplyRootMotion* source is ignored outright.
+	//
+	// Scaling the animation to zero does **not** hand movement to the lunge, which is the trap
+	// worth stating because it is the obvious thing to try and it fails silently: the montage
+	// still reports HasAnimRootMotion(), so the source is still ignored and the zeroed animation
+	// velocity wins. The character stands perfectly still for the whole swing. Measured on
+	// 2026-08-12 as exactly zero displacement across a dozen charged attacks.
+	//
+	// So the clip carries no root motion (AM_Attack plays the library's _IP variant, not _RM) and
+	// nothing here scales anything. The warning below is the enforcement, because the dependency
+	// is content-side and a repointed segment would otherwise break every lunge in silence.
+	if (AttackMontage->HasRootMotion() && LungeDistanceCm > 0.0f)
+	{
+		UE_LOG(LogTDCombatTiming, Warning,
+			TEXT("'%s' has root motion, so it will suppress every authored lunge on this attack. ")
+			TEXT("Point its segment at an in-place (_IP) clip."),
+			*AttackMontage->GetName());
+	}
+
 	UAbilityTask_PlayMontageAndWait* MontageTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(
 		this, NAME_None, AttackMontage, PlayRate, StartSection,
-		/*bStopWhenAbilityEnds=*/true, GetWindupRootMotionScale());
+		/*bStopWhenAbilityEnds=*/true, /*AnimRootMotionTranslationScale=*/1.0f);
 	// Bound to four separate wrappers rather than two shared handlers, so the trace can say
 	// which delegate ended the attack. They have different causes and different fixes.
 	MontageTask->OnCompleted.AddDynamic(this, &UTDMeleeAttackAbility::HandleMontageCompleted);

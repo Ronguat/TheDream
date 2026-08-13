@@ -3,6 +3,7 @@
 #include "Combat/Abilities/TDGameplayAbility.h"
 #include "Combat/TDCombatDebug.h"
 #include "Combat/TDGameplayTags.h"
+#include "Core/TheDreamCharacter.h"
 #include "AbilitySystemComponent.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
@@ -42,10 +43,15 @@ bool UTDGameplayAbility::CanActivateAbility(const FGameplayAbilitySpecHandle Han
 	if (ActorInfo && ActorInfo->AbilitySystemComponent.IsValid()
 		&& ActorInfo->AbilitySystemComponent->HasMatchingGameplayTag(TDTags::State_Dead))
 	{
-		TD_TIMING_LOG(TEXT("[%.3f] REFUSED    %s: dead"),
+		// The avatar's name, not just the ability's. Abilities are InstancedPerActor, so the
+		// player and the training dummy each own an instance and both are legitimately called
+		// GA_Attack_C_0 -- which made a real investigation impossible to finish, because the
+		// trace could not say whose refusal it was. Added 2026-08-12 for exactly that reason.
+		TD_TIMING_LOG(TEXT("[%.3f] REFUSED    %s on %s: dead"),
 			ActorInfo->AvatarActor.IsValid() && ActorInfo->AvatarActor->GetWorld()
 				? ActorInfo->AvatarActor->GetWorld()->GetTimeSeconds() : 0.0f,
-			*GetName());
+			*GetName(),
+			*GetNameSafe(ActorInfo->AvatarActor.Get()));
 		return false;
 	}
 
@@ -57,10 +63,15 @@ bool UTDGameplayAbility::CanActivateAbility(const FGameplayAbilitySpecHandle Han
 		{
 			// Traced, because a refused activation is otherwise indistinguishable from a
 			// dropped input -- the exact failure this project treats as the worst feedback
-			// available. Only on the refusal, so it reports an event rather than every press.
-			TD_TIMING_LOG(TEXT("[%.3f] REFUSED    %s: airborne (mode=%d)"),
+			// available. Fires once per activation attempt, which is once per press while the
+			// ability input is bound to Started; see the IA_Attack note in Combat-Decisions.
+			//
+			// Carries the avatar because the ability's own name cannot identify it: instances are
+			// per actor, so the player's and the dummy's are both GA_Attack_C_0.
+			TD_TIMING_LOG(TEXT("[%.3f] REFUSED    %s on %s: airborne (mode=%d)"),
 				Character->GetWorld() ? Character->GetWorld()->GetTimeSeconds() : 0.0f,
 				*GetName(),
+				*GetNameSafe(Character),
 				static_cast<int32>(Movement->MovementMode.GetValue()));
 			return false;
 		}
@@ -104,6 +115,22 @@ void UTDGameplayAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle
 {
 	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
 
+	// Reset first: an ability instanced per actor outlives its activation, so a flag left true by
+	// the previous run would make this one release a lock it never took.
+	bTookMovementLock = false;
+
+	// Ungated by role, like the facing lock and for the same reason: this is local input
+	// suppression, and the machine that owns the input is the one that has to honour it. See the
+	// facing-lock trap in Docs/Combat-Decisions.md, which covers both.
+	if (bLocksMovement)
+	{
+		if (ATheDreamCharacter* Character = Cast<ATheDreamCharacter>(GetAvatarActorFromActorInfo()))
+		{
+			Character->SetAbilityMovementLocked(true);
+			bTookMovementLock = true;
+		}
+	}
+
 	if (EffectOnStart && HasAuthority(&ActivationInfo))
 	{
 		if (UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo())
@@ -119,6 +146,23 @@ void UTDGameplayAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle
 
 void UTDGameplayAbility::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled)
 {
+	// Before Super, which tears down the actor info this needs.
+	//
+	// **Guarded on having taken it, not on bLocksMovement.** This runs on the shared base, so
+	// every ability passes through here -- an unguarded release would let any ability's ending
+	// hand movement back while a *different* one still owns it. Guarding on the property instead
+	// would strand the lock if it were ever toggled off mid-run. The instance flag is the only
+	// version that answers "did *I* take this", which is the actual question. Same reasoning as
+	// bAttackCommitted guarding the committed tag's removal.
+	if (bTookMovementLock)
+	{
+		if (ATheDreamCharacter* Character = Cast<ATheDreamCharacter>(GetAvatarActorFromActorInfo()))
+		{
+			Character->SetAbilityMovementLocked(false);
+		}
+		bTookMovementLock = false;
+	}
+
 	// Before Super, which tears down the actor info this needs. Authority-only, like every
 	// other effect application in this project -- clients see the result by replication.
 	if (EffectOnEnd && IsValid(this) && HasAuthority(&ActivationInfo))

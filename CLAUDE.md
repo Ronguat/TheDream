@@ -92,6 +92,13 @@ Note that "release" also names the button coming up, via GAS's `InputReleased`. 
 
 **Space is authored the same way, as of 2026-08-12.** Each tier also authors its damaging volume — reach, arc and a vertical band — as an `FTDAttackHitbox` on its branch, so range is a designed number rather than a property of the clip. `GA_Attack`'s `Branches` array is authoritative for both.
 
+**Displacement too, as of 2026-08-12** — two authored distances in centimetres, not a scale on the clip. A shared **base lunge** from the press to the light's input boundary, then a **per-branch lunge** from the commit checkpoint to the end of the release window. The coil carries neither, which is what keeps the tiers indistinguishable for as long as they must be. `GA_Attack` is authoritative; the reasoning is in `Docs/Combat-Decisions.md`.
+
+**An attack owns your movement and your feet** (2026-08-12, from play — this was assumed for months and written down nowhere):
+- **Movement input is suppressed for the whole ability** — windup, release *and* recovery. WASD and jump do nothing; the attack's own lunge still moves you. You cannot walk out of your own commitment. Implemented as `UTDGameplayAbility::bLocksMovement`, a checkbox on the shared base, so block, parry or a future crouch adopt it the same way.
+- **Attacks cannot start while airborne**, via the existing `bBlockedWhileAirborne`. It gates *activation*, not continuation — an attack that starts grounded keeps running if its lunge carries you off a ledge, which is deliberate. **The refusal is not buffered**: an attack pressed in the air is dropped, not replayed on landing.
+- Air attacks are therefore out for now and are a checkbox away from being back in.
+
 Two rules the model depends on:
 - **Windup length is preset.** Releasing early inside a band changes nothing — the attack still takes its full time to arrive. The cost is real dead time, and it is what stops a fractionally-held heavy from dominating light.
 - **Reactability is measured from the tell, not from the press.** All tiers share one windup, so the defender's window is coil → damaging. Lengthening a windup does not by itself make an attack more reactable; moving the coil earlier does.
@@ -242,20 +249,28 @@ carries the number → name bridge; do not renumber anything to match it.
 
 Execution order, the only line that changes when the order does:
 
-> **~~Attack Ladder~~ → ~~Dodge~~ → ~~Sword & Shield~~ → ~~Input Buffer~~ → ~~Death~~ → ~~Dodge Distance~~ → ~~Attack Swap~~ → ~~[hover bug]~~ → ~~[facing pass]~~ → ~~Recovery~~ + Lunge → Block → Light String → Parry → Stun → Settings**
+> **~~Attack Ladder~~ → ~~Dodge~~ → ~~Sword & Shield~~ → ~~Input Buffer~~ → ~~Death~~ → ~~Dodge Distance~~ → ~~Attack Swap~~ → ~~[hover bug]~~ → ~~[facing pass]~~ → ~~Recovery~~ + ~~Lunge~~ → Block → Light String → Parry → Stun → Settings**
 
 **Structure Audit is deliberately absent from that line** — it is triggered by the combat model
 being verified good, not by a position; see its entry at the end.
 
-**Pick up at Lunge. Recovery, its other half, shipped 2026-08-12** and is play-verified. Both were
+**Pick up at Block. Lunge and Recovery both shipped 2026-08-12** and are play-verified. Both were
 moved ahead of Block on the same rule: **a number that another number is felt against gets authored
 first.** Spacing is measured against travel, and advantage on block is blockstun minus recovery — so
 authoring either defensive number against a placeholder repeats the error the first move was made
 to avoid. Recovery also feeds the Light String's endlag, how long facing stays committed, and
 `InputBufferSeconds`. Reasoning and what was rejected are in `Docs/Combat-Decisions.md`.
 
-**Attack Ladder, Dodge, Sword & Shield, Input Buffer, Death, Dodge Distance, Attack Swap and
-Recovery are done**, plus three things that were never items: the netcode groundwork Slices A and B,
+**Two things Lunge deliberately did not finish, and neither blocks Block:**
+- **Reach and the placed spacing are stale, and worse than before** — a light now travels 300 cm at
+  a dummy placed 200 cm away with a `MaxReachCm` of 150. Filed as a live trap. It waits because all
+  three are one felt quantity and two of the three tiers still play the light's clip.
+- **The seam and the curve.** Base and branch lunges meet at a speed discontinuity, fixable by the
+  distance *ratio* alone; a `StrengthOverTime` curve for the onset is the separate, optional half.
+  The arithmetic for both is in the decision entry.
+
+**Attack Ladder, Dodge, Sword & Shield, Input Buffer, Death, Dodge Distance, Attack Swap, Recovery
+and Lunge are done**, plus three things that were never items: the netcode groundwork Slices A and B,
 the **hover bug**, and the **facing pass**. The last two closed on 2026-08-12 and left three live rules, all
 also stated where they are enforced:
 
@@ -298,22 +313,19 @@ them is in `Docs/Combat-Decisions.md`.
    - **Combatants ignore `ECC_Camera`**, so an opponent at melee range does not yank the camera boom forward. Level geometry still blocks it; only bodies are exempt.
    - **The training dummy shares `GA_Attack` with the player**, so offense parity is the default rather than extra work, and its `WeaponMesh` / `ShieldMesh` are set. **Parity is partial by design** — offense only; the dummy does not get `GA_Dodge`.
    - **Length does not choose a clip; a preview does.** Shorter is *not* better — a clip too short for its target implies a play rate below 1.0, which is slow motion and as much an artifact as a fast-forward. And **a family's stage count is not a hit count**: nearly every family is long opener → *one* short strike → long terminal.
-- **Input Buffer** — ~~input buffering.~~ **Done 2026-08-11**, verified in play and tuned. Single slot, last press wins; the window is grace on *taps*, so a held button never expires — which is what makes a buffered heavy or charged reachable at all. The airborne dodge refusal deliberately does **not** buffer. `InputBufferSeconds` on `ATDCombatCharacter` is authoritative for the live value; **re-check it when Recovery lands**, since it was sized against a tail nobody chose.
+- **Input Buffer** — ~~input buffering.~~ **Done 2026-08-11**, verified in play and tuned. Single slot, last press wins; the window is grace on *taps*, so a held button never expires — which is what makes a buffered heavy or charged reachable at all. The airborne dodge refusal deliberately does **not** buffer. `InputBufferSeconds` on `ATDCombatCharacter` is authoritative for the live value; **re-checked when Recovery landed and again under Lunge** — still 0.20, now a watch with a measured failure rate and a third consideration behind it. See the trap.
+- **Lunge + Recovery** — ~~authored attack displacement, and the punish window it is tuned against.~~ **Both done 2026-08-12**, play-verified. Recovery is `RecoverySeconds` per branch (0.40 / 0.50 / 0.60), honoured within 8 ms. Lunge is **two authored distances in centimetres** — a shared base from the press to the light's boundary, and a per-branch one from commit to the end of release — measured within 2.5% at every tier. `RootMotionScale` is deleted in both its forms. What it left behind that can still bite:
+   - **An attack montage must play an in-place (`_IP`) clip.** Animation root motion suppresses root motion sources outright, so a montage with root motion produces **no lunge at all** — and scaling it to zero does not help, it just stops the character dead. There is an ungated warning for this; trust it. Filed as a trap.
+   - **The base lunge follows facing, and that is load-bearing rather than cosmetic.** Rotation during that window *is* the aim guarantee, so a world-fixed lunge cannot be made safe by freezing rotation. Built on `FTDRootMotionSource_FacingForce`, a first-class `FRootMotionSource` subclass — predicted and replicated like the stock ones, and explicitly not hand-rolled movement.
+   - **One value now sets three things**: `Branches[0].HoldUntilSeconds` fixes where the tiers become distinguishable, how long the base lunge runs, and (by derivation) `TurnRateDegrees`. Two are derived in code; the turn rate is still copied by hand. See the trap.
+   - **A strength curve must average 1.0** across its range or the authored distance is silently wrong. Seam continuity is a separate matter and needs no curve: it is the distance *ratio*.
+   - **Reach and the placed dummy spacing are stale and worse than before** — a light travels 300 cm at a dummy 200 cm away with a `MaxReachCm` of 150. Deliberately deferred; all three are one felt quantity and two tiers still play the light's clip.
+   - **Attacks became grounded-only and movement-locked**, which was never written down before. See the Offense section.
 
 ### Remaining
 
-In execution order. **Recovery shipped 2026-08-12; Lunge is the live half of that slice.** The rest
-are sequential.
+In execution order, and all sequential. **Lunge + Recovery both shipped 2026-08-12**; see Done.
 
-- **Lunge + Recovery** — authored attack displacement, and the punish window it gets tuned against. **One slice** (2026-08-12): each authors a phase of the attack that the animation currently decides by default, both expect per-tier clips to land while they are open, and Recovery's number is what every later defensive verdict is measured from. **Recovery is done; Lunge is next.** Measured while planning it, and load-bearing for both: a light attack travels **≈77 cm** on the clip's own root motion at scale 1.0, against a `MaxReachCm` of 150 — so an attack closes more than half its own reach while swinging, and the placed dummy at 200 cm sits **8 cm beyond standing reach** (the test is `CentreDistance − TargetRadius > MaxReachCm`, i.e. 200 − 42 = 158). Every hit that lands today does so *only* because of travel Lunge is about to take over.
-  - **Lunge replaces root-motion scaling.** Added 2026-08-12 after play found `RootMotionScale` at 3.0 *"still a bit too animation-driven"*. A multiplier cannot decouple you from an authored curve; it only makes the animator's acceleration, pauses and stop three times larger. Lunge authors distance and timing outright, on the same terms the wedge already does for reach.
-  - **It must be built on a GAS root motion source** (`UAbilityTask_ApplyRootMotion*`: `ConstantForce`, `MoveToLocation`, `MoveToActorForce`), never on `SetActorLocation`, `AddMovementInput` or `LaunchCharacter`. Those drive CMC's root motion source system, so they are authored *and* network-predicted — the netcode audit's objection to hand-rolled displacement is real and this is what answers it rather than overrides it.
-  - **Lunge during the windup may not differ by tier**, inheriting the constraint that split `RootMotionScale` in two: the shared windup is what leaves the light without a distinguishing tell. **Today that property is an accident of the coil and will not survive the port** (measured 2026-08-12): a charged travels 65–75 cm against the light's 77 despite a windup 4.7× longer, because the coil freezes the montage and root motion is a function of montage *position*. A GAS root motion source runs on wall-clock time instead, so "travel X during windup" would carry a charged 4.7× further and announce the tier from frame one. **Lunge has to state the constraint explicitly rather than inherit it.**
-  - **Lunge overrides an attack's root motion outright** (decided 2026-08-12) rather than adding to it — left alone the two add, and the authored distance becomes a lie by whatever the animation contributes. `RootMotionScale` goes to 0 for any attack Lunge drives; a scale surviving alongside it would put the animator back in the loop, which is what the mechanic exists to remove.
-  - **Defensive moves are out of scope for Lunge, provisionally.** Dodges already function well on scaled root motion, the name does not fit them, and block and parry very likely want **no** root motion at all. Raised and set aside by the user rather than refused — an authored dodge direction is a coherent idea, just not one anything has asked for.
-  - ~~**Recovery becomes an authored `RecoverySeconds` with a derived play rate.**~~ **Done 2026-08-12.** Per branch, in absolute seconds, montage warped to fit — an attack is now three authored durations. `RecoveryPlayRate` is deleted. **Recovery ends at blend-out** (the user's call between the two resolutions the trap offered), so the authored number is the ability's real lifetime and the clip's last 0.25 s is follow-through that is mechanically over. **Shipped and play-verified 2026-08-12: light 0.40, heavy 0.50, charged 0.60** — the user's values, verdict *"very good and expected"*, and the first time the asset agrees with the spec's *charged has heavy endlag*. Honoured within 8 ms at every value; heavy was thrown ~40 times, closing the branch the implementation pass never exercised. **It dropped one buffered tap and that was left alone** — filed as a watch, not a defect; see the trap.
-  - **The blend-out boundary moves with the play rate** and this cost a bug already. With `BlendOutTriggerTime` negative the engine blends when the *remaining time at the current rate* hits the blend duration, so `Length - BlendTime` is right only at rate 1.0. Solved in `ComputeRecoveryPlayRate`; never reintroduce a fixed boundary.
-  - Open until play: distance-plus-duration or distance-plus-curve, phase-relative or absolute window, per branch or per attack. **Tuned in tandem with re-authoring the wedges**, once each attack has its own animation — reach and travel are one felt quantity.
 - **Block** — the held guard, and the blockstun that arrives with it.
    - **Idea, noted 2026-08-11, not decided: use V1 as a *blocking* locomotion set.** If V3 becomes the neutral stance, V1's pervasive guard-forward pose stops being a drawback and becomes exactly the right material for the one state where a raised shield is correct. That is an **authored** block stance rather than a synthesized upper-body blend, which is the alternative **Sword & Shield** deferred (its art-seam note). It does not fully dissolve the art seam — V1's directions still disagree with each other — but it means any blend is correcting a guard pose rather than inventing one. Cheap to note now, expensive to rediscover. Blockstun disables offense and parry for a duration set by the attack blocked; it is the first *reactive* stun state and pulls in plumbing hitstun will also need. Content verified 2026-08-10, all in `SwordAndShieldAnimV1` (our pack): `DefenseStart` / `Defense_Loop` / `DefenseEnd` for the held guard, **plus eight `Defense_Hit_*` clips** — four directional block impacts and four die-while-blocking variants. The impacts are what blockstun reads as, and nothing previously recorded that they exist.
 - **Light String** — the 2–4 hit light string. **It cannot fully finish before Stun**, since its last hit knocks down; expect to ship the string and leave its terminator behind. **Measured 2026-08-11:** no family in either pack offers 3+ uniformly short stages, so the string must be assembled from short stages **across** families, or accept uneven lengths. The one exception is **V3 `Attack4`**, the only four-stage family (0.600 / 1.167 / 0.667 / 2.333), which carries two short stages inside one authored chain. V3's families are deeper than V1's generally — a real argument for V3 that pulls against V1's short two-stage openers being better for **Attack Swap**'s single light.

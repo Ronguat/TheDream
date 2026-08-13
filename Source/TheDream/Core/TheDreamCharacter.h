@@ -99,6 +99,26 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Movement", meta=(ClampMin="0.0"))
 	float IdleTurnRateDegrees = 300.0f;
 
+	/**
+	 *  How fast the character turns while an attack is coiling -- see SetAbilityCoiling().
+	 *
+	 *  The coil is the tell, and it is also the last window in which an attack can be aimed:
+	 *  facing freezes at the commit checkpoint that ends it. So this rate is exactly how far a
+	 *  held attack may be redirected after the defender has had time to react to it, which makes
+	 *  it a **power** value rather than a cosmetic one. Lower means more committed.
+	 *
+	 *  **It is nonetheless free to tune by feel, and for the same reason IdleTurnRateDegrees is.**
+	 *  The aim guarantee is stated against the worst possible gap of 180 degrees and is discharged
+	 *  by the *first* 150 ms, which every tier runs at TurnRateDegrees before any coil begins --
+	 *  so by the time this rate applies, aim is already closed and only tracking is left. It
+	 *  cannot break aim at any value, including zero.
+	 *
+	 *  The light never sees this: it commits at the instant the coil would start, so only the
+	 *  heavy and the charged have a coil at all.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Movement", meta=(ClampMin="0.0"))
+	float CoilTurnRateDegrees = 300.0f;
+
 	/** Debug only: signed yaw from facing to the camera right now. Positive means camera is right. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Movement", Transient)
 	float FacingErrorDegrees = 0.0f;
@@ -147,6 +167,36 @@ protected:
 	 */
 	bool bAbilityFacingLocked = false;
 
+	/**
+	 *  Set while an attack is coiling. Runtime only, never authored.
+	 *
+	 *  A bool announced by the ability rather than a rate pushed by it, following
+	 *  bAbilityFacingLocked: the ability knows *what phase it is in*, the character owns what
+	 *  facing does about it. That keeps all three turn rates side by side where a designer
+	 *  looks for them, instead of one of them living in an ability.
+	 *
+	 *  Cleared in the ability's EndAbility, the one place every exit converges -- a coil that
+	 *  was cancelled must not leave the character permanently slow to turn.
+	 */
+	bool bAbilityCoiling = false;
+
+	/**
+	 *  Set while an ability owns the character's movement. Runtime only, never authored.
+	 *
+	 *  Suppresses movement *input* -- WASD and jump -- rather than movement itself, which is the
+	 *  distinction that matters: a lunge, a dodge or a knockback still moves the character while
+	 *  this is set, because those are the ability moving you rather than you moving yourself.
+	 *
+	 *  **It exists because "the attack already overrides movement" was only true in part.** An
+	 *  attack's lunge runs its root motion source in Override mode, so input genuinely does
+	 *  nothing while it plays -- but the coil and the recovery carry no lunge at all, and WASD
+	 *  worked normally through both. Found in play 2026-08-12.
+	 *
+	 *  Named for movement rather than for attacking, deliberately, so block, parry or a future
+	 *  crouch can adopt it without the flag having to be renamed or re-explained.
+	 */
+	bool bAbilityMovementLocked = false;
+
 public:
 
 	/** Constructor */
@@ -163,6 +213,32 @@ public:
 	 *  for exactly that reason, which is the one place every exit converges.
 	 */
 	void SetAbilityFacingLocked(bool bLocked);
+
+	/**
+	 *  Tells the character an attack is coiling, so facing slows to CoilTurnRateDegrees.
+	 *
+	 *  Same contract as SetAbilityFacingLocked: whoever sets it clears it from `EndAbility`,
+	 *  which is the one place every exit path converges. Cheap to leave set past the commit
+	 *  checkpoint -- facing is locked from there and never consults a rate at all -- but it must
+	 *  not survive the ability.
+	 */
+	void SetAbilityCoiling(bool bCoiling);
+
+	/**
+	 *  Takes movement input away for the duration of an ability, or gives it straight back.
+	 *
+	 *  Same contract as SetAbilityFacingLocked: whoever takes it is responsible for returning it
+	 *  on **every** exit path. Both are cleared from `EndAbility`, the one place every exit
+	 *  converges, and a stranded movement lock is a character who can never walk again.
+	 *
+	 *  Driven by `UTDGameplayAbility::bLocksMovement` rather than by individual abilities calling
+	 *  it, so opting in is a checkbox and opting in cannot be done without also opting into the
+	 *  clearing.
+	 */
+	void SetAbilityMovementLocked(bool bLocked);
+
+	/** Whether an ability currently owns movement input. Read by DoMove and by the jump gate. */
+	bool IsMovementLocked() const { return bAbilityMovementLocked; }
 
 	/** Debug only: live yaw error between facing and the camera, in degrees. */
 	float GetFacingErrorDegrees() const { return FacingErrorDegrees; }

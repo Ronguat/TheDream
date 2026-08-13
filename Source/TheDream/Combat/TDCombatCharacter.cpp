@@ -458,7 +458,12 @@ void ATDCombatCharacter::Jump()
 	// failed jump that plays nothing reads as the lockout it is. Jump is not a
 	// GameplayAbility, so the dead check in UTDGameplayAbility does not cover it and has
 	// to be repeated here -- the one place that rule is not centralised.
-	if (bExhausted || bDead)
+	//
+	// The movement lock is here for the same reason and is the third rule this function has had
+	// to copy. That is the argument for jump eventually becoming an ability: every lockout the
+	// abilities get for free has to be restated here, and this is the only place that can be
+	// forgotten. Deferred to the structure audit rather than done inline.
+	if (bExhausted || bDead || IsMovementLocked())
 	{
 		return;
 	}

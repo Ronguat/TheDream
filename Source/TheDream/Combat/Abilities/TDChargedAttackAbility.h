@@ -111,23 +111,36 @@ struct FTDAttackBranch
 	TArray<FTDAttackHitbox> Hitboxes;
 
 	/**
-	 *  Extra root-motion scale for this branch, multiplying the ability's, **from commit onward**.
+	 *  How far this branch carries itself from the commit checkpoint, in centimetres.
 	 *
-	 *  1 means this branch travels exactly as far as the shared windup was already carrying it.
+	 *  **This is where an attack's reach is actually differentiated**, and it is the majority of
+	 *  the travel: the base lunge is deliberately kept small enough that a flick cannot make it
+	 *  look wrong, so the drama lives here instead. Runs from commit to the end of the release
+	 *  window -- 200 ms on every tier at present, though the duration is derived rather than
+	 *  assumed, so retuning ReleaseSeconds carries it.
 	 *
 	 *  **It cannot apply any earlier, and that is the reactability model rather than a
-	 *  limitation.** All three tiers share one windup at one play rate precisely so the light
-	 *  carries no tell that distinguishes it from a heavy. A charged that lunged further from the
-	 *  press would announce itself from frame one -- exactly the failure that moving the coil
-	 *  earlier would cause, arriving through the movement system instead.
+	 *  limitation.** All three tiers share one windup precisely so the light carries no tell that
+	 *  distinguishes it from a heavy. A charged that lunged further from the press would announce
+	 *  itself from frame one -- exactly the failure that moving the coil earlier would cause,
+	 *  arriving through the movement system instead.
 	 *
-	 *  The consequence to expect rather than discover: **a branch can only differentiate the
-	 *  travel that its clip performs after the commit checkpoint.** If a tier needs to cover more
-	 *  ground than that allows, the answer is its own clip -- which the charged is already argued
-	 *  to want -- not a larger number here.
+	 *  Two things it gets free from starting at commit: facing is already frozen, so a world-space
+	 *  force cannot diverge from the body; and the coil sits *before* it, so the phase whose
+	 *  duration differs between tiers carries no lunge at all. That is what makes an authored,
+	 *  wall-clock displacement safe here when it would break parity in the windup.
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Attack", meta=(ClampMin="0.0"))
-	float RootMotionScale = 1.0f;
+	float LungeDistanceCm = 75.0f;
+
+	/**
+	 *  Optional shape for this branch's lunge, sampled over 0..1 of its duration. Null is constant.
+	 *
+	 *  **Must average 1.0 across its range or the authored distance is a lie** -- the force is
+	 *  multiplied by this each tick. See UTDMeleeAttackAbility::LungeStrengthCurve.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Attack")
+	TObjectPtr<UCurveFloat> LungeStrengthCurve = nullptr;
 };
 
 /**
@@ -270,6 +283,9 @@ private:
 	 *  it back, never by a later branch accelerating.
 	 */
 	float ComputeWindupPlayRate() const;
+
+	/** The first branch's HoldUntilSeconds: where the tiers stop being indistinguishable. */
+	virtual float GetBaseLungeDurationSeconds() const override;
 
 	/**
 	 *  Recovery rate: carries the montage from where it actually is to the blend-out boundary

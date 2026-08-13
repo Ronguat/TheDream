@@ -10,6 +10,7 @@
 class ATheDreamCharacter;
 class UAnimMontage;
 class UAbilityTask_MeleeTrace;
+class UCurveFloat;
 class UGameplayEffect;
 
 /**
@@ -94,35 +95,57 @@ protected:
 	// IdleTurnRateDegrees covers the catch-up, so no value gates the snap on rotation authority.
 
 	/**
-	 *  Multiplier on the montage's authored root-motion translation, from the press onward.
+	 *  The base lunge: how far the attack carries itself from the press, in centimetres.
 	 *
-	 *  **Displacement is authored per attack rather than taken from the clip** (2026-08-11): the
-	 *  vendor's attacks travel a fraction of what this design wants, and foot sliding is accepted
-	 *  as the price. Scaling root motion is deliberately preferred over driving movement in code,
-	 *  because a scaled root motion is still root motion and CMC replicates it for free.
+	 *  **Displacement is authored, not taken from the clip** (2026-08-12, replacing a
+	 *  RootMotionScale multiplier). Scaling was tried first and rejected by play as "still a bit
+	 *  too animation-driven": a multiplier cannot decouple you from an authored curve, it can only
+	 *  make the animator's acceleration, pauses and stop louder. Measured before it was replaced,
+	 *  the clip put 65.7 cm of its 75.1 into the windup and then effectively stopped -- a surge
+	 *  into a coast, which is what that verdict was describing.
 	 *
-	 *  **Scaling changes how much motion happens, never when.** A clip that stands still through
-	 *  the phase that needs travel cannot be fixed here at any value, and that is the one case
-	 *  that genuinely forces code. Check before reaching for a larger number.
+	 *  **Shared by every tier, and that is the reactability model rather than a limitation.** This
+	 *  runs from the press to the first branch's HoldUntilSeconds, which is the whole span in
+	 *  which no branch has been chosen yet, so a defender must not be able to tell the tiers apart
+	 *  by how far they travelled. Per-tier displacement starts at the commit checkpoint -- see
+	 *  FTDAttackBranch::LungeDistanceCm.
 	 *
-	 *  On UTDChargedAttackAbility this governs the **shared windup**, and every tier gets it --
-	 *  see FTDAttackBranch::RootMotionScale for why it cannot be otherwise.
+	 *  **The attack's montage must play an in-place clip for any of this to do anything.** Animation
+	 *  root motion suppresses every root motion source while it plays, and scaling it to zero does
+	 *  not help -- see the warning in StartAttackMontage, which is what catches it.
+	 *
+	 *  **Keep it modest, and the bound is the capsule radius (42 cm).** The direction is fixed at
+	 *  the press while facing stays steerable, so a flick during the windup lunges one way and
+	 *  swings another. Under about 42 cm even a full 180 degree divergence displaces the character
+	 *  less than its own width, which reads as a step rather than as a lunge going wrong. Above
+	 *  it the artifact becomes visible, and the knob that fixes it is this number.
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Motion", meta=(ClampMin="0.0"))
-	float RootMotionScale = 1.0f;
+	float LungeDistanceCm = 30.0f;
+
+	/**
+	 *  How long the base lunge takes. Overridden on UTDChargedAttackAbility, where it is derived.
+	 *
+	 *  Authored here only because a plain swing has no branches to derive it from. Anything with
+	 *  a ladder takes it from the first branch's HoldUntilSeconds instead, so the lunge cannot
+	 *  drift away from the boundary it is supposed to end on.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Motion", meta=(ClampMin="0.01"))
+	float LungeDurationSeconds = 0.15f;
+
+	/**
+	 *  Optional shape for the base lunge, sampled over 0..1 of its duration. Null means constant.
+	 *
+	 *  **A curve here must average 1.0 across its range or the authored distance is a lie.** The
+	 *  root motion source multiplies the force by this value each tick, so the distance actually
+	 *  travelled is LungeDistanceCm times the curve's mean. An ease-out that starts at 2 and
+	 *  falls to 0 keeps the distance; one that merely falls from 1 to 0 halves it silently.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Motion")
+	TObjectPtr<UCurveFloat> LungeStrengthCurve = nullptr;
 
 	/** Damage for the swing currently being thrown. Overridden when a swing has variants. */
 	virtual float GetAttackDamage() const { return Damage; }
-
-	/**
-	 *  Applies a root-motion scale to the avatar, on the machines entitled to compute movement.
-	 *
-	 *  Mirrors the role check UAbilityTask_PlayMontageAndWait makes when it applies its own
-	 *  scale -- authority, plus the autonomous proxy when the ability is LocalPredicted, which
-	 *  ours are. The task also resets the scale to 1 when it is destroyed, so anything set here
-	 *  is cleaned up on every exit path including a cancel.
-	 */
-	void ApplyRootMotionScale(float Scale);
 
 	/** Hitboxes for the swing currently being thrown. Overridden when a swing has variants. */
 	virtual const TArray<FTDAttackHitbox>& GetAttackHitboxes() const { return Hitboxes; }
@@ -133,8 +156,29 @@ protected:
 	/** Starts the hitbox task. It idles until a Melee Window notify opens on the montage. */
 	UAbilityTask_MeleeTrace* StartMeleeTrace(const TArray<FTDAttackHitbox>& InHitboxes);
 
-	/** Root-motion scale the montage starts under. Branch-specific travel is applied at commit. */
-	virtual float GetWindupRootMotionScale() const { return RootMotionScale; }
+	/**
+	 *  How long the base lunge runs. Derived on anything with a branch ladder.
+	 *
+	 *  Virtual so UTDChargedAttackAbility can return its first branch's HoldUntilSeconds rather
+	 *  than an authored copy of it. Nothing enforces the link between the two numbers, so the
+	 *  cheapest way to keep them married is not to have two numbers.
+	 */
+	virtual float GetBaseLungeDurationSeconds() const { return LungeDurationSeconds; }
+
+	/**
+	 *  Starts an authored lunge that follows the avatar's facing.
+	 *
+	 *  Built on a root motion *source* rather than on SetActorLocation, AddMovementInput or
+	 *  LaunchCharacter: those are the hand-rolled displacement the netcode audit was right to
+	 *  fear, while this rides the same prediction and replication machinery that made animation
+	 *  root motion safe. Distance and duration are authored and the direction is re-read every
+	 *  movement tick -- see FTDRootMotionSource_FacingForce.
+	 *
+	 *  **The same call serves both of an attack's lunges**, and steering is decided by the phase
+	 *  rather than by an argument: facing is free during the windup and frozen from the commit
+	 *  checkpoint, so the post-commit lunge is fixed-direction without asking to be.
+	 */
+	void StartLunge(float DistanceCm, float DurationSeconds, UCurveFloat* StrengthCurve);
 
 	/**
 	 *  Plays AttackMontage, optionally from a named section, and ends the ability when it finishes.

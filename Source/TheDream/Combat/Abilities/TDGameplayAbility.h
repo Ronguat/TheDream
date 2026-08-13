@@ -82,6 +82,35 @@ protected:
 	bool bBlockedWhileAirborne = false;
 
 	/**
+	 *  Suppress movement input -- WASD and jump -- for as long as this ability runs.
+	 *
+	 *  **Input, not movement.** The ability's own displacement is unaffected: a lunge, a dash or
+	 *  a knockback still moves the character, because those are the ability moving you rather
+	 *  than you moving yourself. What stops is walking out of your own commitment.
+	 *
+	 *  A flag on the shared base, following bBlockedWhileAirborne, so opting in is a checkbox and
+	 *  the clearing cannot be forgotten -- it happens in this class's EndAbility, where every exit
+	 *  path converges. Off by default: an ability that leaves you mobile is a legitimate thing to
+	 *  want, and this should not quietly forbid one.
+	 *
+	 *  **This is the seam a movement-ability category plugs into later.** When jump and crouch
+	 *  become abilities, they are blocked by the same lock rather than by a second mechanism --
+	 *  or by a State.MovementLocked tag in their ActivationBlockedTags, which is the same rule
+	 *  expressed in GAS's own vocabulary. Neither requires undoing this.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Activation")
+	bool bLocksMovement = false;
+
+	/**
+	 *  Whether *this activation* took the movement lock. Runtime only.
+	 *
+	 *  The release is guarded on this rather than on bLocksMovement, because EndAbility runs on
+	 *  the shared base for every ability: without it, any ability ending would hand movement back
+	 *  while another still owned it.
+	 */
+	bool bTookMovementLock = false;
+
+	/**
 	 *  Applied to self the moment this ability activates. **This is how costs are paid.**
 	 *
 	 *  Deliberately not GAS's CostGameplayEffectClass, which is a *gate* -- it is checked in
