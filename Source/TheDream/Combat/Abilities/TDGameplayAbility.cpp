@@ -2,6 +2,7 @@
 
 #include "Combat/Abilities/TDGameplayAbility.h"
 #include "Combat/TDCombatDebug.h"
+#include "Combat/Tasks/AbilityTask_FacingLunge.h"
 #include "Combat/TDGameplayTags.h"
 #include "Core/TheDreamCharacter.h"
 #include "AbilitySystemComponent.h"
@@ -178,4 +179,43 @@ void UTDGameplayAbility::EndAbility(const FGameplayAbilitySpecHandle Handle, con
 	}
 
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
+}
+
+void UTDGameplayAbility::StartLunge(
+	float DistanceCm,
+	float DurationSeconds,
+	UCurveFloat* StrengthCurve,
+	float StandoffCm,
+	float YawOffsetDegrees)
+{
+	AActor* Avatar = GetAvatarActorFromActorInfo();
+	if (!Avatar || DistanceCm <= 0.0f || DurationSeconds <= 0.0f)
+	{
+		return;
+	}
+
+	// Target Lock's standoff goes to the source rather than being applied to the distance here.
+	// Pre-shortening was the first implementation and it was wrong -- see StandoffCm on
+	// FTDRootMotionSource_FacingForce for what play found and why the gate has to be per tick.
+	UAbilityTask_FacingLunge* LungeTask = UAbilityTask_FacingLunge::ApplyFacingLunge(
+		this,
+		NAME_None,
+		DistanceCm,
+		DurationSeconds,
+		StrengthCurve,
+		StandoffCm,
+		YawOffsetDegrees,
+		// Velocity is clamped to nothing when the lunge ends, so no momentum survives into the
+		// next phase. Without this a lunge hands its speed to whatever follows -- for the light
+		// that is the branch lunge, which would then overshoot its own authored distance, and
+		// for a cancelled attack it is a character who keeps sliding after the swing is gone.
+		ERootMotionFinishVelocityMode::ClampVelocity,
+		FVector::ZeroVector,
+		/*ClampVelocityOnFinish=*/0.0f,
+		/*bEnableGravity=*/true);
+
+	if (LungeTask)
+	{
+		LungeTask->ReadyForActivation();
+	}
 }

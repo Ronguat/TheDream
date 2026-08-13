@@ -207,21 +207,6 @@ protected:
 	virtual float GetBaseLungeDurationSeconds() const { return LungeDurationSeconds; }
 
 	/**
-	 *  Starts an authored lunge that follows the avatar's facing.
-	 *
-	 *  Built on a root motion *source* rather than on SetActorLocation, AddMovementInput or
-	 *  LaunchCharacter: those are the hand-rolled displacement the netcode audit was right to
-	 *  fear, while this rides the same prediction and replication machinery that made animation
-	 *  root motion safe. Distance and duration are authored and the direction is re-read every
-	 *  movement tick -- see FTDRootMotionSource_FacingForce.
-	 *
-	 *  **The same call serves both of an attack's lunges**, and steering is decided by the phase
-	 *  rather than by an argument: facing is free during the windup and frozen from the commit
-	 *  checkpoint, so the post-commit lunge is fixed-direction without asking to be.
-	 */
-	void StartLunge(float DistanceCm, float DurationSeconds, UCurveFloat* StrengthCurve);
-
-	/**
 	 *  Traces distance and bearing to the nearest other pawn, for diagnosing the slide.
 	 *
 	 *  Sampled at commit and again when the release window opens, so the *change* in bearing across

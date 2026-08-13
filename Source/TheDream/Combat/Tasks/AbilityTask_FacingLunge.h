@@ -43,6 +43,7 @@ class UAbilityTask_FacingLunge : public UAbilityTask_ApplyRootMotion_Base
 		float DurationSeconds,
 		UCurveFloat* StrengthCurve,
 		float StandoffCm,
+		float YawOffsetDegrees,
 		ERootMotionFinishVelocityMode VelocityOnFinishMode,
 		FVector SetVelocityOnFinish,
 		float ClampVelocityOnFinish,
@@ -73,6 +74,10 @@ protected:
 	/** Target Lock's per-tick gate distance. Passed straight to the source; see StandoffCm there. */
 	UPROPERTY(Replicated)
 	float StandoffCm;
+
+	/** Direction relative to facing, degrees clockwise. 0 is ahead; see the source. */
+	UPROPERTY(Replicated)
+	float YawOffsetDegrees;
 
 	UPROPERTY(Replicated)
 	bool bEnableGravity;

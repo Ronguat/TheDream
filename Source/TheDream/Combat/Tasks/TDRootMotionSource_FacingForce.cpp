@@ -11,6 +11,7 @@ FTDRootMotionSource_FacingForce::FTDRootMotionSource_FacingForce()
 	: Strength(0.0f)
 	, StrengthOverTime(nullptr)
 	, StandoffCm(0.0f)
+	, YawOffsetDegrees(0.0f)
 {
 	// Copied from FRootMotionSource_ConstantForce, and for its stated reason: a partial tick at
 	// the end produces a very inconsistent velocity on the final frame.
@@ -34,7 +35,8 @@ bool FTDRootMotionSource_FacingForce::Matches(const FRootMotionSource* Other) co
 
 	return FMath::IsNearlyEqual(Strength, OtherCast->Strength, 0.1f)
 		&& StrengthOverTime == OtherCast->StrengthOverTime
-		&& FMath::IsNearlyEqual(StandoffCm, OtherCast->StandoffCm, 0.1f);
+		&& FMath::IsNearlyEqual(StandoffCm, OtherCast->StandoffCm, 0.1f)
+		&& FMath::IsNearlyEqual(YawOffsetDegrees, OtherCast->YawOffsetDegrees, 0.1f);
 }
 
 bool FTDRootMotionSource_FacingForce::MatchesAndHasSameState(const FRootMotionSource* Other) const
@@ -67,6 +69,13 @@ void FTDRootMotionSource_FacingForce::PrepareRootMotion(
 	FVector Direction = Character.GetActorForwardVector();
 	Direction.Z = 0.0f;
 	Direction = Direction.GetSafeNormal();
+
+	// Rotated after normalising and after flattening, so the offset is a pure yaw about world up
+	// regardless of what the actor is doing. Every attack passes 0 and pays nothing for this.
+	if (!FMath::IsNearlyZero(YawOffsetDegrees))
+	{
+		Direction = Direction.RotateAngleAxis(YawOffsetDegrees, FVector::UpVector);
+	}
 
 	// Target Lock's gate. Asked every tick against where the target actually is, rather than once
 	// against where it was predicted to be -- see StandoffCm. Time still advances below, so a
@@ -151,6 +160,7 @@ bool FTDRootMotionSource_FacingForce::NetSerialize(FArchive& Ar, UPackageMap* Ma
 	Ar << Strength;
 	Ar << StrengthOverTime;
 	Ar << StandoffCm;
+	Ar << YawOffsetDegrees;
 
 	bOutSuccess = true;
 	return true;

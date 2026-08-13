@@ -72,7 +72,7 @@ void UTDChargedAttackAbility::ActivateAbility(const FGameplayAbilitySpecHandle H
 	// this turns out to be -- it ends at the first branch's boundary, which is the last instant
 	// before the ladder can be told apart. Deliberately not called via the parent's
 	// ActivateAbility, which this class does not run because it would start the trace too early.
-	StartLunge(LungeDistanceCm, GetBaseLungeDurationSeconds(), LungeStrengthCurve);
+	StartLunge(LungeDistanceCm, GetBaseLungeDurationSeconds(), LungeStrengthCurve, LungeStandoffCm);
 
 	ScheduleCheckpoint(Branches[0].HoldUntilSeconds);
 }
@@ -271,7 +271,7 @@ void UTDChargedAttackAbility::CommitAttack()
 	// The duration is authored per branch as of 2026-08-13, where it used to run to the end of the
 	// release window. That derivation was elegant and wrong: it let ReleaseSeconds -- a hitbox
 	// liveness number -- set how a movement burst feels. See FTDAttackBranch::LungeDurationSeconds.
-	StartLunge(Branch.LungeDistanceCm, Branch.LungeDurationSeconds, Branch.LungeStrengthCurve);
+	StartLunge(Branch.LungeDistanceCm, Branch.LungeDurationSeconds, Branch.LungeStrengthCurve, LungeStandoffCm);
 
 	// The window's own length is only knowable once the notify fires, so the ability waits
 	// for it rather than duplicating the timeline.

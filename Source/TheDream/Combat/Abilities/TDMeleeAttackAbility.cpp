@@ -26,45 +26,12 @@ void UTDMeleeAttackAbility::ActivateAbility(const FGameplayAbilitySpecHandle Han
 	// The base lunge starts on the same frame as the montage, deliberately: it *is* the
 	// responsiveness of the press, and a frame of stillness first is exactly what it exists to
 	// remove. Shared by every tier -- per-tier travel begins at the commit checkpoint.
-	StartLunge(LungeDistanceCm, GetBaseLungeDurationSeconds(), LungeStrengthCurve);
+	StartLunge(LungeDistanceCm, GetBaseLungeDurationSeconds(), LungeStrengthCurve, LungeStandoffCm);
 
 	// A plain swing has no derived timing, so it plays at the montage's authored speed.
 	if (!StartAttackMontage(NAME_None, 1.0f))
 	{
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
-	}
-}
-
-void UTDMeleeAttackAbility::StartLunge(float DistanceCm, float DurationSeconds, UCurveFloat* StrengthCurve)
-{
-	AActor* Avatar = GetAvatarActorFromActorInfo();
-	if (!Avatar || DistanceCm <= 0.0f || DurationSeconds <= 0.0f)
-	{
-		return;
-	}
-
-	// Target Lock's standoff goes to the source rather than being applied to the distance here.
-	// Pre-shortening was the first implementation and it was wrong -- see StandoffCm on
-	// FTDRootMotionSource_FacingForce for what play found and why the gate has to be per tick.
-	UAbilityTask_FacingLunge* LungeTask = UAbilityTask_FacingLunge::ApplyFacingLunge(
-		this,
-		NAME_None,
-		DistanceCm,
-		DurationSeconds,
-		StrengthCurve,
-		LungeStandoffCm,
-		// Velocity is clamped to nothing when the lunge ends, so no momentum survives into the
-		// next phase. Without this a lunge hands its speed to whatever follows -- for the light
-		// that is the branch lunge, which would then overshoot its own authored distance, and
-		// for a cancelled attack it is a character who keeps sliding after the swing is gone.
-		ERootMotionFinishVelocityMode::ClampVelocity,
-		FVector::ZeroVector,
-		/*ClampVelocityOnFinish=*/0.0f,
-		/*bEnableGravity=*/true);
-
-	if (LungeTask)
-	{
-		LungeTask->ReadyForActivation();
 	}
 }
 

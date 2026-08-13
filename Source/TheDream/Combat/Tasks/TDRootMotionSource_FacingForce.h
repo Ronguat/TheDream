@@ -87,6 +87,22 @@ struct FTDRootMotionSource_FacingForce : public FRootMotionSource
 	float StandoffCm;
 
 	/**
+	 *  Direction relative to facing, in degrees clockwise. 0 is straight ahead.
+	 *
+	 *  **This is what let the dodge stop reading displacement off its clips** (2026-08-13). Every
+	 *  attack passes 0, so the lunge is unchanged; the dodge passes its direction, and the eight
+	 *  values come out of the direction enum's own order at 45 degrees a step rather than a table
+	 *  -- Fw, FR, R, BR, Bw, BL, L, FL is already the compass.
+	 *
+	 *  Applied to a direction that is still *read from facing every tick*, which is the property
+	 *  that keeps this cheap on the wire: an offset is one float, where a world-space direction
+	 *  would be a vector that has to travel and then disagree with a rotation which already
+	 *  replicates.
+	 */
+	UPROPERTY()
+	float YawOffsetDegrees;
+
+	/**
 	 *  Whether a pawn sits within StandoffCm ahead, so this tick should contribute nothing.
 	 *
 	 *  Swept with the avatar's own capsule on ECC_Pawn, which makes this the movement component's

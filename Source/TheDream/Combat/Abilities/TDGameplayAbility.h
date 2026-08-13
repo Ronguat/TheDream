@@ -7,6 +7,8 @@
 #include "GameplayTagContainer.h"
 #include "TDGameplayAbility.generated.h"
 
+class UCurveFloat;
+
 /**
  *  Shared base for every combat ability in the project.
  */
@@ -141,4 +143,42 @@ protected:
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Effects")
 	TSubclassOf<UGameplayEffect> EffectOnEnd;
+
+	/**
+	 *  Starts an authored displacement that follows the avatar's facing.
+	 *
+	 *  **Shared by attacks and the dodge as of 2026-08-13**, which is why it sits on the base
+	 *  rather than on UTDMeleeAttackAbility where it was born. The dodge previously took its
+	 *  displacement from the montage's root motion, corrected by eight per-direction scales
+	 *  measured off the clips -- the last system in the project still reading a number off an
+	 *  animation. Authored wedges took space off the art, authored durations took time, Lunge
+	 *  took the attack's displacement, and this finishes the job.
+	 *
+	 *  Built on a root motion *source* rather than SetActorLocation, AddMovementInput or
+	 *  LaunchCharacter: those are the hand-rolled displacement the netcode audit was right to
+	 *  fear, while this rides the same prediction and replication machinery animation root motion
+	 *  does. See FTDRootMotionSource_FacingForce.
+	 *
+	 *  **The montage must carry no root motion or this does nothing at all.** Animation root
+	 *  motion suppresses every root motion source while it plays, and scaling it to zero does not
+	 *  help -- the character simply stops moving. Attacks satisfy this by playing an in-place clip;
+	 *  the dodge satisfies it by having bEnableRootMotion switched off on its eight source clips,
+	 *  which is the library's own default and was only ever enabled by us.
+	 *
+	 *  @param DistanceCm        How far to travel. The authored ceiling; the standoff gate may
+	 *                           shorten it but nothing lengthens it.
+	 *  @param DurationSeconds   How long it takes. Speed is derived from these two.
+	 *  @param StrengthCurve     Optional shape. **Must average 1.0** or the distance is a lie.
+	 *  @param StandoffCm        Target Lock's per-tick gate. 0 disables it, which is what the
+	 *                           dodge passes: an evade has to be able to travel *past* people,
+	 *                           and gating it on pawns would break dodging through a crowd.
+	 *  @param YawOffsetDegrees  Direction relative to facing. 0 is straight ahead, which is every
+	 *                           attack; the dodge derives it from its direction enum.
+	 */
+	void StartLunge(
+		float DistanceCm,
+		float DurationSeconds,
+		UCurveFloat* StrengthCurve,
+		float StandoffCm = 0.0f,
+		float YawOffsetDegrees = 0.0f);
 };

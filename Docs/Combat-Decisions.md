@@ -77,6 +77,7 @@ dated entry. Add a row whenever an entry supersedes part of an older one.
 | 2026-08-12 — Root motion scaling is not enough control | the likely answer is that Lunge takes `RootMotionScale` to 0 and owns displacement outright | 2026-08-12 — Lunge is two authored distances (taking the scale to 0 does **not** work: animation root motion suppresses root motion sources whether or not it is scaled, so the character stops moving entirely. The montage must carry no root motion) |
 | 2026-08-12 — Lunge is two authored distances | Lunge added two distances and **zero** timing values, because the boundaries it needed already existed — recorded as a virtue | 2026-08-13 — The gate is per tick, and lunge duration is a designed quantity (play found the lunge simultaneously too slow and too far, which is one fact: `ReleaseSeconds` was setting a movement feel) |
 | 2026-08-13 — Target Lock | the clamp shortens the authored distance before the lunge starts | 2026-08-13 — The gate is per tick (pre-shortening bakes in a prediction; a retreating target became unreachable, which is worse than no system at all) |
+| 2026-08-11 — Dodge travel ships at the clips' authored distance | displacement comes from the montage's root motion, corrected per direction by MeasuredTravelCm | 2026-08-13 — The dodge stops reading displacement off its clips (both the scales and the measurements are deleted; all eight directions travel DodgeTargetDistanceCm) |
 
 ---
 
@@ -614,6 +615,114 @@ concludes the log is wrong rather than merely old. Add a row whenever a name cha
 | `RecoveryPlayRate` | **`FTDAttackBranch::RecoverySeconds`**, 2026-08-12. Recovery is authored as a duration per branch and its rate is derived, as windup and release already were. A rate could only set the punish window indirectly, through however long the clip's tail happened to be. |
 
 ---
+
+## 2026-08-13 — The dodge stops reading displacement off its clips, and an anomaly is closed by removal rather than diagnosis
+
+The dodge was the last system in the project taking a number from an animation. Authored wedges
+took space off the art, authored durations took time, Lunge took the attack's displacement, and
+this finishes it — raised by the user on 2026-08-12 in Lunge's own entry as *"whether the dodge
+should be untethered from vendor root motion the same way"*, and triggered by a bug.
+
+### What triggered it, and what we deliberately did not learn
+
+Dodging off the test level's ramp produced, in the user's words, *"a different behavior every single
+time — some kept coasting, some lost their momentum, consistently inconsistent."* The worst case was
+a **left dodge off the top of the ramp falling forward, every time, at ninety degrees to its
+intended direction.**
+
+Two hypotheses were live. **Air control on unsuppressed input** — `GA_Dodge` has
+`bLocksMovement = false` and `AirControl` is 0.35, so on the ground animation root motion masks the
+player's input and the moment you go airborne it stops masking. That was **killed by experiment**:
+the user dodged off the ramp holding nothing and the forward momentum persisted. The survivor was a
+velocity handoff at the ground→air transition, and it was never confirmed.
+
+**The user chose to stop investigating**, on the grounds that the cause was about to be deleted, and
+that is recorded as a judgement rather than an omission: *"it just feels like a bit of a low-yield
+rabbit hole."* Correct call — the failure lives in animation root motion, and this removes animation
+root motion from the dodge entirely.
+
+**So the anomaly is closed by removal and not by diagnosis, and that is the part worth carrying.**
+If dodges still behave strangely off ledges after this, the transition problem is in root motion
+*sources* too, and the attack lunge has been quietly carrying it — attacks deliberately keep running
+when a lunge takes them off a ledge, so the same window exists there and nobody has looked.
+
+The one lead never followed: the mesh carries `RelativeRotation.Yaw = -90`, which is the most likely
+source of an exact ninety-degree error anywhere in this codebase.
+
+### The instrument could not have caught it, and that generalises
+
+`DODGE END` printed `travelled=Delta.Size2D()` — a **magnitude**. A dodge travelling its full 405 uu
+at ninety degrees to its intended direction produced a line indistinguishable from a perfect one,
+which is why the log looked clean through the entire investigation.
+
+**Every number this system was ever tuned on had the same hole.** `MeasuredTravelCm`'s eight
+calibration values were captured the same way, so eight scales corrected distances whose *direction*
+nobody had ever checked. The trace now logs the local-space vector — forward, right, up — so a
+direction error names itself.
+
+The general form, and it is the filtered-view rule in a new costume: **an instrument that answers a
+different question than the one being asked will answer it correctly forever.** "How far" was always
+right. "Which way" was never asked.
+
+### What replaced it
+
+`UTDGameplayAbility::StartLunge` moved up from the melee ability so attacks and the dodge share one
+displacement path, gaining a `YawOffsetDegrees` on `FTDRootMotionSource_FacingForce`. Attacks pass 0.
+The dodge's eight offsets are **the direction enum's own order times 45** rather than a table —
+`Fw, FR, R, BR, Bw, BL, L, FL` is already the compass, so a direction cannot be given the wrong angle
+without also being in the wrong place in the enum.
+
+The offset is applied to a direction still read from facing every tick, which keeps the netcode
+property that made the source cheap: one float on the wire instead of a world-space vector that
+would then have to agree with a rotation which already replicates.
+
+**Deleted: `DodgeRootMotionScale`, `MeasuredTravelCm`, `ComputeRootMotionScale`, and the
+constructor that seeded eight calibration entries.** All eight directions now travel
+`DodgeTargetDistanceCm` because that is the number. **The trap asking for `MeasuredTravelCm` to be
+re-measured whenever the montage is rebuilt goes with them** — there is nothing left to calibrate.
+
+**The dodge passes standoff 0**, deliberately: Target Lock's gate belongs to attacks. An evade has to
+travel *past* people, and gating it on pawns would break dodging through a crowd.
+
+### The precondition, and it is the filed trap
+
+Animation root motion suppresses root motion sources outright, so this only works if `AM_Dodge`
+carries none. There are **no `_IP` dash clips** — all sixteen in the project, V1 and V3, are `_RM`.
+The way through is that `_RM` names what is *baked into* a clip, not what is switched on:
+`bEnableRootMotion` ships **false** and we enabled it. Turning it back off on the eight V3 `Dash_*`
+clips restores the library default and needs no new content.
+
+**If a dodge ever travels zero, check that flag first.** It is the same trap the attack montage has,
+and the dodge has no equivalent of `StartAttackMontage`'s ungated warning to catch it.
+
+**And clearing that flag alone is not enough, which cost a play session.** Disabling
+`bEnableRootMotion` stops the movement component *consuming* the root motion; the displacement is
+still in the root bone, so it renders. The mesh walks off the capsule and snaps back at the end —
+reported as *"the animation goes about 4x as far as the dodge and is desynced… then resets its
+position"*. The pair that works is `bEnableRootMotion = false` **and** `bForceRootLock = true`: the
+first stops the double-move, the second pins the root bone so it cannot drift. **Setting only the
+first is worse than setting neither.** Now recorded in `Docs/Animation-Library.md`, which had the
+premise right — `_RM` names what is baked in, not what is switched on — without the corollary.
+
+### Measured across all sixteen dodges, and direction was measured for the first time
+
+Eight directions on flat ground and eight off the ramp. **Every direction is correct**: cardinals
+hold their off-axis component within 0.1 cm (`L` reads `fwd=-0.0 right=-409.4`), and every diagonal
+is symmetric within 0.3 cm. That has never been checked before in this project, because until this
+session every number the dodge produced was a magnitude.
+
+**The ramp is unremarkable now**, which is the result that matters: distances 405.5–412.5, the same
+band as flat ground, with `up` picking up −49.9 to +1.3 for the slope and nothing else changing. No
+coasting, no stalling, no per-direction inconsistency.
+
+**Distances run 405.1 to 412.5 against an authored 405 — always over, never under.** That is a
+systematic bias rather than noise and it is one movement tick: at 1012.5 cm/s the maximum excess of
+7.5 cm is 7.4 ms of travel and the minimum is 0.1 cm, so the spread is exactly zero-to-one tick of
+end overshoot. Left alone as sub-frame.
+
+**For scale on what the rewrite bought:** the old system had a 90.6 cm spread between directions and
+eight hand-measured constants to hide it. The new spread is 7.4 cm, it is explained, and there is no
+calibration data at all.
 
 ## 2026-08-13 — The gate is per tick, and lunge duration is a designed quantity
 

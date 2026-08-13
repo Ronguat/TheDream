@@ -12,42 +12,11 @@
 #include "Engine/World.h"
 #include "TimerManager.h"
 
-UTDDodgeAbility::UTDDodgeAbility()
-{
-	// Measured on flat ground from the V3 Dash clips at scale 1.0, 2026-08-11. Calibration data,
-	// not tuning: these describe the clips, so they change only when the clips do. Reproducible
-	// to within 0.1 uu on repeat dodges, against a 90.6 uu spread between directions -- roughly
-	// 15:1, which is what established the disagreement is the animation rather than input noise.
-	//
-	// **Re-measure these whenever the dodge montage is rebuilt from a different pack.** Stale
-	// values here do not fail loudly; they quietly bias distance per direction, which is exactly
-	// the bug they exist to correct.
-	MeasuredTravelCm =
-	{
-		{ ETDDodgeDirection::Fw, 406.7f },
-		{ ETDDodgeDirection::FR, 443.4f },
-		{ ETDDodgeDirection::R,  462.6f },
-		{ ETDDodgeDirection::BR, 409.7f },
-		{ ETDDodgeDirection::Bw, 402.6f },
-		{ ETDDodgeDirection::BL, 418.3f },
-		{ ETDDodgeDirection::L,  371.9f },
-		{ ETDDodgeDirection::FL, 388.3f },
-	};
-}
-
-float UTDDodgeAbility::ComputeRootMotionScale(ETDDodgeDirection Direction) const
-{
-	const float* Measured = MeasuredTravelCm.Find(Direction);
-
-	// No measurement, or a nonsense one, means fall back to the uniform scale. That is the
-	// pre-2026-08-11 behaviour: wrong in the way we are fixing, but never a divide by zero.
-	if (!Measured || *Measured <= KINDA_SMALL_NUMBER || DodgeTargetDistanceCm <= 0.0f)
-	{
-		return DodgeRootMotionScale;
-	}
-
-	return DodgeRootMotionScale * (DodgeTargetDistanceCm / *Measured);
-}
+// The constructor seeded eight MeasuredTravelCm entries until 2026-08-13 -- calibration data
+// describing how far each V3 Dash clip carried, so that eight scales could correct a 90.6 cm
+// disagreement between them. Displacement is authored now, so there is nothing to calibrate and
+// nothing to re-measure when the montage is rebuilt. The trap that asked for exactly that goes
+// with it.
 
 namespace
 {
@@ -119,6 +88,25 @@ void UTDDodgeAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, c
 		DodgeStartLocation = Avatar->GetActorLocation();
 	}
 
+	// **Authored displacement, as of 2026-08-13**, replacing the montage's root motion and the
+	// eight per-direction scales that existed to correct it. The clips disagreed by 90.6 cm about
+	// how far a dodge carries, so every one of those scales was a measurement of an animator's
+	// choice; now all eight directions travel DodgeTargetDistanceCm because that is the number.
+	//
+	// **The eight yaw offsets are the enum's own order, not a table.** ETDDodgeDirection runs
+	// Fw, FR, R, BR, Bw, BL, L, FL -- clockwise at 45 degrees a step -- so the offset is the
+	// index times 45, and a direction cannot be given the wrong angle without being in the wrong
+	// place in the compass.
+	//
+	// Standoff is deliberately 0: Target Lock's gate belongs to attacks. An evade has to be able
+	// to travel *past* people, and gating it on pawns would break dodging through a crowd.
+	StartLunge(
+		DodgeTargetDistanceCm,
+		DodgeSeconds,
+		/*StrengthCurve=*/nullptr,
+		/*StandoffCm=*/0.0f,
+		static_cast<uint8>(DodgeDirection) * 45.0f);
+
 	if (ATDCombatCharacter* Character = Cast<ATDCombatCharacter>(GetAvatarActorFromActorInfo()))
 	{
 		Character->DebugStatusLine = FString::Printf(TEXT("Dodge %s  %.2fs  invulnerable"),
@@ -161,12 +149,10 @@ void UTDDodgeAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, c
 				*DodgeMontage->GetName(), *Section.ToString());
 		}
 
-		// Per-direction, because the source clips disagree about how far they carry. Uniform
-		// scaling would multiply that disagreement rather than correct it.
-		const float RootMotionScale = ComputeRootMotionScale(DodgeDirection);
-
+		// Scale 1.0, and it is inert: the eight source clips have bEnableRootMotion switched off,
+		// so the montage carries no root motion for this to scale. Displacement is authored below.
 		UAbilityTask_PlayMontageAndWait* MontageTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(
-			this, NAME_None, DodgeMontage, PlayRate, Section, /*bStopWhenAbilityEnds=*/true, RootMotionScale);
+			this, NAME_None, DodgeMontage, PlayRate, Section, /*bStopWhenAbilityEnds=*/true, /*AnimRootMotionTranslationScale=*/1.0f);
 
 		// Deliberately not ending the ability on completion. DodgeSeconds is the authority,
 		// and a montage whose sections chain into the next one would otherwise decide the
@@ -280,15 +266,25 @@ void UTDDodgeAbility::EndAbility(const FGameplayAbilitySpecHandle Handle, const 
 		{
 			const FVector Delta = Avatar->GetActorLocation() - DodgeStartLocation;
 
-			// The *effective* scale, not DodgeRootMotionScale. Printing the authored knob rather
-			// than the value that drove the montage would report 1.00 for every direction while
-			// eight different corrections were being applied -- the exact shape of trace that
-			// showed this system working perfectly while it was not.
-			TD_TIMING_LOG(TEXT("[%.3f] DODGE END  dir=%s travelled=%.1fuu scale=%.2f%s"),
+			// **Logged as a vector in the avatar's own frame, not as a magnitude.** It printed
+			// Delta.Size2D() until 2026-08-13, and that is how a dodge travelling ninety degrees
+			// from its intended direction produced a line indistinguishable from a perfect one --
+			// the instrument answered "how far", correctly, while the question was "which way".
+			//
+			// Every number this system was ever tuned on had the same hole: MeasuredTravelCm was
+			// captured the same way, so the eight scales corrected distances nobody had checked the
+			// direction of. Right is +Y and forward is +X, so a left dodge should read fwd~0
+			// right~-405, and any other shape is the bug announcing itself.
+			const FVector Local = Avatar->GetActorTransform().InverseTransformVectorNoScale(Delta);
+
+			TD_TIMING_LOG(TEXT("[%.3f] DODGE END  dir=%s fwd=%+.1f right=%+.1f up=%+.1f dist=%.1fuu yaw=%.0f%s"),
 				GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f,
 				*UEnum::GetValueAsString(DodgeDirection),
+				Local.X,
+				Local.Y,
+				Local.Z,
 				Delta.Size2D(),
-				ComputeRootMotionScale(DodgeDirection),
+				static_cast<uint8>(DodgeDirection) * 45.0f,
 				bWasCancelled ? TEXT(" (cancelled)") : TEXT(""));
 		}
 

@@ -391,6 +391,19 @@ These are facts about the bundle, checked across all 6,576 assets, not impressio
 - **`OneHandSword` has no evasive animations at all.** If the project moves to a one-handed
   sword archetype, its dodges have to come from another folder — most plausibly
   `SwordShield`, which is the nearest stance.
+- **Turning `bEnableRootMotion` off does not give you an in-place clip** *(learned the hard way,
+  2026-08-13)*. It stops the movement component **consuming** the root motion; it does not remove
+  it from the pose. The displacement is still in the root bone, so it renders — the mesh visibly
+  walks off the capsule and snaps back when the montage ends. Reported from play as *"the animation
+  goes about 4x as far as the dodge and is desynced… then resets its position"*, which is exactly
+  what an unlocked root bone carrying baked motion looks like.
+
+  **`bForceRootLock = true` is the flag that makes an `_RM` clip behave in place.** It pins the root
+  bone to `RootMotionRootLock` (already `RefPose` on these clips) whether or not root motion is
+  enabled. The pair to set, for any clip whose displacement is being driven in code instead, is
+  `bEnableRootMotion = false` **and** `bForceRootLock = true` — the first stops the double-move,
+  the second stops the drift, and setting only the first is worse than setting neither.
+  Done on the eight V3 `Dash_*` clips when the dodge moved to authored displacement.
 - **`_RM` in a filename does not mean root motion is switched on.** It means root motion is
   *baked into the clip*; `bEnableRootMotion` on the asset is **false** out of the box, so a
   clip named `_RM` moves nothing until that is enabled. Checked on
