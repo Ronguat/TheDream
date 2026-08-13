@@ -649,6 +649,126 @@ concludes the log is wrong rather than merely old. Add a row whenever a name cha
 
 ---
 
+## 2026-08-13 — Target Lock's rotational half aims the lunge, not the swing
+
+Play-verified the day it landed. The user's verdict is the design thesis confirmed rather than
+discovered: *"Player intent feels MORE precise than before, even though logically, we've been
+lowering the player's precision."* They predicted exactly that when proposing the final shape —
+**"this will FEEL the most precise, even though it's not literally"** — so it is a prediction that
+held, not a rationalisation after the fact.
+
+### The first build was provably inert, and arithmetic said so before play could
+
+It shipped correcting *"just far enough to bring the target into the damage wedge"*. That is always
+zero. The assist wedge is the narrower of the two by design, so everything eligible for assist was
+already inside the damage wedge. No values of reach, arc or distance change it — both wedges get the
+same subtended-angle widening, so the inequality never flips.
+
+**The fix was not a wider wedge but a different question.** With a 60 degree damage arc widened by
+the target's own body, the swing has +/-36 degrees of tolerance at range and +/-50 at contact:
+pointing slightly wrong essentially cannot miss. **The swing does not need aiming. The lunge does.**
+Travel follows facing frozen at commit, and a 25 degree error over the light's 200 cm of branch
+travel lands 84 cm to the side — the standoff gate never closes, because you were never heading at
+them, so you sail past at full distance into recovery beside them.
+
+The user's framing, which is the whole design in one line: **a margin of error for aiming the lunge,
+not for aiming the mouse.**
+
+### The deadzone existed for a technique this game does not have
+
+A deadzone replaced the damage wedge as the correction target, then was deleted the same day. It was
+protecting the ability to *lead* a moving target — a snap to centre would drag the player back onto
+where the target *is*, undoing the lead.
+
+**That concern was imported from a general principle rather than from this game's numbers.** The
+hitbox opens 50 ms after commit into a 60 degree arc; a target at walking speed crosses about 7
+degrees of a +/-36 window. Leading a melee swing is not a technique here, so the deadzone bought
+nothing.
+
+And it cost real range, because setting it equal to the authored half-arc collapses the whole
+correction to the subtended term:
+
+| Distance | Max correction, deadzone 10 / arc 20 |
+|---|---|
+| 450 cm | 5.4 deg |
+| 300 cm | 8.0 deg |
+| 200 cm | 12.1 deg |
+| 124 cm | 19.8 deg |
+
+**Backwards** — least help at range, where travel is longest and aiming matters most, and most help
+at contact, where the gate has already solved it.
+
+### So the correction is full, and the wedge is the contract
+
+Snap to dead on. **The wedge is the margin of error, and it is aimed rather than corrected into.**
+That gives one knob with an unambiguous meaning — *how wrong may your aim be and still connect* —
+and a contract that holds mechanically:
+
+- aim inside the wedge, and the body ends at 0 degrees of error;
+- space inside travel plus reach, and the gate stops you at 124 cm against a 192 cm damage reach;
+- so the hit follows, short of a defensive action.
+
+The governing rule survives untouched: this corrects *where you are pointed*, never *whether you
+were close enough*. Spacing still decides everything.
+
+### The frame is the camera's, and the reason generalises
+
+The wedge is evaluated from `GetAimYawDegrees` — control rotation where there is one, the body
+otherwise. The user's statement of why is the one to keep: **the aim assist wedge should be
+camera-driven because it aids the attacker's inputs, while the damage dealing needs to be
+telegraphed enough that defenders can trust their eyes.**
+
+Assist is measured where intent lives; damage is measured on the body, which is the only thing an
+opponent can read. They coincide whenever facing has caught up, which is most of the time — and the
+moment homing makes them diverge is exactly the moment the distinction starts mattering.
+
+### Homing during the base lunge, and why it is not the homing that was rejected
+
+The user's proposal, and it solves the artifact that would otherwise have capped how wide the wedge
+could be: without it the entire turn lands in one frame at commit, which reads as a pop. Homing
+spreads it across the windup so what arrives at commit is a residual.
+
+**Measured the day it landed:** a target 12.9 degrees off the camera produced `turned +0.0` at
+commit. Homing had already absorbed all of it, and the body was 12.9 degrees away from the camera,
+tracking the target. That is the mechanism visible in one line.
+
+**It costs nothing that post-commit tracking would have cost.** Continuous tracking was rejected
+because a defender's movement could no longer make an attack whiff. Homing stops *at* commit — which
+is where the defender's reaction window opens in the first place — so freezing at the boundary that
+already exists leaves whiff punish exactly as it was. It is also tier-safe: the base lunge is
+shared, so homing during it is identical across all three and leaks nothing.
+
+**It reuses `TurnRateDegrees` and adds no number**, also the user's call. But it cannot simply be a
+second rule writing the same yaw: that is last-writer-wins, and made to compete at equal rates it
+deadlocks, since turning away raises the bearing and homing pulls back exactly as hard — a tagged
+target could never be left, which would destroy the "deliberately pick the further of two" property.
+
+**So the player's authority moves up a level: from facing to selection.** Homing owns facing while a
+target is tagged; the wedge is evaluated from the camera; aiming at someone else selects them and
+the body follows there. Steering is expressed as choosing rather than as fighting. This is also why
+camera-frame evaluation is load-bearing rather than tidy — with body-frame evaluation the two would
+be the same rule again.
+
+### Left open
+
+**No hysteresis.** Selection is re-evaluated every tick, so a camera parked between two near-equal
+candidates can flip frame to frame and swing the body at up to `TurnRateDegrees`. Not built, because
+nothing has felt it — and it becomes reachable exactly as the wedge widens, since two eligible
+targets are rare at 20 degrees and routine at 90.
+
+**The distance tiebreak is nearly decorative.** `FMath::IsNearlyEqual` defaults to 1e-4 degrees, so
+it fires only on essentially exact ties. It covers the degenerate symmetric case where iteration
+order would otherwise decide; the determinism claim should not be read as broader than that.
+
+**Damage mostly resolves ties on its own**, noted by the user: melee is multi-target by construction
+(`ResolveHits` walks every overlap), so two candidates close enough to tie are both inside a 60
+degree wedge and both take the hit. What selection still decides is *travel* — which body the gate
+stops you against, and therefore who you end up standing next to.
+
+**The test is horizontal only.** Bearing ignores Z entirely, so a target above or below competes on
+horizontal angle alone. Inert while everyone is on flat ground; live the moment the ramp or a jump
+enters it.
+
 ## 2026-08-13 — The dodge stops reading displacement off its clips, and an anomaly is closed by removal rather than diagnosis
 
 The dodge was the last system in the project taking a number from an animation. Authored wedges

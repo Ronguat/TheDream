@@ -125,10 +125,10 @@ void ATheDreamCharacter::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
 
-	UpdateCameraRelativeFacing();
+	UpdateCameraRelativeFacing(DeltaSeconds);
 }
 
-void ATheDreamCharacter::UpdateCameraRelativeFacing()
+void ATheDreamCharacter::UpdateCameraRelativeFacing(float DeltaSeconds)
 {
 	UCharacterMovementComponent* Movement = GetCharacterMovement();
 	if (!Movement)
@@ -169,6 +169,28 @@ void ATheDreamCharacter::UpdateCameraRelativeFacing()
 	{
 		bUseControllerRotationYaw = false;
 		Movement->bUseControllerDesiredRotation = false;
+		return;
+	}
+
+	// **Target Lock's homing, and it takes facing outright rather than competing for it.**
+	//
+	// Two rules writing one yaw is not a tie, it is last-writer-wins, which is arbitrary -- and
+	// made to compete at equal rates it would deadlock: turning away raises the bearing and homing
+	// pulls back exactly as hard, so a tagged target could never be left. **The player's authority
+	// moves up a level instead.** The wedge is evaluated from the *camera*, so aiming at a
+	// different target selects it and the body follows there; steering is expressed as choosing,
+	// not as fighting.
+	//
+	// Runs at TurnRateDegrees, the same rate camera-relative facing uses, so no new number exists
+	// to keep in step with the aim guarantee.
+	if (float HomingYaw = 0.0f; GetFacingHomingYaw(HomingYaw))
+	{
+		bUseControllerRotationYaw = false;
+		Movement->bUseControllerDesiredRotation = false;
+
+		FRotator Rotation = GetActorRotation();
+		Rotation.Yaw = FMath::FixedTurn(Rotation.Yaw, HomingYaw, TurnRateDegrees * DeltaSeconds);
+		SetActorRotation(Rotation);
 		return;
 	}
 
@@ -353,4 +375,16 @@ void ATheDreamCharacter::DoJumpEnd()
 {
 	// signal the character to stop jumping
 	StopJumping();
+}
+
+float ATheDreamCharacter::GetAimYawDegrees() const
+{
+	// The training dummy and anything else unpossessed has no camera, so the body is the only aim
+	// it has. That is correct rather than a fallback: an AI's facing *is* its intent.
+	if (const AController* AimController = GetController())
+	{
+		return AimController->GetControlRotation().Yaw;
+	}
+
+	return GetActorRotation().Yaw;
 }

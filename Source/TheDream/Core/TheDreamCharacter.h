@@ -240,6 +240,18 @@ public:
 	/** Whether an ability currently owns movement input. Read by DoMove and by the jump gate. */
 	bool IsMovementLocked() const { return bAbilityMovementLocked; }
 
+
+	/**
+	 *  Yaw the player is *aiming*, which is the camera when there is one and the body otherwise.
+	 *
+	 *  **Target Lock is evaluated in this frame rather than the actor.s**, because the assist aids
+	 *  the attacker.s input and input is the camera. Damage stays in the actor frame, because a
+	 *  defender has to be able to trust what the body is doing. They coincide whenever facing has
+	 *  caught up, which is most of the time -- and the moment homing makes them diverge is exactly
+	 *  the moment the distinction starts mattering.
+	 */
+	float GetAimYawDegrees() const;
+
 	/** Debug only: live yaw error between facing and the camera, in degrees. */
 	float GetFacingErrorDegrees() const { return FacingErrorDegrees; }
 
@@ -324,7 +336,10 @@ protected:
 	 *  assigned to the camera every frame. Giving it up costs a measured 5.7 degree mean
 	 *  against a 60 degree wedge, with 86% of attacks still exact. See TurnRateDegrees.
 	 */
-	void UpdateCameraRelativeFacing();
+	void UpdateCameraRelativeFacing(float DeltaSeconds);
+
+	/** Yaw Target Lock wants the body turned to, if it is homing. False leaves facing to the camera. */
+	virtual bool GetFacingHomingYaw(float& OutYaw) const { return false; }
 
 protected:
 

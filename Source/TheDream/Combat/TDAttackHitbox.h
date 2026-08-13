@@ -88,6 +88,23 @@ struct FTDAttackHitbox
 	float HeightMaxCm = 70.0f;
 
 	/**
+	 *  A wedge that contains nothing, for properties where "off" is the right default.
+	 *
+	 *  Zero reach rather than zero arc, because an arc of 0 still passes the subtended-angle
+	 *  widening and would quietly hit anything close enough. Reach is the one field that cannot be
+	 *  widened by anything.
+	 */
+	static FTDAttackHitbox MakeDisabled()
+	{
+		FTDAttackHitbox Disabled;
+		Disabled.MaxReachCm = 0.0f;
+		return Disabled;
+	}
+
+	/** Whether this wedge can contain anything at all. */
+	bool IsEnabled() const { return MaxReachCm > 0.0f; }
+
+	/**
 	 *  Radius of a sphere about the attacker's origin that cannot miss anything this wedge could
 	 *  contain. Deliberately generous: over-querying a handful of pawns costs nothing, and the
 	 *  exact filter is what decides.
@@ -112,4 +129,43 @@ struct FTDAttackHitbox
 		const FVector& TargetLocation,
 		float TargetRadiusCm,
 		float TargetHalfHeightCm) const;
+
+	/**
+	 *  Signed bearing to a target in this wedge's frame, and the half-arc that would contain it.
+	 *
+	 *  Split out so aim assist can ask "how far outside am I, and by how much" using exactly the
+	 *  geometry OverlapsCapsule decides with -- including the widening by the target's own subtended
+	 *  angle. Two implementations of that test would drift, and the one that drifted would be the
+	 *  one deciding where attacks point.
+	 *
+	 *  @param OutBearingDegrees   Signed angle from the arc's centre to the target, positive clockwise.
+	 *  @param OutHalfArcDegrees   Half the arc, widened by the angle the target's body subtends.
+	 *  @return false if the target is degenerate (on top of the attacker), where bearing is meaningless.
+	 */
+	bool GetBearingToCapsule(
+		const FVector& AttackerLocation,
+		float AttackerYawDegrees,
+		const FVector& TargetLocation,
+		float TargetRadiusCm,
+		float& OutBearingDegrees,
+		float& OutHalfArcDegrees) const;
+
+#if ENABLE_DRAW_DEBUG
+	/**
+	 *  Draws the wedge as two banded arcs joined by struts.
+	 *
+	 *  Lives here rather than on the trace task because it is the wedge's own geometry, and because
+	 *  aim assist needs to draw a *different* wedge than the one being traced -- a second copy of
+	 *  this would be a second thing to keep in step with the shape it claims to show.
+	 *
+	 *  DurationSeconds of -1 draws for a single frame, which suits anything redrawn every tick; the
+	 *  aim assist wedge is a one-instant decision and needs a real duration to be visible at all.
+	 */
+	void DrawDebug(
+		const UWorld* World,
+		const FVector& Location,
+		float YawDegrees,
+		const FColor& Color,
+		float DurationSeconds = -1.0f) const;
+#endif
 };

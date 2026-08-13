@@ -8,6 +8,7 @@
 #include "GameplayTagContainer.h"
 #include "GameplayAbilitySpec.h"
 #include "Engine/TimerHandle.h"
+#include "Combat/TDAttackHitbox.h"
 #include "TDCombatCharacter.generated.h"
 
 class UAbilitySystemComponent;
@@ -369,6 +370,56 @@ public:
 	 */
 	UPROPERTY(Transient, BlueprintReadWrite, Category="Combat|Debug")
 	FString DebugStatusLine;
+
+	FTDAttackHitbox AimAssistWedge;
+	FGameplayTagContainer AimAssistImmunityTags;
+	bool bAimAssistHoming = false;
+	bool bAimAssistDrawDebug = false;
+
+public:
+
+	/**
+	 *  Target Lock: turn the body toward whatever the camera has tagged, for the base lunge's span.
+	 *
+	 *  **Homing runs before the commit checkpoint and stops at it**, which is what stops it being
+	 *  the homing this design rejected. Tracking *after* commit would mean a defender's movement
+	 *  could no longer make an attack whiff; tracking before it costs nothing, because commit is
+	 *  where the defender's reaction window opens in the first place. Freeze at the boundary that
+	 *  already exists and whiff punish is untouched.
+	 *
+	 *  What it buys is that the correction arrives *gradually*. Without it the whole turn lands in
+	 *  one frame at commit, which reads as a pop once the wedge is wide enough to matter -- and
+	 *  that artifact, not the design, would have been the thing capping how wide the wedge could be.
+	 *
+	 *  Set at activation with the first branch's wedge, since every tier shares the windup and a
+	 *  light is what releasing now would produce. Cleared at commit **and again in EndAbility**,
+	 *  the one place every exit converges -- same contract as SetAbilityFacingLocked, because a
+	 *  stranded homing state is a character that turns toward strangers forever.
+	 */
+	void SetAimAssistHoming(const FTDAttackHitbox& InWedge, const FGameplayTagContainer& InImmunityTags, bool bActive, bool bInDrawDebug);
+
+	/**
+	 *  The best Target Lock candidate for a wedge, or null. Shared by homing and the commit snap.
+	 *
+	 *  One implementation deliberately, because two would drift -- and the one that drifted would
+	 *  be the one deciding where attacks point. Selection is smallest bearing with distance
+	 *  breaking ties: angle is the player's expressed intent, distance is their own responsibility,
+	 *  and the tiebreak exists so two machines cannot order equal candidates differently.
+	 *
+	 *  @param AimYawDegrees  The frame to measure in -- the *camera's*, not the body's. See
+	 *                        ATheDreamCharacter::GetAimYawDegrees.
+	 */
+	static AActor* FindAimAssistTarget(
+		const AActor* Attacker,
+		float AimYawDegrees,
+		const FTDAttackHitbox& Wedge,
+		const FGameplayTagContainer& ImmunityTags,
+		float& OutBearingDegrees);
+
+protected:
+
+	/** Homing's answer for the facing system: the bearing to the tagged target, in world yaw. */
+	virtual bool GetFacingHomingYaw(float& OutYaw) const override;
 
 protected:
 

@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Combat/TDAttackHitbox.h"
+#include "DrawDebugHelpers.h"
 
 float FTDAttackHitbox::GetBroadPhaseRadiusCm() const
 {
@@ -62,3 +63,91 @@ bool FTDAttackHitbox::OverlapsCapsule(
 
 	return OffsetDegrees <= (ArcDegrees * 0.5f) + SubtendedHalfAngle;
 }
+
+bool FTDAttackHitbox::GetBearingToCapsule(
+	const FVector& AttackerLocation,
+	float AttackerYawDegrees,
+	const FVector& TargetLocation,
+	float TargetRadiusCm,
+	float& OutBearingDegrees,
+	float& OutHalfArcDegrees) const
+{
+	const FVector Delta = TargetLocation - AttackerLocation;
+	const float CentreDistance = Delta.Size2D();
+	if (CentreDistance <= KINDA_SMALL_NUMBER)
+	{
+		return false;
+	}
+
+	const float BearingDegrees = FMath::RadiansToDegrees(FMath::Atan2(Delta.Y, Delta.X));
+	const float ArcCentreWorldDegrees = AttackerYawDegrees + ArcCentreDegrees;
+	OutBearingDegrees = FMath::FindDeltaAngleDegrees(ArcCentreWorldDegrees, BearingDegrees);
+
+	// Identical widening to OverlapsCapsule, deliberately: aim assist must ask the same question the
+	// hit test will answer, or it will correct to an edge that is not where the edge actually is.
+	const float SubtendedHalfAngle = (CentreDistance > TargetRadiusCm)
+		? FMath::RadiansToDegrees(FMath::Asin(TargetRadiusCm / CentreDistance))
+		: 90.0f;
+
+	OutHalfArcDegrees = (ArcDegrees * 0.5f) + SubtendedHalfAngle;
+	return true;
+}
+
+#if ENABLE_DRAW_DEBUG
+void FTDAttackHitbox::DrawDebug(
+	const UWorld* World,
+	const FVector& Location,
+	float YawDegrees,
+	const FColor& Color,
+	float DurationSeconds) const
+{
+	// One segment per 10 degrees keeps a narrow arc from collapsing to a straight line and a full
+	// circle from costing more than it is worth to look at.
+	const int32 Steps = FMath::Clamp(FMath::CeilToInt(ArcDegrees / 10.0f), 2, 72);
+	const float HalfArc = ArcDegrees * 0.5f;
+	const float Heights[2] = { HeightMinCm, HeightMaxCm };
+	const bool bPersistent = false;
+
+	FVector Corners[2][2];
+
+	for (int32 Band = 0; Band < 2; ++Band)
+	{
+		const FVector BandOffset(0.0f, 0.0f, Heights[Band]);
+		FVector PreviousInner = FVector::ZeroVector;
+		FVector PreviousOuter = FVector::ZeroVector;
+
+		for (int32 Step = 0; Step <= Steps; ++Step)
+		{
+			const float Alpha = static_cast<float>(Step) / static_cast<float>(Steps);
+			const float AngleDegrees = YawDegrees + ArcCentreDegrees - HalfArc + ArcDegrees * Alpha;
+			const float AngleRadians = FMath::DegreesToRadians(AngleDegrees);
+			const FVector Direction(FMath::Cos(AngleRadians), FMath::Sin(AngleRadians), 0.0f);
+
+			const FVector Inner = Location + Direction * MinReachCm + BandOffset;
+			const FVector Outer = Location + Direction * MaxReachCm + BandOffset;
+
+			if (Step > 0)
+			{
+				DrawDebugLine(World, PreviousInner, Inner, Color, bPersistent, DurationSeconds, 0, 1.0f);
+				// The outer arc is the attack's range, so it is drawn heaviest -- it is the one
+				// line worth reading off the screen while tuning.
+				DrawDebugLine(World, PreviousOuter, Outer, Color, bPersistent, DurationSeconds, 0, 2.0f);
+			}
+
+			// The arc's two straight edges, and the corners the vertical struts join.
+			if (Step == 0 || Step == Steps)
+			{
+				DrawDebugLine(World, Inner, Outer, Color, bPersistent, DurationSeconds, 0, 1.0f);
+				Corners[Band][Step == 0 ? 0 : 1] = Outer;
+			}
+
+			PreviousInner = Inner;
+			PreviousOuter = Outer;
+		}
+	}
+
+	// Struts between the bands, so the volume reads as a volume rather than two floating arcs.
+	DrawDebugLine(World, Corners[0][0], Corners[1][0], Color, bPersistent, DurationSeconds, 0, 1.0f);
+	DrawDebugLine(World, Corners[0][1], Corners[1][1], Color, bPersistent, DurationSeconds, 0, 1.0f);
+}
+#endif

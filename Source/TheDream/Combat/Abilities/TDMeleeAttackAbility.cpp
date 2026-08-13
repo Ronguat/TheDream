@@ -5,6 +5,7 @@
 #include "Combat/TDGameplayTags.h"
 #include "Combat/TDCombatDebug.h"
 #include "Core/TheDreamCharacter.h"
+#include "Combat/TDCombatCharacter.h"
 #include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
 #include "Combat/Tasks/AbilityTask_FacingLunge.h"
 #include "AbilitySystemBlueprintLibrary.h"
@@ -103,6 +104,54 @@ void UTDMeleeAttackAbility::LogTargetGeometry(const TCHAR* Phase) const
 		*Nearest->GetName(),
 		NearestDistance,
 		BearingDegrees);
+}
+
+void UTDMeleeAttackAbility::ApplyAimAssist(const FTDAttackHitbox& AssistWedge)
+{
+	ATheDreamCharacter* Avatar = GetFacingCharacter();
+	UWorld* World = Avatar ? Avatar->GetWorld() : nullptr;
+	if (!Avatar || !World || !AssistWedge.IsEnabled())
+	{
+		return;
+	}
+
+	// Measured from the camera, not the body. **The assist aids the attacker's input and the input
+	// is the camera; damage stays in the actor frame because a defender has to be able to trust
+	// what the body is doing.** They coincide unless homing has already turned the body, which is
+	// precisely when the distinction starts mattering.
+	const float AimYaw = Avatar->GetAimYawDegrees();
+
+	float Bearing = 0.0f;
+	const AActor* Target = ATDCombatCharacter::FindAimAssistTarget(Avatar, AimYaw, AssistWedge, TargetImmunityTags, Bearing);
+	if (!Target)
+	{
+		TD_TIMING_LOG(TEXT("[%.3f] AIM ASSIST no candidate in wedge (reach=%.0f arc=%.0f)"),
+			World->GetTimeSeconds(), AssistWedge.MaxReachCm, AssistWedge.ArcDegrees);
+		return;
+	}
+
+	// **All the way onto the target, not to the edge of a tolerance.** A deadzone lived here for
+	// one revision and was deleted: it existed to protect leading a moving target, and that is not
+	// a technique this game has -- the hitbox opens 50 ms after commit into a 60 degree arc, so a
+	// walking target crosses about 7 degrees of a +/-36 window. It bought nothing and cost the
+	// correction range, since pairing a 10 degree deadzone with a 10 degree half-arc collapsed the
+	// whole thing to the subtended term and gave least help at the ranges that needed most.
+	//
+	// **The wedge is the margin of error, and it is aimed rather than corrected into.** Aim inside
+	// it, space inside reach, and the hit follows short of a defensive action.
+	//
+	// Usually a no-op in practice: homing has been closing this gap for the whole base lunge, so
+	// what lands here is the residual. It is what makes a wide wedge affordable without a pop.
+	const FVector Delta = Target->GetActorLocation() - Avatar->GetActorLocation();
+	const float TargetYaw = FMath::RadiansToDegrees(FMath::Atan2(Delta.Y, Delta.X));
+	const float Correction = FMath::FindDeltaAngleDegrees(Avatar->GetActorRotation().Yaw, TargetYaw);
+
+	FRotator NewRotation = Avatar->GetActorRotation();
+	NewRotation.Yaw = TargetYaw;
+	Avatar->SetActorRotation(NewRotation);
+
+	TD_TIMING_LOG(TEXT("[%.3f] AIM ASSIST '%s' aimBearing=%+.1f -> turned %+.1f"),
+		World->GetTimeSeconds(), *Target->GetName(), Bearing, Correction);
 }
 
 void UTDMeleeAttackAbility::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled)

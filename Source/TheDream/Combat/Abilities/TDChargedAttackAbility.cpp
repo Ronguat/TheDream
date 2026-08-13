@@ -4,6 +4,7 @@
 #include "Combat/TDCombatDebug.h"
 #include "Combat/TDGameplayTags.h"
 #include "Core/TheDreamCharacter.h"
+#include "Combat/TDCombatCharacter.h"
 #include "Abilities/Tasks/AbilityTask_WaitGameplayEvent.h"
 #include "AbilitySystemComponent.h"
 #include "Animation/AnimInstance.h"
@@ -73,6 +74,13 @@ void UTDChargedAttackAbility::ActivateAbility(const FGameplayAbilitySpecHandle H
 	// before the ladder can be told apart. Deliberately not called via the parent's
 	// ActivateAbility, which this class does not run because it would start the trace too early.
 	StartLunge(LungeDistanceCm, GetBaseLungeDurationSeconds(), LungeStrengthCurve, LungeStandoffCm);
+
+	// Homing runs for the base lunge's span, using branch 0's wedge -- every tier shares the
+	// windup, and a light is what releasing right here would produce. Stopped at commit.
+	if (ATDCombatCharacter* CombatCharacter = Cast<ATDCombatCharacter>(GetAvatarActorFromActorInfo()))
+	{
+		CombatCharacter->SetAimAssistHoming(Branches[0].AimAssistWedge, TargetImmunityTags, true, bDrawDebugTrace);
+	}
 
 	ScheduleCheckpoint(Branches[0].HoldUntilSeconds);
 }
@@ -250,6 +258,18 @@ void UTDChargedAttackAbility::CommitAttack()
 	// it here is also what guarantees a listener exists before the window opens -- which
 	// is why CoilEndSeconds must stay below ReleaseStartSeconds.
 	StartMeleeTrace(GetAttackHitboxes());
+
+	// Target Lock's rotational half, and the order matters: it must run *before* the freeze below,
+	// because it is the last moment anything may change where this attack points. One correction,
+	// then facing is locked and nothing tracks -- which is what keeps it from being homing.
+	// Homing stops here. Past this instant tracking would be the homing this design rejects: a
+	// defender's movement has to be able to make a committed attack whiff.
+	if (ATDCombatCharacter* CombatCharacter = Cast<ATDCombatCharacter>(GetAvatarActorFromActorInfo()))
+	{
+		CombatCharacter->SetAimAssistHoming(FTDAttackHitbox::MakeDisabled(), FGameplayTagContainer(), false, false);
+	}
+
+	ApplyAimAssist(Branch.AimAssistWedge);
 
 	// Facing freezes here, instantly. The hitbox is defined in the attacker's frame, so a swing
 	// free to track the camera mid-release would carry its own arc around with it and the
@@ -575,6 +595,14 @@ void UTDChargedAttackAbility::EndAbility(const FGameplayAbilitySpecHandle Handle
 	if (UWorld* World = GetWorld())
 	{
 		World->GetTimerManager().ClearTimer(CheckpointTimerHandle);
+	}
+
+	// Cleared again here, unconditionally and idempotently, because an attack cancelled during its
+	// windup never reaches commit -- and this is the one place every exit converges. Same contract
+	// as the facing lock: a stranded debug wedge would paint itself on the world forever.
+	if (ATDCombatCharacter* CombatCharacter = Cast<ATDCombatCharacter>(GetAvatarActorFromActorInfo()))
+	{
+		CombatCharacter->SetAimAssistHoming(FTDAttackHitbox::MakeDisabled(), FGameplayTagContainer(), false, false);
 	}
 
 	// When the ability ends relative to the release window's close is not otherwise

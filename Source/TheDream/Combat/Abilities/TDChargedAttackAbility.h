@@ -170,6 +170,32 @@ struct FTDAttackBranch
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Attack")
 	TObjectPtr<UCurveFloat> LungeStrengthCurve = nullptr;
+
+	/**
+	 *  Target Lock, rotational half: who this branch is willing to be steered onto, at commit.
+	 *
+	 *  **Author it longer in reach and notably narrower in arc than the damage wedge.** Longer
+	 *  because it is evaluated at commit while the attack still has its travel ahead of it, so the
+	 *  useful reach is roughly this branch's lunge plus its damage reach. Narrower because
+	 *  **the wedge's width is the dial between the player declaring intent and the system inferring
+	 *  it** -- a narrow wedge means aim does the selecting and the algorithm only breaks ties, which
+	 *  is the whole design goal.
+	 *
+	 *  **Its half-arc is also the maximum correction**, by construction rather than by a second
+	 *  number: a candidate outside the wedge is not eligible, so nothing can be rotated onto from
+	 *  further away than the wedge is wide. That makes the tuning knob and the contract the same
+	 *  value -- the arc *is* the definition of "aimed well enough".
+	 *
+	 *  Reusing FTDAttackHitbox rather than inventing a shape gets the subtended-angle widening free,
+	 *  so a narrow authored arc self-widens as a target gets closer: 10 degrees authored reads as
+	 *  about 15 at 500 cm and 40 at contact. Tight where intent is being declared, forgiving where
+	 *  the player obviously meant the person they are standing on.
+	 *
+	 *  **MaxReachCm of 0 disables aim assist for this branch**, which is the default, so adding this
+	 *  changed no existing behaviour until it was authored.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Attack")
+	FTDAttackHitbox AimAssistWedge = FTDAttackHitbox::MakeDisabled();
 };
 
 /**

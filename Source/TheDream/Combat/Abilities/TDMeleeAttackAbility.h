@@ -218,6 +218,39 @@ protected:
 	void LogTargetGeometry(const TCHAR* Phase) const;
 
 	/**
+	 *  Target Lock, rotational half: turns the avatar the minimum amount that brings the best
+	 *  candidate into the damage wedge. Call at commit, before facing is frozen.
+	 *
+	 *  **It corrects where you are pointed, never whether you were close enough.** The rotation
+	 *  cannot rescue a spacing miss, which is what keeps whiff punish intact -- and it is why this
+	 *  deliberately fires at targets that are *out of range*, producing the "locked on, committed,
+	 *  and short" outcome rather than silently declining to help.
+	 *
+	 *  **Post-commit only, once, then frozen.** The windup is the one window where the player is
+	 *  actively steering, and correcting someone mid-aim is how assist comes to feel intrusive.
+	 *  After commit the player has no agency by design, so this fills a gap rather than taking
+	 *  anything. Continuous tracking would be homing, and homing means a defender's movement can no
+	 *  longer make an attack whiff.
+	 *
+	 *  **Minimum sufficient correction, not a snap to centre.** A target already inside the damage
+	 *  wedge rotates nothing. Two reasons, and the second is the stronger: it is less intrusive, and
+	 *  a snap to centre would *actively undo a lead* -- a player aiming where a moving target will
+	 *  be, rotated back onto where it is, by the system meant to help them.
+	 *
+	 *  **Rotates the character, not the camera**, which is what keeps it invisible: the player is
+	 *  steering the camera, and the body following it is not something they are watching. Facing
+	 *  re-settles toward the camera when the lock releases at EndAbility, over a few tens of
+	 *  milliseconds.
+	 *
+	 *  Selection is smallest bearing, ties broken by distance. Angle is the player's expressed
+	 *  intent and distance is their own responsibility, which is also what lets them deliberately
+	 *  take the *further* of two targets. The distance tiebreak exists for determinism rather than
+	 *  for occlusion -- unstable ordering would let two machines pick different targets and rotate
+	 *  the attack two different ways.
+	 */
+	void ApplyAimAssist(const FTDAttackHitbox& AssistWedge);
+
+	/**
 	 *  Plays AttackMontage, optionally from a named section, and ends the ability when it finishes.
 	 *
 	 *  PlayRate is passed rather than authored because a derived rate has to be in force from

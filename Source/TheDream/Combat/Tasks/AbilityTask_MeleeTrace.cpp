@@ -161,7 +161,7 @@ void UAbilityTask_MeleeTrace::TickTask(float DeltaTime)
 
 		for (const FTDAttackHitbox& Hitbox : Hitboxes)
 		{
-			DrawHitbox(World, Hitbox, Location, Yaw, Color);
+			Hitbox.DrawDebug(World, Location, Yaw, Color);
 		}
 	}
 #endif
@@ -257,58 +257,6 @@ void UAbilityTask_MeleeTrace::ResolveHits(UWorld* World, AActor* Avatar)
 	}
 }
 
-#if ENABLE_DRAW_DEBUG
-void UAbilityTask_MeleeTrace::DrawHitbox(const UWorld* World, const FTDAttackHitbox& Hitbox, const FVector& Location, float YawDegrees, const FColor& Color) const
-{
-	// One segment per 10 degrees keeps a narrow arc from collapsing to a straight line and a full
-	// circle from costing more than it is worth to look at.
-	const int32 Steps = FMath::Clamp(FMath::CeilToInt(Hitbox.ArcDegrees / 10.0f), 2, 72);
-	const float HalfArc = Hitbox.ArcDegrees * 0.5f;
-	const float Heights[2] = { Hitbox.HeightMinCm, Hitbox.HeightMaxCm };
-
-	FVector Corners[2][2];
-
-	for (int32 Band = 0; Band < 2; ++Band)
-	{
-		const FVector BandOffset(0.0f, 0.0f, Heights[Band]);
-		FVector PreviousInner = FVector::ZeroVector;
-		FVector PreviousOuter = FVector::ZeroVector;
-
-		for (int32 Step = 0; Step <= Steps; ++Step)
-		{
-			const float Alpha = static_cast<float>(Step) / static_cast<float>(Steps);
-			const float AngleDegrees = YawDegrees + Hitbox.ArcCentreDegrees - HalfArc + Hitbox.ArcDegrees * Alpha;
-			const float AngleRadians = FMath::DegreesToRadians(AngleDegrees);
-			const FVector Direction(FMath::Cos(AngleRadians), FMath::Sin(AngleRadians), 0.0f);
-
-			const FVector Inner = Location + Direction * Hitbox.MinReachCm + BandOffset;
-			const FVector Outer = Location + Direction * Hitbox.MaxReachCm + BandOffset;
-
-			if (Step > 0)
-			{
-				DrawDebugLine(World, PreviousInner, Inner, Color, false, -1.0f, 0, 1.0f);
-				// The outer arc is the attack's range, so it is drawn heaviest -- it is the one
-				// line worth reading off the screen while tuning.
-				DrawDebugLine(World, PreviousOuter, Outer, Color, false, -1.0f, 0, 2.0f);
-			}
-
-			// The arc's two straight edges, and the corners the vertical struts join.
-			if (Step == 0 || Step == Steps)
-			{
-				DrawDebugLine(World, Inner, Outer, Color, false, -1.0f, 0, 1.0f);
-				Corners[Band][Step == 0 ? 0 : 1] = Outer;
-			}
-
-			PreviousInner = Inner;
-			PreviousOuter = Outer;
-		}
-	}
-
-	// Struts between the bands, so the volume reads as a volume rather than two floating arcs.
-	DrawDebugLine(World, Corners[0][0], Corners[1][0], Color, false, -1.0f, 0, 1.0f);
-	DrawDebugLine(World, Corners[0][1], Corners[1][1], Color, false, -1.0f, 0, 1.0f);
-}
-#endif
 
 void UAbilityTask_MeleeTrace::OnDestroy(bool bInOwnerFinished)
 {

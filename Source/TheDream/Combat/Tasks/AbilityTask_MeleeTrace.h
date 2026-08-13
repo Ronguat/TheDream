@@ -69,7 +69,6 @@ private:
 
 #if ENABLE_DRAW_DEBUG
 	/** Outlines one hitbox: arcs at both radii across both ends of the vertical band. */
-	void DrawHitbox(const UWorld* World, const FTDAttackHitbox& Hitbox, const FVector& Location, float YawDegrees, const FColor& Color) const;
 #endif
 
 	/** The volumes this attack strikes with, in the attacker's frame. */

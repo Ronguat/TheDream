@@ -383,11 +383,26 @@ In execution order, and all sequential. **Lunge + Recovery both shipped 2026-08-
      read back through the toolset, so the only verification is measuring travel in play — which the
      test level currently *cannot* do, because the gate truncates both lunges at 200 cm. Measuring
      means moving the dummy out past ~800 cm first.
-   - **Designed, not built: the aim half.** Post-commit only, a single capped correction at commit
-     that rotates the *character* and not the camera, eligibility as a narrow long `FTDAttackHitbox`,
-     selection by smallest bearing with distance breaking ties, skipping `TargetImmunityTags`. The
-     play session sizes the wedge and settles minimum-sufficient correction against snap-to-centre.
-     Full reasoning and everything rejected is in `Docs/Combat-Decisions.md`; do not re-derive it.
+   - **Shipped: the aim half.** Play-verified 2026-08-13. **It aims the *lunge*, not the swing** —
+     the 60° damage wedge already has ±36–50° of tolerance, while travel is a line, so a 25° error
+     puts you 84 cm to the side and the gate never closes. The user's framing: *a margin of error for
+     aiming the lunge, not for aiming the mouse.*
+      - **The wedge is the contract.** `FTDAttackBranch::AimAssistWedge`, per branch. Aim inside it
+        and the body snaps dead-on; space inside travel + reach and the hit follows short of a
+        defensive action. Its arc is the one knob and means *how wrong your aim may be*.
+      - **Evaluated in the camera's frame**, not the body's — assist aids the attacker's input, while
+        damage stays actor-framed because defenders must be able to trust what the body does.
+      - **Homing runs through the base lunge and stops at commit**, at the existing `TurnRateDegrees`
+        with no new number. That is not the homing this design rejects: commit is where the
+        defender's reaction window opens, so freezing there leaves whiff punish intact. It also makes
+        a wide wedge affordable — measured, a 12.9° camera error arrived at commit as **0.0°**,
+        homing having absorbed all of it.
+      - **The player's authority is selection, not facing.** Homing owns facing while a target is
+        tagged; aiming elsewhere selects someone else and the body follows. Two rules writing one yaw
+        would deadlock, which is why camera-frame evaluation is load-bearing rather than tidy.
+      - **No hysteresis.** A camera parked between two near-equal candidates can flip selection each
+        tick and swing the body. Unreachable at a narrow arc, routine at a wide one — expect it to
+        surface as the wedge grows. Everything rejected is in `Docs/Combat-Decisions.md`.
    - **`LungeStandoffCm` must stay below every branch's `MaxReachCm`** or the clamp starts *causing*
      whiffs by parking the attacker outside its own hitbox. Filed as a trap; standoff is per ability
      and reach is per branch, which is what makes it easy to miss.

@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Combat/TDCombatCharacter.h"
+#include "AbilitySystemBlueprintLibrary.h"
+#include "Engine/OverlapResult.h"
 #include "Combat/Attributes/TDAttributeSet.h"
 #include "Combat/Abilities/TDGameplayAbility.h"
 #include "Combat/TDCombatDebug.h"
@@ -70,7 +72,22 @@ void ATDCombatCharacter::Tick(float DeltaSeconds)
 	// Not authority-gated: a buffered press is local input waiting to be spent, and it is
 	// spent through the same path a live press takes.
 	TickInputBuffer();
+
+#if ENABLE_DRAW_DEBUG
+	// Same gate as the damage wedge (bDrawDebugTrace || the cvar), so the two appear together --
+	// they were on different gates and only one showed by default, which is confusing precisely
+	// when you are trying to compare their sizes.
+	//
+	// Drawn from the *aim* yaw, because that is the frame the wedge is actually tested in. Drawing
+	// it on the body would diverge from the tested volume the moment homing turns the body, which
+	// is a debug view lying exactly when the system acts.
+	if (bAimAssistHoming && (bAimAssistDrawDebug || TDShouldDrawMeleeTrace()))
+	{
+		AimAssistWedge.DrawDebug(GetWorld(), GetActorLocation(), GetAimYawDegrees(), FColor::Cyan);
+	}
+#endif
 }
+
 
 void ATDCombatCharacter::TickStaminaRegen(float DeltaSeconds)
 {
@@ -1098,4 +1115,120 @@ float ATDCombatCharacter::GetStaminaPercent() const
 {
 	const float Max = GetMaxStamina();
 	return (Max > 0.0f) ? GetStamina() / Max : 0.0f;
+}
+
+void ATDCombatCharacter::SetAimAssistHoming(const FTDAttackHitbox& InWedge, const FGameplayTagContainer& InImmunityTags, bool bActive, bool bInDrawDebug)
+{
+	AimAssistWedge = InWedge;
+	AimAssistImmunityTags = InImmunityTags;
+	bAimAssistHoming = bActive && InWedge.IsEnabled();
+	bAimAssistDrawDebug = bInDrawDebug;
+}
+
+AActor* ATDCombatCharacter::FindAimAssistTarget(
+	const AActor* Attacker,
+	float AimYawDegrees,
+	const FTDAttackHitbox& Wedge,
+	const FGameplayTagContainer& ImmunityTags,
+	float& OutBearingDegrees)
+{
+	const UWorld* World = Attacker ? Attacker->GetWorld() : nullptr;
+	if (!World || !Wedge.IsEnabled())
+	{
+		return nullptr;
+	}
+
+	const FVector Origin = Attacker->GetActorLocation();
+
+	TArray<FOverlapResult> Overlaps;
+	World->OverlapMultiByObjectType(
+		Overlaps,
+		Origin,
+		FQuat::Identity,
+		FCollisionObjectQueryParams(ECC_Pawn),
+		FCollisionShape::MakeSphere(Wedge.GetBroadPhaseRadiusCm()),
+		FCollisionQueryParams(SCENE_QUERY_STAT(TDAimAssist), /*bTraceComplex=*/false, Attacker));
+
+	AActor* Best = nullptr;
+	float BestBearing = 0.0f;
+	float BestDistance = 0.0f;
+
+	for (const FOverlapResult& Overlap : Overlaps)
+	{
+		AActor* Candidate = Overlap.GetActor();
+		const ACharacter* CandidateCharacter = Cast<ACharacter>(Candidate);
+		const UCapsuleComponent* Capsule = CandidateCharacter ? CandidateCharacter->GetCapsuleComponent() : nullptr;
+		if (!Capsule || Candidate == Attacker)
+		{
+			continue;
+		}
+
+		// The same list damage uses, never a second one. Steering onto something that cannot be
+		// hurt would make the dodge stronger than designed by dragging the attacker onto the one
+		// target it cannot touch.
+		if (!ImmunityTags.IsEmpty())
+		{
+			const UAbilitySystemComponent* TargetASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(Candidate);
+			if (TargetASC && TargetASC->HasAnyMatchingGameplayTags(ImmunityTags))
+			{
+				continue;
+			}
+		}
+
+		const FVector TargetCentre = Candidate->GetActorLocation();
+		const float TargetRadius = Capsule->GetScaledCapsuleRadius();
+
+		if (!Wedge.OverlapsCapsule(Origin, AimYawDegrees, TargetCentre, TargetRadius, Capsule->GetScaledCapsuleHalfHeight()))
+		{
+			continue;
+		}
+
+		float Bearing = 0.0f;
+		float HalfArc = 0.0f;
+		if (!Wedge.GetBearingToCapsule(Origin, AimYawDegrees, TargetCentre, TargetRadius, Bearing, HalfArc))
+		{
+			continue;
+		}
+
+		const float Distance = FVector::Dist2D(TargetCentre, Origin);
+
+		const bool bBetter = !Best
+			|| FMath::Abs(Bearing) < FMath::Abs(BestBearing) - KINDA_SMALL_NUMBER
+			|| (FMath::IsNearlyEqual(FMath::Abs(Bearing), FMath::Abs(BestBearing)) && Distance < BestDistance);
+
+		if (bBetter)
+		{
+			Best = Candidate;
+			BestBearing = Bearing;
+			BestDistance = Distance;
+		}
+	}
+
+	OutBearingDegrees = Best ? BestBearing : 0.0f;
+	return Best;
+}
+
+bool ATDCombatCharacter::GetFacingHomingYaw(float& OutYaw) const
+{
+	if (!bAimAssistHoming || bDead)
+	{
+		return false;
+	}
+
+	// Re-selected every tick from the camera, which is what makes steering work as *choosing*
+	// rather than as fighting: aim at someone else and they become the target.
+	const float AimYaw = GetAimYawDegrees();
+
+	float Bearing = 0.0f;
+	const AActor* Target = FindAimAssistTarget(this, AimYaw, AimAssistWedge, AimAssistImmunityTags, Bearing);
+	if (!Target)
+	{
+		return false;
+	}
+
+	// World yaw straight to the target, so the body ends up dead on rather than merely inside a
+	// tolerance -- the wedge is the margin of error, and it is aimed rather than corrected into.
+	const FVector Delta = Target->GetActorLocation() - GetActorLocation();
+	OutYaw = FMath::RadiansToDegrees(FMath::Atan2(Delta.Y, Delta.X));
+	return true;
 }
