@@ -77,6 +77,8 @@ dated entry. Add a row whenever an entry supersedes part of an older one.
 | 2026-08-12 — Root motion scaling is not enough control | the likely answer is that Lunge takes `RootMotionScale` to 0 and owns displacement outright | 2026-08-12 — Lunge is two authored distances (taking the scale to 0 does **not** work: animation root motion suppresses root motion sources whether or not it is scaled, so the character stops moving entirely. The montage must carry no root motion) |
 | 2026-08-12 — Lunge is two authored distances | Lunge added two distances and **zero** timing values, because the boundaries it needed already existed — recorded as a virtue | 2026-08-13 — The gate is per tick, and lunge duration is a designed quantity (play found the lunge simultaneously too slow and too far, which is one fact: `ReleaseSeconds` was setting a movement feel) |
 | 2026-08-13 — Target Lock | the clamp shortens the authored distance before the lunge starts | 2026-08-13 — The gate is per tick (pre-shortening bakes in a prediction; a retreating target became unreachable, which is worse than no system at all) |
+| 2026-08-13 — Target Lock | the aim half corrects by the *minimum sufficient angle*, never a snap to centre | 2026-08-13 — Target Lock's rotational half aims the lunge (minimum-sufficient was measured against the damage wedge and is therefore always zero; the deadzone that replaced it protected leading, which this game does not have) |
+| 2026-08-13 — Target Lock | the aim half is **post-commit only**, because the windup is where the player steers | 2026-08-13 — Target Lock's rotational half aims the lunge (homing runs *through* the windup at the existing turn rate and stops at commit — the player's authority moves from facing to target selection, which is why the wedge is read from the camera) |
 | 2026-08-11 — Dodge travel ships at the clips' authored distance | displacement comes from the montage's root motion, corrected per direction by MeasuredTravelCm | 2026-08-13 — The dodge stops reading displacement off its clips (both the scales and the measurements are deleted; all eight directions travel DodgeTargetDistanceCm) |
 
 ---
@@ -361,6 +363,22 @@ second is the one nobody will think of while tuning it.
 Note this property is exactly what an end-lunge-on-hit rule would trade away: ending on contact makes
 final spacing depend on where in the release window the hitbox caught them, so a chain breathes
 instead of sitting still. Not yet decided either way.
+
+**Before the first multiplayer slice — *aim assist reads a loose tag across the network boundary,
+and loose tags do not replicate.*** Filed 2026-08-13, found by the traps grep before building the
+rotational half rather than after.
+
+`UTDDodgeAbility` applies `IFrameTag` with `AddLooseGameplayTag`, which is local to the machine that
+calls it. **Damage gets away with this** because `HandleTraceHit` is authority-gated, so only the
+server ever asks. **Aim assist does not**: `FindAimAssistTarget` runs on both machines, so an
+attacking client cannot see a remote opponent's `State.Dodging` at all. The client would steer onto
+a dodging target the server skips, and the attack points two different ways.
+
+So this is the loose-tag trap in a new and worse place — the existing entry warns that a client's
+`CanActivateAbility` can pass a check the server failed, and this is the same defect deciding
+*geometry* rather than permission. Unreachable today, single-player only. The fix is the standing
+one: **decide on the server, apply everywhere** — a replicated property whose `OnRep` applies the
+tag, following `bDead` / `bExhausted`.
 
 **Before Block** — *exhaustion can become permanent.* `ActivationBlockedTags` gates
 activation, not continuation, so a block held through zero keeps draining and keeps

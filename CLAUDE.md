@@ -151,7 +151,9 @@ Timings land within about a frame, biased late. `GA_Attack`'s `Branches` array i
 
 ## Project Documentation
 Three files carry knowledge the code cannot. Read them before working in their area; keep them true in the same commit that makes them wrong.
-- **`Docs/Working-In-Unreal.md`** — how to drive the editor and its MCP toolset without losing work: which writes silently do nothing, when Live Coding is safe versus needing a full editor-closed rebuild, what is not scriptable at all, and the standing regression checks for combat changes. Read before writing assets or C++.
+- **`Docs/Working-In-Unreal.md`** — how to drive the editor and its MCP toolset without losing work: which writes silently do nothing, when Live Coding is safe versus needing a full editor-closed rebuild, what is not scriptable at all, and the standing regression checks for combat changes.
+
+  **Read it front to back at the start of every session** (2026-08-13, the user's instruction). It is not a reference to reach for when something breaks — nearly everything in it **fails silently**, so it only helps if it is already in your head before you touch the editor. It was cut from 820 lines to ~400 the same day to make that reasonable, and **keeping it readable is now a closedown step**: anything compressible to its rule gets compressed, and the incidents behind them live in git and `Docs/Combat-Decisions.md`.
 - **`Docs/Combat-Decisions.md`** — dated log of combat decisions and the reasoning behind them, plus the working sections at the top: **known traps**, latent defects filed against the slice that trips them; the **tuning map**, which knob to move when a verdict comes back and which obvious-looking knob is wrong; and the bridge tables for anything superseded or renamed, **including the item numbers this file stopped using on 2026-08-12**. Append an entry whenever a gameplay choice is made that a future reader could reasonably second-guess; never rewrite an entry to match new code, supersede it with a new one.
 - **`Docs/Animation-Library.md`** — where animations come from, the naming convention that makes 5,319 of them searchable, what the library does *not* contain, and how to migrate one in without dragging a duplicate skeleton behind it. Read before asking for or importing any animation.
 
@@ -220,7 +222,15 @@ audit in miniature; the rest is making sure nothing is left on the floor.
    `Docs/Working-In-Unreal.md`, where every other reason to close it lives.
 2. **Leave nothing verified uncommitted.** Push anything finished. For anything deliberately left
    out, say so and why — pending *tuning* does not block a push, pending *correctness* does.
-3. **Check the docs you touched, with three greps.** `grep -n "supersede" Docs/Combat-Decisions.md` —
+3. **Audit the two files that are read every session, for bloat as well as truth.** `CLAUDE.md` and
+   `Docs/Working-In-Unreal.md` are both loaded or read in full at every startup, so **length is a
+   correctness problem for them and not only a tidiness one** — a file nobody finishes reading
+   protects nobody, and both grew past that point once already. Re-read what you added today and ask
+   of each line: *is this a rule, or is it the story of how the rule was learned?* Stories go to
+   `Docs/Combat-Decisions.md` or stay in git; the rule stays here. Added 2026-08-13, when
+   `Working-In-Unreal.md` was cut in half without losing a single rule.
+
+   Then **check the docs you touched, with three greps.** `grep -n "supersede" Docs/Combat-Decisions.md` —
    every hit needs a row in the supersession table, and two were missing on 2026-08-12. Then confirm
    any cross-reference you wrote resolves to a section that exists; three pointed at a section that
    had been deleted. **Then, if you edited the known-traps section, confirm every trap still has its
@@ -268,17 +278,17 @@ carries the number → name bridge; do not renumber anything to match it.
 
 Execution order, the only line that changes when the order does:
 
-> **~~Attack Ladder~~ → ~~Dodge~~ → ~~Sword & Shield~~ → ~~Input Buffer~~ → ~~Death~~ → ~~Dodge Distance~~ → ~~Attack Swap~~ → ~~[hover bug]~~ → ~~[facing pass]~~ → ~~Recovery~~ + ~~Lunge~~ → Target Lock → Block → Light String → Parry → Stun → Settings**
+> **~~Attack Ladder~~ → ~~Dodge~~ → ~~Sword & Shield~~ → ~~Input Buffer~~ → ~~Death~~ → ~~Dodge Distance~~ → ~~Attack Swap~~ → ~~[hover bug]~~ → ~~[facing pass]~~ → ~~Recovery~~ + ~~Lunge~~ → ~~Target Lock~~ → Block → Light String → Parry → Stun → Settings**
 
 **Structure Audit is deliberately absent from that line** — it is triggered by the combat model
 being verified good, not by a position; see its entry at the end.
 
-**Pick up at Target Lock, which is part-built and awaiting a feel verdict.** Its clamp and
-instrumentation shipped 2026-08-13 and are *measured* but not *played* — the aim half is designed in
-full, recorded in `Docs/Combat-Decisions.md`, and deliberately unbuilt until the play session sizes
-it. **Target Lock was inserted ahead of Block on 2026-08-13**, from play: Lunge made attacks at
-anything but maximum range feel awkward, and being happy with what is already in comes before adding
-more.
+**Pick up at Block.** **Target Lock shipped whole on 2026-08-13** — both halves, play-verified, with
+the user's verdict being *"player intent feels MORE precise than before, even though logically we've
+been lowering the player's precision."* It was inserted ahead of Block that day from play: Lunge had
+made attacks at anything but maximum range feel awkward, and being happy with what is already in
+comes before adding more. **The dodge was rebuilt on authored displacement the same day**, which was
+the last system in the project reading a number off an animation.
 
 **Lunge and Recovery both shipped 2026-08-12** and are play-verified. Both were
 moved ahead of Block on the same rule: **a number that another number is felt against gets authored
@@ -353,11 +363,7 @@ them is in `Docs/Combat-Decisions.md`.
    - **Reach and the placed dummy spacing still want authoring together with travel** — one felt quantity, and two tiers still play the light's clip. ***The overshoot this line used to describe is gone***, closed by Target Lock's clamp on 2026-08-13; what is open now is what the authored distances should be given the clamp decides them at close range. See Target Lock.
    - **Attacks became grounded-only and movement-locked**, which was never written down before. See the Offense section.
 
-### Remaining
-
-In execution order, and all sequential. **Lunge + Recovery both shipped 2026-08-12**; see Done.
-
-- **Target Lock** — attacks reach the target you aimed at. **Part-built 2026-08-13.** *A player who
+- **Target Lock** — attacks reach the target you aimed at. **Done 2026-08-13**, both halves play-verified. *A player who
   aims correctly and spaces correctly will reach their target; it never decides whether they were
   close enough.* Two halves, and the governing rule is that it **may correct where you are pointed,
   never whether you were in range** — so it cannot rescue a spacing miss and whiff punish is
@@ -407,6 +413,11 @@ In execution order, and all sequential. **Lunge + Recovery both shipped 2026-08-
      whiffs by parking the attacker outside its own hitbox. Filed as a trap; standoff is per ability
      and reach is per branch, which is what makes it easy to miss.
    - **Idea recorded, not decided: dodge intangibility.** Try only after the clamp has been felt.
+
+
+### Remaining
+
+In execution order, and all sequential. **Target Lock shipped 2026-08-13**, and Lunge + Recovery on 2026-08-12; see Done.
 
 - **Block** — the held guard, and the blockstun that arrives with it.
    - **Idea, noted 2026-08-11, not decided: use V1 as a *blocking* locomotion set.** If V3 becomes the neutral stance, V1's pervasive guard-forward pose stops being a drawback and becomes exactly the right material for the one state where a raised shield is correct. That is an **authored** block stance rather than a synthesized upper-body blend, which is the alternative **Sword & Shield** deferred (its art-seam note). It does not fully dissolve the art seam — V1's directions still disagree with each other — but it means any blend is correcting a guard pose rather than inventing one. Cheap to note now, expensive to rediscover. Blockstun disables offense and parry for a duration set by the attack blocked; it is the first *reactive* stun state and pulls in plumbing hitstun will also need. Content verified 2026-08-10, all in `SwordAndShieldAnimV1` (our pack): `DefenseStart` / `Defense_Loop` / `DefenseEnd` for the held guard, **plus eight `Defense_Hit_*` clips** — four directional block impacts and four die-while-blocking variants. The impacts are what blockstun reads as, and nothing previously recorded that they exist.
