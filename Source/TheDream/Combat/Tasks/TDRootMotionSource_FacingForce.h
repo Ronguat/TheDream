@@ -61,6 +61,40 @@ struct FTDRootMotionSource_FacingForce : public FRootMotionSource
 	UPROPERTY()
 	TObjectPtr<UCurveFloat> StrengthOverTime;
 
+	/**
+	 *  Target Lock: how close to a body this force is willing to carry the avatar, in cm. 0 disables.
+	 *
+	 *  **Gated per tick, not pre-computed, and the difference is the whole point.** Shortening the
+	 *  authored distance up front was the first implementation and it was wrong: it bakes in a
+	 *  prediction of where the target will be, taken at one instant, at a moment the target is free
+	 *  to invalidate. Play found it immediately -- an opponent who backed away while an attack was
+	 *  running could never be reached, because the distance had already been reduced to nothing on
+	 *  their behalf. That was **worse than having no system at all**, which had at least travelled
+	 *  the full distance and usually caught them.
+	 *
+	 *  The requirement was always "do not be inside a body", which is a *state*. Pre-shortening
+	 *  expressed it as a *prediction*. This expresses it as a state again: each movement tick asks
+	 *  whether a body is within StandoffCm ahead, and contributes nothing if so. Time still advances
+	 *  either way, so the gate can only ever subtract travel -- the authored distance remains a hard
+	 *  ceiling and the source still ends exactly on schedule.
+	 *
+	 *  **It is not homing**, which is the property whiff punish depends on. Homing changes a lunge's
+	 *  direction or extends its distance; this changes neither. A target moving laterally still
+	 *  escapes, and one backing off still escapes if it out-paces the authored travel. What it no
+	 *  longer gets is the escape handed to it for free by a stale prediction.
+	 */
+	UPROPERTY()
+	float StandoffCm;
+
+	/**
+	 *  Whether a pawn sits within StandoffCm ahead, so this tick should contribute nothing.
+	 *
+	 *  Swept with the avatar's own capsule on ECC_Pawn, which makes this the movement component's
+	 *  own collision test asked one tick early rather than an approximation of it. Anything it
+	 *  declines to gate on is something the avatar would not have collided with.
+	 */
+	bool IsWithinStandoff(const ACharacter& Character, const FVector& Direction) const;
+
 	virtual FRootMotionSource* Clone() const override;
 
 	virtual bool Matches(const FRootMotionSource* Other) const override;

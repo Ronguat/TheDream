@@ -134,6 +134,35 @@ struct FTDAttackBranch
 	float LungeDistanceCm = 75.0f;
 
 	/**
+	 *  How long this branch's lunge takes, in seconds. **Authored, and it did not used to be.**
+	 *
+	 *  It ran commit -> the end of the release window, derived rather than chosen, and the original
+	 *  entry recorded that as a virtue: Lunge shipped adding two distances and zero timing values
+	 *  because the boundaries it needed already existed. Play falsified it on 2026-08-13. The lunge
+	 *  felt simultaneously *too slow* and *too far*, which sounds contradictory and is one fact --
+	 *  speed is distance over duration, and the duration was set by ReleaseSeconds, which answers a
+	 *  completely different question: **how long the hitbox stays live.**
+	 *
+	 *  Nothing relates "how long the damaging volume persists" to "how long the character is carried
+	 *  forward". Welding them meant the lunge could not be made snappier without shortening the
+	 *  hitbox, nor the hitbox lengthened without making the lunge floatier -- two independent design
+	 *  questions sharing one number. For scale, the derived value put the light's lunge at 1000 cm/s
+	 *  against a 500 cm/s walk and a 1012 cm/s dodge: an attack that lunged at exactly dodge speed,
+	 *  which is why it did not read as a burst.
+	 *
+	 *  **A burst that finishes early in the release window is the point.** While the two were equal
+	 *  the avatar was moving for the entire time its hitbox was live, so the damaging volume was
+	 *  dragged through space for its whole existence and there was never a moment of planting and
+	 *  striking. Keep this comfortably below ReleaseAtSeconds + ReleaseSeconds - HoldUntilSeconds.
+	 *
+	 *  Longer than that span is legal and merely means the lunge is still running during recovery.
+	 *  It is not clamped, because "the attack drags you on past its own swing" is a coherent thing
+	 *  to author even though it is not what any current branch wants.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Attack", meta=(ClampMin="0.01"))
+	float LungeDurationSeconds = 0.12f;
+
+	/**
 	 *  Optional shape for this branch's lunge, sampled over 0..1 of its duration. Null is constant.
 	 *
 	 *  **Must average 1.0 across its range or the authored distance is a lie** -- the force is

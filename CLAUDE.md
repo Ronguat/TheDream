@@ -360,13 +360,17 @@ In execution order, and all sequential. **Lunge + Recovery both shipped 2026-08-
   close enough.* Two halves, and the governing rule is that it **may correct where you are pointed,
   never whether you were in range** — so it cannot rescue a spacing miss and whiff punish is
   untouched.
-   - **Shipped: the lunge clamp.** A capsule sweep along each lunge path, stopping `LungeStandoffCm`
-     short of the first pawn. Geometric rather than target-driven, deliberately — a selection test
-     has a boundary and a boundary is a cliff. **Measured, not played:** six attacks at 200 cm showed
-     zero slide (identical bearing at commit and release) and the branch lunge clamping 200 → 0. That
-     last number is the open question, not a defect: **a light authoring 300 cm of travel now
-     performs 100 at the placed spacing**, so the standoff and the authored distances want tuning
-     together in the reach/travel pass below.
+   - **Shipped: the lunge gate.** A capsule sweep asked **every movement tick** inside
+     `FTDRootMotionSource_FacingForce`, contributing nothing while a pawn sits within
+     `LungeStandoffCm` ahead. Geometric rather than target-driven, deliberately — a selection test
+     has a boundary and a boundary is a cliff. **It shipped once as a pre-computed shorter distance
+     and that was wrong**: pre-shortening bakes in a prediction, so a target moving away mid-attack
+     became unreachable, which is worse than having no system at all. Per-tick gating can only ever
+     subtract travel, so the authored distance stays a hard ceiling and it is still not homing.
+   - **Shipped: authored lunge duration.** `FTDAttackBranch::LungeDurationSeconds`, because duration
+     used to be derived from `ReleaseSeconds` — a hitbox-liveness number setting a movement feel. The
+     lunge ran at 1000 cm/s against a 1012 cm/s dodge, which is why it did not read as a burst.
+     **0.12 on every branch is a placeholder, not a considered value**; it has not been felt.
    - **Designed, not built: the aim half.** Post-commit only, a single capped correction at commit
      that rotates the *character* and not the camera, eligibility as a narrow long `FTDAttackHitbox`,
      selection by smallest bearing with distance breaking ties, skipping `TargetImmunityTags`. The

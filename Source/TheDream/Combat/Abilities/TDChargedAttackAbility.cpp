@@ -79,12 +79,22 @@ void UTDChargedAttackAbility::ActivateAbility(const FGameplayAbilitySpecHandle H
 
 float UTDChargedAttackAbility::GetBaseLungeDurationSeconds() const
 {
-	// Derived from the ladder rather than authored beside it. The base lunge has to end exactly
-	// where the tiers become distinguishable, and that boundary already has a home; a second
-	// copy of it would be one more pair of numbers nothing keeps married. Same discipline as
-	// TurnRateDegrees, which is derived from this identical value and is filed as a trap
-	// precisely because *it* is not enforced.
-	return Branches.Num() > 0 ? Branches[0].HoldUntilSeconds : Super::GetBaseLungeDurationSeconds();
+	// **The span is structural; the duration inside it is a feel choice.** This used to return the
+	// boundary outright, which made the light's input timing set how long the approach burst lasted
+	// -- and those answer different questions, exactly as ReleaseSeconds did for the branch lunge.
+	// See FTDAttackBranch::LungeDurationSeconds for the account; the same mistake was here twice.
+	//
+	// What is *not* free is running past the boundary. The base lunge must be finished before the
+	// branch lunge starts, or a light would have two Override root motion sources live at once at
+	// equal priority, where which one wins is an implementation detail rather than a design. So the
+	// authored value is clamped to the span rather than trusted, and authoring it longer is simply
+	// a request for the whole span.
+	if (Branches.Num() == 0)
+	{
+		return Super::GetBaseLungeDurationSeconds();
+	}
+
+	return FMath::Min(Super::GetBaseLungeDurationSeconds(), Branches[0].HoldUntilSeconds);
 }
 
 void UTDChargedAttackAbility::InputReleased(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo)
@@ -258,13 +268,10 @@ void UTDChargedAttackAbility::CommitAttack()
 	// pulled further forward than a light would be a tell from the press, which is the property
 	// the whole ladder is built to deny. See FTDAttackBranch::LungeDistanceCm.
 	//
-	// The duration runs to the end of the release window, and is measured from *now* rather than
-	// from the authored HoldUntilSeconds: the checkpoint timer fires a frame or two late, and
-	// every other rate in this file is derived from where things actually are for the same
-	// reason. Identical at 200 ms on all three branches today, but derived, so it follows if
-	// ReleaseSeconds is ever retuned per tier.
-	const float LungeDuration = (Branch.ReleaseAtSeconds + Branch.ReleaseSeconds) - GetElapsedSeconds();
-	StartLunge(Branch.LungeDistanceCm, LungeDuration, Branch.LungeStrengthCurve);
+	// The duration is authored per branch as of 2026-08-13, where it used to run to the end of the
+	// release window. That derivation was elegant and wrong: it let ReleaseSeconds -- a hitbox
+	// liveness number -- set how a movement burst feels. See FTDAttackBranch::LungeDurationSeconds.
+	StartLunge(Branch.LungeDistanceCm, Branch.LungeDurationSeconds, Branch.LungeStrengthCurve);
 
 	// The window's own length is only knowable once the notify fires, so the ability waits
 	// for it rather than duplicating the timeline.

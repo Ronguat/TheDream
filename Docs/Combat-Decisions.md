@@ -75,6 +75,8 @@ dated entry. Add a row whenever an entry supersedes part of an older one.
 | 2026-08-11 — The light is reactable at 250 ms | facing snaps on movement input and turns smoothly at rest | 2026-08-12 — Facing becomes one rate (one derived rate in all states, plus an idle rate) |
 | 2026-08-12 — Attack displacement is two scales | displacement is two multipliers on the clip's root motion, and a branch can only differentiate the travel its clip performs after commit | 2026-08-12 — Lunge is two authored distances (both scales are deleted; displacement is authored in centimetres and the clip contributes nothing, so what a branch can differentiate no longer depends on the clip at all) |
 | 2026-08-12 — Root motion scaling is not enough control | the likely answer is that Lunge takes `RootMotionScale` to 0 and owns displacement outright | 2026-08-12 — Lunge is two authored distances (taking the scale to 0 does **not** work: animation root motion suppresses root motion sources whether or not it is scaled, so the character stops moving entirely. The montage must carry no root motion) |
+| 2026-08-12 — Lunge is two authored distances | Lunge added two distances and **zero** timing values, because the boundaries it needed already existed — recorded as a virtue | 2026-08-13 — The gate is per tick, and lunge duration is a designed quantity (play found the lunge simultaneously too slow and too far, which is one fact: `ReleaseSeconds` was setting a movement feel) |
+| 2026-08-13 — Target Lock | the clamp shortens the authored distance before the lunge starts | 2026-08-13 — The gate is per tick (pre-shortening bakes in a prediction; a retreating target became unreachable, which is worse than no system at all) |
 
 ---
 
@@ -612,6 +614,106 @@ concludes the log is wrong rather than merely old. Add a row whenever a name cha
 | `RecoveryPlayRate` | **`FTDAttackBranch::RecoverySeconds`**, 2026-08-12. Recovery is authored as a duration per branch and its rate is derived, as windup and release already were. A rate could only set the punish window indirectly, through however long the clip's tail happened to be. |
 
 ---
+
+## 2026-08-13 — The gate is per tick, and lunge duration is a designed quantity
+
+Two corrections, both found by play within an hour of the clamp shipping, and both supersede claims
+made the same day. They are one entry because they were found in one session and the second was only
+visible once the first stopped dominating the feel.
+
+### Pre-shortening bakes in a prediction, and predictions about a moving opponent expire
+
+The clamp shipped as *"compute a shorter distance before the lunge starts"*. The user played it and
+reported that **a target moving away during an attack could never be reached**. That is exactly
+right and it is worse than it sounds: it is not a case the system fails to help with, it is a
+**strict regression against having no system at all**, which would have travelled the full authored
+distance and usually caught them.
+
+The error is precise and worth naming, because it looks correct right up until something moves. The
+requirement was always *"do not be inside a body"* — a **state**. Pre-shortening expresses it as a
+**prediction**, evaluated at one instant, about a target with complete freedom to invalidate it.
+
+So the standoff moved into `FTDRootMotionSource_FacingForce::PrepareRootMotion`, which already
+re-reads facing every movement tick — the same idea applied to the other live input. Each tick asks
+whether a body is within `StandoffCm` ahead and contributes nothing if so. **Time advances either
+way**, so the gate can only subtract travel: the authored distance stays a hard ceiling and the
+source still ends on schedule.
+
+**It is still not homing**, which is the property whiff punish depends on. Homing changes a lunge's
+direction or extends its distance; this changes neither. A target moving laterally still escapes,
+and one backing off still escapes if it out-paces the authored travel. What it stops getting is the
+escape handed to it for free by a stale prediction.
+
+**Measured, and the difference is directly observable rather than inferred.** The gate should close
+at 84 cm (capsule contact) + 40 cm (standoff) = 124. Commit distances across five attacks read
+**118.3 / 121.8 / 119.4 / 121.1 / 121.1** — just inside 124, the expected one-tick overshoot at
+667 cm/s. The previous build read **97.5**, because its single sweep was taken at 200 cm and found
+nothing within the base lunge's 100 cm, so the base lunge was never gated at all. The per-tick
+version gates a span the pre-computed one structurally could not see.
+
+*This also retires a limitation the first version documented as known:* that the clamp was evaluated
+against the facing at the start of the span, so a player turning mid-lunge followed a curve the
+straight sweep never measured. Asking every tick removes it rather than mitigating it.
+
+### Lunge duration was never a designed number, and the symptom was self-contradictory
+
+The user reported the lunge felt **slower than it should be and further than it should be, at the
+same time**, and could not see how both could hold. They hold because speed is distance over
+duration: one duration being too long produces both readings at once.
+
+| | Speed |
+|---|---|
+| Walking (`MaxWalkSpeed`) | 500 cm/s |
+| Base lunge | 667 cm/s |
+| Light's branch lunge | **1000 cm/s** |
+| Dodge (405 cm ÷ 0.4 s) | **1012 cm/s** |
+
+**The attack lunged at exactly dodge speed**, which is why it did not read as a burst. It was not one.
+
+The cause is that lunge duration was not authored anywhere. The branch lunge ran commit → end of the
+release window, so `ReleaseSeconds` set it; the base lunge ran press → `Branches[0].HoldUntilSeconds`,
+so the light's input boundary set it. **Both are reactability and balance numbers with no
+relationship to how long a character should be carried forward.** Welding them meant the lunge could
+not be made snappier without shortening the hitbox, nor the hitbox lengthened without making the
+lunge floatier.
+
+The user identified it as a design flaw rather than an implementation one before the mechanism was
+worked out, and that was the correct read.
+
+**A consequence that was invisible while the durations were equal:** the avatar was moving for the
+*entire* time its hitbox was live, so the damaging volume was dragged through space for its whole
+existence and there was never a moment of planting and striking. A burst finishing early in the
+release window is a different shape of attack, not merely a faster one.
+
+So `FTDAttackBranch::LungeDurationSeconds` is authored, and `UTDMeleeAttackAbility::LungeDurationSeconds`
+— which existed and was being overridden into irrelevance — is authored for the base lunge. The
+boundary is now a **ceiling rather than the value**: the base lunge is clamped to
+`Branches[0].HoldUntilSeconds` because it genuinely must finish before the branch lunge starts, or a
+light would run two `Override` root motion sources at equal priority, where which wins is an
+implementation detail rather than a design.
+
+**This supersedes the claim that Lunge needed no timing values.** That entry recorded *"Lunge added
+two distances and zero timing values, because the boundaries it needed already existed for other
+reasons"* as a virtue. It was elegant and it was coupling, and the general form is worth keeping:
+**a boundary that already exists is not the same as a boundary that means the right thing.** Reusing
+one is free only when the question it answers is the question you are asking.
+
+Note the trap file had already flagged the base-lunge half without recognising it as this: it
+records that `Branches[0].HoldUntilSeconds` sets three things and calls that a coupling to watch.
+This is it going off.
+
+### Left open
+
+Starting values are 0.12 s on every branch, which is a placeholder chosen to be clearly a burst
+(1667 cm/s on the light) rather than a considered number — it has not been felt. The base lunge is
+0.15, unchanged, because that is what it already was and the clamp leaves it there.
+
+The tuning question underneath is deferred and should stay deferred: the user observed that a
+**shorter, faster** lunge also returns control sooner, which is *not* true — movement is suppressed
+for the whole ability, so time-without-control is governed by `RecoverySeconds`, not by lunge
+duration. Both observations point at recovery, and recovery is in a knowingly flawed state until
+chained lights exist, since the only case testable today is repeated whiffing. **Tuning the lunge
+until serial whiffing feels good would optimise the state the design most wants to punish.**
 
 ## 2026-08-13 — Target Lock, and the bug it exists for is sliding rather than overshooting
 

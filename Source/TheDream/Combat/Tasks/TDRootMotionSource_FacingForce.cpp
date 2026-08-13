@@ -3,10 +3,14 @@
 #include "Combat/Tasks/TDRootMotionSource_FacingForce.h"
 #include "Curves/CurveFloat.h"
 #include "GameFramework/Character.h"
+#include "GameFramework/Pawn.h"
+#include "Components/CapsuleComponent.h"
+#include "Engine/World.h"
 
 FTDRootMotionSource_FacingForce::FTDRootMotionSource_FacingForce()
 	: Strength(0.0f)
 	, StrengthOverTime(nullptr)
+	, StandoffCm(0.0f)
 {
 	// Copied from FRootMotionSource_ConstantForce, and for its stated reason: a partial tick at
 	// the end produces a very inconsistent velocity on the final frame.
@@ -29,7 +33,8 @@ bool FTDRootMotionSource_FacingForce::Matches(const FRootMotionSource* Other) co
 	const FTDRootMotionSource_FacingForce* OtherCast = static_cast<const FTDRootMotionSource_FacingForce*>(Other);
 
 	return FMath::IsNearlyEqual(Strength, OtherCast->Strength, 0.1f)
-		&& StrengthOverTime == OtherCast->StrengthOverTime;
+		&& StrengthOverTime == OtherCast->StrengthOverTime
+		&& FMath::IsNearlyEqual(StandoffCm, OtherCast->StandoffCm, 0.1f);
 }
 
 bool FTDRootMotionSource_FacingForce::MatchesAndHasSameState(const FRootMotionSource* Other) const
@@ -63,6 +68,17 @@ void FTDRootMotionSource_FacingForce::PrepareRootMotion(
 	Direction.Z = 0.0f;
 	Direction = Direction.GetSafeNormal();
 
+	// Target Lock's gate. Asked every tick against where the target actually is, rather than once
+	// against where it was predicted to be -- see StandoffCm. Time still advances below, so a
+	// gated tick spends duration without spending distance: the gate subtracts travel and can
+	// never add any.
+	if (IsWithinStandoff(Character, Direction))
+	{
+		RootMotionParams.Set(FTransform::Identity);
+		SetTime(GetTime() + SimulationTime);
+		return;
+	}
+
 	FTransform NewTransform(Direction * Strength);
 
 	// Scale strength of force over time.
@@ -82,6 +98,46 @@ void FTDRootMotionSource_FacingForce::PrepareRootMotion(
 	SetTime(GetTime() + SimulationTime);
 }
 
+bool FTDRootMotionSource_FacingForce::IsWithinStandoff(const ACharacter& Character, const FVector& Direction) const
+{
+	if (StandoffCm <= 0.0f || Direction.IsNearlyZero())
+	{
+		return false;
+	}
+
+	const UCapsuleComponent* Capsule = Character.GetCapsuleComponent();
+	const UWorld* World = Character.GetWorld();
+	if (!Capsule || !World)
+	{
+		return false;
+	}
+
+	const FVector Start = Character.GetActorLocation();
+
+	// SweepMulti rather than SweepSingle because the first blocking hit may be world geometry, and
+	// a wall is not what this gates on: sliding along a flat surface is fine and a lunge into one
+	// is already handled by the movement component. Only a pawn closes the gate.
+	TArray<FHitResult> Hits;
+	World->SweepMultiByChannel(
+		Hits,
+		Start,
+		Start + Direction * StandoffCm,
+		FQuat::Identity,
+		ECC_Pawn,
+		FCollisionShape::MakeCapsule(Capsule->GetScaledCapsuleRadius(), Capsule->GetScaledCapsuleHalfHeight()),
+		FCollisionQueryParams(SCENE_QUERY_STAT(TDLungeStandoff), /*bTraceComplex=*/false, &Character));
+
+	for (const FHitResult& Hit : Hits)
+	{
+		if (Hit.GetActor() && Hit.GetActor()->IsA<APawn>())
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
 bool FTDRootMotionSource_FacingForce::NetSerialize(FArchive& Ar, UPackageMap* Map, bool& bOutSuccess)
 {
 	if (!FRootMotionSource::NetSerialize(Ar, Map, bOutSuccess))
@@ -94,6 +150,7 @@ bool FTDRootMotionSource_FacingForce::NetSerialize(FArchive& Ar, UPackageMap* Ma
 	// cheaper on the wire than the stock source rather than more expensive.
 	Ar << Strength;
 	Ar << StrengthOverTime;
+	Ar << StandoffCm;
 
 	bOutSuccess = true;
 	return true;

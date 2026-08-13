@@ -124,11 +124,17 @@ protected:
 	float LungeDistanceCm = 30.0f;
 
 	/**
-	 *  How long the base lunge takes. Overridden on UTDChargedAttackAbility, where it is derived.
+	 *  How long the base lunge takes, in seconds. **Authored, and clamped rather than replaced.**
 	 *
-	 *  Authored here only because a plain swing has no branches to derive it from. Anything with
-	 *  a ladder takes it from the first branch's HoldUntilSeconds instead, so the lunge cannot
-	 *  drift away from the boundary it is supposed to end on.
+	 *  This was ignored on anything with a branch ladder until 2026-08-13: UTDChargedAttackAbility
+	 *  returned Branches[0].HoldUntilSeconds outright, so the light's *input boundary* decided how
+	 *  long the approach burst lasted. Those are different questions, and the same conflation
+	 *  existed on the branch lunge -- see FTDAttackBranch::LungeDurationSeconds for the full
+	 *  account, since it is one mistake made twice rather than two.
+	 *
+	 *  The ladder still clamps it to that boundary, because the base lunge genuinely must finish
+	 *  before the branch lunge begins -- two Override root motion sources at equal priority is not
+	 *  a design. So the boundary remains a ceiling and stopped being the value.
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Motion", meta=(ClampMin="0.01"))
 	float LungeDurationSeconds = 0.15f;
@@ -155,15 +161,19 @@ protected:
 	 *  commit and the wedge is defined in the attacker's frame, so the wedge does not follow you
 	 *  round. That is why attacks at anything but maximum range felt awkward.
 	 *
-	 *  **Clamped against geometry, never against a selected target**, and that is deliberate. A
+	 *  **Gated against geometry, never against a selected target**, and that is deliberate. A
 	 *  selection test has a boundary, and a boundary is a cliff: a candidate at 29 degrees would
-	 *  clamp to nothing while one at 31 travelled the full authored distance, from the same input.
-	 *  The sweep has no cliff because it *is* the collision test -- anything it declines to clamp
-	 *  against is something the character would not have collided with.
+	 *  stop dead while one at 31 travelled the full authored distance, from the same input. The
+	 *  sweep has no cliff because it *is* the collision test -- anything it declines to gate on is
+	 *  something the character would not have collided with.
+	 *
+	 *  **Gated per movement tick rather than subtracted from the distance up front**, which is where
+	 *  the first implementation went wrong -- see FTDRootMotionSource_FacingForce::StandoffCm, which
+	 *  is where the value is actually used and where that account lives.
 	 *
 	 *  **It only ever shortens.** The authored distance stays the ceiling, so a whiff still travels
 	 *  in full and the punish window is untouched; at maximum range, with nothing in the path, or
-	 *  into empty air the clamp is a no-op and the attack behaves exactly as it did before Target
+	 *  into empty air the gate never closes and the attack behaves exactly as it did before Target
 	 *  Lock existed. Those are consequences of the arithmetic rather than cases handled by name.
 	 *
 	 *  **Keep it below MaxReachCm or the clamp starts causing whiffs**, by stopping the attacker
@@ -210,23 +220,6 @@ protected:
 	 *  checkpoint, so the post-commit lunge is fixed-direction without asking to be.
 	 */
 	void StartLunge(float DistanceCm, float DurationSeconds, UCurveFloat* StrengthCurve);
-
-	/**
-	 *  Shortens a lunge so it stops LungeStandoffCm before the first pawn in its path.
-	 *
-	 *  Returns the distance unchanged when nothing is in the way, which is the common case and the
-	 *  one that keeps long-range attacks feeling untouched. See LungeStandoffCm for why this is a
-	 *  sweep rather than a target lookup.
-	 *
-	 *  **Evaluated once, against the facing at the moment the span begins.** The lunge itself
-	 *  re-reads facing every movement tick, so a player who turns hard mid-lunge follows a curved
-	 *  path this straight sweep did not measure. Turning *away* only under-travels, which is
-	 *  harmless; turning *toward* can still drive into a body. The base lunge is the exposed one,
-	 *  being the only span where facing is free -- 0.15 s and 100 cm of it. Left as a known
-	 *  approximation rather than solved with a per-tick re-clamp, which would be more correct and
-	 *  considerably more machinery; whether it matters is what the TARGET trace is for.
-	 */
-	float ClampLungeToTarget(float DistanceCm) const;
 
 	/**
 	 *  Traces distance and bearing to the nearest other pawn, for diagnosing the slide.

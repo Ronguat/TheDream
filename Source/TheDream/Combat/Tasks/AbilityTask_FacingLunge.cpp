@@ -15,6 +15,7 @@ UAbilityTask_FacingLunge::UAbilityTask_FacingLunge(const FObjectInitializer& Obj
 	Strength = 0.0f;
 	Duration = 0.0f;
 	StrengthOverTime = nullptr;
+	StandoffCm = 0.0f;
 	bEnableGravity = false;
 }
 
@@ -24,6 +25,7 @@ UAbilityTask_FacingLunge* UAbilityTask_FacingLunge::ApplyFacingLunge(
 	float DistanceCm,
 	float DurationSeconds,
 	UCurveFloat* StrengthCurve,
+	float StandoffCm,
 	ERootMotionFinishVelocityMode VelocityOnFinishMode,
 	FVector SetVelocityOnFinish,
 	float ClampVelocityOnFinish,
@@ -39,6 +41,7 @@ UAbilityTask_FacingLunge* UAbilityTask_FacingLunge::ApplyFacingLunge(
 	MyTask->Strength = DurationSeconds > 0.0f ? (DistanceCm / DurationSeconds) : 0.0f;
 	MyTask->Duration = DurationSeconds;
 	MyTask->StrengthOverTime = StrengthCurve;
+	MyTask->StandoffCm = StandoffCm;
 	MyTask->FinishVelocityMode = VelocityOnFinishMode;
 	MyTask->FinishSetVelocity = SetVelocityOnFinish;
 	MyTask->FinishClampVelocity = ClampVelocityOnFinish;
@@ -70,6 +73,7 @@ void UAbilityTask_FacingLunge::SharedInitAndApply()
 			LungeForce->Strength = Strength;
 			LungeForce->Duration = Duration;
 			LungeForce->StrengthOverTime = StrengthOverTime;
+			LungeForce->StandoffCm = StandoffCm;
 			LungeForce->FinishVelocityParams.Mode = FinishVelocityMode;
 			LungeForce->FinishVelocityParams.SetVelocity = FinishSetVelocity;
 			LungeForce->FinishVelocityParams.ClampVelocity = FinishClampVelocity;
@@ -128,6 +132,7 @@ void UAbilityTask_FacingLunge::GetLifetimeReplicatedProps(TArray<FLifetimeProper
 	DOREPLIFETIME(UAbilityTask_FacingLunge, Strength);
 	DOREPLIFETIME(UAbilityTask_FacingLunge, Duration);
 	DOREPLIFETIME(UAbilityTask_FacingLunge, StrengthOverTime);
+	DOREPLIFETIME(UAbilityTask_FacingLunge, StandoffCm);
 	DOREPLIFETIME(UAbilityTask_FacingLunge, bEnableGravity);
 }
 
