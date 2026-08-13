@@ -212,7 +212,12 @@ audit in miniature; the rest is making sure nothing is left on the floor.
 1. **Make the editor state safe.** `AssetTools.save_assets` with an empty list, then **`git status`
    — and read it.** Calling save is not the check; *seeing the files listed* is. A write that was
    never saved and a write that is saved but not yet live look identical from inside the editor.
-   Announce before closing the editor, always.
+
+   **Closing the editor is not part of this** (2026-08-12). Winding down a session does not mean
+   ending the user's, and leaving it open costs nothing now that the save is verified against
+   `git status` rather than against the act of closing. Anything mid-session that *does* need the
+   editor closed — a header change, a full rebuild — still announces first; that rule lives in
+   `Docs/Working-In-Unreal.md`, where every other reason to close it lives.
 2. **Leave nothing verified uncommitted.** Push anything finished. For anything deliberately left
    out, say so and why — pending *tuning* does not block a push, pending *correctness* does.
 3. **Check the docs you touched, with three greps.** `grep -n "supersede" Docs/Combat-Decisions.md` —
@@ -234,15 +239,20 @@ audit in miniature; the rest is making sure nothing is left on the floor.
 7. **Hand off explicitly.** Where to pick up, what is verified versus merely written, and what is
    open. **Name anything claimed but not verified** — that is the item most likely to be believed
    next session and least likely to be re-checked.
-8. **Title the session, for the archive.** One line, in the same voice as a commit subject: what the
-   session *did*, not what it touched. "Author attack displacement as Lunge" over "worked on combat".
-   If a session genuinely did two unrelated things, say both — a title that hides one of them is how
-   a search later fails to find it.
+8. **Title the session, for the archive. Five words maximum.** What the session *did*, not what it
+   touched — "Ship Lunge, lock attack movement" over "worked on combat". Verbs over nouns; no date,
+   no item numbers, nothing the archive already knows.
+
+   **The cap is the point, not a nicety.** Five words does not fit a summary, so it forces the
+   session's dominant thing to the front and leaves everything else to step 7 — which is where a
+   reader who needs detail is going anyway. **A session that did two unrelated things names the
+   bigger one**; the title is an index entry, not a record, and the handoff directly above it is
+   what stops the smaller one from being lost.
 
    **Deliberately last, because it is the most compressed artefact and compression is easiest after
    the long form exists.** By this point the handoff has already forced you to say what was done and
    what is open; the title is that, squeezed. Written any earlier it is a guess about a session that
-   has not finished being accounted for. Added 2026-08-12 at the user's request.
+   has not finished being accounted for. Added 2026-08-12 at the user's request, capped the same day.
 
 ## Current Focus
 
