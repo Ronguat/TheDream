@@ -52,4 +52,21 @@ namespace TDTags
 	 *  silently define the other.
 	 */
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_GuardBroken);
+
+	/**
+	 *  A guard is inside its minimum duration and cannot be acted out of.
+	 *
+	 *  **Deliberately named to parallel State.Attacking.Committed**, because it is the same idea
+	 *  applied to defence: an action with a window in which the decision has already been made.
+	 *  Attacks commit at a checkpoint partway through; a guard commits the moment it goes up.
+	 *
+	 *  It exists because a guard with no floor could be feathered at input speed --
+	 *  attack, block, attack, block -- which read as unfinished in play. Everything is refused
+	 *  during it *except movement*: no attacking, dodging or jumping, but WASD stays free, since
+	 *  the guard is a stance you carry rather than a place you are pinned.
+	 *
+	 *  Native for the reason State_GuardBroken is: C++ applies it, C++ reads it in Jump(), and an
+	 *  EditDefaultsOnly equivalent can go stale on a placed actor with nothing to show for it.
+	 */
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Blocking_Committed);
 }

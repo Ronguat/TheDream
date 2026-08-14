@@ -31,6 +31,21 @@
  *  ActivationBlockedTags -- so block inherits the boundary the dodge and parry share rather than
  *  restating it.
  *
+ *  **GA_Block also blocks on its own State.Blocking, which reads like a mistake and is the fix for
+ *  a whole class of bug.** Three separate mechanisms can raise this guard: a direct press, the
+ *  input buffer replaying a press that was refused mid-attack, and bResumeWhileInputHeld bringing
+ *  it back after a cancel. They are all correct and they all fire in the same frame sometimes. Two
+ *  of them succeeding activates the ability twice, which leaks the spec's activeCount -- one
+ *  release then only decrements it to one, and the guard is stuck up permanently with State.Blocking
+ *  applied and no input able to clear it.
+ *
+ *  Guarding each caller was tried and is the wrong shape: every new way to raise a guard would have
+ *  to remember, and the races are frame-order dependent so a missed one is invisible until someone
+ *  plays it. Blocking on the tag the ability itself grants makes a second activation
+ *  *unrepresentable* rather than merely unlikely, because the tag is applied by the first one. It
+ *  costs nothing legitimate: a cancelled guard drops the tag with the ability, so a resume still
+ *  activates normally.
+ *
  *  **Movement is deliberately not locked**, unlike an attack. bLocksMovement exists on the shared
  *  base and this is the first ability that could have taken it and does not: a guard you cannot
  *  move behind is a corner to be trapped in, and the spec's block is a stance you carry around.
@@ -60,4 +75,23 @@ protected:
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Debug")
 	bool bEndOnInputRelease = true;
+
+public:
+
+	/**
+	 *  True once the button has come up but the guard's minimum duration has not expired.
+	 *
+	 *  The release is *remembered*, never discarded: letting go inside the commit window still
+	 *  means letting go, it just takes effect when the window does. Discarding it would make the
+	 *  player hold the button through the whole minimum to get a guard that ends when they wanted,
+	 *  which is the opposite of a floor.
+	 */
+	bool IsReleasePending() const { return bReleasePending; }
+
+	/** Ends the guard now, as a release rather than a cancel. Called when the commit expires. */
+	void FinishPendingRelease();
+
+private:
+
+	bool bReleasePending = false;
 };

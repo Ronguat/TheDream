@@ -149,6 +149,19 @@ public:
 	bool IsBlocking() const;
 
 	/**
+	 *  Starts the guard's minimum-duration commitment. Called by the block ability on activation.
+	 *
+	 *  Pushed from the ability rather than detected here as a rising edge on IsBlocking(), because
+	 *  an edge is exactly the thing that goes wrong when a guard is cancelled and resumed inside a
+	 *  frame -- which this project has already had happen twice.
+	 */
+	void BeginBlockCommitment();
+
+	/** True while a guard is inside its minimum duration and cannot be acted out of. */
+	UFUNCTION(BlueprintPure, Category="Combat|Stamina")
+	bool IsBlockCommitted() const;
+
+	/**
 	 *  True if this attack's origin lies inside the guard's forward arc.
 	 *
 	 *  The spec's "180 degree forward coverage" as a single question, asked in the *defender's*
@@ -422,6 +435,33 @@ protected:
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Stamina", meta=(ClampMin="0.0"))
 	float BlockingMaxWalkSpeed = 125.0f;
+
+	/**
+	 *  How long a raised guard is committed for. **Locking: nothing but movement is allowed.**
+	 *
+	 *  From play, 2026-08-14: without a floor the guard can be feathered at input speed, and
+	 *  `attack > block > attack > block` read as unfinished. This is a gameplay fix and not a
+	 *  cosmetic one -- the first diagnosis offered was a missing animation blend and the user
+	 *  corrected it, which is worth recording because the number lands near a blend's duration and
+	 *  the mistake is easy to repeat.
+	 *
+	 *  **It has to gate the attack to do anything at all.** A floor that only holds the guard up
+	 *  while attacking still cancels out of it changes nothing about the feathering. So this is a
+	 *  deliberate narrowing of "whichever comes last wins": that still holds between block, dodge
+	 *  and attack, *except* inside this window, where the guard has already won.
+	 *
+	 *  Releasing inside the window does not lower the guard early; it schedules the drop for the
+	 *  moment the window ends, and the guard defends for the whole of it. The commitment is real in
+	 *  both directions -- you get the protection and you pay the drain.
+	 *
+	 *  Responsiveness comes from the input buffer rather than from shortening this: an attack
+	 *  pressed inside the window is refused, buffered, and fires the instant it expires.
+	 *
+	 *  0.25 is the user's value, signed off knowing it is untuned, with the reasoning that a
+	 *  clearly-too-long first probe answers "is feathering dead" better than a borderline one.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Stamina", meta=(ClampMin="0.0"))
+	float MinimumBlockSeconds = 0.25f;
 
 	/**
 	 *  Collapse into a ragdoll on death.
@@ -758,6 +798,15 @@ private:
 	/** Applies BlockingMaxWalkSpeed while a guard is up, and the captured default otherwise. */
 	void TickBlockingMoveSpeed();
 
+	/**
+	 *  Maintains State.Blocking.Committed, and finishes a release that was held back by it.
+	 *
+	 *  Written as "make the tag match the current state" rather than as edges, for the same reason
+	 *  the speed cap is: an edge-driven version has to be right on every entry and exit, and a
+	 *  stranded commit tag would refuse every action forever with nothing on screen to explain it.
+	 */
+	void TickBlockCommitment(float Now);
+
 	/** Requests a resume pass. Never performs one -- OnAbilityEnded is re-entrant. */
 	void HandleAbilityEndedForResume(const FAbilityEndedData& EndedData);
 
@@ -897,6 +946,9 @@ private:
 	 *  and sticking it up permanently. A flag drained once per tick cannot re-enter anything.
 	 */
 	bool bResumePending = false;
+
+	/** When the guard's minimum duration expires, in world seconds. */
+	float BlockCommitEndsAt = 0.0f;
 
 	/**
 	 *  The mesh's authored offset from the capsule, captured once before physics ever moves it.

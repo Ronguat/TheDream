@@ -103,6 +103,13 @@ void ATDCombatCharacter::Tick(float DeltaSeconds)
 	// component is already client-predicted.
 	TickBlockingMoveSpeed();
 
+	// Before the resume, so a guard that has just finished a held-back release does not get raised
+	// again in the same frame by an input the player has already let go of.
+	if (const UWorld* World = GetWorld())
+	{
+		TickBlockCommitment(World->GetTimeSeconds());
+	}
+
 	// Deliberately after the airborne cancel above, so a resume requested by landing is evaluated
 	// against a frame in which the guard has already been taken down rather than one where the two
 	// are fighting.
@@ -351,6 +358,77 @@ void ATDCombatCharacter::TickResumeHeldAbilities()
 bool ATDCombatCharacter::IsBlocking() const
 {
 	return AbilitySystem && BlockingTag.IsValid() && AbilitySystem->HasMatchingGameplayTag(BlockingTag);
+}
+
+bool ATDCombatCharacter::IsBlockCommitted() const
+{
+	return AbilitySystem && AbilitySystem->HasMatchingGameplayTag(TDTags::State_Blocking_Committed);
+}
+
+void ATDCombatCharacter::BeginBlockCommitment()
+{
+	const UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+
+	// Assigned rather than maxed with any existing value. A guard that is cancelled and immediately
+	// resumed is a *new* guard and gets a full commitment -- the alternative would let a player
+	// shorten their own floor by being interrupted, which is backwards.
+	BlockCommitEndsAt = World->GetTimeSeconds() + MinimumBlockSeconds;
+}
+
+void ATDCombatCharacter::TickBlockCommitment(float Now)
+{
+	if (!AbilitySystem)
+	{
+		return;
+	}
+
+	// The tag is a *description* of the current state, recomputed every frame, so it cannot be
+	// stranded by any exit path. A stuck commit tag would refuse attacking, dodging and jumping
+	// indefinitely with nothing on screen to say why, which is the worst failure this system has
+	// available -- and two earlier bugs in this slice were exactly a state that outlived its cause.
+	const bool bShouldBeCommitted = IsBlocking() && Now < BlockCommitEndsAt;
+	const bool bIsCommitted = AbilitySystem->HasMatchingGameplayTag(TDTags::State_Blocking_Committed);
+
+	if (bShouldBeCommitted && !bIsCommitted)
+	{
+		AbilitySystem->AddLooseGameplayTag(TDTags::State_Blocking_Committed);
+	}
+	else if (!bShouldBeCommitted && bIsCommitted)
+	{
+		AbilitySystem->RemoveLooseGameplayTag(TDTags::State_Blocking_Committed);
+	}
+
+	if (bShouldBeCommitted)
+	{
+		return;
+	}
+
+	// The commitment is over, so a release that arrived during it takes effect now. Found by asking
+	// the live instance rather than caching a pointer, because the ability can be torn down by a
+	// cancel, a guard break or going airborne without passing through here.
+	for (const FGameplayAbilitySpec& Spec : AbilitySystem->GetActivatableAbilities())
+	{
+		if (!Spec.IsActive())
+		{
+			continue;
+		}
+
+		for (UGameplayAbility* Instance : Spec.GetAbilityInstances())
+		{
+			if (UTDBlockAbility* Block = Cast<UTDBlockAbility>(Instance))
+			{
+				if (Block->IsReleasePending())
+				{
+					Block->FinishPendingRelease();
+					return;
+				}
+			}
+		}
+	}
 }
 
 bool ATDCombatCharacter::IsGuardFacing(const FVector& AttackOriginWorld) const
@@ -841,7 +919,14 @@ void ATDCombatCharacter::Jump()
 	// to copy. That is the argument for jump eventually becoming an ability: every lockout the
 	// abilities get for free has to be restated here, and this is the only place that can be
 	// forgotten. Deferred to the structure audit rather than done inline.
-	if (bExhausted || bDead || IsMovementLocked())
+	// The guard's minimum duration allows movement and nothing else, which includes jumping -- the
+	// fourth rule this function has had to restate, and the clearest argument yet for jump becoming
+	// an ability so it inherits these instead of copying them. Deferred to the structure audit.
+	//
+	// A broken guard is deliberately *not* checked here, and that is a known gap rather than an
+	// oversight: full loss of control during a guard break belongs to Stun, which owns the
+	// hit-reaction plumbing it needs.
+	if (bExhausted || bDead || IsMovementLocked() || IsBlockCommitted())
 	{
 		return;
 	}

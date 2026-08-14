@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Combat/Abilities/TDBlockAbility.h"
+#include "Combat/TDCombatCharacter.h"
 #include "Combat/TDCombatDebug.h"
 
 UTDBlockAbility::UTDBlockAbility()
@@ -21,6 +22,17 @@ void UTDBlockAbility::ActivateAbility(
 	// The base applies EffectOnStart and takes the movement lock if this ability wanted one --
 	// block does not. It also runs the airborne and guard-broken refusals.
 	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
+
+	// Reset per activation: this instance is InstancedPerActor and therefore reused, so a release
+	// remembered from a previous guard would end the next one instantly.
+	bReleasePending = false;
+
+	// Pushed from here rather than detected as an edge on the character, because a guard cancelled
+	// and resumed inside one frame has no observable edge -- which is how two earlier bugs started.
+	if (ATDCombatCharacter* Character = Cast<ATDCombatCharacter>(ActorInfo ? ActorInfo->AvatarActor.Get() : nullptr))
+	{
+		Character->BeginBlockCommitment();
+	}
 
 	TD_TIMING_LOG(TEXT("[%.3f] BLOCK      up on %s"),
 		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f,
@@ -44,11 +56,40 @@ void UTDBlockAbility::InputReleased(
 		return;
 	}
 
+	// **Held back, not dropped.** Inside the guard's minimum duration the button coming up does not
+	// lower the guard -- the character finishes this when the commitment expires. Remembering it is
+	// the whole point: discarding the release would force the player to keep holding through the
+	// entire minimum just to get a guard that ends when they asked, which is the opposite of a floor.
+	if (const ATDCombatCharacter* Character = Cast<ATDCombatCharacter>(ActorInfo ? ActorInfo->AvatarActor.Get() : nullptr))
+	{
+		if (Character->IsBlockCommitted())
+		{
+			bReleasePending = true;
+			return;
+		}
+	}
+
 	// bWasCancelled=false: the button coming up is the ability finishing the job it was given,
 	// not something interrupting it. The distinction is not cosmetic -- EffectOnEnd is documented
 	// as applying on cancellation too, so calling this a cancel would make being interrupted and
 	// letting go indistinguishable to anything that later hangs off either.
 	EndAbility(Handle, ActorInfo, ActivationInfo, /*bReplicateEndAbility=*/true, /*bWasCancelled=*/false);
+}
+
+void UTDBlockAbility::FinishPendingRelease()
+{
+	if (!bReleasePending)
+	{
+		return;
+	}
+
+	bReleasePending = false;
+
+	// bWasCancelled=false, matching the ordinary release path: the guard is ending because the
+	// player asked it to, just later than they asked. Calling it a cancel would make a deliberate
+	// release indistinguishable in the trace from being interrupted.
+	EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo,
+		/*bReplicateEndAbility=*/true, /*bWasCancelled=*/false);
 }
 
 void UTDBlockAbility::EndAbility(

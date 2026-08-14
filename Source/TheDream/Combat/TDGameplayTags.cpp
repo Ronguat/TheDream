@@ -10,4 +10,5 @@ namespace TDTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Data_StaminaDamage, "Data.StaminaDamage", "SetByCaller key for stamina damage dealt to a blocking target.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Dead, "State.Dead", "Health reached zero. Refuses every ability until revived.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_GuardBroken, "State.GuardBroken", "A blocked hit emptied the bar. Refuses every ability for the stun's duration.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Blocking_Committed, "State.Blocking.Committed", "A guard is inside its minimum duration. Refuses everything but movement.");
 }
