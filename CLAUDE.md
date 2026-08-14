@@ -49,9 +49,11 @@ Three rules bind all new work:
   the heavy's coil, which is 350 ms. A network does not get to spend that budget silently. When a
   timing is chosen, say what it looks like with a round trip in it.
 
-**The ASC lives on `ATDPlayerState` for players** (2026-08-11). The training dummy is an
-unpossessed placed pawn with no PlayerState, so `ATDCombatCharacter` *resolves* which ASC it
-uses rather than assuming one — never reach past `AbilitySystem` to the owned fallback.
+**The ASC lives on `ATDPlayerState` for players** (2026-08-11). The training dummy has **no
+PlayerState**, so `ATDCombatCharacter` *resolves* which ASC it uses rather than assuming one —
+never reach past `AbilitySystem` to the owned fallback. *(This said "unpossessed placed pawn" until
+2026-08-14 and the possession half was wrong: the dummy is `AutoPossessAI: PlacedInWorld` under a
+stock `AAIController`. Having no PlayerState is what the resolution depends on, and that is intact.)*
 
 **Still outstanding:** prediction windows, lag compensation for i-frames, client-side stamina
 prediction, and **2** network-unaware `SetTimer` sites — the charged attack's checkpoint and the
@@ -168,7 +170,7 @@ Five files carry knowledge the code cannot. Read them before working in their ar
 - **`Docs/Debug-Instruments.md`** — this project's own instrumentation: every trace tag, the three cvars and their defaults, the two ungated warnings, the debug attacker's invalidating configuration, and the test level's measurable geometry. Trigger: you are about to measure something in combat. Split from `Working-In-Unreal.md` 2026-08-14 because it was the only part of it that grew — one line per combat feature, forever, which is the correct shape for a doc read by whoever is measuring and the wrong shape for one read every session.
 - **`Docs/Working-In-Unreal.md`** — how to drive the editor and its MCP toolset without losing work: which writes silently do nothing, when Live Coding is safe versus needing a full editor-closed rebuild, what is not scriptable at all, and the standing regression checks for combat changes.
 
-  **Read it front to back at the start of every session** (2026-08-13, the user's instruction). It is not a reference to reach for when something breaks — nearly everything in it **fails silently**, so it only helps if it is already in your head before you touch the editor. It was cut from 820 lines to ~400 on 2026-08-13 to make that reasonable, and **keeping it readable is now a closedown step**: anything compressible to its rule gets compressed, and the incidents behind them live in git and `Docs/Combat-Decisions.md`. *(447 lines as of 2026-08-14 and drifting back up — it is the next file due a pass, and the trace-tag list added that day is the kind of content that should be checked for compression first.)*
+  **Read it front to back at the start of every session** (2026-08-13, the user's instruction). It is not a reference to reach for when something breaks — nearly everything in it **fails silently**, so it only helps if it is already in your head before you touch the editor. It was cut from 820 lines to ~400 on 2026-08-13 to make that reasonable, and **keeping it readable is now a closedown step**: anything compressible to its rule gets compressed, and the incidents behind them live in git and `Docs/Combat-Decisions.md`. *(399 lines as of 2026-08-14, comfortably inside budget — the drift to 447 noted earlier that day was resolved by moving the trace-tag list to `Docs/Debug-Instruments.md`, which was the growth.)*
 - **`Docs/Combat-Decisions.md`** — dated log of combat decisions and the reasoning behind them, plus the working sections at the top. **Known traps** are latent defects filed against the slice that trips them; the **tuning map** says which knob to move when a verdict comes back and which obvious-looking knob is wrong; **which numbers have been felt** separates a played value from an assistant's guess; the **symbol index** answers *"what was decided about this thing"* for any symbol in the codebase; and the bridge tables cover anything superseded or renamed, **including the item numbers this file stopped using on 2026-08-12**. Append an entry whenever a gameplay choice is made that a future reader could reasonably second-guess; never rewrite an entry to match new code, supersede it with a new one.
 - **`Docs/Animation-Library.md`** — where animations come from, the naming convention that makes 5,319 of them searchable, what the library does *not* contain, and how to migrate one in without dragging a duplicate skeleton behind it. Read before asking for or importing any animation.
 
