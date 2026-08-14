@@ -76,6 +76,16 @@ void UTDBlockAbility::InputReleased(
 	EndAbility(Handle, ActorInfo, ActivationInfo, /*bReplicateEndAbility=*/true, /*bWasCancelled=*/false);
 }
 
+bool UTDBlockAbility::ShouldBufferFailedInput(const FGameplayAbilityActorInfo* ActorInfo) const
+{
+	// Unconditional, and deliberately not "unless the refusal was the commit window". Every reason
+	// a guard is refused -- already blocking, committed, exhausted, airborne, mid-dodge, guard
+	// broken -- is a reason the *stale* press is no longer what the player is asking for. If they
+	// still want a guard, the button is still down and the resume brings it up; if it is not, the
+	// press was answered by them letting go.
+	return false;
+}
+
 void UTDBlockAbility::FinishPendingRelease()
 {
 	if (!bReleasePending)

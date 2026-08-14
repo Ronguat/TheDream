@@ -60,6 +60,29 @@ public:
 	UTDBlockAbility();
 
 	virtual void ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData) override;
+
+	/**
+	 *  Never. **Buffer actions, not states** -- and this is the rule the whole input model was
+	 *  missing.
+	 *
+	 *  The buffer exists so a deliberate *tap* is not lost to a brief lockout: you meant to swing,
+	 *  you were half a frame early, the swing still comes out. That reasoning is about an action,
+	 *  which is a thing you asked for once and which is still worth doing a moment later. A guard is
+	 *  a *state*, and a stale request to enter one is meaningless -- the button either is or is not
+	 *  down now, and bResumeWhileInputHeld already answers "still down".
+	 *
+	 *  Found from play. A 42 ms tap on RMB was refused because a previous guard was still inside its
+	 *  minimum, buffered, replayed when that expired, and became a *fresh* 250 ms guard whose own
+	 *  commitment then held back the replayed release. So a tap turned into a quarter-second guard
+	 *  long after the button came up -- and because each new guard commits, the next tap was
+	 *  buffered too, chaining indefinitely. Three individually-correct mechanisms with no single
+	 *  culprit between them.
+	 *
+	 *  Attacks deliberately keep buffering through the guard's commitment: that is what makes a
+	 *  swing thrown during a block feel responsive rather than dropped. The asymmetry is the point,
+	 *  and it is why this belongs here rather than in the shared base.
+	 */
+	virtual bool ShouldBufferFailedInput(const FGameplayAbilityActorInfo* ActorInfo) const override;
 	virtual void InputReleased(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo) override;
 	virtual void EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled) override;
 
