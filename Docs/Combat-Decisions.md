@@ -265,10 +265,21 @@ at half rate makes block coverage and blockstun read more forgiving than a human
 This is the *"stable reference to the wrong number"* failure that entry rejected the unarmed dummy
 to avoid, reappearing one property lower down.
 
-**Not silently fixable — it is a design question, not a typo.** Whether the dummy should track like
-a player depends on whether it is a sparring partner or a fixed instrument, and the parity entry's
-own rule is *"accurate in the dimension being measured"*, which points at 600 for defensive work
-and at nothing in particular otherwise.
+**The design question is settled and the fix is not.** The user's call, same day: *the dummy should
+track like a player*, which is the parity entry's own rule — *"accurate in the dimension being
+measured"* — applied to the dimension Block measures.
+
+**But copying 600 across would be inert, and that is the trap's real content.** `RotationRate.Yaw`
+only governs how fast the pawn closes an *existing* error against `bUseControllerDesiredRotation`.
+The dummy is possessed (`AutoPossessAI: PlacedInWorld`, a stock `AAIController`) and therefore has
+a control rotation — but nothing ever sets it, and `AAIController` defaults to taking its rotation
+*from the pawn*, so the error is permanently zero and the rate multiplies nothing. **Measured, not
+inferred:** across 100 s of auto-attacks the dummy's bearing to the player held at −81° to −92° and
+its distance at 482–488 cm. It never turned once.
+
+So the work is *giving the dummy a desired facing* — a focus on its target — and the turn rates
+become live only after that. Authoring 600 first would produce a fifth number that has never done
+anything, which is the failure the aim wedges already cost this project a session to find.
 
 Two sibling divergences checked at the same time and **harmless, recorded so nobody re-derives
 them**: the dummy's `InputBufferSeconds` (0.1) and `StaminaRegenPauseSeconds` (1.0) are also C++
@@ -339,9 +350,24 @@ neither tier is more reactable than authored. **The inference that pointed at th
 and that is the part worth keeping**: a correlation across tiers suggested the mechanism, and only
 a per-tier absolute measurement could test it.
 
-**Still open, and no longer blocked:** the *total* overhead was never re-measured. This trap said
-that needed a log line built first; `ABILITY END … elapsed=` has printed exactly that since Attack
-Swap. One held attack per tier with the trace on settles it.
+**Now fully discharged, 2026-08-14.** The *total* overhead was measured from `ABILITY END …
+elapsed=` against the authored sum `ReleaseAtSeconds + ReleaseSeconds + RecoverySeconds`:
+
+| Tier | Authored | Measured | Over |
+|---|---|---|---|
+| Light | 0.750 | 0.760–0.776 (n=23) | **+16 ms** |
+| Heavy | 1.150 | 1.168, 1.169 | **+18 ms** |
+| Charged | 1.500 | 1.513, 1.519 | **+16 ms** |
+
+**The overhead is flat — one frame at 60 Hz, biased late — and does not grow with the number of
+escalations or with the coil.** That is the claim this trap existed to test, and it fails to
+reproduce: nothing accumulates. The +6 ms bias to `RELEASE BEGIN` measured on 2026-08-12 and this
++16 ms to `ABILITY END` are the same frame quantisation seen at two points, not two costs.
+
+Worth keeping about the method: the tiers are separable **by elapsed value alone**, because the
+authored totals are 350 ms apart. Pairing each `ABILITY END` back to its `COMMIT branch N` confirmed
+it — and was necessary, since the dummy's auto-attacker contributes a light every 3 s to the same
+log.
 
 **~~Reaches must not decrease across the `AimAssistWedge` ladder.~~ Discharged 2026-08-14 by making
 it unrepresentable.** Reach is derived as `base lunge + branch lunge + branch damage reach +
