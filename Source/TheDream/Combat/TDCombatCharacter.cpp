@@ -103,6 +103,11 @@ void ATDCombatCharacter::Tick(float DeltaSeconds)
 	// component is already client-predicted.
 	TickBlockingMoveSpeed();
 
+	// Deliberately after the airborne cancel above, so a resume requested by landing is evaluated
+	// against a frame in which the guard has already been taken down rather than one where the two
+	// are fighting.
+	TickResumeHeldAbilities();
+
 	// Not authority-gated: a buffered press is local input waiting to be spent, and it is
 	// spent through the same path a live press takes.
 	TickInputBuffer();
@@ -278,6 +283,27 @@ void ATDCombatCharacter::TickBlockingMoveSpeed()
 
 void ATDCombatCharacter::HandleAbilityEndedForResume(const FAbilityEndedData& EndedData)
 {
+	// **Requested, never performed here.** OnAbilityEnded fires *synchronously inside* EndAbility,
+	// and that made this re-entrant in a way that cost a stuck guard: raising a block cancels the
+	// attack, the attack's end re-enters this handler while block is still mid-activation, block's
+	// spec does not read active yet, and so block activates a *second* time. The spec's activeCount
+	// leaks to 2, one release only ever brings it to 1, and the guard is stuck up forever with
+	// State.Blocking applied and no input able to clear it -- which also silently stops block ever
+	// activating again, so it stops cancelling attacks too.
+	//
+	// Deferring to the next tick makes the re-entrancy unrepresentable rather than guarded against.
+	bResumePending = true;
+}
+
+void ATDCombatCharacter::TickResumeHeldAbilities()
+{
+	if (!bResumePending)
+	{
+		return;
+	}
+
+	bResumePending = false;
+
 	if (!AbilitySystem)
 	{
 		return;
@@ -287,8 +313,8 @@ void ATDCombatCharacter::HandleAbilityEndedForResume(const FAbilityEndedData& En
 	// back when whatever interrupted it finishes. Opt-in per ability -- see bResumeWhileInputHeld --
 	// because the general form turns a held attack button into auto-repeat.
 	//
-	// Iterated over a copy: activating inside the loop can reallocate the spec array, and the
-	// original is the ASC's live container.
+	// Collected before activating: activating inside the loop can reallocate the ASC's live spec
+	// array. IsActive() is re-checked at the point of use for the same reason.
 	TArray<FGameplayAbilitySpecHandle> Resumable;
 	for (const FGameplayAbilitySpec& Spec : AbilitySystem->GetActivatableAbilities())
 	{
@@ -306,6 +332,15 @@ void ATDCombatCharacter::HandleAbilityEndedForResume(const FAbilityEndedData& En
 
 	for (const FGameplayAbilitySpecHandle& Handle : Resumable)
 	{
+		// Re-checked rather than trusted from the gather above: anything activated earlier in this
+		// same loop can have changed it, and a double activation is the specific failure this whole
+		// deferral exists to prevent.
+		const FGameplayAbilitySpec* Spec = AbilitySystem->FindAbilitySpecFromHandle(Handle);
+		if (!Spec || Spec->IsActive())
+		{
+			continue;
+		}
+
 		// Goes through CanActivateAbility like any press, so exhaustion, a broken guard or being
 		// airborne refuse it exactly as they would refuse a fresh one. Nothing here has to know
 		// which of those is currently true.
@@ -841,6 +876,13 @@ void ATDCombatCharacter::Landed(const FHitResult& Hit)
 	// RegenSuppressedUntil to JumpRegenPauseSeconds ahead, so the tail measures from here.
 	// Landing after walking off a ledge clears a flag that was never set, which is the point.
 	bJumpRegenPauseActive = false;
+
+	// **Landing is a resume opportunity, and it is the one that is not an ability ending.**
+	// Going airborne cancels a guard, and the resume that follows is refused *because* we are
+	// airborne -- correctly. Nothing then fires again when we touch down, so a held button stayed
+	// unanswered until the next unrelated ability happened to end. Requested rather than done
+	// inline for the same re-entrancy reason as the ability path; see bResumePending.
+	bResumePending = true;
 }
 
 UAbilitySystemComponent* ATDCombatCharacter::GetAbilitySystemComponent() const

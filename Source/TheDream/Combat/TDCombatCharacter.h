@@ -758,8 +758,11 @@ private:
 	/** Applies BlockingMaxWalkSpeed while a guard is up, and the captured default otherwise. */
 	void TickBlockingMoveSpeed();
 
-	/** Re-activates abilities that opted into resuming and whose input is still held. */
+	/** Requests a resume pass. Never performs one -- OnAbilityEnded is re-entrant. */
 	void HandleAbilityEndedForResume(const FAbilityEndedData& EndedData);
+
+	/** Re-activates abilities that opted into resuming and whose input is still held. */
+	void TickResumeHeldAbilities();
 
 	/** Applies ExhaustedTag. Removed only once stamina is back to Max -- there is no timer. */
 	void EnterExhaustion();
@@ -885,6 +888,15 @@ private:
 
 	/** MaxWalkSpeed as authored, captured before any block modifies it. */
 	float DefaultMaxWalkSpeed = 0.0f;
+
+	/**
+	 *  A resume pass is owed on the next tick. Set by an ability ending and by landing.
+	 *
+	 *  The deferral is the fix, not an optimisation: performing the resume inside OnAbilityEnded
+	 *  re-entered ability activation and double-activated the guard, leaking its spec's activeCount
+	 *  and sticking it up permanently. A flag drained once per tick cannot re-enter anything.
+	 */
+	bool bResumePending = false;
 
 	/**
 	 *  The mesh's authored offset from the capsule, captured once before physics ever moves it.

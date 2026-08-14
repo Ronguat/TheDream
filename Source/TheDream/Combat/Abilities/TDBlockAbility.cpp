@@ -67,10 +67,19 @@ void UTDBlockAbility::EndAbility(
 	//
 	// bWasCancelled distinguishes letting go from being made to, which is the whole question when
 	// reading a log back.
-	TD_TIMING_LOG(TEXT("[%.3f] BLOCK      down on %s (%s)"),
-		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f,
-		*GetNameSafe(ActorInfo ? ActorInfo->AvatarActor.Get() : nullptr),
-		bWasCancelled ? TEXT("cancelled") : TEXT("released"));
+	//
+	// **Guarded on IsActive, because UGameplayAbility::EndAbility silently no-ops otherwise** --
+	// and logging before that check is what made a stuck guard unreadable: twenty "down" lines
+	// after the last "up", every one of them a call that ended nothing. A trace that reports an
+	// event which did not happen is worse than no trace, because it is evidence *against* the bug
+	// that is actually present.
+	if (IsActive())
+	{
+		TD_TIMING_LOG(TEXT("[%.3f] BLOCK      down on %s (%s)"),
+			GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f,
+			*GetNameSafe(ActorInfo ? ActorInfo->AvatarActor.Get() : nullptr),
+			bWasCancelled ? TEXT("cancelled") : TEXT("released"));
+	}
 
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }
