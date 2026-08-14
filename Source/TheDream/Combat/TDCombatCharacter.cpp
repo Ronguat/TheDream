@@ -368,12 +368,7 @@ void ATDCombatCharacter::TickResumeHeldAbilities()
 		// airborne refuse it exactly as they would refuse a fresh one. Nothing here has to know
 		// which of those is currently true.
 		//
-		// Flagged across the call so anything the activation touches can tell a resume from a press.
-		// Today only the guard's commitment cares; it is set here rather than passed as a parameter
-		// because TryActivateAbility has no channel for one.
-		bResumingHeldAbility = true;
 		AbilitySystem->TryActivateAbility(Handle);
-		bResumingHeldAbility = false;
 	}
 }
 
@@ -395,21 +390,26 @@ void ATDCombatCharacter::BeginBlockCommitment()
 		return;
 	}
 
-	// **A resumed guard does not re-commit.** The minimum stops a player feathering the guard, and
-	// a guard the system put back up on their behalf was not raised by them. Committing here as
-	// well cost a fresh quarter second of lockout on every swing thrown while holding block --
-	// attack refused, buffered, fires, cancels the guard, guard resumes, re-commits, next attack
-	// refused again. Play called that "attacking while holding block does not behave properly", and
-	// it is the resume and the minimum interacting rather than either being wrong alone.
-	if (bResumingHeldAbility)
-	{
-		return;
-	}
-
-	// Assigned rather than maxed with any existing value. A guard raised again by a real press is a
-	// *new* guard and gets a full commitment -- the alternative would let a player shorten their own
-	// floor by tapping through it, which is backwards.
+	// **Every guard commits, with no exception for resumed ones.** An earlier version exempted the
+	// resume, on the reasoning that a guard the system put back up was not raised by the player.
+	// Play refuted it: guard durations went bimodal -- 250 ms when pressed, 50-70 ms when resumed --
+	// so rapid tapping still produced sub-minimum guards, just at a slower cadence. A floor with an
+	// exemption is not a floor. The user's call, and the rule is now "all guards, always".
+	//
+	// Assigned rather than maxed with any existing value: a guard raised again is a *new* guard and
+	// gets a full commitment, which is what stops a player shortening their own floor by tapping
+	// through it.
 	BlockCommitEndsAt = World->GetTimeSeconds() + MinimumBlockSeconds;
+
+	// **Applied here rather than left to the next tick, and that is a correctness fix.** The tick
+	// maintains this tag, but a tick away is a frame away, and in that frame an attack could still
+	// activate and cancel the guard -- which is how a guard raised and cancelled in the *same*
+	// instant appeared in the log. A commitment enforced one frame late is not enforced at the one
+	// moment it matters most, which is immediately after the guard goes up.
+	if (AbilitySystem && !AbilitySystem->HasMatchingGameplayTag(TDTags::State_Blocking_Committed))
+	{
+		AbilitySystem->AddLooseGameplayTag(TDTags::State_Blocking_Committed);
+	}
 }
 
 void ATDCombatCharacter::TickBlockCommitment(float Now)

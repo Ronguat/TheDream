@@ -34,6 +34,38 @@ bool UTDGameplayAbility::CanActivateAbility(const FGameplayAbilitySpecHandle Han
 {
 	if (!Super::CanActivateAbility(Handle, ActorInfo, SourceTags, TargetTags, OptionalRelevantTags))
 	{
+		// **Tag refusals were invisible, and they are now most refusals.** The three checks below
+		// each trace themselves, but everything expressed as ActivationBlockedTags -- a committed
+		// swing, a committed guard, exhaustion, being mid-dodge -- failed inside Super with nothing
+		// logged. A whole session of Block produced an empty REFUSED list while refusing constantly,
+		// which reads as "nothing was refused" and is the opposite of the truth.
+		//
+		// Names the offending tags rather than saying "blocked", because "which rule stopped me" is
+		// the only question worth asking here, and an empty set is itself informative: it means the
+		// refusal was a cost, a missing required tag, or the ability already running.
+		if (ActorInfo && ActorInfo->AbilitySystemComponent.IsValid())
+		{
+			FGameplayTagContainer Owned;
+			ActorInfo->AbilitySystemComponent->GetOwnedGameplayTags(Owned);
+			const FGameplayTagContainer Offending = ActivationBlockedTags.Filter(Owned);
+
+			// Deduped, because the resume retries every tick while its input is held: without this
+			// a guard waiting on exhaustion would emit sixty identical lines a second and drown
+			// every low-frequency event in the same window -- the exact failure the log-window trap
+			// in Docs/Working-In-Unreal.md describes.
+			const UWorld* World = ActorInfo->AvatarActor.IsValid() ? ActorInfo->AvatarActor->GetWorld() : nullptr;
+			const float Now = World ? World->GetTimeSeconds() : 0.0f;
+			const FString Reason = Offending.IsEmpty() ? TEXT("(not a tag)") : Offending.ToStringSimple();
+
+			if (Reason != LastRefusalReason || Now - LastRefusalLoggedAt > 0.5f)
+			{
+				LastRefusalReason = Reason;
+				LastRefusalLoggedAt = Now;
+
+				TD_TIMING_LOG(TEXT("[%.3f] REFUSED    %s on %s: %s"),
+					Now, *GetName(), *GetNameSafe(ActorInfo->AvatarActor.Get()), *Reason);
+			}
+		}
 		return false;
 	}
 

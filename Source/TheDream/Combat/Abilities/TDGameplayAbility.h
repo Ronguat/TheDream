@@ -236,4 +236,14 @@ private:
 	 *  would be the dangling one exactly on the paths that are hardest to test.
 	 */
 	TWeakObjectPtr<UAbilityTask_FacingLunge> ActiveLungeTask;
+
+	/**
+	 *  Dedupe state for the refusal trace. Mutable because CanActivateAbility is const.
+	 *
+	 *  Refusals are polled rather than edge-triggered -- the resume retries every tick while its
+	 *  input is held -- so an undeduped line would emit at frame rate and bury everything else in
+	 *  any capped log window.
+	 */
+	mutable FString LastRefusalReason;
+	mutable float LastRefusalLoggedAt = 0.0f;
 };
