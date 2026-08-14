@@ -30,6 +30,11 @@ audit in miniature; the rest is making sure nothing is left on the floor.
    push itself waits on the completion gate in Working Rules, so this step ends by naming what is
    ready to go rather than by sending it. For anything deliberately left out, say so and why —
    pending *tuning* does not block a push, pending *correctness* does.
+
+   **Run step 3 before committing.** These two are numbered in the order you *think* about them and
+   executed in the reverse, because step 3 audits the very files step 2 would commit — commit first
+   and every fix it finds becomes a second commit for no reason. Noted 2026-08-14, after doing it
+   this way by instinct and being asked why the procedure appeared to skip a step.
 3. **Audit the two files that are read every session, for bloat as well as truth.** `CLAUDE.md` and
    `Docs/Working-In-Unreal.md` are both loaded or read in full at every startup, so **length is a
    correctness problem for them and not only a tidiness one** — a file nobody finishes reading
