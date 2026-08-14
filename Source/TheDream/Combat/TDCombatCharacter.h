@@ -951,6 +951,18 @@ private:
 	float BlockCommitEndsAt = 0.0f;
 
 	/**
+	 *  True only while the resume pass is activating something. **Stops a resumed guard re-arming
+	 *  its minimum duration.**
+	 *
+	 *  The minimum exists to stop a player *feathering* the guard, and a guard the system put back
+	 *  up on their behalf is not a deliberate raise. Without this, holding block and attacking cost
+	 *  a fresh quarter second of lockout per swing: attack refused, buffered, fires, cancels the
+	 *  guard, guard resumes, re-commits, next attack refused again. That stutter was the whole of
+	 *  the "attacking while holding block feels wrong" report.
+	 */
+	bool bResumingHeldAbility = false;
+
+	/**
 	 *  The mesh's authored offset from the capsule, captured once before physics ever moves it.
 	 *
 	 *  Ragdolling drives the mesh in world space, so the relative transform is meaningless by

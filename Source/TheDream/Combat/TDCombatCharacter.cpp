@@ -351,7 +351,13 @@ void ATDCombatCharacter::TickResumeHeldAbilities()
 		// Goes through CanActivateAbility like any press, so exhaustion, a broken guard or being
 		// airborne refuse it exactly as they would refuse a fresh one. Nothing here has to know
 		// which of those is currently true.
+		//
+		// Flagged across the call so anything the activation touches can tell a resume from a press.
+		// Today only the guard's commitment cares; it is set here rather than passed as a parameter
+		// because TryActivateAbility has no channel for one.
+		bResumingHeldAbility = true;
 		AbilitySystem->TryActivateAbility(Handle);
+		bResumingHeldAbility = false;
 	}
 }
 
@@ -373,9 +379,20 @@ void ATDCombatCharacter::BeginBlockCommitment()
 		return;
 	}
 
-	// Assigned rather than maxed with any existing value. A guard that is cancelled and immediately
-	// resumed is a *new* guard and gets a full commitment -- the alternative would let a player
-	// shorten their own floor by being interrupted, which is backwards.
+	// **A resumed guard does not re-commit.** The minimum stops a player feathering the guard, and
+	// a guard the system put back up on their behalf was not raised by them. Committing here as
+	// well cost a fresh quarter second of lockout on every swing thrown while holding block --
+	// attack refused, buffered, fires, cancels the guard, guard resumes, re-commits, next attack
+	// refused again. Play called that "attacking while holding block does not behave properly", and
+	// it is the resume and the minimum interacting rather than either being wrong alone.
+	if (bResumingHeldAbility)
+	{
+		return;
+	}
+
+	// Assigned rather than maxed with any existing value. A guard raised again by a real press is a
+	// *new* guard and gets a full commitment -- the alternative would let a player shorten their own
+	// floor by tapping through it, which is backwards.
 	BlockCommitEndsAt = World->GetTimeSeconds() + MinimumBlockSeconds;
 }
 
@@ -1445,6 +1462,18 @@ bool ATDCombatCharacter::ShouldBufferInput(const FGameplayTag& InputTag) const
 
 void ATDCombatCharacter::OnAbilityInputPressed(FGameplayTag InputTag)
 {
+	// **The physical button, which nothing else in the trace can see.** Every other input line --
+	// BUFFER, REFUSED -- describes what the system did with a press, so a *replayed* press and a
+	// real one are indistinguishable once they reach an ability. That gap is why "a charged attack
+	// when LMB was not held" could be narrowed to "always follows a buffered press fired as still
+	// held" and no further: whether the player was really holding was simply not recorded anywhere.
+	//
+	// Both edges, because the question is always a duration rather than an instant.
+	TD_TIMING_LOG(TEXT("[%.3f] INPUT      %s pressed on %s"),
+		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f,
+		*InputTag.ToString(),
+		*GetName());
+
 	// A live edge always beats a recorded one. Without this, a replay still scheduled from an
 	// earlier buffered press would land on whatever ability is running by the time it fires --
 	// releasing a hold the player is in the middle of.
@@ -1502,6 +1531,13 @@ void ATDCombatCharacter::OnAbilityInputPressed(FGameplayTag InputTag)
 
 void ATDCombatCharacter::OnAbilityInputReleased(FGameplayTag InputTag)
 {
+	// The other physical edge; see the press for why this exists. Pair the two and the true button
+	// timeline is readable, which is the only way to tell a lost release from a genuine long hold.
+	TD_TIMING_LOG(TEXT("[%.3f] INPUT      %s released on %s"),
+		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f,
+		*InputTag.ToString(),
+		*GetName());
+
 	// Same reason as the press: a real release makes any pending replay redundant at best.
 	if (UWorld* World = GetWorld())
 	{
