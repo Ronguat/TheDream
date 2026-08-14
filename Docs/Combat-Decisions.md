@@ -22,8 +22,9 @@ code cannot drift from itself. Audited on the day this bar was set: 9 of the fir
 cleared it; the rest explained the current design, which the codebase does better.
 
 **How to read this file.** The sections above the first dated entry — **known traps**, the
-**tuning map**, **what has been superseded**, **retired item numbers**, **retired names** and the
-**symbol index** — are the working part, and they are short on purpose. The dated entries below are
+**tuning map**, **what has been superseded**, **retired item numbers**, **retired names**, **which
+numbers have been felt** and the **symbol index** — are the working part, and they are short on
+purpose. The dated entries below are
 an archive. Read the working sections when starting a slice; grep the entries when you want to know
 *why* something is the shape it is. Do not read it front to back.
 
@@ -747,6 +748,39 @@ concludes the log is wrong rather than merely old. Add a row whenever a name cha
 | `StationaryTurnRateDegrees` | **`TurnRateDegrees`**, renamed 2026-08-12 when facing stopped having a separate moving mode. No longer stationary-only, and no longer cosmetic — it decides where an attack points. |
 | `bSnapFacingWhileMoving` | Never shipped. A temporary A/B switch for the facing pass, deleted with the snap branch it selected. |
 | `RecoveryPlayRate` | **`FTDAttackBranch::RecoverySeconds`**, 2026-08-12. Recovery is authored as a duration per branch and its rate is derived, as windup and release already were. A rate could only set the punish window indirectly, through however long the clip's tail happened to be. |
+
+---
+
+## Which live numbers have been felt, and which are placeholders
+
+**A number in the build looks identical whether a person chose it or an assistant guessed it.**
+Nothing in the asset says which, and the distinction decides whether a verdict about feel is
+evidence or noise — tuning against a placeholder produces a conclusion about the placeholder.
+
+This section exists because the claims were scattered through dated entries, where they rot
+silently: an entry saying *"200 is signed off but unfelt"* stays in the archive after the number is
+played and settled at 100, and nothing connects the two. **Added 2026-08-14**; the supersession
+table had begun carrying value patches to cover the gap, which is not what it is for.
+
+**Update this when a number is felt, not when it is changed.** A retune by an assistant leaves a
+value in the same state it was in.
+
+| Number | State | Notes |
+|---|---|---|
+| `AimAssistMarginCm` | **Felt** 2026-08-14 | Authored 200, played the same day, settled at **100**. The one aim-assist number with feel behind it. |
+| Aim wedge `ArcDegrees` / `ArcCentreDegrees` / vertical band | **Unfelt** | Uniform across the ladder on the struct's C++ defaults. Live and observable since homing began following the ladder, which is new — before 2026-08-14 only branch 0's was ever in effect. |
+| `FTDAttackBranch::LungeDurationSeconds` | **Unfelt** | 0.12 on every branch, chosen by an assistant to be clearly a burst (1667 cm/s on the light) rather than judged. Restoring the old 0.20 without curves brings back the too-slow-and-too-far complaint. |
+| `UTDMeleeAttackAbility::LungeDistanceCm` (base) | **Felt** 2026-08-12 | The user's first tuned value after the lunge became steerable. |
+| Per-branch `LungeDistanceCm` | **Partly** | Measured accurate to 2.5% and play-verified as *behaviour*; what the distances should *be* is open, and the clamp decides them at the placed spacing. See the reach/travel/spacing trap. |
+| `FTDAttackHitbox` wedges (150 / 60° / ±70) | **Unfelt** | Uniform on all three branches deliberately, pending bespoke clips. The vertical band has never discriminated against anybody — it needs a slope or a jump. |
+| `RecoverySeconds` (0.40 / 0.50 / 0.60) | **Felt** 2026-08-12 | Two PIE sessions; *"it all felt very good and expected"*. |
+| `DodgeSeconds`, `DodgeTargetDistanceCm` | **Felt** | 0.4 judged before any animation existed, deliberately; 405 is Dodge Distance's play-verified V1 figure, preserved through the V3 swap. |
+| `InputBufferSeconds` | **Felt**, with a known cost | 0.20 chosen by play. One press in seven dropped under deliberately abusive tapping, not felt in normal play. |
+| `StaminaRegenPerSecond`, `ExhaustedStaminaRegenPerSecond` | **Unfelt** | 40 and 25, the user's numbers but verified by construction only — nothing in the build spends stamina without a human on the dodge key. The arithmetic to check is 0 → full in 2.5 s normally, 4.0 s exhausted. |
+| `CoilTurnRateDegrees` | **Unfelt, and disputed** | The entry says 600 and the code says 300. See the supersession table. |
+| `TurnRateDegrees` | **Derived, not felt — and must stay that way** | 180° ÷ the light's `HoldUntilSeconds`. It is not a candidate for this table's treatment; tuning it by feel is what the tuning map forbids. |
+| `LungeStandoffCm` | **Felt** as a slide fix | 40. Its *second* job — the spacing of a non-connecting exchange — has never been judged. |
+| `C_Lunge_Base`, `C_Lunge_Attack` | **Inert** | Authored, wired to nothing, parked against the structure audit. A curve's mean must be 1.0 or it silently scales the authored distance. |
 
 ---
 
