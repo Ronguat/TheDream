@@ -335,10 +335,15 @@ protected:
 	float ExhaustedStaminaRegenPerSecond = 25.0f;
 
 	/**
-	 *  How long regen stays suppressed *after* the last defensive action ends.
+	 *  How long regen stays suppressed *after* the last action carrying StaminaRegenPausedTag ends.
 	 *
 	 *  Measured from the end, not the start, so it is a genuine tax on acting rather than
 	 *  something a long action absorbs for free.
+	 *
+	 *  **Shared by every such ability, and attacks joined them on 2026-08-14** -- so an attack is
+	 *  taxed for its whole windup, release and recovery, plus this. A per-ability tail was proposed
+	 *  the same day and deliberately declined: four authored numbers is real authoring overhead for
+	 *  a distinction nobody has felt yet. The shared value stays until play asks for the split.
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Stamina", meta=(ClampMin="0.0"))
 	float StaminaRegenPauseSeconds = 1.0f;
@@ -358,10 +363,14 @@ protected:
 	float JumpRegenPauseSeconds = 0.5f;
 
 	/**
-	 *  Present while a defensive action is running, via that ability's owned tags.
+	 *  Present while an action that suppresses regen is running, via that ability's owned tags.
 	 *
 	 *  Regen watches for this rather than each ability telling it to stop, so an ability
 	 *  that is cancelled or interrupted cannot leave regen suppressed forever.
+	 *
+	 *  **Carried by GA_Dodge, GA_Block and -- since 2026-08-14 -- GA_Attack.** Those assets are
+	 *  authoritative for who suppresses regen; nothing in C++ names them, which is what makes
+	 *  adding a fourth a content change rather than a code one.
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Stamina")
 	FGameplayTag StaminaRegenPausedTag;

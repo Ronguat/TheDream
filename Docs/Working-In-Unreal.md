@@ -227,12 +227,11 @@ type.** Comparing against stock `IMC_Default` is what exposed the input bug; our
   fails and leaves a partial write. **Empty the container, then write it whole**, as two calls.
   Applies to `FGameplayTagContainer`, where the array is `gameplayTags`.
 - **TMap keys** *(reported once)* — logs `added key ... not found in map` while being correct.
-- **`save_assets` can reject a path that demonstrably exists** *(reported once)*. **Pass an empty
-  list** — save everything dirty — and `git status` afterwards to see what was written.
-- **`exists` false-negatives, and `duplicate` fails with a bare `false`** *(confirmed 2026-08-10)*.
-  **Use `load_asset` as the existence check**; it returns a usable object or errors. Never conclude
-  an asset is missing from `exists`. Duplication of a *plain* asset may need a human — though
-  duplicating a `CurveFloat` worked 2026-08-13, so try it before asking.
+- **`AssetTools` functions taking an `asset_path` string false-negative on assets that exist** —
+  `exists`, `is_dirty`, `get_asset_class` and `save_assets` all rejected `GA_Attack` 2026-08-14 while
+  `find_assets` listed it and `load_asset` returned it. **Use `load_asset` as the existence check**,
+  and **`save_assets` with an empty list**, then `git status` to see what was written. `duplicate`
+  fails with a bare `false`; a plain asset may need a human, though a `CurveFloat` worked 2026-08-13.
 - **`delete` is inconsistent about removing the `.uasset` from disk** *(confirmed both ways)*.
   Always check the directory afterwards; `git rm` only what is still there.
 - **Saving a level while a CDO write is not yet live bakes the stale value into placed actors as

@@ -160,8 +160,8 @@ protected:
 	 *
 	 *  It was added for the stamina regen pause and no longer carries it. The pause is now
 	 *  entirely on ATDCombatCharacter: while State.StaminaRegenPaused is present the resume
-	 *  time keeps being pushed forward, so the one-second tail falls out of the tag coming
-	 *  off and needs nothing applied at the end. That is the more robust half of the reason
+	 *  time keeps being pushed forward, so the tail falls out of the tag coming off and needs
+	 *  nothing applied at the end. That is the more robust half of the reason
 	 *  -- an ability that is cancelled or interrupted cannot fail to apply something it no
 	 *  longer applies.
 	 *

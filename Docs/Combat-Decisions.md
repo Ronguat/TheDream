@@ -810,6 +810,48 @@ long.
 
 ---
 
+## 2026-08-14 — Attacks pay the regen tax too, and a per-ability tail is declined before it is built
+
+Asked for from play: an attack should suppress stamina regen for **windup + release + recovery, plus
+the usual tail**, the same tax a dodge or a block already pays. Swinging was the one commitment in
+the game you could make for free.
+
+**It cost one property.** `GA_Attack`'s `ActivationOwnedTags` gains `State.StaminaRegenPaused`
+beside the `State.Attacking` it already carried. Nothing in C++ changed, and nothing needed to:
+`TickStaminaRegen` watches for that tag and pushes its resume time forward while anything wearing it
+is live, so the tail measures from whenever the tag comes off. `State.Attacking` already spans the
+whole ability, so the requested duration fell out exactly rather than being assembled from the three
+authored phases.
+
+That is the tag-driven design paying out. **Who suppresses regen is a content question and the
+ability assets are authoritative** — no list in code names them, which is why a fourth suppressor is
+a checkbox rather than a change to the stamina economy.
+
+### The per-ability tail, proposed and declined the same hour
+
+The natural follow-on: `StaminaRegenPauseSeconds` is shared by everything carrying the tag, and jump,
+dodge, block and now attack might each want their own. The refactor was specified — the value moves
+onto `UTDGameplayAbility`, and `TickStaminaRegen` takes the longest tail among active abilities
+rather than reading one constant.
+
+**Declined by the user before it was built**, and the reasoning is worth keeping because it will come
+back: *a significant refactor and more authoring overhead for a feature that may not even prove
+useful.* Four authored numbers is real ongoing cost — every future ability acquires a knob someone
+has to think about — bought against a distinction **nobody has felt a need for**. The shared 0.5 s
+has never been the thing anyone complained about.
+
+Two things make declining cheap rather than merely deferred. The refactor is **purely additive when
+it does arrive**: the shared value becomes a default, so nothing authored against it moves. And the
+current arrangement is not a compromise — it is the same tail on every action, which is a defensible
+design rather than an unfinished one. **If play later says an attack's tail should differ from a
+dodge's, that verdict is the trigger**, and it will arrive with a number attached instead of four
+empty fields.
+
+Recorded here rather than as a trap: nothing is latent or wrong, and there is no defect waiting to
+bite. It is a road not taken, with the condition that would justify taking it.
+
+---
+
 ## 2026-08-14 — Block survives contact with play, and four bugs share one shape
 
 Written after the slice was played rather than when it was built. The mechanics above shipped
