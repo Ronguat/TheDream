@@ -274,16 +274,11 @@ audit in miniature; the rest is making sure nothing is left on the floor.
 
 ## Current Focus
 
-**Items are named, not numbered** (2026-08-12, replacing fifteen numbers). The numbers were stable
-identifiers that meant nothing, so every reference cost a lookup — and the traps in
-`Docs/Combat-Decisions.md` had already begun writing *"before block (item 7)"* unprompted, which is
-a scheme failing over in slow motion. Names keep the property the numbers were chosen for: **a name
-does not change when the order does.** What a name can do that a number cannot is *go wrong*, so a
-renamed item gets a row in the retired-item-numbers section, exactly as a renamed symbol does.
-
-**The dated archive still uses the numbers** — 51 references below the bridge table, counted
-2026-08-14, most often `item 12` — and is never rewritten. `Docs/Combat-Decisions.md` carries the
-number → name bridge; do not renumber anything to match it.
+**Items are named, not numbered** (2026-08-12, replacing fifteen numbers). A name keeps the property
+the numbers were chosen for — **it does not change when the order does** — and adds one a number
+cannot have: it can *go wrong*, so a renamed item gets a row in the retired-item-numbers table
+exactly as a renamed symbol does. **The dated archive still uses the numbers** (51 references,
+counted 2026-08-14) and is never rewritten; `Docs/Combat-Decisions.md` carries the bridge.
 
 Execution order, the only line that changes when the order does:
 
@@ -294,159 +289,141 @@ being verified good, not by a position; see its entry at the end.
 
 **Pick up at Block.** Nothing stands between it and the next session.
 
-**Target Lock finished on 2026-08-14, a day after it shipped.** The rotational half went out with a
-defect: homing ran the whole windup on branch 0's wedge, so the heavy's and charged's values did
-nothing and two of the three had never been observed. Homing now follows the ladder, reach is derived
-from travel rather than authored, and `AimAssistMarginCm` is the single knob — play-tuned to 100 the
-day it landed. **The debug wedge is trustworthy again**, which it was not: it drew one branch's volume
-for every tier and that is what let the two dead numbers be authored.
+### Open checks — cheap, and each needs an editor
 
-**Also on 2026-08-14:** an attack's lunge now *stops* on a hit against a viable target rather than
-merely pausing, so a killed target is no longer slid through; and stamina regen split into two rates,
-both play-verified.
+Filed 2026-08-14 by the documentation audit, which could not run them: the unreal-mcp toolset does
+not register unless the editor was open when Claude Code started. **None blocks Block.** Each is a
+question the docs currently answer by assertion.
 
-**Target Lock's translational half shipped 2026-08-13**, with the user's verdict being *"player intent
-feels MORE precise than before, even though logically we've been lowering the player's precision."*
-**The dodge was rebuilt on authored displacement the same day**, which was the last system in the
-project reading a number off an animation.
+- **Four documented live values disagree with their C++ defaults**, because a Blueprint CDO shadows
+  them: `InputBufferSeconds` (0.20 documented, 0.1 in code), `StaminaRegenPauseSeconds` (0.5 / 1.0),
+  `DodgeSeconds` (0.4 / 0.5), `AimAssistMarginCm` (100 / 200). The asset is expected to be right in
+  all four. **Read them off `BP_PlayerCharacter` and `GA_Attack` and confirm** — the numbers this
+  file and `Docs/Combat-Decisions.md` quote all descend from prior sessions' readings.
+- **`CoilTurnRateDegrees` is 300 in code and recorded as 600** in the 2026-08-12 Lunge entry, and
+  `git log -S` shows it has never been 600. Either it shipped at half the intended value or the
+  Blueprint overrides it. One CDO read settles which.
+- **`AM_Attack`'s package references both the `_IP` and `_RM` forms** of `Attack4_Stage1_Complete`.
+  The `_IP` one is required — a montage carrying root motion produces *no* lunge — and the ungated
+  warning would have fired by now if it were wrong, so this is confirmation rather than suspicion.
+  Confirm the segment, and drop the stale reference if that is all it is.
+- **The total attack overhead has never been measured**, and the trap that asked for it wrongly said
+  a log line had to be built first. `ABILITY END … elapsed=` already prints it. One held attack per
+  tier with `TD.DebugCombatTiming` on; heavy and charged are the tiers to watch.
+- **The wedges' vertical band (±70) has never excluded anybody.** It needs a height difference, and
+  `L_CombatTest` has a ramp. Worth one attack uphill and one down.
 
-**Lunge and Recovery both shipped 2026-08-12** and are play-verified. Both were
-moved ahead of Block on the same rule: **a number that another number is felt against gets authored
-first.** Spacing is measured against travel, and advantage on block is blockstun minus recovery — so
-authoring either defensive number against a placeholder repeats the error the first move was made
-to avoid. Recovery also feeds the Light String's endlag, how long facing stays committed, and
-`InputBufferSeconds`. Reasoning and what was rejected are in `Docs/Combat-Decisions.md`.
+### Done
 
-**Two things Lunge deliberately did not finish, and neither blocks Block:**
-- **Reach, travel and the placed spacing still want authoring together** — one felt quantity, and
-  two tiers still play the light's clip. **The ladder itself measured good on 2026-08-14**: damage
-  lands in exact multiples at the placed 200 cm and the clamp parks where the geometry predicts, so
-  what is open is authoring, not a defect. Two earlier readings against this spacing are withdrawn;
-  see `Docs/Combat-Decisions.md`.
-- **The seam and the curve.** Base and branch lunges meet at a speed discontinuity, fixable by the
-  distance *ratio* alone; a `StrengthOverTime` curve for the onset is the separate, optional half.
-  The arithmetic for both is in the decision entry.
+**Completed items are one line plus whatever they left behind that can still bite** — and only what
+has no other home. What was built is in the code and in git; reasoning is in
+`Docs/Combat-Decisions.md`; **latent defects are in its traps section and are deliberately not
+repeated here**, because a second copy is what nobody reviews.
 
-**Attack Ladder, Dodge, Sword & Shield, Input Buffer, Death, Dodge Distance, Attack Swap, Recovery
-and Lunge are done**, plus three things that were never items: the netcode groundwork Slices A and B,
-the **hover bug**, and the **facing pass**. The last two closed on 2026-08-12 and left three live rules, all
-also stated where they are enforced:
+- **Attack Ladder** — Light → Heavy → Charged Heavy. **Done 2026-08-09.** Offense still lacks the
+  light string, knockdown and block-safety.
+- **Dodge** — the dodge and the stamina economy that shipped with it. **Done 2026-08-10**, V3 clips
+  2026-08-11, displacement authored 2026-08-13. All eight directions travel `DodgeTargetDistanceCm`
+  through the same root motion source as the attack lunge, with a yaw offset taken from the
+  direction enum's order. Nothing is left to calibrate.
+   - **The airborne dodge anomaly was closed by removal, not diagnosis.** Air control was killed by
+     experiment and the surviving hypothesis was never confirmed. **The same ground→air transition
+     exists for attack lunges and nobody has looked**; `RelativeRotation.Yaw = -90` on the mesh is
+     the untried lead.
+- **Sword & Shield** — camera-relative facing, the props, the locomotion set. **Done 2026-08-11**,
+  and the stance moved V1 → V3 the same day: V1 reads as permanently guarding and has no `Hit` or
+  `Death` clips, so the no-mixing rule that chose it was never achievable. **V1 is retained for the
+  held guard**, which it is decisively better at.
+   - **Known art seam, not a bug:** adjacent directions disagree about the guard pose, so the shield
+     snaps ~135° blending between them. Inherent to the source clips, and the fix — an upper-body
+     layered blend over one guard pose — is **what Block will probably want anyway**, so it was
+     deliberately not built twice.
+- **Death** — minimally. **Done 2026-08-11.** `State.Dead` is refused by the shared ability base, so
+  a new ability cannot be authored without it. Respawn, whether death routes through knockdown, and
+  whether the dummy should die at all are **Stun's**.
+- **Dodge Distance** — **Done 2026-08-11** and **entirely superseded**, first by the V3 swap and
+  then by authored displacement. See **Dodge**; nothing from this item is live.
+- **Attack Swap** — the sword-and-shield light. **Done 2026-08-12**, regression pass passed.
+  `AM_Attack` plays V3 `Attack4_Stage1_Complete` with the notify at 0.3000 for 0.1500, so **the
+  release plays at rate 1.000** — the strike's damaging frames run at the speed they were animated,
+  the only setting where animation and mechanic do not disagree.
+   - **An attack's damaging volume is authored, not traced off the weapon.** `FTDAttackHitbox` is a
+     wedge in the attacker's frame and `MaxReachCm` is the attack's range. The general form is why:
+     **anything derived from the art inherits the art's accidents silently.**
+   - **Facing freezes from commit to the end of the ability, recovery included**, instantly in both
+     directions — an actor-frame volume needs a stable actor frame, and steering stays free through
+     windup so the whole cancellable portion is steerable. **`RecoverySeconds` therefore sets
+     commitment length as well as punish length.** Whoever takes facing away restores it in
+     `EndAbility`, where every exit path converges, never on the montage delegates.
+   - **Facing runs at three rates, split by whether a number may be tuned by feel.**
+     `TurnRateDegrees` is **derived, not chosen** — 180° ÷ the light's `HoldUntilSeconds` — and must
+     move when that does. The other two are free, because the aim guarantee is discharged before
+     either applies: `IdleTurnRateDegrees` when `IsIdle()`, and `CoilTurnRateDegrees` while an
+     attack coils, which only heavy and charged reach. `BP_PlayerCharacter`'s CDO is authoritative.
+   - **`bAllowPhysicsRotationDuringAnimRootMotion` is `true`**, against a UE default of off, and is
+     the **only** rotation path — disabling it freezes facing everywhere rather than just at rest.
+     Anything wanting a committed direction says so via `SetAbilityFacingLocked`. **Never re-disable
+     it to fix one ability.**
+   - **Combatants ignore `ECC_Camera`**; level geometry still blocks it. **The dummy shares
+     `GA_Attack`**, so offense parity is the default — parity is partial by design, offense only.
+- **Input Buffer** — **Done 2026-08-11**, verified in play and tuned. Single slot, last press wins;
+  the window is grace on *taps*, so a held button never expires — which is what makes a buffered
+  heavy or charged reachable at all. The airborne dodge refusal deliberately does **not** buffer.
+- **Lunge + Recovery** — authored displacement, and the punish window it is tuned against. **Both
+  done 2026-08-12**, play-verified. Recovery is `RecoverySeconds` per branch, honoured within 8 ms.
+  Lunge is two authored distances — a shared base from the press to the light's boundary, and a
+  per-branch one from commit to the end of release — measured within 2.5% at every tier.
+   - **The base lunge follows facing, and that is load-bearing rather than cosmetic.** Rotation
+     during that window *is* the aim guarantee, so a world-fixed lunge cannot be made safe by
+     freezing rotation. Built on `FTDRootMotionSource_FacingForce`, a first-class `FRootMotionSource`
+     subclass — predicted and replicated like the stock ones, explicitly not hand-rolled movement.
+   - **Attacks became grounded-only and movement-locked**, which was never written down before. See
+     the Offense section.
+- **Target Lock** — attacks reach the target you aimed at. **Done 2026-08-13**, both halves
+  play-verified, finished 2026-08-14. The governing rule: it **may correct where you are pointed,
+  never whether you were in range**, so it cannot rescue a spacing miss and whiff punish is
+  untouched. **It aims the *lunge*, not the swing** — the damage wedge already carries ±36–50° of
+  tolerance while travel is a line, so a 25° error puts you 84 cm to the side. The user's framing:
+  *a margin of error for aiming the lunge, not for aiming the mouse.*
+   - **The gate is geometric and asked every movement tick**, contributing nothing while a body sits
+     within `LungeStandoffCm` ahead, so it can only ever *subtract* travel and is not homing. **It
+     shipped once as a pre-computed shorter distance and that was wrong** — pre-shortening bakes in
+     a prediction, so a retreating target became unreachable, which is worse than no system at all.
+   - **A hit against a viable target *stops* the lunge outright**, which a pause cannot do: killing
+     someone removes their capsule, the gate opens on the corpse, and the attacker slides through.
+     **A dodged attack still runs on** — that is what stops a successful evade paying the attacker
+     in spacing.
+   - **The aim wedge is the contract.** Its **arc** is the knob and means *how wrong your aim may
+     be*; **reach is derived** from travel plus damage reach plus `AimAssistMarginCm`, the one
+     authored number. **The wedge must reach past hit range — that gap is the design, not slack**,
+     or lock-on becomes a rangefinder and assist starts answering whether you were in range.
+     `bEnabled` turns a branch off; an arc of 0 does not.
+   - **Homing follows the ladder, runs through the base lunge, and stops at commit.** Widening only
+     happens at an escalation, the same instant the coil fires, so it never leaks a tier the
+     defender has not been told about — and stopping at commit is where the reaction window opens,
+     which is what leaves whiff punish intact.
+   - **Evaluated in the camera's frame**, not the body's: assist aids the attacker's input while
+     damage stays actor-framed, because defenders must be able to trust what the body does. Load
+     bearing rather than tidy — **the player's authority is selection, not facing**, and two rules
+     writing one yaw would deadlock. **No hysteresis yet**, so expect selection flicker as the wedge
+     grows.
+   - **Two ideas recorded, not decided:** dodge intangibility, worth trying only once the clamp has
+     been felt; and the **lunge strength curves**, which exist wired to nothing and are parked
+     against the structure audit. Measuring a curve means moving the dummy past ~800 cm first, since
+     the gate truncates both lunges at the placed spacing.
 
-- The mesh's relative Z and `InitCapsuleSize`'s half-height **must change together** — they are
-  adjacent in `ATheDreamCharacter`'s constructor for that reason. A 6 cm mismatch was invisible for
-  weeks because foot IK absorbed it everywhere the IK runs.
-- **`TurnRateDegrees` is derived from the light's commit time** and must move with it. Filed as a
-  trap; Lunge works next to it.
-- **Foot IK now runs during montages** (`ABP_Combat`'s Control Rig `Alpha` is a literal 1.0). That
-  is polish, kept because ramp attacks adapt correctly — not a fix propping anything up.
+Three things that were never items are also done: the netcode groundwork **Slices A and B**, the
+**hover bug**, and the **facing pass**. The hover left one rule worth restating because it was
+invisible for weeks — **the mesh's relative Z and `InitCapsuleSize`'s half-height must change
+together**, which is why they sit adjacent in `ATheDreamCharacter`'s constructor. **Foot IK now runs
+during montages**, kept because ramp attacks adapt correctly rather than to prop anything up.
 
 Open and **not** a defect: the character can stand on the ramp's near-vertical edge face, so walking
 off it descends that face before free fall. Whether `MaxWalkableFloorAngle` should permit it has
 never been examined; the value has not been read.
 
-Every item here gets done; only the sequence was ever in question. The first three were ordered by
-dependency, not preference; the rest is judgement and may be revisited.
-
-### Done
-
-**Completed items are one line plus whatever they left behind that can still bite.** What was
-built is in the code and in git; what is kept here is the live consequence. Reasoning for all of
-them is in `Docs/Combat-Decisions.md`.
-
-- **Attack Ladder** — ~~Light → Heavy → Charged Heavy, with input timing and basic montages.~~ **Done 2026-08-09.** Offense still lacks the light string, knockdown, and block-safety.
-- **Dodge** — ~~the dodge, and the stamina economy that shipped with it.~~ **Done 2026-08-10**, moved to V3 clips 2026-08-11, **displacement authored 2026-08-13**. `DodgeSeconds` 0.4; `AM_Dodge` is eight untrimmed V3 `Dash_*` clips at a derived 2.083×. **Distance is `DodgeTargetDistanceCm` (405) in every direction**, driven by the same root motion source as the attack lunge with a yaw offset taken from the direction enum's order. ***`MeasuredTravelCm`, `DodgeRootMotionScale` and the re-measure-whenever-the-montage-changes trap are all deleted*** — there is nothing left to calibrate. What it left behind:
-   - **The eight V3 `Dash_*` clips have `bEnableRootMotion` switched off**, which is the library's default and was only ever enabled by us. Animation root motion suppresses root motion sources outright, so **if a dodge ever travels zero, check that flag first** — the dodge has no equivalent of `StartAttackMontage`'s ungated warning.
-   - **The airborne dodge anomaly was closed by removal, not diagnosis.** Dodging off the ramp gave inconsistent results per direction, worst being a left dodge falling forward at 90°. Air control was killed by experiment; the surviving hypothesis was never confirmed. **If it survives the rewrite, the same transition exists for attack lunges and nobody has looked** — and `RelativeRotation.Yaw = -90` on the mesh is the untried lead.
-- **Sword & Shield** — ~~the character becomes a sword-and-shield fighter:~~ camera-relative facing, the props, and the `SwordShield` locomotion set. **Done 2026-08-11.** **The stance moved from V1 to V3 later the same day**: V1's whole set reads as though permanently blocking, and V1 has no `Hit` or `Death` clips at all, so the "don't mix packs" rule that chose it was never achievable. **V1 is retained for the held guard (Block), which it is decisively better at.** Two things it left behind:
-   - ~~**The reverse `CompatibleSkeletons` entry is load-bearing.**~~ **Resolved 2026-08-12.** `AM_LightAttack_01` was bound to Epic's skeleton while our mesh sits on `GDHBundle`'s, so the attack played only via a reverse `CompatibleSkeletons` entry — and would have stopped **silently** if it were ever removed. **`AM_Attack` is built from the clip itself, so it inherits GDH's skeleton and the dependency is gone.** Build a montage *from its sequence*, never empty-then-assign — that is what makes the skeleton correct by construction. **This did *not* fix the attack hover**, which was predicted and was wrong — the hover turned out to be a 6 cm mesh offset and nothing to do with skeletons at all (fixed 2026-08-12).
-   - **Known art seam, not a bug:** adjacent directions disagree about the guard pose, so the shield snaps ~135° blending between them. Inherent to the source clips. The fix is an upper-body layered blend over one guard pose — which **Block will probably want anyway**, so it was deliberately not built twice.
-- **Death** — ~~death, minimally.~~ **Done 2026-08-11.** `State.Dead` is refused by the shared ability base, so a new ability cannot be authored without it. Respawn rules, whether death routes through knockdown, and whether the dummy should die at all are still **Stun's**.
-- **Dodge Distance** — ~~dodge travel distance.~~ **Done 2026-08-11.** Measured all eight directions and shipped a single uniform scale, which was correct for V1's clips. ***Superseded the same day by the V3 swap — see Dodge above, which is authoritative.*** V3's clips disagree by 90.6 uu, so distance is now an authored `DodgeTargetDistanceCm` with per-direction corrections. This line said "no per-direction data is needed" until 2026-08-12, directly contradicting **Dodge**; anyone acting on it would have undone the fix.
-- **Attack Swap** — ~~the sword-and-shield attack swap.~~ **Done 2026-08-12**, regression pass passed. **`AM_Attack`** plays V3 `Attack4_Stage1_Complete`, the notify sits at exactly **0.3000 for 0.1500** (measured from the montage, not assumed), and the ladder is **150 ms input boundary → hits at 200 ms → 150 ms of release**. Because the notify's width and `ReleaseSeconds` agree exactly, **the release plays at rate 1.000** — the strike's damaging frames run at the speed they were animated, which is the only setting where animation and mechanic do not disagree. What it left behind that can still bite:
-   Live consequences only; every one has a dated entry with the reasoning:
-   - **The three wedges are deliberately uniform** (150 cm / 60° / ±70 on all three branches) and get re-authored **alongside Lunge** — reach and travel are one felt quantity, and two of the three tiers are still playing the light's clip. **Still true after Lunge shipped, and now more urgent** — travel is authored and much larger, so the dummy's placed spacing is not merely approximate but wrong; see Lunge's entry. The vertical band is **unverified**: it spans ±70 against a 96 cm capsule half-height, so it excludes nobody standing and only matters on slopes or against a jump. *(It was recorded as untestable "because nothing places the dummy below the player" — `L_CombatTest` has a ramp, so it always was testable. An absence claim from an incomplete view of the level.)*
-   - ~~**Displacement is two scales that multiply.**~~ **Superseded 2026-08-12 by Lunge** — both `RootMotionScale` properties are deleted and displacement is two authored distances in centimetres. **The rule underneath survived the rewrite and is why the base lunge is shared**: displacement before the tiers become distinguishable must be identical, or a charged that pulled further forward would be a tell from frame one. What did *not* survive is the clip being the ceiling — Lunge authors distance outright, so "a tier needing more ground needs its own clip" no longer holds.
-   - **An attack's damaging volume is authored, not traced off the weapon.** `FTDAttackHitbox` is a wedge in the attacker's frame; **`MaxReachCm` is the attack's range**. The blade trace and all six of its properties are deleted. **Anything derived from the art inherits the art's accidents silently** — the general form, and why the volume is authored rather than measured.
-   - **Facing freezes from commit to the end of the ability, recovery included**, instantly in both directions. An actor-frame volume needs a stable actor frame; steering stays free through windup, which keeps the whole cancellable portion of an attack steerable. **Recovery's `RecoverySeconds` therefore sets commitment length as well as punish length** — one number, two jobs. **Whoever takes facing away restores it in `EndAbility`**, where every exit path converges, never on the montage delegates.
-   - **Facing runs at three rates, split by whether a number may be tuned by feel.** `TurnRateDegrees` is the default and is **derived, not chosen**: 180° ÷ the light's `HoldUntilSeconds`. **Change it whenever that commit time changes** — nothing enforces the link, and below the derived value attacks silently point where the turn got to rather than where you aimed. The other two are free to tune, because the aim guarantee is discharged before either applies: `IdleTurnRateDegrees` when `IsIdle()` — no input, no ability, no buffered press, on the ground — and `CoilTurnRateDegrees` while an attack coils, which only the heavy and charged ever reach. `BP_PlayerCharacter`'s CDO is authoritative for all three, with defaults in `ATheDreamCharacter`.
-   - **`bAllowPhysicsRotationDuringAnimRootMotion` is `true`**, set in `ATheDreamCharacter`'s constructor against a UE default of off. It is the **only** rotation path now, so disabling it freezes facing everywhere, not just at rest. It hands rotation to every root-motion ability, so anything wanting a committed direction says so via `SetAbilityFacingLocked` — the dodge does, having previously got it for free. Never re-disable it to fix one ability.
-   - **Combatants ignore `ECC_Camera`**, so an opponent at melee range does not yank the camera boom forward. Level geometry still blocks it; only bodies are exempt.
-   - **The training dummy shares `GA_Attack` with the player**, so offense parity is the default rather than extra work, and its `WeaponMesh` / `ShieldMesh` are set. **Parity is partial by design** — offense only; the dummy does not get `GA_Dodge`.
-   - **Length does not choose a clip; a preview does.** Shorter is *not* better — a clip too short for its target implies a play rate below 1.0, which is slow motion and as much an artifact as a fast-forward. And **a family's stage count is not a hit count**: nearly every family is long opener → *one* short strike → long terminal.
-- **Input Buffer** — ~~input buffering.~~ **Done 2026-08-11**, verified in play and tuned. Single slot, last press wins; the window is grace on *taps*, so a held button never expires — which is what makes a buffered heavy or charged reachable at all. The airborne dodge refusal deliberately does **not** buffer. `InputBufferSeconds` is authoritative on `BP_PlayerCharacter`'s CDO, **not** on `ATDCombatCharacter`, whose default is 0.1 and is shadowed; **re-checked when Recovery landed and again under Lunge** — 0.20 as last read, now a watch with a measured failure rate and a third consideration behind it. See the trap.
-- **Lunge + Recovery** — ~~authored attack displacement, and the punish window it is tuned against.~~ **Both done 2026-08-12**, play-verified. Recovery is `RecoverySeconds` per branch (0.40 / 0.50 / 0.60), honoured within 8 ms. Lunge is **two authored distances in centimetres** — a shared base from the press to the light's boundary, and a per-branch one from commit to the end of release — measured within 2.5% at every tier. `RootMotionScale` is deleted in both its forms. What it left behind that can still bite:
-   - **An attack montage must play an in-place (`_IP`) clip.** Animation root motion suppresses root motion sources outright, so a montage with root motion produces **no lunge at all** — and scaling it to zero does not help, it just stops the character dead. There is an ungated warning for this; trust it. Filed as a trap.
-   - **The base lunge follows facing, and that is load-bearing rather than cosmetic.** Rotation during that window *is* the aim guarantee, so a world-fixed lunge cannot be made safe by freezing rotation. Built on `FTDRootMotionSource_FacingForce`, a first-class `FRootMotionSource` subclass — predicted and replicated like the stock ones, and explicitly not hand-rolled movement.
-   - **One value now sets three things**: `Branches[0].HoldUntilSeconds` fixes where the tiers become distinguishable, how long the base lunge runs, and (by derivation) `TurnRateDegrees`. Two are derived in code; the turn rate is still copied by hand. See the trap.
-   - **A strength curve must average 1.0** across its range or the authored distance is silently wrong. Seam continuity is a separate matter and needs no curve: it is the distance *ratio*.
-   - **Reach and the placed dummy spacing still want authoring together with travel** — one felt quantity, and two tiers still play the light's clip. ***The overshoot this line used to describe is gone***, closed by Target Lock's clamp on 2026-08-13; what is open now is what the authored distances should be given the clamp decides them at close range. See Target Lock.
-   - **Attacks became grounded-only and movement-locked**, which was never written down before. See the Offense section.
-
-- **Target Lock** — attacks reach the target you aimed at. **Done 2026-08-13**, both halves play-verified. *A player who
-  aims correctly and spaces correctly will reach their target; it never decides whether they were
-  close enough.* Two halves, and the governing rule is that it **may correct where you are pointed,
-  never whether you were in range** — so it cannot rescue a spacing miss and whiff punish is
-  untouched.
-   - **Shipped: the lunge gate.** A capsule sweep asked **every movement tick** inside
-     `FTDRootMotionSource_FacingForce`, contributing nothing while a pawn sits within
-     `LungeStandoffCm` ahead. Geometric rather than target-driven, deliberately — a selection test
-     has a boundary and a boundary is a cliff. **It shipped once as a pre-computed shorter distance
-     and that was wrong**: pre-shortening bakes in a prediction, so a target moving away mid-attack
-     became unreachable, which is worse than having no system at all. Per-tick gating can only ever
-     subtract travel, so the authored distance stays a hard ceiling and it is still not homing.
-   - **Shipped: authored lunge duration.** `FTDAttackBranch::LungeDurationSeconds`, because duration
-     used to be derived from `ReleaseSeconds` — a hitbox-liveness number setting a movement feel. The
-     lunge ran at 1000 cm/s against a 1012 cm/s dodge, which is why it did not read as a burst.
-     **0.12 on every branch is live and is an assistant-chosen placeholder, not a felt value.** It is
-     what makes the lunge a burst with no curve attached; restoring the old 0.20 without curves would
-     bring back the too-slow-and-too-far complaint that prompted the change.
-   - **Parked 2026-08-13: lunge strength curves.** `C_Lunge_Base` and `C_Lunge_Attack` exist under
-     `Combat/Data/`, are roughly authored, and are **deliberately wired to nothing** — every
-     `LungeStrengthCurve` is `None`, so they are inert. Moved to the audit's trigger by the user as
-     last-10% feel work rather than functionality. **Do not wire them without re-checking the means:**
-     a curve's mean must be 1.0 or it silently scales the authored distance, and curve keys cannot be
-     read back through the toolset, so the only verification is measuring travel in play — which the
-     test level currently *cannot* do, because the gate truncates both lunges at 200 cm. Measuring
-     means moving the dummy out past ~800 cm first.
-   - **Shipped: the aim half.** Play-verified 2026-08-13. **It aims the *lunge*, not the swing** —
-     the 60° damage wedge already has ±36–50° of tolerance, while travel is a line, so a 25° error
-     puts you 84 cm to the side and the gate never closes. The user's framing: *a margin of error for
-     aiming the lunge, not for aiming the mouse.*
-      - **The wedge is the contract.** `FTDAimAssistWedge`, per branch. Aim inside it and the body
-        snaps dead-on; space inside travel + reach and the hit follows short of a defensive action.
-        **Its arc is the knob and means *how wrong your aim may be*** — reach stopped being authored
-        on 2026-08-14, see below.
-      - **Homing follows the ladder** (2026-08-14): light's wedge until the attack escalates to heavy,
-        then heavy's, then charged's. Widening only ever happens at an escalation, which is the same
-        instant the coil fires — so it never leaks a tier the defender has not already been told about.
-      - **Reach is derived, not authored** (2026-08-14): `base lunge + branch lunge + branch damage
-        reach + AimAssistMarginCm`, which is hit range plus a margin. **The margin is the only
-        authored part** — one number for the whole ladder, on `UTDMeleeAttackAbility`, shared
-        deliberately. Monotonicity across the ladder is unrepresentable rather than a rule.
-      - **The wedge must reach past hit range; that gap is the design, not slack.** Matching it
-        exactly would make lock-on a rangefinder and let assist answer whether you were in range,
-        which the governing rule forbids.
-      - Arc, arc centre and the vertical band stay per branch on `FTDAimAssistWedge`, which has no
-        reach field by construction. `bEnabled` turns a branch's assist off — **an arc of 0 does not**,
-        since a zero arc still passes the subtended-angle widening.
-      - **Evaluated in the camera's frame**, not the body's — assist aids the attacker's input, while
-        damage stays actor-framed because defenders must be able to trust what the body does.
-      - **Homing runs through the base lunge and stops at commit**, at the existing `TurnRateDegrees`
-        with no new number. That is not the homing this design rejects: commit is where the
-        defender's reaction window opens, so freezing there leaves whiff punish intact. It also makes
-        a wide wedge affordable — measured, a 12.9° camera error arrived at commit as **0.0°**,
-        homing having absorbed all of it.
-      - **The player's authority is selection, not facing.** Homing owns facing while a target is
-        tagged; aiming elsewhere selects someone else and the body follows. Two rules writing one yaw
-        would deadlock, which is why camera-frame evaluation is load-bearing rather than tidy.
-      - **No hysteresis.** A camera parked between two near-equal candidates can flip selection each
-        tick and swing the body. Unreachable at a narrow arc, routine at a wide one — expect it to
-        surface as the wedge grows. Everything rejected is in `Docs/Combat-Decisions.md`.
-   - **`LungeStandoffCm` must stay below every branch's `MaxReachCm`** or the clamp starts *causing*
-     whiffs by parking the attacker outside its own hitbox. Filed as a trap; standoff is per ability
-     and reach is per branch, which is what makes it easy to miss.
-   - **Idea recorded, not decided: dodge intangibility.** Try only after the clamp has been felt.
-
+Every item gets done; only the sequence was ever in question. The first three were ordered by
+dependency, the rest is judgement and may be revisited.
 
 ### Remaining
 
@@ -479,8 +456,8 @@ wedges are authored under `Combat|Timing` when they are spacing.
 **Lunge strength curves are parked against this same trigger** (2026-08-13, the user's call), and are
 listed here rather than in the sequence for that reason. They are *not* structural work — the reason
 they share the trigger is that they are last-10% feel tuning, which is the same thing verified-good
-is a precondition for. Assets exist and are wired to nothing; see Target Lock for the state and the
-warning about curve means.
+is a precondition for. Assets exist and are wired to nothing; `Docs/Combat-Decisions.md`'s tuning
+map carries the warning that a curve's mean must be 1.0 or it silently scales the authored distance.
 
 **The trigger is the combat model being verified good in play.** Deferring the audit is right —
 anything reorganised before the systems settle gets reorganised again — but *last* is not a
