@@ -75,12 +75,12 @@ protected:
 	 *
 	 *  **Authoritative, and the montage is made to fit it** -- the section's play rate is
 	 *  derived as SectionLength / DodgeSeconds, exactly as the attack ladder derives every
-	 *  rate from authored timings. The source rolls run 0.9s, which was never a design
+	 *  rate from authored timings. The source dashes run 0.833s, which was never a design
 	 *  decision, and letting a clip's length set a defensive option's commitment would make
 	 *  the animation the balance authority.
 	 *
-	 *  Note this changes duration, not distance: a roll played faster covers the same
-	 *  ground in less time. Travel is AnimRootMotionTranslationScale, not this.
+	 *  Note this changes duration, not distance: a dash played faster covers the same
+	 *  ground in less time. Travel is DodgeTargetDistanceCm, directly below.
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Dodge", meta=(ClampMin="0.01"))
 	float DodgeSeconds = 0.5f;
