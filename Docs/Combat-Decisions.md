@@ -223,6 +223,19 @@ Less urgent than it sounds: the per-tick gate handles a retreating target native
 survives being pushed. The constraint binds *finishers and heavies*, lights being intended to have
 low knockback — **recorded as illustration, not commitment.**
 
+**Whenever an ability's root motion carries a character off a ledge** — *the ground→air handoff was
+never diagnosed, only removed from the dodge.* Filed 2026-08-14, graduated out of `CLAUDE.md`'s Done
+section by the eviction rule. Dodging off the ramp once gave *"a different behavior every single
+time — some kept coasting, some lost their momentum"*, worst being a left dodge falling forward at
+90°. Air control was killed by experiment and the surviving hypothesis — a velocity handoff at the
+transition — **was never confirmed**; the dodge's rewrite onto authored displacement removed the
+mechanism rather than explaining it.
+
+**So the same window still exists for attack lunges and nobody has looked.** Attacks deliberately
+keep running when a lunge carries them off a ledge, which is exactly the case the dodge failed. The
+untried lead is `RelativeRotation.Yaw = -90` on the mesh, the most likely source of an exact
+ninety-degree error anywhere in this codebase.
+
 **Whenever `MaxWalkSpeed` changes** — *it is coupled to the blendspace's top row and nothing
 enforces the link.* `BS_SwordShield_Locomotion` places its run samples at Speed 500 because
 `MaxWalkSpeed` is 500. Change one and the character tops out partway up the blend, playing a

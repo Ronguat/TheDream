@@ -105,6 +105,13 @@ Both only ever subtract, so the authored distance stays a hard ceiling and neith
 - **Attacks cannot start while airborne**, via the existing `bBlockedWhileAirborne`. It gates *activation*, not continuation — an attack that starts grounded keeps running if its lunge carries you off a ledge, which is deliberate. **The refusal is not buffered**: an attack pressed in the air is dropped, not replayed on landing.
 - Air attacks are therefore out for now and are a checkbox away from being back in.
 
+**Facing is committed at the commit checkpoint and runs at three rates** (graduated from Attack Swap 2026-08-14):
+- **Facing freezes from commit to the end of the ability, recovery included**, instantly in both directions — an actor-frame damage volume needs a stable actor frame. Steering stays free through windup, which keeps the whole cancellable portion of an attack steerable, and means **`RecoverySeconds` sets commitment length as well as punish length**. Whoever takes facing away restores it in `EndAbility`, where every exit path converges, never on the montage delegates.
+- **The three rates split by whether a number may be tuned by feel.** `TurnRateDegrees` is **derived, not chosen** — 180° ÷ the light's `HoldUntilSeconds` — and must move when that does, or attacks silently point where the turn got to. The other two are free, because the aim guarantee is discharged before either applies: `IdleTurnRateDegrees` when `IsIdle()`, and `CoilTurnRateDegrees` while an attack coils, which only heavy and charged reach. `BP_PlayerCharacter`'s CDO is authoritative for all three.
+- **`bAllowPhysicsRotationDuringAnimRootMotion` is `true`**, against a UE default of off, and is the **only** rotation path — disabling it freezes facing everywhere rather than just at rest. Anything wanting a committed direction says so via `SetAbilityFacingLocked`. **Never re-disable it to fix one ability.**
+
+**Input is buffered** (graduated from Input Buffer 2026-08-14): a single slot, last press wins, and the window is grace on *taps* — a held button never expires, which is what makes a buffered heavy or charged reachable at all. The airborne-attack and airborne-dodge refusals deliberately do **not** buffer. `BP_PlayerCharacter`'s CDO holds `InputBufferSeconds`.
+
 Two rules the model depends on:
 - **Windup length is preset.** Releasing early inside a band changes nothing — the attack still takes its full time to arrive. The cost is real dead time, and it is what stops a fractionally-held heavy from dominating light.
 - **Reactability is measured from the tell, not from the press.** All tiers share one windup, so the defender's window is coil → damaging. Lengthening a windup does not by itself make an attack more reactable; moving the coil earlier does.
@@ -293,70 +300,45 @@ question the docs currently answer by assertion.
 
 ### Done
 
-**Completed items are one line plus whatever they left behind that can still bite** — and only what
-has no other home. What was built is in the code and in git; reasoning is in
-`Docs/Combat-Decisions.md`; **latent defects are in its traps section and are deliberately not
-repeated here**, because a second copy is what nobody reviews.
+**Detail is carried for the two most recent shipped items only.** When a third ships, the oldest is
+**evicted by routing, never by deletion** — every consequence has a destination, and the eviction is
+not finished until each one is at it:
 
-- **Attack Ladder** — Light → Heavy → Charged Heavy. **Done 2026-08-09.** Offense still lacks the
-  light string, knockdown and block-safety.
-- **Dodge** — the dodge and the stamina economy that shipped with it. **Done 2026-08-10**, V3 clips
-  2026-08-11, displacement authored 2026-08-13. All eight directions travel `DodgeTargetDistanceCm`
-  through the same root motion source as the attack lunge, with a yaw offset taken from the
-  direction enum's order. Nothing is left to calibrate.
-   - **The airborne dodge anomaly was closed by removal, not diagnosis.** Air control was killed by
-     experiment and the surviving hypothesis was never confirmed. **The same ground→air transition
-     exists for attack lunges and nobody has looked**; `RelativeRotation.Yaw = -90` on the mesh is
-     the untried lead.
-- **Sword & Shield** — camera-relative facing, the props, the locomotion set. **Done 2026-08-11**,
-  and the stance moved V1 → V3 the same day: V1 reads as permanently guarding and has no `Hit` or
-  `Death` clips, so the no-mixing rule that chose it was never achievable. **V1 is retained for the
-  held guard**, which it is decisively better at.
-   - **Known art seam, not a bug:** adjacent directions disagree about the guard pose, so the shield
-     snaps ~135° blending between them. Inherent to the source clips, and the fix — an upper-body
-     layered blend over one guard pose — is **what Block will probably want anyway**, so it was
-     deliberately not built twice.
-- **Death** — minimally. **Done 2026-08-11.** `State.Dead` is refused by the shared ability base, so
-  a new ability cannot be authored without it. Respawn, whether death routes through knockdown, and
-  whether the dummy should die at all are **Stun's**.
-- **Dodge Distance** — **Done 2026-08-11** and **entirely superseded**, first by the V3 swap and
-  then by authored displacement. See **Dodge**; nothing from this item is live.
-- **Attack Swap** — the sword-and-shield light. **Done 2026-08-12**, regression pass passed.
-  `AM_Attack` plays V3 `Attack4_Stage1_Complete` with the notify at 0.3000 for 0.1500, so **the
-  release plays at rate 1.000** — the strike's damaging frames run at the speed they were animated,
-  the only setting where animation and mechanic do not disagree.
-   - **An attack's damaging volume is authored, not traced off the weapon.** `FTDAttackHitbox` is a
-     wedge in the attacker's frame and `MaxReachCm` is the attack's range. The general form is why:
-     **anything derived from the art inherits the art's accidents silently.**
-   - **Facing freezes from commit to the end of the ability, recovery included**, instantly in both
-     directions — an actor-frame volume needs a stable actor frame, and steering stays free through
-     windup so the whole cancellable portion is steerable. **`RecoverySeconds` therefore sets
-     commitment length as well as punish length.** Whoever takes facing away restores it in
-     `EndAbility`, where every exit path converges, never on the montage delegates.
-   - **Facing runs at three rates, split by whether a number may be tuned by feel.**
-     `TurnRateDegrees` is **derived, not chosen** — 180° ÷ the light's `HoldUntilSeconds` — and must
-     move when that does. The other two are free, because the aim guarantee is discharged before
-     either applies: `IdleTurnRateDegrees` when `IsIdle()`, and `CoilTurnRateDegrees` while an
-     attack coils, which only heavy and charged reach. `BP_PlayerCharacter`'s CDO is authoritative.
-   - **`bAllowPhysicsRotationDuringAnimRootMotion` is `true`**, against a UE default of off, and is
-     the **only** rotation path — disabling it freezes facing everywhere rather than just at rest.
-     Anything wanting a committed direction says so via `SetAbilityFacingLocked`. **Never re-disable
-     it to fix one ability.**
-   - **Combatants ignore `ECC_Camera`**; level geometry still blocks it. **The dummy shares
-     `GA_Attack`**, so offense parity is the default — parity is partial by design, offense only.
-- **Input Buffer** — **Done 2026-08-11**, verified in play and tuned. Single slot, last press wins;
-  the window is grace on *taps*, so a held button never expires — which is what makes a buffered
-  heavy or charged reachable at all. The airborne dodge refusal deliberately does **not** buffer.
-- **Lunge + Recovery** — authored displacement, and the punish window it is tuned against. **Both
-  done 2026-08-12**, play-verified. Recovery is `RecoverySeconds` per branch, honoured within 8 ms.
-  Lunge is two authored distances — a shared base from the press to the light's boundary, and a
-  per-branch one from commit to the end of release — measured within 2.5% at every tier.
+| Consequence | Goes to |
+|---|---|
+| A design rule that still governs play | **Core Combat Rules**, above — that is where a reader looks for it |
+| A latent defect or unverified assumption | the **traps** section of `Docs/Combat-Decisions.md` |
+| A value's felt-versus-placeholder status | the **felt-numbers** table there |
+| Which knob moves for a given complaint | the **tuning map** there |
+| Rationale about one symbol | that symbol's **header comment** |
+| The argument behind any of it | its **dated entry**, where it already is |
+
+**Nothing is lost by an item having no entry**, because the execution-order line above is the
+complete roster — every item, struck through when done, and still one line at fifty items.
+
+**Why two and not one:** a just-shipped item's consequences are the least understood, and one slice
+of hindsight is what reveals which actually bite. Observed 2026-08-14, when the older items had
+already collapsed to a line or two on their own while the two newest carried 62% of the section.
+
+**Why this exists at all.** Done grew with every shipped slice and nothing ever evicted, while the
+unbuilt items stayed flat — so a file loaded in full every session grew monotonically with project
+progress. The cause was not verbosity: **design rules were accumulating in a changelog instead of
+graduating into the spec.** This makes Done O(1) rather than O(items shipped), which is what the
+prototype needs to survive becoming something larger. Rule added 2026-08-14; the first eviction
+covered seven items.
+
+**Graduation has a bar: the rule must be general.** Something that only makes sense as the history
+of one slice is not a rule and goes to the decision log. Otherwise Core Combat Rules becomes the
+new dumping ground and the problem has merely moved.
+
+- **Lunge + Recovery** — authored attack displacement, and the punish window it is tuned against.
+  **Both done 2026-08-12**, play-verified. Recovery is `RecoverySeconds` per branch, honoured within
+  8 ms. Lunge is two authored distances — a shared base from the press to the light's boundary, and
+  a per-branch one from commit to the end of release — measured within 2.5% at every tier.
    - **The base lunge follows facing, and that is load-bearing rather than cosmetic.** Rotation
      during that window *is* the aim guarantee, so a world-fixed lunge cannot be made safe by
      freezing rotation. Built on `FTDRootMotionSource_FacingForce`, a first-class `FRootMotionSource`
      subclass — predicted and replicated like the stock ones, explicitly not hand-rolled movement.
-   - **Attacks became grounded-only and movement-locked**, which was never written down before. See
-     the Offense section.
 - **Target Lock** — attacks reach the target you aimed at. **Done 2026-08-13**, both halves
   play-verified, finished 2026-08-14. The governing rule: it **may correct where you are pointed,
   never whether you were in range**, so it cannot rescue a spacing miss and whiff punish is
@@ -367,10 +349,6 @@ repeated here**, because a second copy is what nobody reviews.
      within `LungeStandoffCm` ahead, so it can only ever *subtract* travel and is not homing. **It
      shipped once as a pre-computed shorter distance and that was wrong** — pre-shortening bakes in
      a prediction, so a retreating target became unreachable, which is worse than no system at all.
-   - **A hit against a viable target *stops* the lunge outright**, which a pause cannot do: killing
-     someone removes their capsule, the gate opens on the corpse, and the attacker slides through.
-     **A dodged attack still runs on** — that is what stops a successful evade paying the attacker
-     in spacing.
    - **The aim wedge is the contract.** Its **arc** is the knob and means *how wrong your aim may
      be*; **reach is derived** from travel plus damage reach plus `AimAssistMarginCm`, the one
      authored number. **The wedge must reach past hit range — that gap is the design, not slack**,
@@ -390,11 +368,12 @@ repeated here**, because a second copy is what nobody reviews.
      against the structure audit. Measuring a curve means moving the dummy past ~800 cm first, since
      the gate truncates both lunges at the placed spacing.
 
-Three things that were never items are also done: the netcode groundwork **Slices A and B**, the
-**hover bug**, and the **facing pass**. The hover left one rule worth restating because it was
-invisible for weeks — **the mesh's relative Z and `InitCapsuleSize`'s half-height must change
-together**, which is why they sit adjacent in `ATheDreamCharacter`'s constructor. **Foot IK now runs
-during montages**, kept because ramp attacks adapt correctly rather than to prop anything up.
+**Evicted 2026-08-14 and fully routed:** Attack Ladder, Dodge, Sword & Shield, Death, Dodge
+Distance, Attack Swap and Input Buffer, plus the three things that were never items — the netcode
+groundwork **Slices A and B**, the **hover bug** and the **facing pass**. Their rules are in Core
+Combat Rules, their open questions in the slices that answer them, their latent defects in the traps
+section, and their reasoning in dated entries. `Docs/Combat-Decisions.md`'s symbol index is the way
+back to any of it.
 
 Open and **not** a defect: the character can stand on the ramp's near-vertical edge face, so walking
 off it descends that face before free fall. Whether `MaxWalkableFloorAngle` should permit it has
@@ -408,7 +387,7 @@ dependency, the rest is judgement and may be revisited.
 In execution order, and all sequential. **Target Lock shipped 2026-08-13**, and Lunge + Recovery on 2026-08-12; see Done.
 
 - **Block** — the held guard, and the blockstun that arrives with it.
-   - **Idea, noted 2026-08-11, not decided: use V1 as a *blocking* locomotion set.** If V3 becomes the neutral stance, V1's pervasive guard-forward pose stops being a drawback and becomes exactly the right material for the one state where a raised shield is correct. That is an **authored** block stance rather than a synthesized upper-body blend, which is the alternative **Sword & Shield** deferred (its art-seam note). It does not fully dissolve the art seam — V1's directions still disagree with each other — but it means any blend is correcting a guard pose rather than inventing one. Cheap to note now, expensive to rediscover. Blockstun disables offense and parry for a duration set by the attack blocked; it is the first *reactive* stun state and pulls in plumbing hitstun will also need. Content verified 2026-08-10, all in `SwordAndShieldAnimV1` (our pack): `DefenseStart` / `Defense_Loop` / `DefenseEnd` for the held guard, **plus eight `Defense_Hit_*` clips** — four directional block impacts and four die-while-blocking variants. The impacts are what blockstun reads as, and nothing previously recorded that they exist.
+   - **Idea, noted 2026-08-11, not decided: use V1 as a *blocking* locomotion set.** If V3 becomes the neutral stance, V1's pervasive guard-forward pose stops being a drawback and becomes exactly the right material for the one state where a raised shield is correct. That is an **authored** block stance rather than a synthesized upper-body blend, which is the alternative Sword & Shield deferred against a **known art seam that is not a bug**: adjacent directions disagree about the guard pose, so the shield snaps ~135° blending between them. That is inherent to the source clips, and the standard fix — an upper-body layered blend over one consistent guard pose — is very likely what this slice wants anyway, which is why it was deliberately not built twice. It does not fully dissolve the art seam — V1's directions still disagree with each other — but it means any blend is correcting a guard pose rather than inventing one. Cheap to note now, expensive to rediscover. Blockstun disables offense and parry for a duration set by the attack blocked; it is the first *reactive* stun state and pulls in plumbing hitstun will also need. Content verified 2026-08-10, all in `SwordAndShieldAnimV1` (our pack): `DefenseStart` / `Defense_Loop` / `DefenseEnd` for the held guard, **plus eight `Defense_Hit_*` clips** — four directional block impacts and four die-while-blocking variants. The impacts are what blockstun reads as, and nothing previously recorded that they exist.
 - **Light String** — the 2–4 hit light string. **It cannot fully finish before Stun**, since its last hit knocks down; expect to ship the string and leave its terminator behind. **Measured 2026-08-11:** no family in either pack offers 3+ uniformly short stages, so the string must be assembled from short stages **across** families, or accept uneven lengths. The one exception is **V3 `Attack4`**, the only four-stage family (0.600 / 1.167 / 0.667 / 2.333), which carries two short stages inside one authored chain. V3's families are deeper than V1's generally — a real argument for V3 that pulls against V1's short two-stage openers being better for **Attack Swap**'s single light.
 - **Parry.** **Re-searched 2026-08-11** by enumerating every distinct `SwordShield` move rather than grepping for parry words, and the earlier picture was too thin. Beyond `Block1_Parry` there are `Block1` and `Block2` — discrete block actions with their own `_Idle` and `_Hit` — so there are **three candidate shapes plus failure states**, not one clip, and all are already migrated. The two packs split by **idiom**: V1 does held guard (Block's), V3 does discrete actions (a parry's). The `SwordShield` archetype holds three differently-named packs (`SwordAndShieldAnimV1`, `SwordShieldAnimV2`, `SwordSwordAnimV3`) and dual-sword content is all `DualSwordAnimation*` in its own archetype — so `SwordSword` is a vendor naming quirk, not a stance. What is still open needs a preview, not a search: whether V3's guard pose reads consistently beside V1's. Details in `Docs/Animation-Library.md`.
 - **Stun** — hit reaction, knockdown, and death's full treatment, taken together since they share state plumbing and the questions **Death** deferred get answered here. Verified 2026-08-10: `SwordSwordAnimV3` has **four directional** `Hit_<DIR>` and **four directional** `Death_<DIR>` clips, not single standalone ones. **`SwordShield` has no get-up content whatsoever** — unfiltered search for `Rise|GetUp|StandUp|Recover|Wake|Prone|Ground|KnockDown|Knock|Fallen|Down` returns zero for the archetype. It exists only in `DaggerCombatAnimationV1` (18: `Rise1`–`Rise9`, two variants each) and `Unarmed` (8, including the bundle's only explicit `KnockDown` and `KnockDown_React`). Knockdown recovery therefore needs a **cross-archetype migration** — raise it before the slice starts.
