@@ -6,9 +6,19 @@ the editor, because most of what it describes **fails silently** — a write tha
 changes nothing, a build that never happened, a log that lies about absence.
 
 It is kept short enough for that to be reasonable. **Anything that can be compressed to its rule
-has been**, and the incidents behind them live in git history and `Docs/Combat-Decisions.md`. If
-this file grows past a comfortable read-through, audit it rather than skimming it — that audit is
-step 3 of the closedown ritual in `Docs/Closing-Down.md`.
+has been**, and the incidents behind them live in git history and `Docs/Combat-Decisions.md`.
+
+**The budget is ~400 lines, and it is enforced when you add, not when you audit.** If a new line
+would take this past about 420, compress something first — the person adding a line is the one who
+knows what it replaces, and a periodic audit is too late by definition. This is stated as a number
+because the vaguer version ("keep it short enough to read") let it drift **47 lines in a single day**
+after being cut from 820 to ~400 on 2026-08-13, without anyone noticing. Step 3 of
+`Docs/Closing-Down.md` is the backstop, not the mechanism.
+
+**Growth that is genuinely this file's belongs here; growth that is the project's does not.** All 47
+of those lines were documentation of *our own* debug instrumentation, which grows once per combat
+feature forever. That is now `Docs/Debug-Instruments.md`. What is left grows only when Unreal or its
+toolset surprises us, which is rare and worth the space.
 
 **Confidence marks.** *(confirmed)* was observed directly. *(reported once)* comes from a single
 incident and has not been reproduced — work around it, but re-test rather than treat as settled if
@@ -308,12 +318,6 @@ measure against something that cannot be pushed.
 auto-attack cycle returned the same phase nine times, reading exactly like "the character never
 moves". Vary the spacing deliberately rather than taking more samples at the same cadence.
 
-**The debug auto-attacker has a configuration that silently invalidates it.**
-`DebugAutoAttackResetDelaySeconds` **plus the attack's full length** must fit inside
-`DebugAutoAttackInterval`, or the reset fires mid-attack and the numbers still look plausible. The
-shipped defaults (0.35 and 3.0) clear all three tiers with room — the charged is the binding case at
-1.45 s. Interval is read once in `BeginPlay`; only the delay is live at runtime.
-
 **Prefer normal PIE for anything timed.** In `bSimulate: true` the dummy's looping timer stopped
 after ~30 s and never resumed, unexplained *(2026-08-12)*. Editor focus is **not** the variable — that
 intermediate conclusion was wrong.
@@ -321,45 +325,10 @@ intermediate conclusion was wrong.
 **The `TimeDilation` route is closed.** `AWorldSettings::TimeDilation` rejects writes;
 `AActor::CustomTimeDilation` is writable but world timers do not scale with it.
 
-**`L_CombatTest`'s floor is one scaled `Engine/BasicShapes/Plane`** — scale 100, so 10000×10000
-centred on the origin, edges at ±5000. Its size is a measurement constraint: accumulating travel
-over many attacks is how displacement is measured, and the dummy walked off the old floor. Verify
-any change with two `SceneTools.trace_world` probes, one inside and one beyond, so the check can fail.
-
 **Editor log timestamps are UTC; git commits are local.** A log reading `2026.08.13-02.07` and a
 commit reading `2026-08-12 17:26 -0600` are the same evening.
 
 ### Reading the logs
-
-**`TD.DebugCombatTiming` defaults to ON** and gives the per-attack phase trace. The full tag list,
-enumerated from the source 2026-08-14 rather than remembered — `ACTIVATE`, `COIL START`, `COMMIT`,
-`ESCALATE`, `RELEASE` / `RELEASE OFF`, `RELEASE BEGIN` / `END` (from the notify), `ABILITY END`,
-`MONTAGE` (seven variants, including the delegate outcomes), `FACING LOCK`, `DODGE`, `DODGE END`,
-`BUFFER`, `REFUSED`, `DEATH`, `REVIVE`, `TARGET`, `AIM ASSIST`, `AIM WEDGE` and `LUNGE STOP`. Turn
-it off with `TD.DebugCombatTiming 0` when combat is not under test.
-
-**`ABILITY END` carries `elapsed`, which is an attack's true total** — the one number arithmetic
-over the authored phases cannot give you, since it includes whatever the coil and the phase
-transitions cost. Reach for it before concluding an attack runs long.
-
-**`TD.DebugHUD` also defaults to ON** and draws health, stamina and active tags. It is the fastest
-way to read a state tag, and the only way to see one without a log round-trip.
-
-**Never judge a debug wedge's size by eye — read `AIM WEDGE`.** It prints the reach and arc of the
-volume being drawn, at every change. A session was lost to comparing remembered radii: the drawn
-wedge was one branch's for every tier, and eyeballing it produced two authored values that had never
-done anything. One held attack should print three `AIM WEDGE` lines with non-decreasing reach.
-
-**`LUNGE STOP` is the only way to see a lunge end early**, because a stop and a standoff gate that
-simply stayed shut leave the character in the same place. Absence of it after a connecting hit is the
-tell that the stop did not fire.
-**`TD.DebugMeleeTrace` defaults to OFF** and draws the authored wedges.
-
-**Reach for the trace early.** Every real bug in the timing system was found by measuring, and
-reasoning about play rates on paper mis-diagnosed several confidently.
-
-**Two warnings are deliberately ungated**, because both describe an attack that silently stops
-dealing damage: a skipped coil, and a `ReleaseStartSeconds` drifted from its notify.
 
 **`GetLogEntries` returns a *window* from the end of the log, so a mixed-frequency pattern lies about
 absence.** `DODGE|BUFFER|DEATH|REVIVE` at `maxEntries: 60` returned 2 dodges; `DODGE` alone at
@@ -370,26 +339,9 @@ question is "did this ever happen".**
 omitting it fails with an error that reads like the log system is broken. **Pass `category: ""`
 explicitly, every time.**
 
-**Not every state is traced.** There is **nothing for exhaustion** — absence from the log is evidence
-nobody logs it. Confirm with `GetActiveTags`, or infer from a `BUFFER ...Dodge: expired`. The list is
-greppable: `grep -rn "TD_TIMING_LOG" Source/`.
-
-**`RELEASE BEGIN`/`END` can report the wrong montage** *(found in review)*.
-`AnimNotifyState_MeleeWindow` logs via `GetCurrentActiveMontage()`, so anything at higher priority —
-a dodge cancelling an attack — supplies the position and rate instead. `DODGE` and `COMMIT` come
-from the abilities and are unaffected; cross-check against those.
-
-**Two `BUFFER` traps.** A held buffer does not expire but does not wait either — it fires at the
-first opportunity, so holding a button through a lockout will not park one for testing. And **the
-hold duration in `released after Nms held` is the value that matters**: it is bounded by how long the
-*block* lasted, not by `InputBufferSeconds`, so it can exceed a tier boundary.
-
-**A montage whose section length disagrees with its segment length is misaligned.** Swapping 0.733 s
-clips for 0.833 s ones moved every segment while the section markers stayed put, producing cumulative
-drift that read in play as "forward is fine and it gets worse round the compass" — an arithmetic
-problem wearing an animation problem's clothes. `DODGE` prints `sectionLen=`; that is the tell.
-
----
+**The combat trace itself is in `Docs/Debug-Instruments.md`** — every tag it prints, the three
+cvars and their defaults, the two ungated warnings, and the traps in reading it. Split out
+2026-08-14; it grows with combat features and this file does not.
 
 ## Verifying combat changes
 
