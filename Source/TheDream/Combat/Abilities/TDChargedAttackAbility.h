@@ -193,6 +193,19 @@ struct FTDAttackBranch
 	 *
 	 *  **MaxReachCm of 0 disables aim assist for this branch**, which is the default, so adding this
 	 *  changed no existing behaviour until it was authored.
+	 *
+	 *  **Homing follows the ladder as of 2026-08-14, so this is live from the moment its branch is
+	 *  escalated to, not only at commit.** Before that it was read once, at commit, while homing ran
+	 *  the entire windup on branch 0's wedge -- so every tier homed at the *light's* reach and only
+	 *  the light's value did anything observable. Two of the three authored numbers had never been
+	 *  seen when they were committed. See Docs/Combat-Decisions.md.
+	 *
+	 *  **Author these non-decreasing in reach across the ladder.** The designer's commitment
+	 *  (2026-08-14), deliberately not enforced in code: a shrinking wedge is not a break, because the
+	 *  body has already turned and the worst case is that it stops tracking or re-picks, reading as a
+	 *  slightly misleading rotation before the lunge. **Leaving a later branch at 0 is the case that
+	 *  bites**, because 0 is *disabled* rather than narrow -- homing switches off mid-hold and the
+	 *  body stops tracking partway through a charge.
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Attack")
 	FTDAttackHitbox AimAssistWedge = FTDAttackHitbox::MakeDisabled();

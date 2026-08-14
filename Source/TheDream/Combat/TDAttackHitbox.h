@@ -158,8 +158,14 @@ struct FTDAttackHitbox
 	 *  aim assist needs to draw a *different* wedge than the one being traced -- a second copy of
 	 *  this would be a second thing to keep in step with the shape it claims to show.
 	 *
-	 *  DurationSeconds of -1 draws for a single frame, which suits anything redrawn every tick; the
-	 *  aim assist wedge is a one-instant decision and needs a real duration to be visible at all.
+	 *  DurationSeconds of -1 draws for a single frame, which suits anything redrawn every tick --
+	 *  including the aim assist wedge, which is redrawn every tick while homing runs.
+	 *
+	 *  *This previously said the aim assist wedge "is a one-instant decision and needs a real duration
+	 *  to be visible at all", describing a design that was replaced during the same slice and never
+	 *  shipped. Corrected 2026-08-14, after the stale note sent a debugging session looking for a draw
+	 *  that git shows never existed.* A comment describing a sibling's behaviour goes stale silently,
+	 *  because nothing about editing the sibling brings you here.
 	 */
 	void DrawDebug(
 		const UWorld* World,

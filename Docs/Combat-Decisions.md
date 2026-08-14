@@ -82,6 +82,8 @@ dated entry. Add a row whenever an entry supersedes part of an older one.
 | 2026-08-11 — Dodge travel ships at the clips' authored distance | displacement comes from the montage's root motion, corrected per direction by MeasuredTravelCm | 2026-08-13 — The dodge stops reading displacement off its clips (both the scales and the measurements are deleted; all eight directions travel DodgeTargetDistanceCm) |
 | 2026-08-13 — The gate is per tick, and lunge duration is a designed quantity | the per-tick gate is the whole answer to a lunge arriving at a body — it "can only ever subtract travel", so the authored distance is the only ceiling needed | 2026-08-14 — The lunge stops on a hit (a pause is not a stop: the gate reopens when the body stops existing, so a killed target is slid through. The gate's own reasoning survives untouched — this is a second mechanism, not a correction to it) |
 | 2026-08-10 — Exhaustion ends at full | recovery speed is one number, so `StaminaRegenPerSecond` *is* the exhaustion duration | 2026-08-14 — Exhaustion recovers at its own rate (the rate is split; exhaustion still ends at Max and nowhere else, so the entry's actual claim survives — what changed is which number sets how long it takes) |
+| 2026-08-13 — Target Lock's rotational half aims the lunge | the wedge is per branch and *is* the contract — "aim inside it and the body ends at 0 degrees of error", authored per tier | 2026-08-14 — The homing wedge follows the ladder (it was per branch only at commit, while homing ran every tier on branch 0's; the heavy's and charged's values did nothing and had never been observed. The contract is real *after* this fix, not before it) |
+| 2026-08-13 — Target Lock's rotational half aims the lunge | a 12.9° camera error arriving at commit as 0.0° is offered as the mechanism working | 2026-08-14 — The homing wedge follows the ladder (the measurement is real and unchanged, but it was taken on a light, where branch 0's wedge is the correct one — it says nothing about the heavy or charged, which is how the defect passed a play-verification) |
 
 ---
 
@@ -388,6 +390,24 @@ breathes rather than sitting still — which is the property this note said woul
 bought. The number still does two jobs and the second is still the easy one to forget; what it no
 longer sets is the spacing of a *connecting* chain.
 
+**Whenever any branch's `AimAssistWedge` is authored — *reaches must not decrease across the ladder,
+and nothing enforces it.*** Filed 2026-08-14 when homing began following the ladder. Homing re-arms
+with each branch's wedge as the attack escalates, so a later branch with *less* reach can drop a
+target the previous branch had already locked onto — the body stops tracking or re-picks mid-hold.
+
+**Not a break, and deliberately unguarded**, which is the designer's call recorded as theirs: the body
+has already turned by then, so the worst case reads as a slightly misleading rotation before the
+lunge in edge cases. A runtime guard would trade a stated rule for a silent one.
+
+**The case that actually bites is 0, not a small number.** `MaxReachCm` of 0 means *disabled*, not
+narrow, so a later branch left unauthored switches homing off partway through a charge and the body
+stops tracking entirely. Adding a fourth tier, or a weapon whose ladder is authored fresh, is how
+this gets tripped — the defaults are 0.
+
+*Check it from the trace rather than by eye: one held attack should print three `AIM WEDGE` lines with
+non-decreasing `reach`. Reading wedge sizes out of the viewport is what caused the defect this fix
+exists for.*
+
 **Before the first multiplayer slice — *aim assist reads a loose tag across the network boundary,
 and loose tags do not replicate.*** Filed 2026-08-13, found by the traps grep before building the
 rotational half rather than after.
@@ -618,6 +638,8 @@ kept in their own notes. What belongs here is only what to move once a verdict a
 | An action feels unresponsive at low stamina | Nothing — find what is gating it | Adding or restoring a cost gate. Costs are paid, never required; if an input silently does nothing, `CostGameplayEffectClass` or `CommitAbility` has crept back in. |
 | Exhaustion feels too long or short | `ExhaustedStaminaRegenPerSecond`, since recovery *is* the duration. Separate from the normal rate as of 2026-08-14 | A duration knob, and no longer `StaminaRegenPerSecond` — that governs normal play only, and moving it to retune exhaustion now changes dodge cadence instead. `ExhaustionSeconds` stays deleted: splitting the *rate* keeps the property that killed it, because exhaustion still ends at Max and nowhere else. |
 | An attack slides past a target after killing it | Nothing — the lunge stops outright on a hit against a viable target, as of 2026-08-14 | `LungeStandoffCm`. The gate *pauses* while a body is in the way and resumes when one is not, so a corpse losing its capsule is not a case any standoff distance can express. Lowering it to hide the slide shortens every lunge that never hit anything. |
+| A tier assists onto targets it should not, or misses ones it should catch | That branch's `AimAssistWedge` — live from its escalation onward as of 2026-08-14, so it is finally observable | Branch 0's wedge, unless the complaint is about the *light* or about the span before the first boundary. That one governs every tier until escalation, so widening it to fix the charged silently widens all three in the one span that must be indistinguishable. |
+| The drawn aim wedge does not match the tier being thrown | Nothing — it follows the ladder now. Read `AIM WEDGE` in the trace rather than judging the radius | Your eyes. Wedge sizes cannot be read out of a viewport; that is exactly how two never-observed values got authored and committed. |
 | An input still feels dropped, with buffering on | `InputBufferSeconds` — but read the `BUFFER` trace first and find out whether it was stored, fired or expired | The attack's own timings. A press that expired unfired is a question about the window; moving `ReleaseAtSeconds` to compensate tunes the ladder around an input problem and hides it. |
 | An attack reaches too far or not far enough | The branch's `MaxReachCm` | The animation, the clip choice, or the play rate. Reach stopped being a property of the art on 2026-08-12; if a swing looks like it should reach further than it does, that is an argument for changing the number *or* the clip, and only the number is balance. |
 | An attack hits things beside you that it visibly missed | `ArcDegrees`, or skew `ArcCentreDegrees` toward the side the blade crosses | `MaxReachCm`. Narrowing reach to fix a coverage problem shortens the attack everywhere to fix it in one direction. |
@@ -704,6 +726,96 @@ concludes the log is wrong rather than merely old. Add a row whenever a name cha
 | `StationaryTurnRateDegrees` | **`TurnRateDegrees`**, renamed 2026-08-12 when facing stopped having a separate moving mode. No longer stationary-only, and no longer cosmetic — it decides where an attack points. |
 | `bSnapFacingWhileMoving` | Never shipped. A temporary A/B switch for the facing pass, deleted with the snap branch it selected. |
 | `RecoveryPlayRate` | **`FTDAttackBranch::RecoverySeconds`**, 2026-08-12. Recovery is authored as a duration per branch and its rate is derived, as windup and release already were. A rate could only set the punish window indirectly, through however long the clip's tail happened to be. |
+
+---
+
+## 2026-08-14 — The homing wedge follows the ladder, and a debug view authored two values nobody ever saw
+
+**The defect, which shipped in the rotational half on 2026-08-13 and was found the next day.** Homing
+ran the entire windup on `Branches[0].AimAssistWedge` — hardcoded — for every tier. The per-branch
+wedge was read once, at commit, by which point homing had driven the aim error to ~0. So the light's
+reach silently governed homing for all three tiers, and **the heavy's 1000 and charged's 1100 did
+essentially nothing.**
+
+### How it survived a play-verification, which is the part worth keeping
+
+The debug draw shows the homing wedge. The homing wedge was always branch 0's. So during a *charged*
+windup the viewport drew the *light's* volume, in the charged attack's colour, at the charged
+attack's moment, with nothing on screen naming which branch it belonged to.
+
+The user authored all three wedges against that view. Editing the light moved the drawing; editing
+the heavy and charged moved nothing, and the changes were read as having applied. **Two of the three
+committed numbers had never been observed at all**, and 600 was the only value anyone had seen work.
+
+Three things made it hard to see, and they generalise:
+
+- **A debug view that is honest about a mechanism can still be dishonest about a *quantity*.** The
+  draw never lied — it showed exactly what homing used. It simply never said *whose* number that was,
+  and the reader supplied the obvious wrong answer.
+- **Sizes cannot be read by eye.** Both parties spent a session comparing remembered radii. The wedge
+  is now traced (`AIM WEDGE`, printing reach and arc) precisely so nobody has to.
+- **The symptom surfaced immediately after unrelated work in the same files**, so it read as a fresh
+  regression. It was a day old. `git log -S` on the draw and a diff of the suspect commit are what
+  separated "changed today" from "was always broken" — and the answer was neither party's memory.
+
+*The user diagnosed it, including proposing that they had placebo'd themselves, and the confirming
+test was theirs: set the light's wedge to 3000 and throw a charged. The charged homed from 3000 cm.*
+
+### The fix, and why widening does not leak the tier
+
+**Homing now re-arms with the new branch's wedge at each escalation**, in the same block of
+`HandleCheckpoint` that advances the branch. Light's wedge until the attack escalates to heavy, then
+heavy's until charged.
+
+The obvious objection is that a per-tier homing range is a *tell* — a defender at 800 cm would see
+the body snap toward them for a charged but not for a light. It does not apply, because escalation is
+the same instant `EnterCoil()` fires, and the coil is the designed tell. Before the first boundary
+every tier still homes on branch 0's wedge, which is the only span that must be indistinguishable.
+**The wedge widens only at moments the defender is already being told**, so this is consistent with
+the reactability model rather than an exception carved into it.
+
+Note what this does *not* fix: the per-branch wedge is still read again at commit, and homing has
+still absorbed the error by then. That call is now merely redundant rather than inconsistent — it
+uses the same wedge that has just been homing.
+
+### The monotonicity assumption is the designer's, recorded as theirs
+
+Wedges must be non-decreasing in reach across the ladder. **Deliberately not enforced in code**, at
+the user's direction, and the reasoning is why it is safe to leave unenforced: a shrinking wedge does
+not break anything, because the body has already turned. Worst case it stops tracking or re-picks,
+reading as a slightly misleading rotation before the lunge. Filed as a trap rather than a guard,
+because policing a designer's stated commitment with runtime behaviour trades a clear rule for a
+silent one.
+
+**The sharp edge is 0, not a small number.** `MaxReachCm` of 0 is *disabled*, not narrow, so a later
+branch left unauthored switches homing off mid-hold and the body stops tracking partway through a
+charge. That is the one case where the failure is not merely cosmetic.
+
+### Measured the day it landed
+
+One held attack, from the trace: activate `reach=600`, `ESCALATE -> branch 1` with `reach=1000`,
+`ESCALATE -> branch 2` with `reach=1100`, commit `reach=0 homing=0`. Wedge changes share a timestamp
+with their escalation, and the boundaries land at 0.158 / 0.460 / 0.702 against an authored
+0.15 / 0.45 / 0.70. Lights show one wedge and a held attack shows three, which is the check to repeat.
+
+**The three authored numbers are now live and observable for the first time.** 1000 and 1100 should be
+treated as untested placeholders and authored by feel, not inherited as decisions.
+
+### A correction to this session's own commit, because it reads as design intent and is not
+
+Commit `0743a99` shipped the three wedges with the message: *"The arc is uniform because it means
+'how wrong your aim may be', which is a property of the player rather than of the tier. Reach is not:
+it scales with the tier's own travel, which is what keeps assist from selecting a target the lunge
+could never have reached."*
+
+**The first sentence stands. The second was invented.** It is a post-hoc rationalisation, written by
+the assistant around two numbers that were assumed to be authored deliberately and had in fact never
+done anything. It reads like a recorded design decision and should not be cited as one — nobody chose
+600/1000/1100 against observed behaviour, because there was none to observe.
+
+The general form is worth more than the correction: **a plausible reason offered for someone else's
+number manufactures a decision that was never made.** Describing what a value does is safe; explaining
+why it was chosen, when you were not there, is not.
 
 ---
 

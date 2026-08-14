@@ -162,6 +162,23 @@ void UTDChargedAttackAbility::HandleCheckpoint()
 			EnterCoil();
 		}
 
+		// **Homing widens with the ladder, and that is why it does not leak the tier.** The
+		// widening happens in the same block that enters the coil -- the designed tell -- so a
+		// defender who could read a longer-reaching snap has already been told this is no longer a
+		// light. Before this boundary every tier homes on branch 0's wedge, which is the only span
+		// that has to be indistinguishable.
+		//
+		// It rests on wedges being non-decreasing in reach across the ladder, which is a designer's
+		// commitment rather than something enforced here (2026-08-14, the user's call). A shrinking
+		// wedge does not break anything: the body has already turned, so the worst case is that it
+		// stops tracking or re-picks, reading as a slightly misleading rotation before the lunge.
+		// **A later branch left at MaxReachCm 0 is the sharper case** -- that is *disabled* rather
+		// than narrow, so homing switches off mid-hold and the body stops tracking partway through.
+		if (ATDCombatCharacter* CombatCharacter = Cast<ATDCombatCharacter>(GetAvatarActorFromActorInfo()))
+		{
+			CombatCharacter->SetAimAssistHoming(Branches[NextIndex].AimAssistWedge, TargetImmunityTags, true, bDrawDebugTrace);
+		}
+
 		TD_TIMING_LOG(TEXT("[%.3f] ESCALATE   -> branch %d  pos=%.4f"),
 			GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f, NextIndex, GetMontagePosition());
 

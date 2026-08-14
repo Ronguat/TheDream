@@ -404,6 +404,14 @@ them is in `Docs/Combat-Decisions.md`.
       - **The wedge is the contract.** `FTDAttackBranch::AimAssistWedge`, per branch. Aim inside it
         and the body snaps dead-on; space inside travel + reach and the hit follows short of a
         defensive action. Its arc is the one knob and means *how wrong your aim may be*.
+      - **Homing follows the ladder** (2026-08-14): light's wedge until the attack escalates to heavy,
+        then heavy's, then charged's. Widening only ever happens at an escalation, which is the same
+        instant the coil fires — so it never leaks a tier the defender has not already been told
+        about. **Author reaches non-decreasing across the ladder**; filed as a trap, and a later
+        branch left at 0 is *disabled* rather than narrow, which switches homing off mid-hold.
+        *Until this landed the per-branch value was read only at commit while homing ran every tier on
+        branch 0's wedge, so the heavy's and charged's numbers did nothing and had never been seen.
+        Treat both as untested placeholders.*
       - **Evaluated in the camera's frame**, not the body's — assist aids the attacker's input, while
         damage stays actor-framed because defenders must be able to trust what the body does.
       - **Homing runs through the base lunge and stops at commit**, at the existing `TurnRateDegrees`

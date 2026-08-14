@@ -1147,6 +1147,18 @@ void ATDCombatCharacter::SetAimAssistHoming(const FTDAttackHitbox& InWedge, cons
 	AimAssistImmunityTags = InImmunityTags;
 	bAimAssistHoming = bActive && InWedge.IsEnabled();
 	bAimAssistDrawDebug = bInDrawDebug;
+
+	// **Traced because this wedge is what the debug draw shows, and a wedge cannot be read by eye.**
+	// A whole session was lost to exactly that: the drawn volume was branch 0's for every tier, and
+	// judging its radius visually made two never-observed values look authored. Sizes are the one
+	// thing a viewport is bad at, so the number belongs in the log beside the ESCALATE line that
+	// changes it. Reach of 0 prints as the disable, which is the transition worth seeing.
+	TD_TIMING_LOG(TEXT("[%.3f] AIM WEDGE  %s  reach=%.0f arc=%.0f homing=%d"),
+		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f,
+		*GetName(),
+		InWedge.MaxReachCm,
+		InWedge.ArcDegrees,
+		bAimAssistHoming ? 1 : 0);
 }
 
 AActor* ATDCombatCharacter::FindAimAssistTarget(

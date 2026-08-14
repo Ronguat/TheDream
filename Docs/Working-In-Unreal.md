@@ -319,8 +319,13 @@ commit reading `2026-08-12 17:26 -0600` are the same evening.
 **`TD.DebugCombatTiming` defaults to ON** and gives the per-attack phase trace: windup rate wanted
 versus applied, coil start and rate, commit position, each release edge with its montage position,
 facing error at every lock, plus `DODGE`, `BUFFER`, `REFUSED`, `DEATH`, `REVIVE`, `TARGET`,
-`AIM ASSIST` and `LUNGE STOP`. Turn it off with `TD.DebugCombatTiming 0` when combat is not under
-test.
+`AIM ASSIST`, `AIM WEDGE`, `ESCALATE` and `LUNGE STOP`. Turn it off with `TD.DebugCombatTiming 0`
+when combat is not under test.
+
+**Never judge a debug wedge's size by eye — read `AIM WEDGE`.** It prints the reach and arc of the
+volume being drawn, at every change. A session was lost to comparing remembered radii: the drawn
+wedge was one branch's for every tier, and eyeballing it produced two authored values that had never
+done anything. One held attack should print three `AIM WEDGE` lines with non-decreasing reach.
 
 **`LUNGE STOP` is the only way to see a lunge end early**, because a stop and a standoff gate that
 simply stayed shut leave the character in the same place. Absence of it after a connecting hit is the
