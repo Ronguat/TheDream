@@ -132,17 +132,19 @@ void ATDCombatCharacter::TickStaminaRegen(float DeltaSeconds)
 		return;
 	}
 
-	// **Suppression does not apply while exhausted, and this discharges a filed trap.**
-	// ActivationBlockedTags gates activation, not continuation, so a held action -- block, when it
-	// arrives -- keeps StaminaRegenPausedTag applied for as long as it runs. Regen is the only thing
-	// that can end exhaustion, so honouring the pause here would stall the exit condition forever:
-	// a guard held at zero locks out every defensive action permanently, and nothing in the game
-	// can clear it. Unreachable until block exists, which is why it was filed against that slice.
+	// **Exhaustion does not bypass the pause.** It did for a few hours on 2026-08-14 and play threw
+	// it straight back out: the bypass was written to stop a held guard stalling the only condition
+	// that ends exhaustion, but it closed the *bounded* cases along with the unbounded one, so a
+	// dodge that exhausted you started regenerating during its own duration. The pause is a cost of
+	// acting, and being exhausted is not a refund -- if anything it is where the cost should bite
+	// hardest.
 	//
-	// The suppressors above are still *accumulated* while exhausted rather than skipped, so the tail
-	// stays honest on the way out -- reaching full does not also refund the pause the held action had
-	// already earned. Exhaustion suspends the pause; it does not cancel it.
-	if (!bExhausted && (bSuppressorActive || Now < RegenSuppressedUntil))
+	// **The unbounded case stopped being a deadlock by design rather than by code.** A player may
+	// hold block at zero stamina; it accomplishes nothing, since anything actually blocked breaks
+	// the guard, and it suppresses only their own regen. Releasing is always available and always
+	// correct, so this is a state chosen rather than one trapped in -- which is what separates it
+	// from a deadlock and is why nothing here has to defend against it. See Docs/Combat-Decisions.md.
+	if (bSuppressorActive || Now < RegenSuppressedUntil)
 	{
 		return;
 	}

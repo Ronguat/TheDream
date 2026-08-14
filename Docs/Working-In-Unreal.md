@@ -396,8 +396,9 @@ With the stamina economy involved, add:
 - **Regen resumes at the right moment** — the action's duration *plus* `StaminaRegenPauseSeconds`
   from when it ended, then at `StaminaRegenPerSecond`
 - **Exhaustion triggers at zero and clears at Max, not on a timer.** Regen must *continue* while
-  exhausted, at `ExhaustedStaminaRegenPerSecond`; it is the only thing that can end it, so **the
-  pause is deliberately ignored while exhausted** and that rate may never be zero
+  exhausted, at `ExhaustedStaminaRegenPerSecond`, and that rate may never be zero. **The regen pause
+  still applies while exhausted** — check this specifically, since it briefly did not: a dodge that
+  exhausts you must finish, then wait `StaminaRegenPauseSeconds`, before the bar moves at all
 - **Nothing in the build can drain stamina without a human at the keyboard**, so every check above
   needs hands on the dodge key. The attribute set cannot be written through the toolset either —
   `SpawnedAttributes` is not reflection-readable — so there is no automated substitute *(2026-08-14)*

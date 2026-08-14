@@ -285,8 +285,15 @@ protected:
 	 *  being a flat sentence -- and there is no second number that can disagree with the bar.
 	 *
 	 *  Regen deliberately continues while exhausted -- exhaustion is a lockout on acting,
-	 *  not on recovering. That is now load-bearing rather than merely humane: regen is the
-	 *  only thing that can end it, so suppressing regen here would make it permanent.
+	 *  not on recovering. That is load-bearing rather than merely humane: regen is the only
+	 *  thing that can end it.
+	 *
+	 *  **The regen pause is the one thing that still suppresses it**, and deliberately so as of
+	 *  2026-08-14. Bypassing the pause while exhausted was tried for a few hours and thrown out by
+	 *  play -- it refunded the cost of the very action that emptied the bar. Holding an action at
+	 *  zero can therefore suppress recovery for as long as it is held, which is a choice with an
+	 *  obvious exit rather than a trap: releasing is always available and always correct, and a
+	 *  guard held at zero accomplishes nothing anyway since anything it blocks breaks it.
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Stamina")
 	FGameplayTag ExhaustedTag;

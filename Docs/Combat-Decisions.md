@@ -424,28 +424,31 @@ So this is the loose-tag trap in a new and worse place — the existing entry wa
 one: **decide on the server, apply everywhere** — a replicated property whose `OnRep` applies the
 tag, following `bDead` / `bExhausted`.
 
-**~~Before Block — exhaustion can become permanent.~~ Discharged 2026-08-14.** `ActivationBlockedTags`
-gates activation, not continuation, so a block held through zero would keep `State.StaminaRegenPaused`
-applied; regen is the **only** thing that ends exhaustion, so stalling it stalled the exit condition
-forever. **Fixed in `TickStaminaRegen`: suppression no longer applies while `bExhausted`.** The
-suppressors are still *accumulated* while exhausted rather than skipped, so the tail stays honest on
-the way out — reaching full does not refund the pause the held action had already earned. Exhaustion
-suspends the pause; it does not cancel it.
+**~~Before Block — exhaustion can become permanent.~~ Closed 2026-08-14 as a non-defect.** The
+mechanism is real and unchanged: `ActivationBlockedTags` gates activation, not continuation, so a
+guard held through zero keeps `State.StaminaRegenPaused` applied, and regen is the only thing that
+ends exhaustion. **It is not a trap because the player is holding the button.**
 
-*Two things kept, because they outlived the fix.* **It is still not play-verified and cannot be**,
-which is the honest state rather than an omission: nothing in the build can hold a regen pause open,
-because block does not exist — that is precisely why the trap was filed against Block rather than
-fixed earlier. The fix is verified by construction and by review; **the first held guard is what will
-actually exercise it**, so re-read this then. And the **related edge is untouched**: the stamina
-delegate only fires on a *change*, so a cost applied at exactly 0 changes nothing and cannot
-retrigger exhaustion. Narrow today — costs clamp at 0 and the 100→0 transition does fire — but it is
-the same class of defect and block is what widens it.
+The user's call, and it is the general form worth keeping: **a state you are choosing to stay in, with
+the exit always available, is not a deadlock.** Holding block at zero accomplishes nothing — anything
+actually blocked breaks the guard — so a player doing it is griefing only themselves, and releasing
+both ends it and starts recovery. Nothing needs defending against.
 
-**Whoever tunes `ExhaustedStaminaRegenPerSecond` can reintroduce this in one keystroke.** Zero is not
-"no recovery while exhausted", it is permanent exhaustion with every defensive action locked out for
-the rest of the match. The `ClampMin="0.01"` on that property is load-bearing rather than tidy, and
-the reason lives here as well as in the header because a clamp with no stated reason is the kind of
-thing a later edit removes.
+*This replaces a discharge claimed earlier the same day, which said the trap was fixed by making
+suppression not apply while exhausted. That fix shipped and play threw it out within hours: it closed
+the bounded cases along with the unbounded one, so a dodge that exhausted you began regenerating
+during its own duration, refunding the cost of the action that emptied the bar. **The pause is a cost
+of acting and exhaustion is not a refund** — see the dated entry.*
+
+**The related edge is untouched and still filed**: the stamina delegate only fires on a *change*, so
+a cost applied at exactly 0 changes nothing and cannot retrigger exhaustion. Narrow today, since costs
+clamp at 0 and the 100→0 transition does fire.
+
+**And `ExhaustedStaminaRegenPerSecond` can still make exhaustion permanent in one keystroke.** Zero is
+not "no recovery while exhausted", it is a character locked out of every defensive action for the rest
+of the match — and unlike the held guard, *that* one has no exit the player can reach. The
+`ClampMin="0.01"` is load-bearing rather than tidy, and the reason lives here as well as in the header
+because a clamp with no stated reason is the kind of thing a later edit removes.
 
 **Before the first real multiplayer test — the ASC's client path is written and unexercised.**
 Slice B shipped 2026-08-11 and its three filed traps are discharged: the PlayerState's 1 Hz net
@@ -728,6 +731,57 @@ concludes the log is wrong rather than merely old. Add a row whenever a name cha
 | `StationaryTurnRateDegrees` | **`TurnRateDegrees`**, renamed 2026-08-12 when facing stopped having a separate moving mode. No longer stationary-only, and no longer cosmetic — it decides where an attack points. |
 | `bSnapFacingWhileMoving` | Never shipped. A temporary A/B switch for the facing pass, deleted with the snap branch it selected. |
 | `RecoveryPlayRate` | **`FTDAttackBranch::RecoverySeconds`**, 2026-08-12. Recovery is authored as a duration per branch and its rate is derived, as windup and release already were. A rate could only set the punish window indirectly, through however long the clip's tail happened to be. |
+
+---
+
+## 2026-08-14 — The regen pause survives exhaustion, and a held button is not a deadlock
+
+Shipped and reverted the same day. The bypass — exhaustion ignoring `State.StaminaRegenPaused`
+entirely — lasted a few hours and play threw it out.
+
+### What it got wrong, and the shape is worth naming
+
+The bypass existed to stop a held guard stalling the only condition that ends exhaustion. That
+problem is real but it is specifically about an **unbounded** suppressor. A dodge's own duration and
+the 0.5 s tail are **bounded**: they expire on their own and cannot stall anything. Bypassing all
+suppression closed the bounded cases for free, and the user felt it immediately — a dodge that
+exhausted you began regenerating *during the dodge*.
+
+**The pause is a cost of acting, and exhaustion is not a refund.** If anything it is the state where
+that cost should bite hardest, since the whole point is that emptying the bar hurts. Verified from
+play rather than argued: *"the rates themselves feel great"*, and this one thing did not.
+
+The generalisable error: **a fix aimed at an unbounded case that also swallows the bounded ones.**
+The bypass was written as "ignore suppression while exhausted" when the actual requirement was
+"do not let suppression run forever" — a much narrower statement, and the difference is exactly the
+cases a player can feel.
+
+### Why nothing replaced it, which is the interesting half
+
+The obvious repair was a narrower bypass, or a cap on how long suppression may hold while exhausted,
+or making Block's guard break responsible for ending the ability. The user rejected all of it and
+dissolved the problem instead:
+
+> allow players to keep blocking at 0 stamina, and obviously their guard gets broken if they actually
+> "block" anything, so they're doing nothing but griefing themselves by not releasing block
+
+**A state you are choosing to stay in, with the exit always available, is not a deadlock.** That is
+the rule to carry forward. The mechanism that looked like permanent exhaustion needs the player to
+hold a button that accomplishes nothing, and one key-release both ends it and starts recovery. It
+needs no guard, no cap, and no coupling to Block's design — which is a strictly better outcome than
+any of the three fixes, because each of those would have added a mechanism to defend against a
+player's own choice.
+
+Note the asymmetry that makes this safe, and it is what distinguishes this from the
+`ExhaustedStaminaRegenPerSecond = 0` case that *is* still guarded: a held guard has an exit the
+player can reach, and a zero regen rate does not.
+
+### What it cost to find
+
+Nothing structural, but it is a clean example of why the closedown rule exists. The bypass shipped
+with a confident header comment, a discharged trap, and three documents restating it as a rule —
+all written the same afternoon, all wrong within hours, and none of it caught by review because the
+reasoning was internally consistent. **Only play disagreed.**
 
 ---
 
