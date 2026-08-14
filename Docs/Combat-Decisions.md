@@ -33,10 +33,10 @@ a file recording the ones worth keeping grows alongside it. A decision log that 
 would mean the project had stopped being built. What has to stay bounded is the *working*
 sections above, not the archive.
 
-Compacting superseded entries was considered and rejected: all seven supersessions to date are
-*partial* —
-each kills one claim inside an entry whose other claims are still live — so stubbing them would
-destroy current reasoning to save bytes nobody pays for. The archive is reached by search, not
+Compacting superseded entries was considered and rejected: supersessions are essentially always
+*partial* — each kills one claim inside an entry whose other claims are still live — so stubbing
+them would destroy current reasoning to save bytes nobody pays for. *(True of all seven when this
+was decided 2026-08-11, and of all 38 as of 2026-08-14.)* The archive is reached by search, not
 by reading, so its length costs approximately nothing, and git already holds anything that did
 get removed. Length is not the risk here; **a stale claim that does not announce itself is**,
 which is what the table below exists for.
@@ -683,8 +683,10 @@ had already started writing *"before block (item 7)"* on their own, which is wha
 like when it has stopped paying for itself. Names keep the property the numbers were chosen for:
 **a name does not change when the order does.**
 
-**The 39 references below this line still say "item 6".** Dated entries are never rewritten, so
-this table is how they stay readable. Do not renumber anything to match them.
+**51 references below this line still use the numbers** *(counted 2026-08-14; `item 12` leads with
+nine, `item 6` and `item 9` seven each)*. Dated entries are never rewritten, so this table is how
+they stay readable. Do not renumber anything to match them. The count only ever grows as old
+entries are cited — treat it as a dated measurement, not a live figure.
 
 | Entries say | Item is now | |
 |---|---|---|
