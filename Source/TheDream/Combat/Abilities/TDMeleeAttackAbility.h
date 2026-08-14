@@ -154,10 +154,11 @@ protected:
 	 *  at maximum range -- exactly where travel is longest and aiming matters most, which is the
 	 *  "backwards" failure an earlier deadzone design was rejected for.
 	 *
-	 *  200 is the user's call, signed off 2026-08-14 and unfelt at the time. Note it is larger than
-	 *  the 100 cm separating the tiers' lunges, so all three assist from similar overshoot even though
-	 *  their hit ranges differ -- deliberate, since how wrong your aim may be is a property of the
-	 *  player rather than of the swing.
+	 *  **Played and settled at 100 on 2026-08-14**, down from the 200 it was signed off at before
+	 *  anyone had felt it. The CDO is authoritative for the live value; both figures here are dated
+	 *  measurements. At 100 the margin equals the 100 cm separating the tiers' lunges, so each tier's
+	 *  assist range sits exactly one tier's travel past its own hit range -- the tiers stay as far
+	 *  apart in assist as they are in reach, where the larger value flattened that difference.
 	 *
 	 *  **Shared across the ladder rather than authored per branch**, considered and rejected the same
 	 *  day. It is the same class of quantity as the arc -- how wrong the *player* may be -- and a

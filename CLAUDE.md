@@ -289,12 +289,23 @@ Execution order, the only line that changes when the order does:
 **Structure Audit is deliberately absent from that line** — it is triggered by the combat model
 being verified good, not by a position; see its entry at the end.
 
-**Pick up at Block.** **Target Lock shipped whole on 2026-08-13** — both halves, play-verified, with
-the user's verdict being *"player intent feels MORE precise than before, even though logically we've
-been lowering the player's precision."* It was inserted ahead of Block that day from play: Lunge had
-made attacks at anything but maximum range feel awkward, and being happy with what is already in
-comes before adding more. **The dodge was rebuilt on authored displacement the same day**, which was
-the last system in the project reading a number off an animation.
+**Pick up at Block.** Nothing stands between it and the next session.
+
+**Target Lock finished on 2026-08-14, a day after it shipped.** The rotational half went out with a
+defect: homing ran the whole windup on branch 0's wedge, so the heavy's and charged's values did
+nothing and two of the three had never been observed. Homing now follows the ladder, reach is derived
+from travel rather than authored, and `AimAssistMarginCm` is the single knob — play-tuned to 100 the
+day it landed. **The debug wedge is trustworthy again**, which it was not: it drew one branch's volume
+for every tier and that is what let the two dead numbers be authored.
+
+**Also on 2026-08-14:** an attack's lunge now *stops* on a hit against a viable target rather than
+merely pausing, so a killed target is no longer slid through; and stamina regen split into two rates,
+both play-verified.
+
+**Target Lock's translational half shipped 2026-08-13**, with the user's verdict being *"player intent
+feels MORE precise than before, even though logically we've been lowering the player's precision."*
+**The dodge was rebuilt on authored displacement the same day**, which was the last system in the
+project reading a number off an animation.
 
 **Lunge and Recovery both shipped 2026-08-12** and are play-verified. Both were
 moved ahead of Block on the same rule: **a number that another number is felt against gets authored
@@ -304,14 +315,11 @@ to avoid. Recovery also feeds the Light String's endlag, how long facing stays c
 `InputBufferSeconds`. Reasoning and what was rejected are in `Docs/Combat-Decisions.md`.
 
 **Two things Lunge deliberately did not finish, and neither blocks Block:**
-- **Reach and the placed spacing still need authoring together**, but only as authoring — the
-  ladder itself is measured good. It was *"a light travels 300 cm at a dummy 200 cm away with a
-  `MaxReachCm` of 150"*, i.e. overshoot, which Target Lock's clamp made impossible on 2026-08-13.
-  **A follow-up reading claiming the branch lunge clamps to 0 at that spacing is withdrawn**; it was
-  measured against a target that had been shoved across the floor. Re-measured 2026-08-14 in a
-  controlled PIE: damage lands in exact multiples at the placed 200 cm, the branch lunge runs at its
-  authored speed, and the clamp parks the attacker where the geometry predicts. Still one felt
-  quantity, and two tiers still play the light's clip.
+- **Reach, travel and the placed spacing still want authoring together** — one felt quantity, and
+  two tiers still play the light's clip. **The ladder itself measured good on 2026-08-14**: damage
+  lands in exact multiples at the placed 200 cm and the clamp parks where the geometry predicts, so
+  what is open is authoring, not a defect. Two earlier readings against this spacing are withdrawn;
+  see `Docs/Combat-Decisions.md`.
 - **The seam and the curve.** Base and branch lunges meet at a speed discontinuity, fixable by the
   distance *ratio* alone; a `StrengthOverTime` curve for the onset is the separate, optional half.
   The arithmetic for both is in the decision entry.
@@ -401,21 +409,20 @@ them is in `Docs/Combat-Decisions.md`.
      the 60° damage wedge already has ±36–50° of tolerance, while travel is a line, so a 25° error
      puts you 84 cm to the side and the gate never closes. The user's framing: *a margin of error for
      aiming the lunge, not for aiming the mouse.*
-      - **The wedge is the contract.** `FTDAttackBranch::AimAssistWedge`, per branch. Aim inside it
-        and the body snaps dead-on; space inside travel + reach and the hit follows short of a
-        defensive action. Its arc is the one knob and means *how wrong your aim may be*.
+      - **The wedge is the contract.** `FTDAimAssistWedge`, per branch. Aim inside it and the body
+        snaps dead-on; space inside travel + reach and the hit follows short of a defensive action.
+        **Its arc is the knob and means *how wrong your aim may be*** — reach stopped being authored
+        on 2026-08-14, see below.
       - **Homing follows the ladder** (2026-08-14): light's wedge until the attack escalates to heavy,
         then heavy's, then charged's. Widening only ever happens at an escalation, which is the same
         instant the coil fires — so it never leaks a tier the defender has not already been told about.
       - **Reach is derived, not authored** (2026-08-14): `base lunge + branch lunge + branch damage
-        reach + AimAssistMarginCm`. Travel plus reach is exactly the furthest a body can be and still
-        be struck, so **the margin is the only authored part** — one number for the whole ladder,
-        currently 200. It cannot drift out of step with a lunge retune, and monotonicity across the
-        ladder became unrepresentable rather than a rule.
-      - **The margin is the design, not a safety factor.** A wedge matching hit range would make
-        lock-on a free rangefinder and let assist answer whether you were in range — the one thing the
-        governing rule forbids. Reaching past it keeps assist about direction alone, and lets a
-        defender read an attacker turning onto them and still whiffing.
+        reach + AimAssistMarginCm`, which is hit range plus a margin. **The margin is the only
+        authored part** — one number for the whole ladder, on `UTDMeleeAttackAbility`, shared
+        deliberately. Monotonicity across the ladder is unrepresentable rather than a rule.
+      - **The wedge must reach past hit range; that gap is the design, not slack.** Matching it
+        exactly would make lock-on a rangefinder and let assist answer whether you were in range,
+        which the governing rule forbids.
       - Arc, arc centre and the vertical band stay per branch on `FTDAimAssistWedge`, which has no
         reach field by construction. `bEnabled` turns a branch's assist off — **an arc of 0 does not**,
         since a zero arc still passes the subtended-angle widening.
