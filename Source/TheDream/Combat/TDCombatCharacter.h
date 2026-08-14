@@ -488,10 +488,15 @@ protected:
 	 *  exactly as an over-budget dodge leaves you. Breaking a guard remains the sole preserve of
 	 *  stamina *damage*, which is the distinction the whole economy rests on.
 	 *
-	 *  Charged on every activation, including a resume after an attack or dodge -- the same rule as
-	 *  the minimum duration and adopted for the same reason, that an exemption makes the cost
-	 *  conditional on something the player cannot see. **Worth feeling before trusting**: with a
-	 *  non-zero value, holding a guard through a swing pays twice, which may or may not be wanted.
+	 *  Charged on every activation, including a resume after an attack or dodge, under the rule the
+	 *  user stated once and which settles this and the minimum duration together: **a resume is an
+	 *  intended block, and all blocks are created equal.**
+	 *
+	 *  That is a gameplay claim rather than an implementation convenience, and it is what makes the
+	 *  consequence acceptable instead of merely tolerated: with a non-zero value, holding a guard
+	 *  through a swing pays twice, because it is two guards. The alternative -- a cheaper guard that
+	 *  the player did not ask for and cannot distinguish -- would make the cost conditional on
+	 *  something invisible, which is the failure the bimodal durations already demonstrated.
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Stamina", meta=(ClampMin="0.0"))
 	float BlockInitialStaminaCost = 0.0f;

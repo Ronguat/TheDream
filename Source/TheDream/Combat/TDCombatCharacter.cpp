@@ -390,11 +390,13 @@ void ATDCombatCharacter::BeginBlockCommitment()
 		return;
 	}
 
-	// **Every guard commits, with no exception for resumed ones.** An earlier version exempted the
-	// resume, on the reasoning that a guard the system put back up was not raised by the player.
-	// Play refuted it: guard durations went bimodal -- 250 ms when pressed, 50-70 ms when resumed --
-	// so rapid tapping still produced sub-minimum guards, just at a slower cadence. A floor with an
-	// exemption is not a floor. The user's call, and the rule is now "all guards, always".
+	// **A resume is an intended block, and all blocks are created equal.** The user's rule, and it
+	// governs the initial cost as well as this -- see BlockInitialStaminaCost.
+	//
+	// An earlier version exempted resumed guards, reasoning that one the system put back up was not
+	// raised by the player. The log refuted it: durations went bimodal, 250 ms when pressed and
+	// 50-70 ms when resumed, so rapid tapping still produced sub-minimum guards at a slower
+	// cadence. A floor with an exemption is not a floor.
 	//
 	// Assigned rather than maxed with any existing value: a guard raised again is a *new* guard and
 	// gets a full commitment, which is what stops a player shortening their own floor by tapping
