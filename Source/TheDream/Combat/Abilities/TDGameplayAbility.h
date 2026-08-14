@@ -8,6 +8,7 @@
 #include "TDGameplayAbility.generated.h"
 
 class UCurveFloat;
+class UAbilityTask_FacingLunge;
 
 /**
  *  Shared base for every combat ability in the project.
@@ -181,4 +182,32 @@ protected:
 		UCurveFloat* StrengthCurve,
 		float StandoffCm = 0.0f,
 		float YawOffsetDegrees = 0.0f);
+
+	/**
+	 *  Ends the lunge started by StartLunge, now, wherever it has got to.
+	 *
+	 *  **This is a stop, and the standoff gate is a pause -- they are different mechanisms and the
+	 *  distinction is the whole reason this exists.** The gate contributes nothing on a tick where a
+	 *  body is in the way, but time keeps advancing and the source stays live, so travel resumes the
+	 *  instant the obstruction leaves. That is correct for its own job -- a target backing away mid
+	 *  attack has to stay reachable -- and wrong once a hit has landed: killing a target removes its
+	 *  capsule, the gate opens on a corpse, and the attacker slides forward through where it was.
+	 *
+	 *  Terminal by design. Nothing restarts a lunge within one activation, so the ceiling on travel
+	 *  is still the authored distance and this can only ever subtract, exactly like the gate.
+	 *
+	 *  Safe to call when no lunge is running, or twice.
+	 */
+	void StopLunge();
+
+private:
+
+	/**
+	 *  The lunge currently running for this activation, so a hit can end it.
+	 *
+	 *  Weak because the task is owned by the ability system and can be torn down by an ability
+	 *  ending, a cancellation or a montage interrupt without passing through here -- a raw pointer
+	 *  would be the dangling one exactly on the paths that are hardest to test.
+	 */
+	TWeakObjectPtr<UAbilityTask_FacingLunge> ActiveLungeTask;
 };

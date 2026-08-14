@@ -211,15 +211,39 @@ protected:
 	float InputBufferSeconds = 0.1f;
 
 	/**
-	 *  Stamina regained per second, while regen is running at all.
+	 *  Stamina regained per second while *not* exhausted, and while regen is running at all.
 	 *
 	 *  Driven here rather than by a periodic GameplayEffect because the economy is a small
 	 *  state machine -- regen, a pause that outlives the action causing it, and an
 	 *  exhaustion lockout -- and expressing that across effects means tag components that
 	 *  cannot be scripted. Attributes and tags are still GAS; only the orchestration is here.
+	 *
+	 *  Raised 25 -> 40 on 2026-08-14, at the same time exhaustion kept the old 25. Note what that
+	 *  changes beyond recovery speed: this number is how fast a *dodge* becomes affordable again,
+	 *  so it sets the cadence of repeated evasion as directly as DodgeSeconds does.
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Stamina", meta=(ClampMin="0.0"))
-	float StaminaRegenPerSecond = 25.0f;
+	float StaminaRegenPerSecond = 40.0f;
+
+	/**
+	 *  Stamina regained per second *while exhausted*. Separate from StaminaRegenPerSecond so that
+	 *  being run out of stamina costs more than the bar it emptied.
+	 *
+	 *  **This is not the ExhaustionSeconds timer that was deleted, and the difference matters.**
+	 *  That was a duration which could disagree with the bar -- two termination conditions, one of
+	 *  which was a lie. This is a *rate*: exhaustion still ends when stamina reaches Max and at no
+	 *  other moment, so the bar remains the single source of truth for how long it lasts. What
+	 *  splitting the rate buys is that the penalty can be tuned without also retuning how fast
+	 *  everyone recovers in normal play, which is what welding them prevented.
+	 *
+	 *  **Zero is forbidden, and it is forbidden for a real reason rather than tidiness.** Regen is
+	 *  the only thing that can end exhaustion, so a rate of zero is not "no recovery" -- it is a
+	 *  character that is exhausted permanently, with every defensive action locked out for the rest
+	 *  of the match. That is the same defect the regen-suppression fix removes, reintroduced through
+	 *  a designer-facing knob, so the clamp is load-bearing. See TickStaminaRegen.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Stamina", meta=(ClampMin="0.01"))
+	float ExhaustedStaminaRegenPerSecond = 25.0f;
 
 	/**
 	 *  How long regen stays suppressed *after* the last defensive action ends.

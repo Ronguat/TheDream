@@ -94,6 +94,12 @@ Note that "release" also names the button coming up, via GAS's `InputReleased`. 
 
 **Displacement too, as of 2026-08-12** — two authored distances in centimetres, not a scale on the clip. A shared **base lunge** from the press to the light's input boundary, then a **per-branch lunge** from the commit checkpoint to the end of the release window. The coil carries neither, which is what keeps the tiers indistinguishable for as long as they must be. `GA_Attack` is authoritative; the reasoning is in `Docs/Combat-Decisions.md`.
 
+**A lunge is shortened two different ways, and they are not the same mechanism** (the stop added 2026-08-14):
+- **The standoff gate *pauses* it** while a body sits ahead, per movement tick, and travel resumes if that body leaves. Geometric, so it never needs to know who the target is.
+- **A hit against a viable target *stops* it outright**, permanently, for that activation. Needed because a pause cannot survive the target ceasing to exist: killing someone removes their capsule, the gate opens on the corpse, and the attacker slides through. Geometry does not stop a lunge, and neither does a target who i-framed it — **a dodged attack runs on**, which is what stops a successful evade from paying the attacker in spacing.
+
+Both only ever subtract, so the authored distance stays a hard ceiling and neither is homing.
+
 **An attack owns your movement and your feet** (2026-08-12, from play — this was assumed for months and written down nowhere):
 - **Movement input is suppressed for the whole ability** — windup, release *and* recovery. WASD and jump do nothing; the attack's own lunge still moves you. You cannot walk out of your own commitment. Implemented as `UTDGameplayAbility::bLocksMovement`, a checkbox on the shared base, so block, parry or a future crouch adopt it the same way.
 - **Attacks cannot start while airborne**, via the existing `bBlockedWhileAirborne`. It gates *activation*, not continuation — an attack that starts grounded keeps running if its lunge carries you off a ledge, which is deliberate. **The refusal is not buffered**: an attack pressed in the air is dropped, not replayed on landing.
@@ -127,7 +133,7 @@ Timings land within about a frame, biased late. `GA_Attack`'s `Branches` array i
 - Dodge = 50.
 - Blocking drains based on attack + blocking weapon.
 - 0 stamina → Exhausted (no defensive actions or jump) **until stamina refills to 100**, not for a fixed duration. Stamina floors at 0, so there is no overspending and every exhaustion is identical — dodging at 3 and dodging at 50 both land on exactly 0. Re-emptying the bar the moment you recover is allowed. **Regen continues while exhausted** — it locks out acting, not recovering, and is the only thing that can end it, so nothing may suppress regen here. Reasoning in `Docs/Combat-Decisions.md`.
-- Regen 25/s. Paused during defensive actions and for 0.5 s after, measured from when the action ends (`StaminaRegenPauseSeconds`).
+- **Regen runs at two rates**, `StaminaRegenPerSecond` normally and `ExhaustedStaminaRegenPerSecond` while exhausted; `ATDCombatCharacter` is authoritative for both. Exhaustion is the slower of the two, so being run dry costs more than the bar it emptied. **The exhausted rate may never be zero** — regen is the only thing that ends exhaustion, so zero means permanent. Paused during defensive actions and for 0.5 s after, measured from when the action ends (`StaminaRegenPauseSeconds`) — **but the pause does not apply while exhausted**, for the same reason.
 - **Jumping costs no stamina but pauses regen** — from the jump until 0.5 s after landing. Keyed to the jump *action*, never to being airborne: walking off a ledge costs nothing.
 - **Costs are paid, not required.** No action is ever refused for want of stamina: dodging at 30 works, empties the bar and exhausts you. Never use GAS's `CostGameplayEffectClass`, which gates activation, and do not call `CommitAbility` — checking a cost is the gate. Costs are applied via `UTDGameplayAbility::EffectOnStart`.
 - Regen, the pause and exhaustion are orchestrated in C++ on `ATDCombatCharacter`, not by GameplayEffects — see `Docs/Combat-Decisions.md`.
@@ -298,12 +304,14 @@ to avoid. Recovery also feeds the Light String's endlag, how long facing stays c
 `InputBufferSeconds`. Reasoning and what was rejected are in `Docs/Combat-Decisions.md`.
 
 **Two things Lunge deliberately did not finish, and neither blocks Block:**
-- **Reach and the placed spacing still need authoring together**, but the question changed on
-  2026-08-13 when Target Lock's clamp landed. It was *"a light travels 300 cm at a dummy 200 cm away
-  with a `MaxReachCm` of 150"*, i.e. overshoot; overshoot is now impossible, and the measured
-  reading is the opposite — the branch lunge clamps to **0** at that spacing, so a light authoring
-  300 cm performs 100. Still a live trap, still one felt quantity, and now tunable against something
-  that works rather than around a defect.
+- **Reach and the placed spacing still need authoring together**, but only as authoring — the
+  ladder itself is measured good. It was *"a light travels 300 cm at a dummy 200 cm away with a
+  `MaxReachCm` of 150"*, i.e. overshoot, which Target Lock's clamp made impossible on 2026-08-13.
+  **A follow-up reading claiming the branch lunge clamps to 0 at that spacing is withdrawn**; it was
+  measured against a target that had been shoved across the floor. Re-measured 2026-08-14 in a
+  controlled PIE: damage lands in exact multiples at the placed 200 cm, the branch lunge runs at its
+  authored speed, and the clamp parks the attacker where the geometry predicts. Still one felt
+  quantity, and two tiers still play the light's clip.
 - **The seam and the curve.** Base and branch lunges meet at a speed discontinuity, fixable by the
   distance *ratio* alone; a `StrengthOverTime` curve for the onset is the separate, optional half.
   The arithmetic for both is in the decision entry.

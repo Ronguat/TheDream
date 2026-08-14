@@ -92,7 +92,16 @@ void ATDCombatCharacter::Tick(float DeltaSeconds)
 void ATDCombatCharacter::TickStaminaRegen(float DeltaSeconds)
 {
 	UWorld* World = GetWorld();
-	if (!World || !AbilitySystem || StaminaRegenPerSecond <= 0.0f)
+	if (!World || !AbilitySystem)
+	{
+		return;
+	}
+
+	// Exhaustion recovers at its own rate. Chosen before the early-out so a zero *normal* rate --
+	// a legitimate thing to author, meaning "no passive regen" -- cannot also stall the exhaustion
+	// exit, which would make an intentional design choice into a permanent lockout.
+	const float RegenPerSecond = bExhausted ? ExhaustedStaminaRegenPerSecond : StaminaRegenPerSecond;
+	if (RegenPerSecond <= 0.0f)
 	{
 		return;
 	}
@@ -118,7 +127,22 @@ void ATDCombatCharacter::TickStaminaRegen(float DeltaSeconds)
 		bSuppressorActive = true;
 	}
 
-	if (bSuppressorActive || Now < RegenSuppressedUntil || GetStamina() >= GetMaxStamina())
+	if (GetStamina() >= GetMaxStamina())
+	{
+		return;
+	}
+
+	// **Suppression does not apply while exhausted, and this discharges a filed trap.**
+	// ActivationBlockedTags gates activation, not continuation, so a held action -- block, when it
+	// arrives -- keeps StaminaRegenPausedTag applied for as long as it runs. Regen is the only thing
+	// that can end exhaustion, so honouring the pause here would stall the exit condition forever:
+	// a guard held at zero locks out every defensive action permanently, and nothing in the game
+	// can clear it. Unreachable until block exists, which is why it was filed against that slice.
+	//
+	// The suppressors above are still *accumulated* while exhausted rather than skipped, so the tail
+	// stays honest on the way out -- reaching full does not also refund the pause the held action had
+	// already earned. Exhaustion suspends the pause; it does not cancel it.
+	if (!bExhausted && (bSuppressorActive || Now < RegenSuppressedUntil))
 	{
 		return;
 	}
@@ -126,7 +150,7 @@ void ATDCombatCharacter::TickStaminaRegen(float DeltaSeconds)
 	AbilitySystem->ApplyModToAttribute(
 		UTDAttributeSet::GetStaminaAttribute(),
 		EGameplayModOp::Additive,
-		StaminaRegenPerSecond * DeltaSeconds);
+		RegenPerSecond * DeltaSeconds);
 }
 
 bool ATDCombatCharacter::IsIdle() const

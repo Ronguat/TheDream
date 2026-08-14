@@ -318,8 +318,13 @@ commit reading `2026-08-12 17:26 -0600` are the same evening.
 
 **`TD.DebugCombatTiming` defaults to ON** and gives the per-attack phase trace: windup rate wanted
 versus applied, coil start and rate, commit position, each release edge with its montage position,
-facing error at every lock, plus `DODGE`, `BUFFER`, `REFUSED`, `DEATH`, `REVIVE`, `TARGET` and
-`AIM ASSIST`. Turn it off with `TD.DebugCombatTiming 0` when combat is not under test.
+facing error at every lock, plus `DODGE`, `BUFFER`, `REFUSED`, `DEATH`, `REVIVE`, `TARGET`,
+`AIM ASSIST` and `LUNGE STOP`. Turn it off with `TD.DebugCombatTiming 0` when combat is not under
+test.
+
+**`LUNGE STOP` is the only way to see a lunge end early**, because a stop and a standoff gate that
+simply stayed shut leave the character in the same place. Absence of it after a connecting hit is the
+tell that the stop did not fire.
 **`TD.DebugMeleeTrace` defaults to OFF** and draws the authored wedges.
 
 **Reach for the trace early.** Every real bug in the timing system was found by measuring, and
@@ -384,9 +389,13 @@ With the stamina economy involved, add:
 
 - **Stamina lands on exact values** — a dodge from full reads exactly 50
 - **Regen resumes at the right moment** — the action's duration *plus* `StaminaRegenPauseSeconds`
-  from when it ended, then 25/s
+  from when it ended, then at `StaminaRegenPerSecond`
 - **Exhaustion triggers at zero and clears at Max, not on a timer.** Regen must *continue* while
-  exhausted; it is the only thing that can end it
+  exhausted, at `ExhaustedStaminaRegenPerSecond`; it is the only thing that can end it, so **the
+  pause is deliberately ignored while exhausted** and that rate may never be zero
+- **Nothing in the build can drain stamina without a human at the keyboard**, so every check above
+  needs hands on the dodge key. The attribute set cannot be written through the toolset either —
+  `SpawnedAttributes` is not reflection-readable — so there is no automated substitute *(2026-08-14)*
 - **Attribute *base* values are clamped, not just current.** A base drifted above Max is invisible on
   the bar and makes every cost read wrong
 - **Costs never gate.** Dodging below the cost must still work and empty the bar

@@ -216,6 +216,32 @@ void UTDGameplayAbility::StartLunge(
 
 	if (LungeTask)
 	{
+		ActiveLungeTask = LungeTask;
 		LungeTask->ReadyForActivation();
 	}
+}
+
+void UTDGameplayAbility::StopLunge()
+{
+	if (UAbilityTask_FacingLunge* LungeTask = ActiveLungeTask.Get())
+	{
+		// Traced because there is otherwise no way to see this happen. The gate's effect is visible
+		// as travel that did not occur, but a stop and a gate that stayed shut for the rest of the
+		// lunge produce an identical resting position -- so without a line saying which one ran,
+		// the two are indistinguishable from the outside, and only one of them survives the target
+		// dying. The distance is what separates a stop-on-contact from a stop that arrived late.
+		const AActor* Avatar = GetAvatarActorFromActorInfo();
+		const UWorld* World = GetWorld();
+		TD_TIMING_LOG(TEXT("[%.3f] LUNGE STOP %s"),
+			World ? World->GetTimeSeconds() : -1.0f,
+			Avatar ? *Avatar->GetName() : TEXT("<no avatar>"));
+
+		// EndTask rather than ExternalCancel: the task's OnDestroy removes the root motion source
+		// from the movement component, which is what actually stops the character. Cancelling would
+		// additionally broadcast, and OnFinish is documented as *not* firing when the ability ends a
+		// lunge early -- a hit is exactly that case, not the duration elapsing.
+		LungeTask->EndTask();
+	}
+
+	ActiveLungeTask.Reset();
 }

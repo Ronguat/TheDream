@@ -80,6 +80,8 @@ dated entry. Add a row whenever an entry supersedes part of an older one.
 | 2026-08-13 — Target Lock | the aim half corrects by the *minimum sufficient angle*, never a snap to centre | 2026-08-13 — Target Lock's rotational half aims the lunge (minimum-sufficient was measured against the damage wedge and is therefore always zero; the deadzone that replaced it protected leading, which this game does not have) |
 | 2026-08-13 — Target Lock | the aim half is **post-commit only**, because the windup is where the player steers | 2026-08-13 — Target Lock's rotational half aims the lunge (homing runs *through* the windup at the existing turn rate and stops at commit — the player's authority moves from facing to target selection, which is why the wedge is read from the camera) |
 | 2026-08-11 — Dodge travel ships at the clips' authored distance | displacement comes from the montage's root motion, corrected per direction by MeasuredTravelCm | 2026-08-13 — The dodge stops reading displacement off its clips (both the scales and the measurements are deleted; all eight directions travel DodgeTargetDistanceCm) |
+| 2026-08-13 — The gate is per tick, and lunge duration is a designed quantity | the per-tick gate is the whole answer to a lunge arriving at a body — it "can only ever subtract travel", so the authored distance is the only ceiling needed | 2026-08-14 — The lunge stops on a hit (a pause is not a stop: the gate reopens when the body stops existing, so a killed target is slid through. The gate's own reasoning survives untouched — this is a second mechanism, not a correction to it) |
+| 2026-08-10 — Exhaustion ends at full | recovery speed is one number, so `StaminaRegenPerSecond` *is* the exhaustion duration | 2026-08-14 — Exhaustion recovers at its own rate (the rate is split; exhaustion still ends at Max and nowhere else, so the entry's actual claim survives — what changed is which number sets how long it takes) |
 
 ---
 
@@ -138,6 +140,25 @@ now has a working clamp to be tuned against rather than being tuned around a def
 2026-08-13 and reported as a correction to it; it was measured in a live PIE world where the dummy
 had drifted 24 cm during play. The trap was right and the correction was wrong. See
 `Docs/Working-In-Unreal.md` on why a PIE-world transform is not a placed transform.
+
+**The hit-detection half is discharged 2026-08-14, and it was never broken.** Re-measured in a fresh
+PIE with nobody moving, placed transforms confirmed in the *editor* world first (dummy `x=200`,
+`PlayerStart x=0`): damage lands in exact multiples of the authored 15, and `TARGET release` reads
+**118.7 / 117.1 / 123.0 cm** against the 124 the geometry predicts — 42 capsule radius + 40 standoff +
+42 radius. The branch lunge measured **70.8 cm in 43 ms**, or 1646 cm/s against an authored 1667. The
+clamp does exactly what it claims and the ladder connects at the placed spacing.
+
+*The "clamped 200 → 0 every time" reading above is **withdrawn** — an instrument fault, not a
+finding, and not a decision that needs superseding.* Both it and a second attempt on 2026-08-14 computed the attacker's closing distance against
+the target's **placed** origin while the target had been shoved across the floor by the very attacks
+being measured — the player finished one run at `x=-110.75`. This is the PIE-transform trap wearing a
+different hat: it is usually stated as "do not read an actor's own transform out of PIE", and the
+general form is broader — **do not measure one actor's travel against another actor's assumed
+position.** A moving reference frame reads as a movement fault in the thing being measured.
+
+**What remains open is only the authoring**, and it is a design question rather than a defect: what
+the distances *should* be, given the clamp is what decides them at close range. Reach, travel and the
+placed spacing are still one felt quantity, and two tiers still play the light's clip.
 
 **~~Open bug — the character hovers while a root-motion montage plays.~~ Discharged 2026-08-12.**
 It was never about montages, root motion, skeletons or clips. The mesh component sat at Z **−90**
@@ -360,9 +381,12 @@ chain re-closes to exactly the gate distance, so two characters sit pinned at 84
 fix and *felt* mostly as how far apart people stand while trading — one number, two jobs, and the
 second is the one nobody will think of while tuning it.
 
-Note this property is exactly what an end-lunge-on-hit rule would trade away: ending on contact makes
-final spacing depend on where in the release window the hitbox caught them, so a chain breathes
-instead of sitting still. Not yet decided either way.
+**Decided 2026-08-14, and the trap is milder as a result.** The lunge now stops on a hit against a
+viable target, so this pinning only describes an exchange in which nothing connects. Where hits *do*
+land, final spacing depends on where in the release window the hitbox caught them, so a chain
+breathes rather than sitting still — which is the property this note said would be traded away, now
+bought. The number still does two jobs and the second is still the easy one to forget; what it no
+longer sets is the spacing of a *connecting* chain.
 
 **Before the first multiplayer slice — *aim assist reads a loose tag across the network boundary,
 and loose tags do not replicate.*** Filed 2026-08-13, found by the traps grep before building the
@@ -380,13 +404,28 @@ So this is the loose-tag trap in a new and worse place — the existing entry wa
 one: **decide on the server, apply everywhere** — a replicated property whose `OnRep` applies the
 tag, following `bDead` / `bExhausted`.
 
-**Before Block** — *exhaustion can become permanent.* `ActivationBlockedTags` gates
-activation, not continuation, so a block held through zero keeps draining and keeps
-`State.StaminaRegenPaused` applied. Regen is now the **only** thing that ends exhaustion, so
-stalling it stalls the exit condition forever. Related: the stamina delegate only fires on a
-*change*, so a cost applied at exactly 0 changes nothing and cannot retrigger exhaustion.
-Unreachable today — every defensive action is locked out until full — and block is what makes
-it reachable.
+**~~Before Block — exhaustion can become permanent.~~ Discharged 2026-08-14.** `ActivationBlockedTags`
+gates activation, not continuation, so a block held through zero would keep `State.StaminaRegenPaused`
+applied; regen is the **only** thing that ends exhaustion, so stalling it stalled the exit condition
+forever. **Fixed in `TickStaminaRegen`: suppression no longer applies while `bExhausted`.** The
+suppressors are still *accumulated* while exhausted rather than skipped, so the tail stays honest on
+the way out — reaching full does not refund the pause the held action had already earned. Exhaustion
+suspends the pause; it does not cancel it.
+
+*Two things kept, because they outlived the fix.* **It is still not play-verified and cannot be**,
+which is the honest state rather than an omission: nothing in the build can hold a regen pause open,
+because block does not exist — that is precisely why the trap was filed against Block rather than
+fixed earlier. The fix is verified by construction and by review; **the first held guard is what will
+actually exercise it**, so re-read this then. And the **related edge is untouched**: the stamina
+delegate only fires on a *change*, so a cost applied at exactly 0 changes nothing and cannot
+retrigger exhaustion. Narrow today — costs clamp at 0 and the 100→0 transition does fire — but it is
+the same class of defect and block is what widens it.
+
+**Whoever tunes `ExhaustedStaminaRegenPerSecond` can reintroduce this in one keystroke.** Zero is not
+"no recovery while exhausted", it is permanent exhaustion with every defensive action locked out for
+the rest of the match. The `ClampMin="0.01"` on that property is load-bearing rather than tidy, and
+the reason lives here as well as in the header because a clamp with no stated reason is the kind of
+thing a later edit removes.
 
 **Before the first real multiplayer test — the ASC's client path is written and unexercised.**
 Slice B shipped 2026-08-11 and its three filed traps are discharged: the PlayerState's 1 Hz net
@@ -577,7 +616,8 @@ kept in their own notes. What belongs here is only what to move once a verdict a
 | An action feels like it turns too slowly to start | Whether `IsIdle()` is wrongly returning true for it — every ability and every buffered press should already exclude it | `IdleTurnRateDegrees`. Raising it to fix one action's start hides a classification bug and drags the idle look back toward the pop it was added to remove. |
 | Feet slide during locomotion | `MaxWalkSpeed`, set from the `_RM` clips' measured displacement | The animation's rate. 500 came from Epic's template and was never measured; derive the speed from the clip rather than scaling the clip to an unchosen number. |
 | An action feels unresponsive at low stamina | Nothing — find what is gating it | Adding or restoring a cost gate. Costs are paid, never required; if an input silently does nothing, `CostGameplayEffectClass` or `CommitAbility` has crept back in. |
-| Exhaustion feels too long or short | `StaminaRegenPerSecond`, since recovery *is* the duration | A duration knob. There isn't one — `ExhaustionSeconds` was deleted deliberately so no second number can disagree with the bar. |
+| Exhaustion feels too long or short | `ExhaustedStaminaRegenPerSecond`, since recovery *is* the duration. Separate from the normal rate as of 2026-08-14 | A duration knob, and no longer `StaminaRegenPerSecond` — that governs normal play only, and moving it to retune exhaustion now changes dodge cadence instead. `ExhaustionSeconds` stays deleted: splitting the *rate* keeps the property that killed it, because exhaustion still ends at Max and nowhere else. |
+| An attack slides past a target after killing it | Nothing — the lunge stops outright on a hit against a viable target, as of 2026-08-14 | `LungeStandoffCm`. The gate *pauses* while a body is in the way and resumes when one is not, so a corpse losing its capsule is not a case any standoff distance can express. Lowering it to hide the slide shortens every lunge that never hit anything. |
 | An input still feels dropped, with buffering on | `InputBufferSeconds` — but read the `BUFFER` trace first and find out whether it was stored, fired or expired | The attack's own timings. A press that expired unfired is a question about the window; moving `ReleaseAtSeconds` to compensate tunes the ladder around an input problem and hides it. |
 | An attack reaches too far or not far enough | The branch's `MaxReachCm` | The animation, the clip choice, or the play rate. Reach stopped being a property of the art on 2026-08-12; if a swing looks like it should reach further than it does, that is an argument for changing the number *or* the clip, and only the number is balance. |
 | An attack hits things beside you that it visibly missed | `ArcDegrees`, or skew `ArcCentreDegrees` toward the side the blade crosses | `MaxReachCm`. Narrowing reach to fix a coverage problem shortens the attack everywhere to fix it in one direction. |
@@ -664,6 +704,124 @@ concludes the log is wrong rather than merely old. Add a row whenever a name cha
 | `StationaryTurnRateDegrees` | **`TurnRateDegrees`**, renamed 2026-08-12 when facing stopped having a separate moving mode. No longer stationary-only, and no longer cosmetic — it decides where an attack points. |
 | `bSnapFacingWhileMoving` | Never shipped. A temporary A/B switch for the facing pass, deleted with the snap branch it selected. |
 | `RecoveryPlayRate` | **`FTDAttackBranch::RecoverySeconds`**, 2026-08-12. Recovery is authored as a duration per branch and its rate is derived, as windup and release already were. A rate could only set the punish window indirectly, through however long the clip's tail happened to be. |
+
+---
+
+## 2026-08-14 — The lunge stops on a hit, and a pause was never going to cover it
+
+The user's request, and the reasoning is a distinction the codebase already had but had never been
+made to carry weight: **the standoff gate pauses, and pausing is not stopping.**
+
+`FTDRootMotionSource_FacingForce::IsWithinStandoff` contributes nothing on a tick where a body sits
+ahead, but time keeps advancing and the source stays live, so travel resumes the moment the
+obstruction leaves. That is exactly right for the job it was written for — a target backing away
+mid-attack has to stay reachable, which is the whole reason the gate is per tick rather than
+pre-computed. It is exactly wrong once a hit has landed: **killing a target removes its capsule, the
+gate opens on a corpse, and the attacker slides forward through the space it occupied.** No standoff
+distance can express that, because the thing being gated on has stopped existing.
+
+So the stop is a second mechanism rather than a tuning of the first. `UTDGameplayAbility` holds a
+weak handle to the task it started and `StopLunge()` ends it; `UTDMeleeAttackAbility::HandleTraceHit`
+calls it. Both attack paths inherit it and the dodge, which also lunges, does not — it has no trace.
+
+### Where it fires, which is three decisions rather than one
+
+**Not against geometry.** A hit on something with no ASC is a wall, and walls do not stop a lunge:
+the movement component already handles sliding along one, and this project does not track hits against
+world geometry at all.
+
+**Not against an i-framed target.** A dodged attack runs on, lunge included. The evade is *supposed*
+to make the swing sail past, and stopping the attacker dead would hand them the spacing as
+compensation for being read — turning a successful defensive read into a positional reward for the
+person who was beaten. This is why the stop sits *after* the immunity check rather than before it.
+
+**Keyed to the hit, not to the damage.** The user's point: damage has to travel through effect
+application and waits on authority, while the hit is detected right here. They are the same instant on
+the server today, so this buys nothing yet and costs nothing — but they are different events, and
+hanging movement off the slower of the two is the kind of thing that eventually reads as a slide.
+`DamageEffectClass` stopped gating the function's early-out for the same reason: it gates damage,
+which is a consequence, and an ability with no damage effect configured must still stop.
+
+### What it does to the network story, stated rather than solved
+
+**The trace is server-only by deliberate design and the lunge is a predicted root motion source.**
+The gate is safe across that boundary because it is *geometric* — both machines run the same sweep
+against the same replicated positions and agree without being told. A stop is not: it is driven by a
+fact only the server has, so an owning client keeps travelling until a correction arrives.
+
+Bounded arithmetic, since nothing has ever run two machines: release opens 0.05 s into a 0.12 s branch
+lunge, so at the earliest possible hit the remaining travel is ~117 cm light, ~175 heavy, ~233 charged.
+In practice far less, because the gate has usually already paused travel by the time anything is in
+contact. Filed as a trap against the first multiplayer slice rather than papered over. Built
+server-side anyway: `FRootMotionSource` has a replication contract with `UpdateStateFrom` for exactly
+this reconciliation, so this is the channel the engine intends, not a hole.
+
+### Two things checked rather than assumed
+
+**`EndTask()` really does stop the character.** It routes to `OnDestroy`, which calls
+`RemoveRootMotionSourceByID`. And the `ClampVelocity`/0 that `StartLunge` passes — there so no
+momentum survives into the next phase — still applies: `FRootMotionSourceGroup::CleanUpInvalidRootMotion`
+processes `FinishVelocityParams` for sources `MarkedForRemoval`, not only for finished ones. A stopped
+lunge therefore leaves no residual slide, which would have been the same bug in a new place.
+
+**It is traced.** `LUNGE STOP` joins the timing log, because a stop and a gate that simply stayed shut
+for the rest of the lunge produce an *identical resting position* — indistinguishable from outside,
+and only one of them survives the target dying.
+
+### Measured the day it landed
+
+Play-verified against the auto-attacking dummy. `LUNGE STOP` fires once per connecting attack, ~38 ms
+after the release window opens. The decisive case arrived free: the killing blow logged `LUNGE STOP`
+and `DEATH` at the **same timestamp (21.226)**, and the next swing — thrown at a corpse during the
+three seconds before the revive — produced **no stop at all**, because it hit nothing. A natural
+experiment for both halves of the rule in one run.
+
+---
+
+## 2026-08-14 — Exhaustion recovers at its own rate, and that is not the timer that was deleted
+
+Two changes at the user's direction: `StaminaRegenPerSecond` 25 → **40**, and a new
+`ExhaustedStaminaRegenPerSecond` holding the old **25**. Normal recovery gets faster; exhaustion
+recovers exactly as slowly as it always did, and is now genuinely a penalty rather than the same rate
+wearing a lockout.
+
+**This is not `ExhaustionSeconds` coming back, and the difference is the whole reason it is safe.**
+That was a *duration* — a second termination condition that could disagree with the bar, which is why
+it was deleted. This is a *rate*. Exhaustion still ends when stamina reaches Max and at no other
+moment, so the bar remains the single source of truth for how long it lasts. What splitting the rate
+buys is that the penalty can be tuned without also retuning how fast everyone recovers in normal play,
+which welding them prevented. The tuning-map row moved with it: the knob for "exhaustion feels too
+long" is now the exhausted rate, and reaching for `StaminaRegenPerSecond` retunes dodge cadence
+instead.
+
+**Worth naming, because it is not obvious from the property's name:** `StaminaRegenPerSecond` is how
+fast a *dodge* becomes affordable again. At 50 a dodge and 40/s it is 1.25 s to the next one against
+2.0 s before, plus the pause. This was a balance change to evasion cadence as much as to recovery.
+
+### The knob can reintroduce the bug that was fixed beside it
+
+`ExhaustedStaminaRegenPerSecond = 0` is not "no recovery while exhausted"; it is **permanent
+exhaustion**, every defensive action locked out for the rest of the match, because regen is the only
+thing that ends the state. Clamped to a minimum above zero, with the reason recorded in both the
+header and the trap — a clamp whose reason is not written down is one a later edit removes.
+
+Note the shape: a fix and a fresh way to cause the same defect shipped in the same commit. The
+mechanism was only reachable through code before and is now reachable through a designer-facing
+number, which is a *widening* of the failure surface even though the failure itself got harder to hit.
+
+### What is verified and what is not
+
+The defaults are live — both character Blueprints read 40 and 25 off their CDOs after the rebuild,
+which also proves the reflection change landed. `StaminaRegenPerSecond` turned out **not** to be a
+serialized Blueprint override, so the C++ default reached both; `StaminaRegenPauseSeconds` is one
+(player 0.5, dummy 1.0), which is worth knowing before assuming the next stamina default propagates.
+
+**The rates themselves are not play-verified, and that is a limitation of the build rather than an
+omission.** Nothing in the game spends stamina without a human pressing dodge, and the attribute set
+cannot be written through the toolset — `SpawnedAttributes` is not reflection-readable in UE 5.8 — so
+there is no automated path to a non-full bar. The exhausted branch is further out of reach: it needs
+exhaustion, which needs the dodge. Verified by construction and review; the arithmetic to check in
+play is 0 → full in **2.5 s** normally and **4.0 s** while exhausted.
 
 ---
 

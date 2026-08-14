@@ -281,7 +281,11 @@ bool UTDMeleeAttackAbility::StartAttackMontage(FName StartSection, float PlayRat
 void UTDMeleeAttackAbility::HandleTraceHit(const FHitResult& Hit)
 {
 	// Damage is authority-only state; clients see it arrive by attribute replication.
-	if (!HasAuthority(&CurrentActivationInfo) || !DamageEffectClass)
+	//
+	// DamageEffectClass is deliberately *not* checked here any more. It gates damage, which is a
+	// consequence of the hit, not the hit itself -- and the lunge now stops on the hit, so an
+	// ability with no damage effect configured must still stop rather than slide onward.
+	if (!HasAuthority(&CurrentActivationInfo))
 	{
 		return;
 	}
@@ -290,13 +294,35 @@ void UTDMeleeAttackAbility::HandleTraceHit(const FHitResult& Hit)
 	UAbilitySystemComponent* TargetASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(HitActor);
 	if (!TargetASC)
 	{
-		// Hit something that cannot take damage, such as a wall.
+		// Hit something that cannot take damage, such as a wall. It does not stop the lunge either:
+		// geometry is not a target, this project does not track hits against it, and a lunge into a
+		// wall is already handled by the movement component sliding along it.
 		return;
 	}
 
 	// I-frames. Checked here rather than on the defender because this is the only place
 	// that knows a hit was resolved at all -- a dodge cannot refuse damage it never sees.
+	//
+	// **A dodged attack runs on, lunge included**, which is why the stop below sits after this
+	// check rather than before it. An evade is supposed to make the swing sail past; stopping the
+	// attacker dead would hand them the spacing as compensation for being read, and turn a
+	// successful defensive read into a positional reward for the person who was beaten.
 	if (!TargetImmunityTags.IsEmpty() && TargetASC->HasAnyMatchingGameplayTags(TargetImmunityTags))
+	{
+		return;
+	}
+
+	// A viable target was struck, so the lunge is finished -- keyed to the hit rather than to the
+	// damage landing. The two are the same instant on the server today, but they are different
+	// events: the hit is detected here, while damage has to travel through effect application. Tying
+	// movement to the slower of the two is what would eventually read as a slide.
+	//
+	// The standoff gate cannot cover this case. It *pauses* while a body is in the way and resumes
+	// when one is not, so a target that dies mid-attack loses its capsule and the attacker slides
+	// through the space it occupied. See UTDGameplayAbility::StopLunge.
+	StopLunge();
+
+	if (!DamageEffectClass)
 	{
 		return;
 	}
