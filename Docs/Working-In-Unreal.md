@@ -266,23 +266,19 @@ asset type before concluding a thing cannot be made.
 
 **Renaming an AnimNotify class is expensive** — placed notifies serialize against the class path.
 
-**`create_node` cannot target a nested state graph** *(confirmed 2026-08-14)*. It resolves the
-Blueprint through the graph's outer, and a state graph's outer is an `AnimStateNode` — the error is
-*"Cannot cast type 'AnimStateNode' to 'Blueprint'"*. `read_graph_dsl` also returns empty there.
-**Placing a node inside a state is the one AnimBP job that needs a human**; everything around it is
-scriptable, including exposing optional pins.
+**`create_node` cannot target a nested state graph** *(confirmed 2026-08-14)* — it resolves the
+Blueprint through the graph's outer, which for a state is an `AnimStateNode`
+(*"Cannot cast type 'AnimStateNode' to 'Blueprint'"*); `read_graph_dsl` returns empty there too.
+**Placing a node inside a state is the one AnimBP job needing a human.** Diagnose it carefully:
+**a creation `type_id` is not the one a node reports** — `get_node_infos` gives `|GetGroundSpeed`,
+`create_node` wants `Variables|Default|GetGroundSpeed`, and guessing fails with *"does not exist"*,
+which reads like a wall and is not. Use `find_node_types`.
 
-**An anim node's optional properties can be turned into pins by writing `ShowPinForProperties`**
-*(confirmed 2026-08-14)* — flip `bShowPin` on the entry whose `bCanToggleVisibility` is true, then
-`compile_blueprint`, then read the node back to see the new pin. That is how a `BlendSpacePlayer`'s
-`BlendSpace` or a `SequencePlayer`'s `Sequence` becomes drivable. `set_pin_value` then swaps the
-asset without touching the graph, which also makes it **the cheapest way to eyeball an animation
-asset**: point the pin at it, PIE, `CaptureViewport`, point it back.
-
-**A creation `type_id` is not the `type_id` a node reports.** `get_node_infos` returns shorthand
-like `|GetGroundSpeed`; `create_node` wants `Variables|Default|GetGroundSpeed`. Guessing from the
-former fails with *"does not exist"*, which reads exactly like a permissions problem and is not —
-**use `find_node_types` and do not infer a create id from a read one.**
+**Optional anim-node properties become pins by writing `ShowPinForProperties`** *(confirmed
+2026-08-14)* — flip `bShowPin` where `bCanToggleVisibility` is true, `compile_blueprint`, read the
+node back. That is how a `BlendSpacePlayer`'s `BlendSpace` or a `SequencePlayer`'s `Sequence`
+becomes drivable, and `set_pin_value` then swaps the asset without touching the graph — also **the
+cheapest way to eyeball an animation**: point the pin at it, PIE, `CaptureViewport`, point it back.
 
 **AnimGraph *editing* is scriptable** *(confirmed 2026-08-11)*; only creation is not. `BlueprintTools`
 has `list_graphs`, `find_nodes`, `get_node_infos`, `create_node`, `connect_pins`, `set_pin_value`,
