@@ -44,13 +44,33 @@ void UTDBlockAbility::InputReleased(
 		return;
 	}
 
-	TD_TIMING_LOG(TEXT("[%.3f] BLOCK      down on %s"),
-		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f,
-		*GetNameSafe(ActorInfo ? ActorInfo->AvatarActor.Get() : nullptr));
-
 	// bWasCancelled=false: the button coming up is the ability finishing the job it was given,
 	// not something interrupting it. The distinction is not cosmetic -- EffectOnEnd is documented
 	// as applying on cancellation too, so calling this a cancel would make being interrupted and
 	// letting go indistinguishable to anything that later hangs off either.
 	EndAbility(Handle, ActorInfo, ActivationInfo, /*bReplicateEndAbility=*/true, /*bWasCancelled=*/false);
+}
+
+void UTDBlockAbility::EndAbility(
+	const FGameplayAbilitySpecHandle Handle,
+	const FGameplayAbilityActorInfo* ActorInfo,
+	const FGameplayAbilityActivationInfo ActivationInfo,
+	bool bReplicateEndAbility,
+	bool bWasCancelled)
+{
+	// **Logged here rather than in InputReleased, which is where it was and which hid a bug for a
+	// day.** A guard ends five ways -- released, cancelled by a swing or a dodge, broken, or leaving
+	// the ground -- and only the first goes through InputReleased. So the trace showed a guard going
+	// up and never coming down, and a guard that survived its own guard break looked identical to
+	// one that was correctly cancelled. EndAbility is where every exit converges, which is the same
+	// argument that already puts the facing unlock here.
+	//
+	// bWasCancelled distinguishes letting go from being made to, which is the whole question when
+	// reading a log back.
+	TD_TIMING_LOG(TEXT("[%.3f] BLOCK      down on %s (%s)"),
+		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f,
+		*GetNameSafe(ActorInfo ? ActorInfo->AvatarActor.Get() : nullptr),
+		bWasCancelled ? TEXT("cancelled") : TEXT("released"));
+
+	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }

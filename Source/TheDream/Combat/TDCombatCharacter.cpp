@@ -7,6 +7,7 @@
 #include "Engine/OverlapResult.h"
 #include "Combat/Attributes/TDAttributeSet.h"
 #include "Combat/Abilities/TDGameplayAbility.h"
+#include "Combat/Abilities/TDBlockAbility.h"
 #include "Combat/TDCombatDebug.h"
 #include "Combat/TDGameplayTags.h"
 #include "Core/TDPlayerState.h"
@@ -226,14 +227,34 @@ void ATDCombatCharacter::TickBlockDrain(float DeltaSeconds)
 
 void ATDCombatCharacter::CancelBlockAbility()
 {
-	if (!AbilitySystem || !BlockingTag.IsValid())
+	if (!AbilitySystem)
 	{
 		return;
 	}
 
-	FGameplayTagContainer BlockingTags;
-	BlockingTags.AddTag(BlockingTag);
-	AbilitySystem->CancelAbilities(&BlockingTags);
+	// **Not CancelAbilities(&BlockingTags).** That was the first version and it silently did
+	// nothing for a day: CancelAbilities matches against the ability's *asset* tags
+	// (Ability.Defend.Block), while BlockingTag is State.Blocking, which the ability grants through
+	// ActivationOwnedTags. The two tag sets are unrelated, so every match failed and every caller --
+	// the guard break, the jump, going airborne -- quietly cancelled nothing while looking correct.
+	//
+	// Matched on the ability's *type* rather than on a second tag, so there is no third place for
+	// the block's identity to live and drift. The cost, stated: a Blueprint-only guard that does not
+	// derive from UTDBlockAbility would not be caught here.
+	TArray<FGameplayAbilitySpecHandle> ToCancel;
+	for (const FGameplayAbilitySpec& Spec : AbilitySystem->GetActivatableAbilities())
+	{
+		if (Spec.IsActive() && Spec.Ability && Spec.Ability->IsA<UTDBlockAbility>())
+		{
+			ToCancel.Add(Spec.Handle);
+		}
+	}
+
+	// Collected first: cancelling inside the loop can reallocate the ASC's live spec array.
+	for (const FGameplayAbilitySpecHandle& Handle : ToCancel)
+	{
+		AbilitySystem->CancelAbilityHandle(Handle);
+	}
 }
 
 void ATDCombatCharacter::TickBlockingMoveSpeed()
