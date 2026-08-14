@@ -2,6 +2,8 @@
 
 #include "Combat/TDCombatCharacter.h"
 #include "AbilitySystemBlueprintLibrary.h"
+#include "AIController.h"
+#include "EngineUtils.h"
 #include "Engine/OverlapResult.h"
 #include "Combat/Attributes/TDAttributeSet.h"
 #include "Combat/Abilities/TDGameplayAbility.h"
@@ -746,8 +748,77 @@ void ATDCombatCharacter::ReturnToDebugAutoAttackHome()
 	}
 }
 
+void ATDCombatCharacter::UpdateDebugFacingFocus(bool bAttacking)
+{
+	if (DebugAutoAttackFacingMode == ETDDebugFacingMode::Never)
+	{
+		return;
+	}
+
+	// Only an AI controller has a focus. A player-controlled character reaching here is not an
+	// error -- the debug attacker lives on the shared base -- it simply has nothing to set.
+	AAIController* AI = Cast<AAIController>(GetController());
+	if (!AI)
+	{
+		return;
+	}
+
+	// WhileAttacking hands facing back the moment the swing ends, and the position reset then
+	// restores the placed yaw. Clearing rather than re-aiming is what keeps the dummy from
+	// following the player around between swings.
+	if (!bAttacking && DebugAutoAttackFacingMode == ETDDebugFacingMode::WhileAttacking)
+	{
+		AI->ClearFocus(EAIFocusPriority::Gameplay);
+		return;
+	}
+
+	const UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+
+	// Nearest other living pawn, with no probe radius: this is a test level, and inventing a
+	// cutoff here would be a second spacing number nobody authored. Deliberately not "the player
+	// pawn" -- the auto-attacker is on the shared base, so a self-attacking player would
+	// otherwise focus on itself.
+	APawn* Nearest = nullptr;
+	float NearestDistanceSquared = TNumericLimits<float>::Max();
+	for (TActorIterator<APawn> It(World); It; ++It)
+	{
+		APawn* Candidate = *It;
+		if (!Candidate || Candidate == this)
+		{
+			continue;
+		}
+
+		// A corpse is not something to aim at, and the dummy outlives the player's deaths.
+		const ATDCombatCharacter* AsCombatant = Cast<ATDCombatCharacter>(Candidate);
+		if (AsCombatant && AsCombatant->IsDead())
+		{
+			continue;
+		}
+
+		const float DistanceSquared = FVector::DistSquared(Candidate->GetActorLocation(), GetActorLocation());
+		if (DistanceSquared < NearestDistanceSquared)
+		{
+			NearestDistanceSquared = DistanceSquared;
+			Nearest = Candidate;
+		}
+	}
+
+	if (Nearest)
+	{
+		AI->SetFocus(Nearest, EAIFocusPriority::Gameplay);
+	}
+}
+
 void ATDCombatCharacter::HandleDebugAutoAttackEnded(const FAbilityEndedData& EndedData)
 {
+	// Before the reset, not after: the reset restores the placed yaw, and holding the focus
+	// through it would have the controller immediately turn back out of what it just restored.
+	UpdateDebugFacingFocus(/*bAttacking=*/false);
+
 	// The interesting reset: it puts the attacker home for the whole gap between swings, so it
 	// idles where it was placed instead of wherever its last lunge left it.
 	//
@@ -783,6 +854,13 @@ void ATDCombatCharacter::DebugAutoAttackPress()
 	// that is cancelled or interrupted may never end cleanly, and this preserves the guarantee
 	// that every swing starts from an identical transform.
 	ReturnToDebugAutoAttackHome();
+
+	// After the reset, so the turn starts from the placed yaw the reset just restored, and
+	// before the press, so the windup is already closing the angle rather than starting a frame
+	// late. In Always mode this is also what establishes the focus in the first place -- a
+	// placed dummy is possessed before the player pawn exists, so there is nothing to aim at
+	// until the first swing comes round.
+	UpdateDebugFacingFocus(/*bAttacking=*/true);
 
 	OnAbilityInputPressed(DebugAutoAttackInputTag);
 

@@ -25,6 +25,22 @@ each has cost this project a session at least once.
 shipped defaults (0.35 and 3.0) clear all three tiers with room — the charged is the binding case at
 1.45 s. Interval is read once in `BeginPlay`; only the delay is live at runtime.
 
+**The dummy throws only lights.** `DebugAutoAttackHoldSeconds` is 0.1, below the light's 150 ms
+boundary, so it never escalates and never coils — do not expect `ESCALATE`, `COIL START` or any
+`CoilTurnRateDegrees` effect from it. 0.3 buys a heavy and 0.8 a charged, and changing it changes
+the fixture every prior measurement was taken against.
+
+**`DebugAutoAttackFacingMode` decides whether it aims at you** (`Never` / `WhileAttacking` /
+`Always`, set to `WhileAttacking` 2026-08-14). On `Never` the dummy holds its placed yaw no matter
+where you stand, which is a *useful control* and an easy thing to mistake for broken hit detection.
+**Read `TARGET commit`'s bearing to tell which mode you are in** — a bearing pinned near ±90 while
+you circle is a dummy that is not turning.
+
+**Beware the placed axis when testing facing.** `L_CombatTest` puts the dummy at (200, 0) yaw 180
+and `PlayerStart` at (0, 0) — *directly along its facing*, so `bearing=+0.0` there is what a dummy
+that never turns also reports. Use `StartPIE`'s `startTransform` to spawn off-axis; (200, −400)
+reads +90 for a non-turning dummy and 0 for a turning one.
+
 
 **`L_CombatTest`'s floor is one scaled `Engine/BasicShapes/Plane`** — scale 100, so 10000×10000
 centred on the origin, edges at ±5000. Its size is a measurement constraint: accumulating travel

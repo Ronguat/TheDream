@@ -252,40 +252,6 @@ permanent half-walk at full speed, with no error anywhere.
 are authored for. The `_RM` variants encode the authored displacement, so this stays measurable
 rather than a matter of taste.
 
-**Before Block, Parry or Stun — *the dummy's held attacks track at half the player's rate, so
-offense parity is not as complete as it reads.*** Found 2026-08-14 by CDO read.
-`BP_TrainingDummy` carries **no** overrides on the turn rates: `CoilTurnRateDegrees` is the C++
-**300** against `BP_PlayerCharacter`'s **600**. Both characters share `GA_Attack`, so every timing,
-wedge and distance really is one set — but coil tracking lives on the *character*, and that is the
-half the 2026-08-11 parity entry did not anticipate.
-
-**It bites exactly where the parity decision said it would.** Every defensive verdict from here is
-measured against what the dummy throws, and a held heavy that redirects onto a sidestepping player
-at half rate makes block coverage and blockstun read more forgiving than a human opponent would.
-This is the *"stable reference to the wrong number"* failure that entry rejected the unarmed dummy
-to avoid, reappearing one property lower down.
-
-**The design question is settled and the fix is not.** The user's call, same day: *the dummy should
-track like a player*, which is the parity entry's own rule — *"accurate in the dimension being
-measured"* — applied to the dimension Block measures.
-
-**But copying 600 across would be inert, and that is the trap's real content.** `RotationRate.Yaw`
-only governs how fast the pawn closes an *existing* error against `bUseControllerDesiredRotation`.
-The dummy is possessed (`AutoPossessAI: PlacedInWorld`, a stock `AAIController`) and therefore has
-a control rotation — but nothing ever sets it, and `AAIController` defaults to taking its rotation
-*from the pawn*, so the error is permanently zero and the rate multiplies nothing. **Measured, not
-inferred:** across 100 s of auto-attacks the dummy's bearing to the player held at −81° to −92° and
-its distance at 482–488 cm. It never turned once.
-
-So the work is *giving the dummy a desired facing* — a focus on its target — and the turn rates
-become live only after that. Authoring 600 first would produce a fifth number that has never done
-anything, which is the failure the aim wedges already cost this project a session to find.
-
-Two sibling divergences checked at the same time and **harmless, recorded so nobody re-derives
-them**: the dummy's `InputBufferSeconds` (0.1) and `StaminaRegenPauseSeconds` (1.0) are also C++
-defaults, and nothing reaches either — the dummy takes no input and nothing in the build spends its
-stamina.
-
 ---
 
 ### Multiplayer — filed against the first slice that runs two machines
@@ -335,6 +301,23 @@ machine run its own fade, rather than putting a per-frame float on the wire.
 ---
 
 ### Discharged, kept because a discharge is the one edit that cannot be reviewed silently
+
+**~~The dummy does not track its target, so offense parity is thinner than it reads.~~ Discharged
+2026-08-14 by `ETDDebugFacingMode`.** The dummy now takes a focus on the nearest living pawn while
+it swings, and turns at the same three rates the player does. Play-verified with a real control:
+the player spawned 90° off the dummy's placed axis, where a non-turning dummy reads `bearing=+90`,
+and every `TARGET commit` read **`+0.0`**.
+
+**Two things from it are still true and worth keeping.** The mechanism: `RotationRate.Yaw` only
+closes an *existing* error against `bUseControllerDesiredRotation`, so without a focus a stock
+`AAIController` copies its rotation from the pawn and every turn rate on the character multiplies
+nothing. And **`CoilTurnRateDegrees` is still not exercised** — it is 600 on the dummy now, matching
+the player, but `DebugAutoAttackHoldSeconds` is 0.1 and the light never coils. Set deliberately
+rather than left at 300, so that raising the hold does not silently get half-rate tracking; treat
+it as unverified until something actually coils.
+
+**The fixture changed, so measurements do not span it.** Anything comparing defensive feel before
+and after 2026-08-14 is comparing two different opponents.
 
 **~~The character hovers while a root-motion montage plays.~~ Discharged 2026-08-12.** Never about
 montages, root motion, skeletons or clips: the mesh sat at Z −90 under a 96 capsule half-height, so
@@ -566,7 +549,7 @@ value in the same state it was in.
 | `DodgeSeconds`, `DodgeTargetDistanceCm` | **Felt** | 0.4 judged before any animation existed, deliberately; 405 is Dodge Distance's play-verified V1 figure, preserved through the V3 swap. |
 | `InputBufferSeconds` | **Felt**, with a known cost | 0.20 chosen by play. One press in seven dropped under deliberately abusive tapping, not felt in normal play. |
 | `StaminaRegenPerSecond`, `ExhaustedStaminaRegenPerSecond` | **Unfelt** | 40 and 25, the user's numbers but verified by construction only — nothing in the build spends stamina without a human on the dodge key. The arithmetic to check is 0 → full in 2.5 s normally, 4.0 s exhausted. |
-| `CoilTurnRateDegrees` | **Unfelt** | 600 on `BP_PlayerCharacter`'s CDO, confirmed 2026-08-14 — the user's chosen value, verified by construction only. The dispute with the C++ 300 is closed; the Blueprint overrides it. **`BP_TrainingDummy` does not**, which is a trap above. |
+| `CoilTurnRateDegrees` | **Unfelt, and unexercised** | 600 on both characters' CDOs as of 2026-08-14 — the user's chosen value, verified by construction only. The dispute with the C++ 300 is closed; both Blueprints override it. **Nothing has ever reached this rate**: the player would have to hold an attack past 150 ms while turning, and the dummy's `DebugAutoAttackHoldSeconds` is 0.1 so it never coils at all. |
 | `TurnRateDegrees` | **Derived, not felt — and must stay that way** | 180° ÷ the light's `HoldUntilSeconds`. It is not a candidate for this table's treatment; tuning it by feel is what the tuning map forbids. |
 | `LungeStandoffCm` | **Felt** as a slide fix | 40. Its *second* job — the spacing of a non-connecting exchange — has never been judged. |
 | `C_Lunge_Base`, `C_Lunge_Attack` | **Inert** | Authored, wired to nothing, parked against the structure audit. A curve's mean must be 1.0 or it silently scales the authored distance. |
@@ -776,6 +759,62 @@ long.
 | `gEComponents` | 08-10, 08-11 |
 
 ---
+
+## 2026-08-14 — The dummy tracks like a player, and a turn rate was never the thing missing
+
+The user's call, made once the gap was measured: *the dummy should track like a player.* That is
+the 2026-08-11 parity entry's own rule — *"accurate in the dimension being measured"* — applied to
+the dimension Block is about to measure. Every defensive verdict from here is taken against what the
+dummy throws, and an attack that cannot follow a sidestepping player reads as more forgiving than a
+human opponent would.
+
+### The obvious fix was inert, which is the part worth recording
+
+The gap surfaced as `CoilTurnRateDegrees` being 300 on `BP_TrainingDummy` against the player's 600,
+so the obvious remedy was to copy the number across. **That would have done nothing at all.**
+
+`bUseControllerDesiredRotation` turns the pawn toward the *controller's* rotation at
+`RotationRate.Yaw`, which is where the three rates live. A stock `AAIController` with no focus sets
+`bSetControlRotationFromPawnOrientation`, so its control rotation is copied **from the pawn** every
+tick — the error is permanently zero and any rate multiplies nothing. Confirmed from
+`AAIController::UpdateControlRotation` rather than recalled, and matched by 100 s of auto-attacks
+holding a bearing of −81° to −92° without turning once.
+
+So the missing thing was a **focus**, not a rate. With one set, `APawn::FaceRotation` no-ops
+(`bUseControllerRotationYaw` is false on our characters) and the movement component does the turn —
+the same path the player's rates already govern. **Parity is then inherited rather than
+configured:** `ATDCombatCharacter::IsIdle()` already returns false while any ability is active, so a
+swinging dummy turns at `TurnRateDegrees` exactly as a swinging player does.
+
+The general lesson is the one this project keeps relearning in new clothes: *a number that looks
+wrong is not evidence that the number is what is broken.* Two authored aim-wedge values that had
+never done anything cost a session; this is the same shape caught before it was authored.
+
+### Three modes, because a tracking dummy is not always wanted
+
+`ETDDebugFacingMode` is `Never` / `WhileAttacking` / `Always`, defaulting to `Never` in C++ and set
+to `WhileAttacking` on the dummy. The user's reason for not defaulting to `Always`: *"sometimes I
+don't want the dummy chasing me"* — a fixture that always faces you is intrusive when the thing
+being measured is unrelated. `Never` is kept deliberately as a control, not as a legacy path.
+
+An enum rather than a bool because "toggleable" was ambiguous between *facing on/off* and *while
+attacking versus always*, and three named modes serve both readings for the same cost.
+
+**Facing only.** The dummy does not approach and was not asked to: the parity rule is about the
+dimension being measured, and Block measures what happens when an attack arrives rather than how it
+closed the distance.
+
+### What was deliberately left alone
+
+**The position reset still restores rotation.** The user's call. So the dummy aims during each
+swing and snaps back to its placed yaw between them, which keeps the *"every swing starts from an
+identical transform"* guarantee that makes it pleasant to stand in front of. A consequence worth
+knowing: with the reset in place, *clearing* the focus between swings and *not* clearing it are
+behaviourally indistinguishable, so the `WhileAttacking` clear is written and unproven.
+
+**`DebugAutoAttackHoldSeconds` stays at 0.1**, so the dummy throws only lights and never coils. The
+user accepted leaving coil tracking untested. `CoilTurnRateDegrees` was still set to 600 to match
+the player, so that a later hold change does not silently inherit half-rate tracking.
 
 ## 2026-08-14 — Autonomy on the how, interruption on the what; and permission prompts are a cost gate
 

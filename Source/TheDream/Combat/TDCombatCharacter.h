@@ -62,6 +62,36 @@ struct FTDBufferedInput
 };
 
 /**
+ *  When a debug auto-attacker turns to face what it is swinging at.
+ *
+ *  A dummy that never turns is a *stable* fixture and a misleading one: every defensive
+ *  verdict from Block onward is measured against what it throws, and an attack that cannot
+ *  follow a sidestepping player reads as more forgiving than a human opponent would. But a
+ *  dummy that always faces you is unpleasant to work around when you are measuring something
+ *  else, so this is three modes rather than a bool.
+ *
+ *  **Facing is all this does.** The dummy does not approach, and that is deliberate -- the
+ *  parity rule is "accurate in the dimension being measured", and Block measures what happens
+ *  when an attack arrives rather than how it closed the distance.
+ */
+UENUM(BlueprintType)
+enum class ETDDebugFacingMode : uint8
+{
+	/** Never turn. The pre-2026-08-14 behaviour, kept because it is a useful control. */
+	Never,
+
+	/**
+	 *  Turn only while an attack is running, and let the position reset restore the placed
+	 *  yaw between swings. The default for the training dummy: it aims what it throws without
+	 *  following you around the level when you are measuring something unrelated.
+	 */
+	WhileAttacking,
+
+	/** Turn continuously. Closest to a real opponent, and the most intrusive to work around. */
+	Always
+};
+
+/**
  *  Base class for anything that can fight: the player and the training dummy alike.
  *
  *  Inherits locomotion and the third person camera from ATheDreamCharacter and adds
@@ -388,6 +418,29 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat|Debug", meta=(ClampMin="0.0"))
 	float DebugAutoAttackResetDelaySeconds = 0.35f;
 
+	/**
+	 *  Whether this auto-attacker turns to face its target, and when. Debug only.
+	 *
+	 *  **The turn itself needs nothing but a focus.** A possessed pawn with no focus has
+	 *  AAIController copying its control rotation *from the pawn* every tick
+	 *  (bSetControlRotationFromPawnOrientation, on by default), so the rotation error is
+	 *  permanently zero and every turn rate on this character multiplies nothing -- which is
+	 *  why the dummy held a bearing of -81 degrees across 100 seconds of swinging before this
+	 *  existed. Setting a focus makes the control rotation point at the target, APawn::FaceRotation
+	 *  no-ops because bUseControllerRotationYaw is false, and CharacterMovementComponent closes
+	 *  the gap at RotationRate.Yaw -- the same path the player's three turn rates already govern.
+	 *
+	 *  So parity is inherited rather than configured: ATDCombatCharacter::IsIdle() returns false
+	 *  while any ability is active, so a swinging dummy turns at TurnRateDegrees exactly as a
+	 *  swinging player does, and idles at IdleTurnRateDegrees between swings.
+	 *
+	 *  **CoilTurnRateDegrees is the one rate this does not reach today**, because
+	 *  DebugAutoAttackHoldSeconds is 0.1 and the light never coils. Raise the hold past the
+	 *  heavy's boundary and it becomes live with no further change here.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat|Debug")
+	ETDDebugFacingMode DebugAutoAttackFacingMode = ETDDebugFacingMode::Never;
+
 public:
 
 	/**
@@ -579,6 +632,15 @@ private:
 
 	/** Teleports back to DebugAutoAttackHomeTransform and kills leftover velocity. No-op if disabled. */
 	void ReturnToDebugAutoAttackHome();
+
+	/**
+	 *  Points the AI controller's focus at the nearest other pawn, or clears it. Debug only.
+	 *
+	 *  Re-resolved on every call rather than cached in BeginPlay, because a placed dummy is
+	 *  possessed before the player pawn exists -- a focus taken at BeginPlay would be null
+	 *  forever. Calling it per swing costs one overlap query every DebugAutoAttackInterval.
+	 */
+	void UpdateDebugFacingFocus(bool bAttacking);
 
 	/** Bound to the ASC so the attacker returns home the moment a swing finishes. */
 	void HandleDebugAutoAttackEnded(const FAbilityEndedData& EndedData);

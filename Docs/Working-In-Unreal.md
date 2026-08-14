@@ -230,6 +230,13 @@ type.** Comparing against stock `IMC_Default` is what exposed the input bug; our
   duplicating a `CurveFloat` worked 2026-08-13, so try it before asking.
 - **`delete` is inconsistent about removing the `.uasset` from disk** *(confirmed both ways)*.
   Always check the directory afterwards; `git rm` only what is still there.
+- **Saving a level while a CDO write is not yet live bakes the stale value into placed actors as
+  per-instance overrides** *(confirmed 2026-08-14)*. This is how the trap below gets *created*, and
+  the sequence is one anybody would follow: write the CDO, `save_assets`, restart. The save catches
+  the placed actor still reading the old value and serializes it as an override, so the restart
+  fixes the CDO and the instance stays wrong forever. Seen on a **brand-new** property, which is
+  what makes it unmistakable — there was nothing to inherit from. **Read the placed actor after any
+  CDO write, not just the CDO**, and expect to set it explicitly.
 - **A placed actor can hold stale `EditDefaultsOnly` values that silently override its Blueprint**
   *(confirmed 2026-08-10)*. The placed dummy read `DefaultAbilities: []` against a populated CDO and
   was granted nothing. The signature is the instance showing **C++ class defaults** — it was placed
