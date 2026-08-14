@@ -412,6 +412,29 @@ void ATDCombatCharacter::BeginBlockCommitment()
 	}
 }
 
+void ATDCombatCharacter::PayBlockInitialCost()
+{
+	if (!HasAuthority() || !AbilitySystem || BlockInitialStaminaCost <= 0.0f)
+	{
+		return;
+	}
+
+	// **Not flagged as drain**, unlike TickBlockDrain, and the difference is the whole point. Drain
+	// is continuous and deliberately cannot exhaust you; this is a one-off *cost*, and a cost that
+	// empties the bar exhausts you exactly as a dodge's does. So it goes through the stamina
+	// delegate unguarded and reaches EnterExhaustion by the ordinary route.
+	AbilitySystem->ApplyModToAttribute(
+		UTDAttributeSet::GetStaminaAttribute(),
+		EGameplayModOp::Additive,
+		-BlockInitialStaminaCost);
+
+	TD_TIMING_LOG(TEXT("[%.3f] BLOCK      cost %.0f on %s  remaining=%.1f"),
+		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f,
+		BlockInitialStaminaCost,
+		*GetName(),
+		GetStamina());
+}
+
 void ATDCombatCharacter::TickBlockCommitment(float Now)
 {
 	if (!AbilitySystem)

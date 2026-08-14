@@ -157,6 +157,17 @@ public:
 	 */
 	void BeginBlockCommitment();
 
+	/**
+	 *  Charges BlockInitialStaminaCost. Called by the block ability once it has actually activated.
+	 *
+	 *  Deliberately *not* EffectOnStart, which is how the dodge pays. That route needs a
+	 *  GameplayEffect asset, and a GameplayEffect's modifier attribute cannot be reliably configured
+	 *  through the toolset -- it accepts the write and leaves the FProperty null, so the effect
+	 *  modifies nothing and says so nowhere. The guard's other stamina spend already lives in C++ on
+	 *  this character for the same reason, and one home beats two.
+	 */
+	void PayBlockInitialCost();
+
 	/** True while a guard is inside its minimum duration and cannot be acted out of. */
 	UFUNCTION(BlueprintPure, Category="Combat|Stamina")
 	bool IsBlockCommitted() const;
@@ -462,6 +473,28 @@ protected:
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Stamina", meta=(ClampMin="0.0"))
 	float MinimumBlockSeconds = 0.25f;
+
+	/**
+	 *  Stamina taken once, the moment a guard goes up. Zero by default, so it costs nothing to raise.
+	 *
+	 *  **Paid, never required**, like every cost in this project: raising a guard at 4 stamina with
+	 *  a cost of 5 works, empties the bar and exhausts you. It is not refused, and the guard still
+	 *  does everything it would have done -- including cancelling an attack, which is the case worth
+	 *  stating because it is the one that has to survive. GAS applies an ability's cancel tags
+	 *  during activation, before this is charged, so the attack is already gone by the time the
+	 *  exhaustion lands. You get the cancel and you pay for it.
+	 *
+	 *  **It is not a guard break.** Nothing is broken and there is no stun; you are simply exhausted,
+	 *  exactly as an over-budget dodge leaves you. Breaking a guard remains the sole preserve of
+	 *  stamina *damage*, which is the distinction the whole economy rests on.
+	 *
+	 *  Charged on every activation, including a resume after an attack or dodge -- the same rule as
+	 *  the minimum duration and adopted for the same reason, that an exemption makes the cost
+	 *  conditional on something the player cannot see. **Worth feeling before trusting**: with a
+	 *  non-zero value, holding a guard through a swing pays twice, which may or may not be wanted.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Stamina", meta=(ClampMin="0.0"))
+	float BlockInitialStaminaCost = 0.0f;
 
 	/**
 	 *  Collapse into a ragdoll on death.

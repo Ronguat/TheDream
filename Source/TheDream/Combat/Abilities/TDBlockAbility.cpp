@@ -32,6 +32,12 @@ void UTDBlockAbility::ActivateAbility(
 	if (ATDCombatCharacter* Character = Cast<ATDCombatCharacter>(ActorInfo ? ActorInfo->AvatarActor.Get() : nullptr))
 	{
 		Character->BeginBlockCommitment();
+
+		// After the commitment rather than before, so that a cost which exhausts the player cannot
+		// leave a guard standing with no floor under it. Both run unconditionally once activation
+		// has succeeded: by then the ability's cancel tags have already fired, which is what makes
+		// "you can cancel an attack, but doing so exhausts you" true rather than a race.
+		Character->PayBlockInitialCost();
 	}
 
 	TD_TIMING_LOG(TEXT("[%.3f] BLOCK      up on %s"),
