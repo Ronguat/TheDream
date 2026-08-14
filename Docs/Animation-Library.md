@@ -234,10 +234,11 @@ number is how many clips share that move name across directions, `RM`/`IP` and q
 | `Attack1`–`Attack10` | 12–72 each | Offense. Heavily varied, so tier selection is a judgement call needing preview. |
 | `Defense` / `DefenseStart` / `DefenseEnd` | 10 / 1 / 1 | **Block.** A start-loop-end structure, exactly what a held guard needs. |
 | `Block1` / `Block2` | 4 / 3 | Block impact reactions — and the nearest thing to a parry (see gaps). |
-| `Roll` | 8 | All eight directions. The evade this project uses. |
-| `Dodge` | 10 | Backward and lateral only, no forward. |
-| `Flip` / `Dash` | 16 / 16 | Unused so far. |
-| `Hit` / `Death` | 5 / 5 | Hit reactions and knockdown, for focus item **11**. |
+| `Dash` | 16 | All eight directions in both packs. **The evade this project uses** — `AM_Dodge` is V3's eight `Dash_*_RM`. |
+| `Roll` | 8 | All eight directions. Chosen for the dodge on 2026-08-10 and replaced by `Dash` the same day; still the fallback if a dash reads too weightless for a 50-stamina cost. |
+| `Dodge` | 10 | Backward and lateral only, no forward. **Not what the Dodge mechanic plays** — the name is the vendor's, not ours. |
+| `Flip` | 16 | Unused so far. |
+| `Hit` / `Death` | 5 / 5 | Hit reactions and knockdown, for **Stun**. |
 | `Walk` / `Run` | 192 / 192 | Full directional locomotion set. |
 | `Idle1` / `Idle2` | 3 / 3 | |
 | `Sheath` / `Unsheath` | 3 / 3 | Only relevant if weapon swapping comes into scope. |
@@ -375,16 +376,21 @@ Worth recording, because a name gives no hint and re-discovering costs a preview
 
 ## Known gaps and what they imply
 
-These are facts about the bundle, checked across all 6,576 assets, not impressions:
+These are facts about the bundle, **checked 2026-08-10 across all 6,576 rows of
+`Animation-Library-Index.tsv`, unfiltered**, not impressions. Individually dated items below were
+checked later and say so.
 
-- **There is no forward dodge anywhere.** Every `Dodge` set is `Bw`, `L`, `R`, `BL`, `BR` —
-  backward and lateral only, in every archetype. `Roll` covers all eight directions
-  including forward. The library is expressing a convention: you do not dodge forward, you
-  roll forward. That is a design question for us, not a defect. **It has never been recorded as a
-  decision** — the reasoning nearest to it is "2026-08-10 — The evade is a dash, not a roll" in
-  `Docs/Combat-Decisions.md`, which settled the *clip family* and not whether a forward evade
-  should exist. This line pointed at an "open question" section that no longer exists until the
-  2026-08-12 audit.
+- **No clip *named* `Dodge` goes forward.** Every `Dodge` set is `Bw`, `L`, `R`, `BL`, `BR` —
+  backward and lateral only, in every archetype. `Roll` and `Dash` both cover all eight directions
+  including forward.
+
+  **The design question this used to pose is settled in practice, as of 2026-08-13.** The line
+  read "the library is expressing a convention: you do not dodge forward, you roll forward… it has
+  never been recorded as a decision." Our Dodge plays `Dash`, which has a `Fw`, and all eight
+  directions are play-verified at `DodgeTargetDistanceCm`. So the project dodges forward and the
+  vendor's convention was never binding — it was a naming artefact of one clip family. Still true
+  that no entry *argues* for a forward evade; it was simply never in doubt once the clip family
+  changed.
 - **Every dodge is root motion.** There are zero in-place dodge clips. Root motion can be
   switched off on a montage and displacement driven in code, so this constrains the default
   rather than the ceiling, but authored displacement is what ships.
@@ -408,11 +414,14 @@ These are facts about the bundle, checked across all 6,576 assets, not impressio
   *baked into the clip*; `bEnableRootMotion` on the asset is **false** out of the box, so a
   clip named `_RM` moves nothing until that is enabled. Checked on
   `AS_SwordAndShieldAnimV1_Roll_Fw_RM`, which also reports `RootMotionRootLock: RefPose`.
-  Anything relying on authored displacement has to set this per clip. **Our eight
-  `SwordAndShieldAnimV1_Roll_*_RM` clips already have it enabled** — done in `67f4ace` when the
-  dodge was built — so re-reading them returns `true` and does not contradict this. The claim
-  describes what the bundle ships, not what our migrated copies now hold; any *newly* migrated
-  clip still needs the flag set.
+  The claim describes what the bundle ships, not what our migrated copies hold; any *newly*
+  migrated clip still needs the flag set.
+
+  **Our copies disagree with the bundle in both directions, so read the flag rather than the
+  name.** The eight `SwordAndShieldAnimV1_Roll_*_RM` clips have it **enabled** (`67f4ace`, when
+  the dodge was first built on rolls) and are no longer played by anything. The eight
+  `SwordSwordAnimV3_Dash_*_RM` clips that `AM_Dodge` actually plays have it **disabled**, plus
+  `bForceRootLock = true`, because displacement is authored — see the pair rule above.
 - **Attach props to the pack's `Sword` / `Shield` sockets, never to the `weapon_*` bones.**
   *(confirmed 2026-08-10, the hard way)* `GDHBundle`'s `SKM_Manny` carries three authored
   sockets — `Sword`, `Shield`, `Sheath` — parented to `hand_r` / `hand_l`, and they hold the
@@ -462,10 +471,18 @@ These are facts about the bundle, checked across all 6,576 assets, not impressio
   | `SwordAndShieldAnimV1` | **held guard** | `Defense`, `Defense_Loop`, `DefenseStart`, `DefenseEnd`, four directional `Defense_Hit_*`, four `_Death` |
   | `SwordSwordAnimV3` | **discrete block actions** | `Block1`/`Block2`, each with `_Idle` and `_Hit`, plus `Block1_Parry` |
 
-  That maps onto this project's two mechanics almost exactly: **block holds** (V1's idiom, and V1
-  is already the pack the dodge and locomotion come from, so Block has no stance problem at all),
-  while **parry is a 400 ms discrete action** — which is what V3's `Block*` family is. All 19 of
-  these clips are **already migrated**; none needs a migrate.
+  That maps onto this project's two mechanics almost exactly: **block holds** (V1's idiom) while
+  **parry is a 400 ms discrete action** — which is what V3's `Block*` family is. All 19 of these
+  clips are **already migrated**; none needs a migrate.
+
+  **This paragraph claimed until 2026-08-14 that V1 "is already the pack the dodge and locomotion
+  come from, so Block has no stance problem at all". That premise died on 2026-08-11** — V3 became
+  the base stance, and the dodge moved to V3's `Dash_*` clips on top of it. So reaching for V1's
+  held guard *is* a pack mix, and whether that reads acceptably is the open question `CLAUDE.md`
+  files under Block as an idea *not decided*. The mix is very likely still the right call, for the
+  reason the V3 swap itself recorded: V1 turns out to be specifically guard-shaped, which is a
+  defect as a neutral stance and exactly right as a guard. What is not true is that it costs
+  nothing.
 
   **The "`SwordSword` might mean dual swords" worry is dead** *(raised and closed 2026-08-11)*.
   The `SwordShield` archetype contains three sub-packs named three different ways for the same
