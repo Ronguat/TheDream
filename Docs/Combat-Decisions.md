@@ -252,6 +252,18 @@ permanent half-walk at full speed, with no error anywhere.
 are authored for. The `_RM` variants encode the authored displacement, so this stays measurable
 rather than a matter of taste.
 
+**Whenever anything grants a placed actor `GA_Block` — *`BP_TrainingDummy`'s instance in
+`L_CombatTest` has `BlockingTag` stale at None.*** Filed 2026-08-14, and created by that day's own
+save: the level was written while the CDO change was not yet live, so the old value was baked in as
+a per-instance override. `BlockingTag` is `EditDefaultsOnly`, so it can be neither set nor reset on
+the instance — the only fix is delete-and-re-place, which is destructive and was not taken.
+
+**Inert today, and that is the whole hazard.** The dummy has only `GA_Attack`, so it cannot block
+and `IsBlocking()` is correctly false either way. The moment anything grants it a guard — which
+**Parry will want**, since a parry wants something to parry against — its guard registers as absent,
+it takes full health damage through a raised block, and nothing says why. The player is unaffected:
+it spawns from `PlayerStart` and reads the CDO, with no placed instance to go stale.
+
 ---
 
 ### Multiplayer — filed against the first slice that runs two machines
@@ -448,6 +460,11 @@ kept in their own notes. What belongs here is only what to move once a verdict a
 | The character floats, sinks, or its feet do not meet the ground | The mesh component's relative Z, which must be the negative of `InitCapsuleSize`'s half-height | Anything in the animations. Clip settings, root motion, root lock and skeletons were all investigated and all innocent; the offset is static and visible in the level viewport with nothing playing. Check it there before opening a single animation. |
 | Feet look right while moving but wrong during attacks | The same mesh Z — a discrepancy that only shows inside montages is foot IK masking it everywhere else | The montage or the clip. `ABP_Combat`'s Control Rig silently absorbs a constant offset, so "only montages are wrong" means "only montages lack the correction". |
 
+| Blocking feels too cheap to hold | `BlockDrainPerSecond`. It is how fast a guard converts into risk, and raising it makes blocking more committal without ever taking the option away | The stamina damages. Those decide how many hits a guard survives, which is the attacker's side of the exchange; moving them to tax a *held* guard changes what every tier does on block to fix how long one can be held. |
+| A guard survives too many hits, or too few | That branch's `StaminaDamage` | `BlockDrainPerSecond`, and **never the charged's value alone** without re-checking it against Max stamina. The charged breaks a full guard because its damage *equals the bar*; nudging either silently repeals the spec's "charged heavy breaks block" with nothing to warn you. |
+| A guard break feels too punishing or too weak | `GuardBreakStunSeconds` — it is the stun *and* the regen suppression across it, deliberately one number | Adding a separate suppression length. Authoring them apart immediately allows the pair that makes no sense: regen resuming while you are still stunned for it. |
+| Blocking at zero stamina feels free | Nothing — find what broke. A blocked hit at zero must break the guard every time | Adding a floor or a minimum drain. If a hit at zero does nothing, the break has been moved onto the stamina-changed delegate, which fires only on a *change* and cannot see a hit that moves the bar from 0 to 0. |
+
 Add a row whenever an entry below establishes that a fix belongs in one place rather than
 another. That is the reusable part of an entry; the argument around it is not.
 
@@ -551,6 +568,7 @@ value in the same state it was in.
 | `StaminaRegenPerSecond`, `ExhaustedStaminaRegenPerSecond` | **Unfelt** | 40 and 25, the user's numbers but verified by construction only — nothing in the build spends stamina without a human on the dodge key. The arithmetic to check is 0 → full in 2.5 s normally, 4.0 s exhausted. |
 | `CoilTurnRateDegrees` | **Unfelt, and unexercised** | 600 on both characters' CDOs as of 2026-08-14 — the user's chosen value, verified by construction only. The dispute with the C++ 300 is closed; both Blueprints override it. **Nothing has ever reached this rate**: the player would have to hold an attack past 150 ms while turning, and the dummy's `DebugAutoAttackHoldSeconds` is 0.1 so it never coils at all. |
 | `TurnRateDegrees` | **Derived, not felt — and must stay that way** | 180° ÷ the light's `HoldUntilSeconds`. It is not a candidate for this table's treatment; tuning it by feel is what the tuning map forbids. |
+| `BlockDrainPerSecond`, `StaminaDamage` (5/50/100), `GuardBreakStunSeconds` | **Unfelt — the user's numbers** | Chosen 2026-08-14, verified by arithmetic only: ten seconds of guard from full before it is breakable at all, two heavies or one charged to break a full one. **No human has held the guard yet.** The charged's 100 against a 100 bar is the relationship that makes "charged heavy breaks block" true without a flag in code, and it breaks silently if either number moves. |
 | `LungeStandoffCm` | **Felt** as a slide fix | 40. Its *second* job — the spacing of a non-connecting exchange — has never been judged. |
 | `C_Lunge_Base`, `C_Lunge_Attack` | **Inert** | Authored, wired to nothing, parked against the structure audit. A curve's mean must be 1.0 or it silently scales the authored distance. |
 
@@ -759,6 +777,82 @@ long.
 | `gEComponents` | 08-10, 08-11 |
 
 ---
+
+## 2026-08-14 — Block ships its mechanics, and stamina splits into two things that are not the same
+
+Built and compile-verified; **the guard has never been held by a human**, so everything below is
+structure rather than feel. The animation half was cut mid-execution and is recorded at the end.
+
+### Drain and damage, which is the decision the rest follows from
+
+The user's distinction, and it dissolved two problems at once:
+
+> stamina drain is self-inflicted by holding block, while stamina damage is inflicted by an attacker
+> upon a defender by hitting their block
+
+**Only damage can break a guard.** Drain runs the bar to zero and leaves it there for as long as the
+player cares to hold. That single clarification killed two consequences the earlier design had:
+you can no longer guard-break *yourself* by holding too long, and the drain stopped being a
+countdown on how long you may block. What it became is better — it converts holding a guard into
+mounting *risk*, because a guard at zero has stopped being able to absorb anything and breaks to the
+very next blocked hit.
+
+**The break is one rule with no special case: a blocked hit breaks the guard iff it leaves the
+defender at zero.** That covers damage exceeding what remains and damage landing on an already-empty
+bar, and the second is what makes holding at zero costly rather than free.
+
+**It also cannot be driven from the stamina-changed delegate**, which is the trap this design walks
+past rather than avoids. That delegate fires only on a *change*, so a hit taken at exactly zero moves
+nothing and would be silently ignored — and it could not tell drain from damage after the fact
+anyway. Putting the break in the hit-resolution path makes the whole class of bug unreachable.
+
+### The numbers, and the one that was nearly wrong
+
+The user's: drain 10/s, stamina damage 5 / 50 / 100, stun 1.0 s.
+
+The first pass at these was 5 / 30 / 75, and **the charged would not have broken a full guard** —
+100 − 75 = 25. It would have broken a *worn* guard only, which is a coherent design and is not the
+one the spec describes: `CLAUDE.md` states the charged "breaks block" as a property of the move.
+Raised to 100 so the break falls out of the arithmetic exactly, with no flag in code. **That
+relationship is load-bearing and silent** — change the bar's maximum and the spec line quietly stops
+being true.
+
+### Where each part lives, which is most of the design
+
+`GA_Block` is nearly empty deliberately. Being blocking is an owned tag; suppressing regen is an
+owned tag, so an interrupted guard cannot strand it; the drain is the character's, because the whole
+stamina economy is orchestrated in one place precisely so it cannot disagree with itself; the cancel
+boundary is `State.Attacking.Committed`, inherited rather than restated. What is left is ending when
+the button comes up.
+
+**Movement is deliberately not locked.** This is the first ability that could have taken
+`bLocksMovement` and declines: a guard you cannot move behind is a corner to be trapped in, and the
+user's stance is that block is something you carry around.
+
+**`State.GuardBroken` is native beside `State.Dead`** and refuses every ability from the shared base,
+so no ability can be granted without it, and its refusal is **not buffered** — the stun is the punish
+window, and replaying what was mashed during it would refund the opening. It is deliberately *not*
+`State.Blockstun`: that is the lockout a *successful* block imposes and is a later pass, and sharing
+a tag would let whichever shipped first silently define the other.
+
+**The stun is a timestamp checked in Tick, not a `SetTimer`.** The two network-unaware timer sites
+already filed as a multiplayer trap would have become three for nothing. Regen suppression then falls
+out of the existing max-push rather than needing sequencing: while the stun is live the resume time
+keeps moving to `StaminaRegenPauseSeconds` from now, so the ordinary pause begins measuring the
+instant the stun ends.
+
+### What was cut, and why it is a scope change rather than a shortfall
+
+The blocking *stance* — V1's locomotion set standing in as the guard, which is what the user
+actually asked for — is **not wired**. `BS_SwordShield_Block` exists with all 27 samples re-pointed
+V1, and stops there.
+
+Driving it at runtime needs the `BlendSpace` pin exposed, a new variable, EventGraph logic and a
+rewire: four operations inside `ABP_Combat`, where `read_graph_dsl` does not work and where the
+documented failure mode is silent. `ABP_Combat` is also the asset whose breakage is least visible —
+the regression list already names "the attack still plays its montage" as a thing that fails without
+announcing itself. Stopping was the judgement that risking working locomotion to finish a visual was
+the wrong trade at that moment; it is recorded as a **cut**, not as done.
 
 ## 2026-08-14 — The dummy tracks like a player, and a turn rate was never the thing missing
 

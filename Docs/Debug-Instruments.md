@@ -59,6 +59,12 @@ enumerated from the source 2026-08-14 rather than remembered — `ACTIVATE`, `CO
 `BUFFER`, `REFUSED`, `DEATH`, `REVIVE`, `TARGET`, `AIM ASSIST`, `AIM WEDGE` and `LUNGE STOP`. Turn
 it off with `TD.DebugCombatTiming 0` when combat is not under test.
 
+**Block adds four** *(2026-08-14)*: `BLOCK up` / `BLOCK down` for the guard's edges, `BLOCKED` when
+a hit lands on one — carrying the stamina damage and the bar remaining, which is the pair that says
+whether the next hit will break it — and `GUARD BREAK` / `GUARD END` around the stun. **`BLOCKED`
+with `remaining=0.0` and no `GUARD BREAK` beside it is the failure to watch for**: it means the
+break has been moved somewhere that cannot see a hit landing on an already-empty bar.
+
 **`ABILITY END` carries `elapsed`, which is an attack's true total** — the one number arithmetic
 over the authored phases cannot give you, since it includes whatever the coil and the phase
 transitions cost. Reach for it before concluding an attack runs long.
