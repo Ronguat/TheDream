@@ -841,18 +841,34 @@ out of the existing max-push rather than needing sequencing: while the stun is l
 keeps moving to `StaminaRegenPauseSeconds` from now, so the ordinary pause begins measuring the
 instant the stun ends.
 
-### What was cut, and why it is a scope change rather than a shortfall
+### The blocking stance, and a cut that was mostly wrong
 
-The blocking *stance* — V1's locomotion set standing in as the guard, which is what the user
-actually asked for — is **not wired**. `BS_SwordShield_Block` exists with all 27 samples re-pointed
-V1, and stops there.
+**First recorded as needing a human for the whole thing. That was wrong and the correction is the
+useful part.** The claim was that swapping the locomotion set needed four operations inside
+`ABP_Combat` that were not scriptable. Prompted to check rather than assume, almost all of it was:
 
-Driving it at runtime needs the `BlendSpace` pin exposed, a new variable, EventGraph logic and a
-rewire: four operations inside `ABP_Combat`, where `read_graph_dsl` does not work and where the
-documented failure mode is silent. `ABP_Combat` is also the asset whose breakage is least visible —
-the regression list already names "the attack still plays its montage" as a thing that fails without
-announcing itself. Stopping was the judgement that risking working locomotion to finish a visual was
-the wrong trade at that moment; it is recorded as a **cut**, not as done.
+- **`ShowPinForProperties` is writable**, so the `BlendSpace` pin on the BlendSpacePlayer and the
+  `Sequence` pin on the idle SequencePlayer can both be exposed from outside the editor. Verified by
+  reading the pins back after a compile.
+- **`add_object_variable`** adds the `UBlendSpace*` and `UAnimSequenceBase*` the pins need.
+- **The V1 guard pose is confirmed to look right**, by pointing the idle pin at V1's `Idle1` and
+  capturing the viewport: shield up and forward, sword drawn back, braced. The user's read of the
+  vendor animations was correct.
+
+**What genuinely is not reachable is narrow and worth recording precisely: `create_node` cannot
+target a nested state graph.** It resolves the Blueprint through the graph's outer, and a state
+graph's outer is an `AnimStateNode`, which fails with *"Cannot cast type 'AnimStateNode' to
+'Blueprint'"*. `read_graph_dsl` returns empty on those graphs too. So placing a variable-get node
+*inside* `Idle` or `Walk / Run` is a human job — two nodes, two connections — and nothing else is.
+
+**Proved rather than assumed**, which mattered: the first attempt failed with a bad `type_id` and
+looked like the same limitation. `find_node_types` gave the real id, and only then did the nested
+graph fail differently and for a nameable reason.
+
+**Also worth keeping: the risk was overstated because the file was committed and clean.** Any damage
+to `ABP_Combat` was one `git checkout` away throughout, which is the thing that should have made the
+attempt obviously cheap. A cut justified by "breakage would be invisible" is much weaker when the
+before-state is in version control.
 
 ## 2026-08-14 — The dummy tracks like a player, and a turn rate was never the thing missing
 
