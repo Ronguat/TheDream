@@ -172,43 +172,26 @@ struct FTDAttackBranch
 	TObjectPtr<UCurveFloat> LungeStrengthCurve = nullptr;
 
 	/**
-	 *  Target Lock, rotational half: who this branch is willing to be steered onto, at commit.
+	 *  Target Lock, rotational half: who this branch is willing to be steered onto.
 	 *
-	 *  **Author it longer in reach and notably narrower in arc than the damage wedge.** Longer
-	 *  because it is evaluated at commit while the attack still has its travel ahead of it, so the
-	 *  useful reach is roughly this branch's lunge plus its damage reach. Narrower because
-	 *  **the wedge's width is the dial between the player declaring intent and the system inferring
-	 *  it** -- a narrow wedge means aim does the selecting and the algorithm only breaks ties, which
-	 *  is the whole design goal.
+	 *  **Shape only -- reach is derived**, see FTDAimAssistWedge and
+	 *  UTDMeleeAttackAbility::AimAssistMarginCm. Arc, its centre and the vertical band stay per
+	 *  branch; how far it reaches is computed from this branch's own travel and damage reach so it
+	 *  cannot drift out of step with either.
 	 *
-	 *  **Its half-arc is also the maximum correction**, by construction rather than by a second
-	 *  number: a candidate outside the wedge is not eligible, so nothing can be rotated onto from
-	 *  further away than the wedge is wide. That makes the tuning knob and the contract the same
-	 *  value -- the arc *is* the definition of "aimed well enough".
+	 *  **Its half-arc is the maximum correction**, by construction rather than by a second number: a
+	 *  candidate outside the wedge is not eligible, so nothing can be rotated onto from further away
+	 *  than the wedge is wide. The arc *is* the definition of "aimed well enough", and the subtended
+	 *  widening means a narrow authored arc self-widens as a target closes -- tight where intent is
+	 *  being declared, forgiving where the player obviously meant the person they are standing on.
 	 *
-	 *  Reusing FTDAttackHitbox rather than inventing a shape gets the subtended-angle widening free,
-	 *  so a narrow authored arc self-widens as a target gets closer: 10 degrees authored reads as
-	 *  about 15 at 500 cm and 40 at contact. Tight where intent is being declared, forgiving where
-	 *  the player obviously meant the person they are standing on.
-	 *
-	 *  **MaxReachCm of 0 disables aim assist for this branch**, which is the default, so adding this
-	 *  changed no existing behaviour until it was authored.
-	 *
-	 *  **Homing follows the ladder as of 2026-08-14, so this is live from the moment its branch is
-	 *  escalated to, not only at commit.** Before that it was read once, at commit, while homing ran
-	 *  the entire windup on branch 0's wedge -- so every tier homed at the *light's* reach and only
-	 *  the light's value did anything observable. Two of the three authored numbers had never been
-	 *  seen when they were committed. See Docs/Combat-Decisions.md.
-	 *
-	 *  **Author these non-decreasing in reach across the ladder.** The designer's commitment
-	 *  (2026-08-14), deliberately not enforced in code: a shrinking wedge is not a break, because the
-	 *  body has already turned and the worst case is that it stops tracking or re-picks, reading as a
-	 *  slightly misleading rotation before the lunge. **Leaving a later branch at 0 is the case that
-	 *  bites**, because 0 is *disabled* rather than narrow -- homing switches off mid-hold and the
-	 *  body stops tracking partway through a charge.
+	 *  **Live from the moment its branch is escalated to, not only at commit** (2026-08-14). Before
+	 *  that, homing ran the entire windup on branch 0's wedge, so every tier homed at the *light's*
+	 *  reach and only the light's value did anything observable -- two of three authored numbers had
+	 *  never been seen when they were committed. See Docs/Combat-Decisions.md.
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Attack")
-	FTDAttackHitbox AimAssistWedge = FTDAttackHitbox::MakeDisabled();
+	FTDAimAssistWedge AimAssistWedge;
 };
 
 /**
@@ -310,6 +293,23 @@ protected:
 
 	virtual float GetAttackDamage() const override;
 	virtual const TArray<FTDAttackHitbox>& GetAttackHitboxes() const override;
+
+	/**
+	 *  The aim assist wedge actually tested for a branch: its authored shape at its derived reach.
+	 *
+	 *  Reach is travel plus damage reach plus AimAssistMarginCm -- see that property for why the
+	 *  margin is the authored part and the rest is arithmetic. Built on demand rather than cached
+	 *  because every input can be changed in the details panel between activations, and a cache is
+	 *  one more thing that can disagree with the numbers a designer is looking at.
+	 *
+	 *  **Monotonicity is now structural rather than a rule anyone has to follow.** Reach is a
+	 *  constant plus the branch's own lunge, and lunges increase up the ladder, so a later branch
+	 *  reaching *less* than an earlier one cannot be expressed -- which is what the ladder-following
+	 *  homing needs in order not to drop a target it had already locked.
+	 *
+	 *  Returns a disabled wedge for an out-of-range index or a branch with bEnabled false.
+	 */
+	FTDAttackHitbox BuildAimAssistWedge(int32 BranchIndex) const;
 
 private:
 

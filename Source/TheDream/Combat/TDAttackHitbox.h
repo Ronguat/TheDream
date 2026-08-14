@@ -175,3 +175,87 @@ struct FTDAttackHitbox
 		float DurationSeconds = -1.0f) const;
 #endif
 };
+
+/**
+ *  Aim assist's targeting wedge: every part of its shape *except* how far it reaches.
+ *
+ *  **Reach is absent rather than defaulted, and that absence is the design** (2026-08-14). It is
+ *  derived at use time as
+ *
+ *      base lunge + this branch's lunge + this branch's damage reach + AimAssistMarginCm
+ *
+ *  which is "the furthest a body can be and still be struck by this attack, plus a margin". The
+ *  margin is the point: if the wedge matched hit range exactly, then locking on would *encode*
+ *  whether the target is reachable, and aim assist would be answering the one question Target Lock
+ *  forbids it to answer -- it may correct where you are pointed, never whether you were in range.
+ *  Extending past hit range keeps assist strictly about direction, and stops a player using the
+ *  snap as a free rangefinder. See Docs/Combat-Decisions.md.
+ *
+ *  This is a separate struct from FTDAttackHitbox purely so that reach *cannot be authored*. The
+ *  earlier design reused the hitbox and derived nothing; three wedges were authored by hand, and two
+ *  of them turned out never to have done anything. A field that is silently ignored is worse than no
+ *  field, so there is no field.
+ *
+ *  Everything else stays a dial, deliberately -- the user's call when this was designed: arc, its
+ *  centre, and the vertical band remain per branch even though nothing differentiates them today.
+ */
+USTRUCT(BlueprintType)
+struct FTDAimAssistWedge
+{
+	GENERATED_BODY()
+
+	/**
+	 *  Whether this branch gets aim assist at all.
+	 *
+	 *  **An explicit flag because arc cannot express "off".** An ArcDegrees of 0 still passes the
+	 *  subtended-angle widening in OverlapsCapsule and would quietly select anything close enough --
+	 *  the same reason FTDAttackHitbox::MakeDisabled zeroes reach rather than arc. Reach is derived
+	 *  here and is never 0, so that route is unavailable and this takes its place.
+	 *
+	 *  Defaults to *on*, which is the deliberate opposite of the old per-branch default. A branch
+	 *  that nobody has authored should aim like the rest of the ladder rather than silently drop
+	 *  homing partway through a hold, which is what an unauthored wedge used to do.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Aim Assist")
+	bool bEnabled = true;
+
+	/**
+	 *  Total horizontal arc in degrees. **This is the contract: how wrong your aim may be.**
+	 *
+	 *  Widened at test time by the angle the target's own body subtends, exactly as the damage wedge
+	 *  is, so a narrow authored arc self-widens as a target gets closer. Its half-arc is also the
+	 *  maximum correction, by construction -- a candidate outside the wedge is not eligible, so
+	 *  nothing can be rotated onto from further away than the wedge is wide.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Aim Assist", meta=(ClampMin="0.0", ClampMax="360.0"))
+	float ArcDegrees = 40.0f;
+
+	/** Where the arc's centre sits, in degrees clockwise from the aim direction. 0 is straight ahead. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Aim Assist")
+	float ArcCentreDegrees = 0.0f;
+
+	/**
+	 *  Vertical band in cm relative to the attacker's origin -- the capsule's centre, not the feet.
+	 *
+	 *  Kept authorable at the user's request even though nothing differentiates it today: everyone is
+	 *  the same standing capsule, so this only discriminates on a slope or against a jumping target.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Aim Assist")
+	float HeightMinCm = -70.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Aim Assist")
+	float HeightMaxCm = 70.0f;
+
+	/** Builds the wedge that is actually tested, given the reach derived for its branch. */
+	FTDAttackHitbox ToHitbox(float ReachCm) const
+	{
+		FTDAttackHitbox Wedge;
+		Wedge.MinReachCm = 0.0f;
+		Wedge.MaxReachCm = bEnabled ? FMath::Max(0.0f, ReachCm) : 0.0f;
+		Wedge.ArcDegrees = ArcDegrees;
+		Wedge.ArcCentreDegrees = ArcCentreDegrees;
+		Wedge.HeightMinCm = HeightMinCm;
+		Wedge.HeightMaxCm = HeightMaxCm;
+		return Wedge;
+	}
+};

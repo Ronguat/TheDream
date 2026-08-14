@@ -84,6 +84,8 @@ dated entry. Add a row whenever an entry supersedes part of an older one.
 | 2026-08-10 — Exhaustion ends at full | recovery speed is one number, so `StaminaRegenPerSecond` *is* the exhaustion duration | 2026-08-14 — Exhaustion recovers at its own rate (the rate is split; exhaustion still ends at Max and nowhere else, so the entry's actual claim survives — what changed is which number sets how long it takes) |
 | 2026-08-13 — Target Lock's rotational half aims the lunge | the wedge is per branch and *is* the contract — "aim inside it and the body ends at 0 degrees of error", authored per tier | 2026-08-14 — The homing wedge follows the ladder (it was per branch only at commit, while homing ran every tier on branch 0's; the heavy's and charged's values did nothing and had never been observed. The contract is real *after* this fix, not before it) |
 | 2026-08-13 — Target Lock's rotational half aims the lunge | a 12.9° camera error arriving at commit as 0.0° is offered as the mechanism working | 2026-08-14 — The homing wedge follows the ladder (the measurement is real and unchanged, but it was taken on a light, where branch 0's wedge is the correct one — it says nothing about the heavy or charged, which is how the defect passed a play-verification) |
+| 2026-08-13 — Target Lock's rotational half aims the lunge | reach is authored per branch — "author it longer in reach than the damage wedge", roughly this branch's lunge plus its damage reach | 2026-08-14 — Aim assist reach is derived (reach is no longer authorable at all; the struct has no reach field. Travel plus damage reach plus one shared `AimAssistMarginCm`, so the *estimate* in that entry was right and hand-authoring it was the mistake) |
+| 2026-08-14 — The homing wedge follows the ladder | the three authored numbers are live placeholders to be authored by feel, and reaches must be kept non-decreasing by hand | 2026-08-14 — Aim assist reach is derived (same day: reach stopped being authored, so there is nothing to feel out per branch and monotonicity became unrepresentable. Only the margin is a feel number now) |
 
 ---
 
@@ -390,23 +392,21 @@ breathes rather than sitting still — which is the property this note said woul
 bought. The number still does two jobs and the second is still the easy one to forget; what it no
 longer sets is the spacing of a *connecting* chain.
 
-**Whenever any branch's `AimAssistWedge` is authored — *reaches must not decrease across the ladder,
-and nothing enforces it.*** Filed 2026-08-14 when homing began following the ladder. Homing re-arms
-with each branch's wedge as the attack escalates, so a later branch with *less* reach can drop a
-target the previous branch had already locked onto — the body stops tracking or re-picks mid-hold.
+**~~Whenever any branch's `AimAssistWedge` is authored — reaches must not decrease across the
+ladder.~~ Discharged 2026-08-14, hours after being filed, by making it unrepresentable.** Reach is no
+longer authored: it is derived as `base lunge + branch lunge + branch damage reach + AimAssistMarginCm`,
+so it is a constant plus the branch's own lunge, and lunges increase up the ladder. A later branch
+reaching less than an earlier one cannot be expressed.
 
-**Not a break, and deliberately unguarded**, which is the designer's call recorded as theirs: the body
-has already turned by then, so the worst case reads as a slightly misleading rotation before the
-lunge in edge cases. A runtime guard would trade a stated rule for a silent one.
+**The sharper half went with it.** The case that actually bit was `MaxReachCm` of 0 — *disabled*
+rather than narrow — which switched homing off partway through a hold. Derived reach is never 0, so
+that route is gone too; `FTDAimAssistWedge::bEnabled` is now the only way to turn a branch's assist
+off, and it defaults to *on*.
 
-**The case that actually bites is 0, not a small number.** `MaxReachCm` of 0 means *disabled*, not
-narrow, so a later branch left unauthored switches homing off partway through a charge and the body
-stops tracking entirely. Adding a fourth tier, or a weapon whose ladder is authored fresh, is how
-this gets tripped — the defaults are 0.
-
-*Check it from the trace rather than by eye: one held attack should print three `AIM WEDGE` lines with
-non-decreasing `reach`. Reading wedge sizes out of the viewport is what caused the defect this fix
-exists for.*
+*The rule this trap protected is now in the type system rather than in a list, which is the outcome
+to prefer wherever a constraint can be made unrepresentable. Kept as a record because the reasoning —
+that a shrinking wedge drops a target already locked — is still why the derivation must stay
+monotonic if anyone changes the formula.*
 
 **Before the first multiplayer slice — *aim assist reads a loose tag across the network boundary,
 and loose tags do not replicate.*** Filed 2026-08-13, found by the traps grep before building the
@@ -639,6 +639,8 @@ kept in their own notes. What belongs here is only what to move once a verdict a
 | Exhaustion feels too long or short | `ExhaustedStaminaRegenPerSecond`, since recovery *is* the duration. Separate from the normal rate as of 2026-08-14 | A duration knob, and no longer `StaminaRegenPerSecond` — that governs normal play only, and moving it to retune exhaustion now changes dodge cadence instead. `ExhaustionSeconds` stays deleted: splitting the *rate* keeps the property that killed it, because exhaustion still ends at Max and nowhere else. |
 | An attack slides past a target after killing it | Nothing — the lunge stops outright on a hit against a viable target, as of 2026-08-14 | `LungeStandoffCm`. The gate *pauses* while a body is in the way and resumes when one is not, so a corpse losing its capsule is not a case any standoff distance can express. Lowering it to hide the slide shortens every lunge that never hit anything. |
 | A tier assists onto targets it should not, or misses ones it should catch | That branch's `AimAssistWedge` — live from its escalation onward as of 2026-08-14, so it is finally observable | Branch 0's wedge, unless the complaint is about the *light* or about the span before the first boundary. That one governs every tier until escalation, so widening it to fix the charged silently widens all three in the one span that must be indistinguishable. |
+| Aim assist locks on from too far, or gives up too early | `AimAssistMarginCm` — one number for every tier, meaning "how far past my hit range assist still selects" | A per-branch reach. There isn't one: reach is derived from that branch's travel and damage reach, so it follows a lunge retune automatically. Re-authoring it by hand is what produced two values that had never done anything. |
+| Assist reaching further than an attack can hit feels wrong | Nothing — that gap **is** the design | Shrinking the margin to zero. A wedge matching hit range turns lock-on into a free rangefinder and makes assist answer whether you were in range, which is the one thing Target Lock forbids it. |
 | The drawn aim wedge does not match the tier being thrown | Nothing — it follows the ladder now. Read `AIM WEDGE` in the trace rather than judging the radius | Your eyes. Wedge sizes cannot be read out of a viewport; that is exactly how two never-observed values got authored and committed. |
 | An input still feels dropped, with buffering on | `InputBufferSeconds` — but read the `BUFFER` trace first and find out whether it was stored, fired or expired | The attack's own timings. A press that expired unfired is a question about the window; moving `ReleaseAtSeconds` to compensate tunes the ladder around an input problem and hides it. |
 | An attack reaches too far or not far enough | The branch's `MaxReachCm` | The animation, the clip choice, or the play rate. Reach stopped being a property of the art on 2026-08-12; if a swing looks like it should reach further than it does, that is an argument for changing the number *or* the clip, and only the number is balance. |
@@ -726,6 +728,92 @@ concludes the log is wrong rather than merely old. Add a row whenever a name cha
 | `StationaryTurnRateDegrees` | **`TurnRateDegrees`**, renamed 2026-08-12 when facing stopped having a separate moving mode. No longer stationary-only, and no longer cosmetic — it decides where an attack points. |
 | `bSnapFacingWhileMoving` | Never shipped. A temporary A/B switch for the facing pass, deleted with the snap branch it selected. |
 | `RecoveryPlayRate` | **`FTDAttackBranch::RecoverySeconds`**, 2026-08-12. Recovery is authored as a duration per branch and its rate is derived, as windup and release already were. A rate could only set the punish window indirectly, through however long the clip's tail happened to be. |
+
+---
+
+## 2026-08-14 — Aim assist reach is derived, and the margin is the only number anyone authors
+
+The user's hypothesis, and it turned out to be the governing rule written as arithmetic: **a wedge
+should reach further than the attack can hit.**
+
+If the wedge matched hit range exactly, then locking on would *encode* whether the target is
+reachable — a free rangefinder, and aim assist quietly answering the one question Target Lock forbids
+it. The rule has always been that it may correct *where you are pointed*, never *whether you were
+close enough*. Overshooting is what keeps that true, and it buys a second thing the user named: a
+defender can watch an attacker turn onto them and still whiff, so a near miss is readable rather
+than mysterious.
+
+Erring larger is also the right direction. A wedge *shorter* than hit range would drop targets at
+maximum range — where travel is longest and aiming matters most — which is the "backwards" failure
+the deadzone design was rejected for a day earlier.
+
+### The formula, and the term that was missing from it
+
+Both wedges are `FTDAttackHitbox` and both measure `MaxReachCm` **to the target's body** rather than
+its origin, so the capsule radius cancels and the sum is clean:
+
+    reach = base lunge + branch lunge + branch damage reach + margin
+
+The user's first form was *branch lunge + 200*, which inverts the intent: it omits the base lunge and
+the damage reach, landing **below** hit range and dropping targets that could actually be struck.
+Travel plus reach *is* the furthest a body can be and still be hit; the margin is the only judgement
+in the sum.
+
+    light   100 + 200 + 150 + 200 = 650
+    heavy   100 + 300 + 150 + 200 = 750
+    charged 100 + 400 + 150 + 200 = 850
+
+**A corroboration worth recording:** the hand-tuned light was 600 against a derived 650 — and the
+light is the *only* wedge that was ever observed working, because of the branch-0 defect above. The
+one value with real feel behind it and the derivation agree within 8%; the two that were never seen
+were out by 250 and 250.
+
+### Why the margin is exposed and not the total
+
+The user asked for a single universal dial representing the constant part — the 450. It is exposed as
+the **200** instead, and the two are the same knob: turning 200 → 250 moves the total exactly as
+turning 450 → 500 would.
+
+The difference is drift. 450 silently bakes in the base lunge and the damage reach, so retuning the
+base lunge from 100 to 150 would shrink the real margin to 150 while the authored number sat
+unchanged — the `TurnRateDegrees` failure shape, which already costs this project a trap. Exposing
+the margin reads the other terms live, so the knob means exactly one thing and cannot go stale. Same
+tunability, honest units.
+
+### The struct exists so that reach cannot be authored
+
+`FTDAimAssistWedge` replaces `FTDAttackHitbox` on the branch and has **no reach field at all**. That
+is the point rather than tidiness: the previous design reused the hitbox, derived nothing, and three
+wedges were hand-authored of which two never did anything. **A field that is silently ignored is
+worse than no field**, so there is no field.
+
+Everything else stayed a dial at the user's request — arc, arc centre, and the vertical band remain
+per branch even though nothing differentiates them today, on the grounds that they cost nothing to
+keep and are expensive to rediscover.
+
+**`bEnabled` had to be added, and the reason is a trap the codebase already documents.** "Off" cannot
+be expressed as an arc of 0: a zero arc still passes the subtended-angle widening in `OverlapsCapsule`
+and would quietly select anything close enough, which is exactly why `MakeDisabled` zeroes *reach*
+rather than arc. Reach is derived here and never 0, so that route was unavailable and an explicit flag
+took its place. It defaults to **on**, the deliberate opposite of the old per-branch default — an
+unauthored branch should aim like the rest of the ladder rather than silently drop homing mid-hold.
+
+### Measured the day it landed
+
+`AIM WEDGE reach=650` at activation, `750` at the escalation to heavy, `850` at the escalation to
+charged, `0 homing=0` at commit — matching the derivation exactly. Lights print only the 650. Damage
+exact (health 60 after one charged at 40), no stuck tags, `LUNGE STOP` still firing on hits and not
+on a corpse.
+
+**The type change cost nothing**: all three wedges came through on the new struct's C++ defaults,
+which happen to equal what was authored — `bEnabled true`, arc 40, centre 0, band ±70. Verified by
+reading them back rather than assumed, since a `UPROPERTY` type change is exactly the migration that
+silently wiped a Blueprint map once before.
+
+**200 is signed off but unfelt.** It is larger than the 100 cm separating the tiers' lunges, so all
+three assist from similar overshoot even though their hit ranges differ by 200 — deliberate, since
+how wrong your aim may be is a property of the player rather than of the swing, which is the same
+argument that keeps the arc uniform at 40°.
 
 ---
 

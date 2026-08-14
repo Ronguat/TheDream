@@ -124,6 +124,38 @@ protected:
 	float LungeDistanceCm = 30.0f;
 
 	/**
+	 *  How far *past* its maximum hit range aim assist will still select a target, in centimetres.
+	 *
+	 *  **The one authored number in aim assist's reach, and the reason it is a margin rather than a
+	 *  total.** A wedge's reach is derived as
+	 *
+	 *      LungeDistanceCm + branch LungeDistanceCm + branch damage MaxReachCm + this
+	 *
+	 *  -- travel plus reach is exactly the furthest a body can be and still be struck, so this is the
+	 *  only part of the sum that is a judgement rather than arithmetic. Exposing the *total* instead
+	 *  would bake the other three in: retune the base lunge and the real margin would silently shrink
+	 *  while the number you tuned stayed put. That is the failure shape TurnRateDegrees already has a
+	 *  trap for, and it is avoidable here for free.
+	 *
+	 *  **Why a margin exists at all, which is the design rather than a safety factor.** If the wedge
+	 *  matched hit range exactly, locking on would *encode* whether the target is reachable -- a free
+	 *  rangefinder, and aim assist answering the one question Target Lock forbids it: it may correct
+	 *  where you are pointed, never whether you were in range. Overshooting keeps assist strictly
+	 *  about direction, and lets a defender read an attacker turning onto them and still whiffing.
+	 *
+	 *  Larger is also the right direction to err. A wedge *shorter* than hit range would drop targets
+	 *  at maximum range -- exactly where travel is longest and aiming matters most, which is the
+	 *  "backwards" failure an earlier deadzone design was rejected for.
+	 *
+	 *  200 is the user's call, signed off 2026-08-14 and unfelt at the time. Note it is larger than
+	 *  the 100 cm separating the tiers' lunges, so all three assist from similar overshoot even though
+	 *  their hit ranges differ -- deliberate, since how wrong your aim may be is a property of the
+	 *  player rather than of the swing.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Motion", meta=(ClampMin="0.0"))
+	float AimAssistMarginCm = 200.0f;
+
+	/**
 	 *  How long the base lunge takes, in seconds. **Authored, and clamped rather than replaced.**
 	 *
 	 *  This was ignored on anything with a branch ladder until 2026-08-13: UTDChargedAttackAbility

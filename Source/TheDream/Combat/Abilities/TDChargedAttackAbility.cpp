@@ -79,7 +79,7 @@ void UTDChargedAttackAbility::ActivateAbility(const FGameplayAbilitySpecHandle H
 	// windup, and a light is what releasing right here would produce. Stopped at commit.
 	if (ATDCombatCharacter* CombatCharacter = Cast<ATDCombatCharacter>(GetAvatarActorFromActorInfo()))
 	{
-		CombatCharacter->SetAimAssistHoming(Branches[0].AimAssistWedge, TargetImmunityTags, true, bDrawDebugTrace);
+		CombatCharacter->SetAimAssistHoming(BuildAimAssistWedge(0), TargetImmunityTags, true, bDrawDebugTrace);
 	}
 
 	ScheduleCheckpoint(Branches[0].HoldUntilSeconds);
@@ -176,7 +176,7 @@ void UTDChargedAttackAbility::HandleCheckpoint()
 		// than narrow, so homing switches off mid-hold and the body stops tracking partway through.
 		if (ATDCombatCharacter* CombatCharacter = Cast<ATDCombatCharacter>(GetAvatarActorFromActorInfo()))
 		{
-			CombatCharacter->SetAimAssistHoming(Branches[NextIndex].AimAssistWedge, TargetImmunityTags, true, bDrawDebugTrace);
+			CombatCharacter->SetAimAssistHoming(BuildAimAssistWedge(NextIndex), TargetImmunityTags, true, bDrawDebugTrace);
 		}
 
 		TD_TIMING_LOG(TEXT("[%.3f] ESCALATE   -> branch %d  pos=%.4f"),
@@ -286,7 +286,7 @@ void UTDChargedAttackAbility::CommitAttack()
 		CombatCharacter->SetAimAssistHoming(FTDAttackHitbox::MakeDisabled(), FGameplayTagContainer(), false, false);
 	}
 
-	ApplyAimAssist(Branch.AimAssistWedge);
+	ApplyAimAssist(BuildAimAssistWedge(SelectedBranchIndex));
 
 	// Facing freezes here, instantly. The hitbox is defined in the attacker's frame, so a swing
 	// free to track the camera mid-release would carry its own arc around with it and the
@@ -605,6 +605,37 @@ const TArray<FTDAttackHitbox>& UTDChargedAttackAbility::GetAttackHitboxes() cons
 	}
 
 	return Hitboxes;
+}
+
+FTDAttackHitbox UTDChargedAttackAbility::BuildAimAssistWedge(int32 BranchIndex) const
+{
+	if (!Branches.IsValidIndex(BranchIndex))
+	{
+		return FTDAttackHitbox::MakeDisabled();
+	}
+
+	const FTDAttackBranch& Branch = Branches[BranchIndex];
+
+	// The branch's own damage reach, resolved the same way GetAttackHitboxes resolves it -- an
+	// authored-but-empty branch falls back to the ability's set. Taken as the *furthest* of the
+	// branch's volumes, because reach here means "how far this attack can strike", and a bash plus
+	// a sweep is one attack with one maximum.
+	const TArray<FTDAttackHitbox>& ResolvedHitboxes =
+		Branch.Hitboxes.Num() > 0 ? Branch.Hitboxes : Hitboxes;
+
+	float FurthestReachCm = 0.0f;
+	for (const FTDAttackHitbox& Hitbox : ResolvedHitboxes)
+	{
+		FurthestReachCm = FMath::Max(FurthestReachCm, Hitbox.MaxReachCm);
+	}
+
+	// Travel plus reach is exactly the furthest a body can be and still be struck: the base lunge
+	// runs before the tiers diverge, the branch lunge from commit, and the hitbox extends further
+	// still. The margin on top is the only judgement in the sum -- see AimAssistMarginCm for why
+	// assist must reach *past* what it can hit rather than exactly as far.
+	const float ReachCm = LungeDistanceCm + Branch.LungeDistanceCm + FurthestReachCm + AimAssistMarginCm;
+
+	return Branch.AimAssistWedge.ToHitbox(ReachCm);
 }
 
 void UTDChargedAttackAbility::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled)
