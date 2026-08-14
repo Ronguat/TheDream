@@ -220,6 +220,18 @@ slide it was authored to fix and felt as how far apart people stand while tradin
 final spacing depends on where in the release window the hitbox caught them. What it still pins is
 an exchange in which nothing connects.
 
+**Before Stun — *a guard break stuns abilities and nothing else.*** Filed 2026-08-14 with the user's
+agreement, so this is a deferral rather than a defect. `State.GuardBroken` refuses every
+GameplayAbility from the shared base, but **`Jump()` does not check it and movement is not locked**,
+so a broken guard can still walk and jump. The intended end state is full loss of control except the
+camera, and it belongs to Stun because that slice owns the hit-reaction plumbing it needs.
+
+Two things make it cheap to finish there and worth not doing now. `Jump()` already restates four
+lockouts by hand and its own comment calls itself *"the only place that can be forgotten"* — adding
+a fifth strengthens the case for jump becoming an ability rather than weakening it, and that is the
+structure audit's call. And `bLocksMovement` already exists on the shared base as the seam for
+exactly this.
+
 **Before Light String and before Stun** — *knockback and the next attack's travel are one budget,
 and nothing connects them.* A displacement pushing a target further than the following attack can
 cover makes a chain structurally unable to link, and it will read as the combo being broken rather
@@ -464,6 +476,10 @@ kept in their own notes. What belongs here is only what to move once a verdict a
 | A guard survives too many hits, or too few | That branch's `StaminaDamage` | `BlockDrainPerSecond`, and **never the charged's value alone** without re-checking it against Max stamina. The charged breaks a full guard because its damage *equals the bar*; nudging either silently repeals the spec's "charged heavy breaks block" with nothing to warn you. |
 | A guard break feels too punishing or too weak | `GuardBreakStunSeconds` — it is the stun *and* the regen suppression across it, deliberately one number | Adding a separate suppression length. Authoring them apart immediately allows the pair that makes no sense: regen resuming while you are still stunned for it. |
 | Blocking at zero stamina feels free | Nothing — find what broke. A blocked hit at zero must break the guard every time | Adding a floor or a minimum drain. If a hit at zero does nothing, the break has been moved onto the stamina-changed delegate, which fires only on a *change* and cannot see a hit that moves the bar from 0 to 0. |
+| The guard can be feathered, or feels weightless | `MinimumBlockSeconds` — it is a commitment, and it must gate the attack or it does nothing at all | An animation blend. That was the first diagnosis offered and the user rejected it: the number lands near a blend's duration, which makes the mistake easy, but feathering is mechanical and the blend fixes only how it looks. |
+| The guard feels sluggish to act out of | `MinimumBlockSeconds`, and check the `BUFFER` trace first — a refused attack should fire the *instant* the window ends | The buffer window, and never by exempting resumed guards. That exemption was tried: durations went bimodal, 250 ms pressed and 50–70 ms resumed, so feathering survived at a slower cadence. *A resume is an intended block, and all blocks are created equal.* |
+| Attacking out of a held guard costs too much stamina | `BlockInitialStaminaCost`, knowing it is charged per guard and a resume is a guard | Exempting the resume. Same rule as above: a cheaper guard the player did not ask for and cannot distinguish makes the cost conditional on something invisible. |
+| A guard raised too poor to pay for itself feels punishing | Nothing — that is the design. It cancels what it would have cancelled and then exhausts you | Refusing the activation. **Costs are paid, never required**, and refusing here would also silently remove the cancel, which is the half worth protecting. |
 
 Add a row whenever an entry below establishes that a fix belongs in one place rather than
 another. That is the reusable part of an entry; the argument around it is not.
@@ -568,7 +584,10 @@ value in the same state it was in.
 | `StaminaRegenPerSecond`, `ExhaustedStaminaRegenPerSecond` | **Unfelt** | 40 and 25, the user's numbers but verified by construction only — nothing in the build spends stamina without a human on the dodge key. The arithmetic to check is 0 → full in 2.5 s normally, 4.0 s exhausted. |
 | `CoilTurnRateDegrees` | **Unfelt, and unexercised** | 600 on both characters' CDOs as of 2026-08-14 — the user's chosen value, verified by construction only. The dispute with the C++ 300 is closed; both Blueprints override it. **Nothing has ever reached this rate**: the player would have to hold an attack past 150 ms while turning, and the dummy's `DebugAutoAttackHoldSeconds` is 0.1 so it never coils at all. |
 | `TurnRateDegrees` | **Derived, not felt — and must stay that way** | 180° ÷ the light's `HoldUntilSeconds`. It is not a candidate for this table's treatment; tuning it by feel is what the tuning map forbids. |
-| `BlockDrainPerSecond`, `StaminaDamage` (5/50/100), `GuardBreakStunSeconds` | **Unfelt — the user's numbers** | Chosen 2026-08-14, verified by arithmetic only: ten seconds of guard from full before it is breakable at all, two heavies or one charged to break a full one. **No human has held the guard yet.** The charged's 100 against a 100 bar is the relationship that makes "charged heavy breaks block" true without a flag in code, and it breaks silently if either number moves. |
+| `BlockDrainPerSecond` 10, `StaminaDamage` 5/50/100, `GuardBreakStunSeconds` 1.0 | **Felt** 2026-08-14 | The user's numbers, played the same day across several sessions and left alone. Ten seconds of guard from full before it is breakable at all; two heavies or one charged to break a full one. The charged's 100 against a 100 bar is what makes "charged heavy breaks block" true with no flag in code, and **it repeals itself silently if either number moves.** |
+| `MinimumBlockSeconds` 0.25 | **Felt** 2026-08-14, and signed off as untuned | Chosen deliberately long as a first probe, on the reasoning that a clearly-too-long value answers *"is feathering dead"* better than a borderline one. The user reserved tuning it. Its cost is visible: attacking repeatedly out of a held guard pays it between swings, because a resume is a new guard. |
+| `BlockInitialStaminaCost` 10 | **Felt** 2026-08-14 | The C++ default is 0 so the mechanism ships inert; **`BP_PlayerCharacter`'s CDO is authoritative and the user set 10 in play**, having been offered 25 as a probe and chosen otherwise. Ten guards from full, against a drain that also costs 10 per second. The behaviour it was testing passed: a guard raised below the cost still cancels what it would have cancelled, then exhausts you, with no break and no stun. |
+| `BlockingMaxWalkSpeed` 125 | **Unfelt** | 25% of the 500 the character otherwise runs at, chosen as a relationship and authored as a number. Lands halfway between the locomotion blendspace's idle and walk rows. |
 | `LungeStandoffCm` | **Felt** as a slide fix | 40. Its *second* job — the spacing of a non-connecting exchange — has never been judged. |
 | `C_Lunge_Base`, `C_Lunge_Attack` | **Inert** | Authored, wired to nothing, parked against the structure audit. A curve's mean must be 1.0 or it silently scales the authored distance. |
 
@@ -624,7 +643,12 @@ long.
 | `BP_PlayerCharacter` | 08-11, 08-12 |
 | `BP_TrainingDummy` | 08-11, 08-12 |
 | `BlendOutTriggerTime` | 08-12 |
+| `BlockDrainPerSecond` | 08-14 |
+| `BlockInitialStaminaCost` | 08-14 |
+| `BlockingMaxWalkSpeed` | 08-14 |
+| `BS_SwordShield_Block` | 08-14 |
 | `CanActivateAbility` | 08-10, 08-11 |
+| `CancelAbilities` | 08-14 |
 | `CancelAllAbilities` | 08-11, 08-12 |
 | `ClampVelocity` | 08-14 |
 | `ClearExhaustionState` | 08-11 |
@@ -664,8 +688,13 @@ long.
 | `FTDRootMotionSource_FacingForce::PrepareRootMotion` | 08-13 |
 | `FacingLockFadeSeconds` | 08-12 |
 | `FinishVelocityParams` | 08-14 |
-| `GA_Attack` | 08-09, 08-10, 08-11, 08-12 |
-| `GA_Dodge` | 08-10, 08-11, 08-13 |
+| `GA_Attack` | 08-09, 08-10, 08-11, 08-12, 08-14 |
+| `GA_Block` | 08-14 |
+| `GA_Dodge` | 08-10, 08-11, 08-13, 08-14 |
+| `GuardBreakStunSeconds` | 08-14 |
+| `IsBlocking` | 08-14 |
+| `IsGuardFacing` | 08-14 |
+| `MinimumBlockSeconds` | 08-14 |
 | `GetActorForwardVector` | 08-12 |
 | `GetAimYawDegrees` | 08-13 |
 | `GetLastInputVector` | 08-10 |
@@ -722,7 +751,10 @@ long.
 | `SetActorLocation` | 08-12 |
 | `SetTimer` | 08-11 |
 | `ShieldMesh` | 08-11 |
-| `ShouldBufferFailedInput` | 08-11 |
+| `ShouldBufferFailedInput` | 08-11, 08-14 |
+| `StaminaDamage` | 08-14 |
+| `State.Blocking.Committed` | 08-14 |
+| `State.GuardBroken` | 08-14 |
 | `StaminaRegenPauseSeconds` | 08-10, 08-14 |
 | `StaminaRegenPerSecond` | 08-10, 08-14 |
 | `StandoffCm` | 08-13 |
@@ -777,6 +809,90 @@ long.
 | `gEComponents` | 08-10, 08-11 |
 
 ---
+
+## 2026-08-14 — Block survives contact with play, and four bugs share one shape
+
+Written after the slice was played rather than when it was built. The mechanics above shipped
+compiling and wrong in four ways, and the interesting thing is that **three of the four were one
+mistake wearing different clothes: a state with more than one mechanism allowed to change it.**
+
+### The four, and what they had in common
+
+**`CancelAbilities` matches asset tags, not owned tags.** Cancelling on `State.Blocking` matched
+nothing, so the guard survived jumps and its own guard break while every call site read as correct.
+Matched on the ability's *type* now, so the block's identity has one home rather than a second tag
+to drift from.
+
+**`OnAbilityEnded` is re-entrant.** Raising a guard cancels the attack; the attack's end re-entered
+the resume handler while block was mid-activation; block's spec did not read active yet; block
+activated twice; the spec's `activeCount` leaked and the guard stuck up permanently. Deferring the
+resume by one tick makes the re-entrancy *unrepresentable* rather than guarded against.
+
+**Three mechanisms could raise a guard** — a press, the buffer replaying a refused press, and the
+resume. Any two in one frame leaked `activeCount` again. Guarding each caller was tried and is the
+wrong shape: every future way to raise a guard would have to remember. `GA_Block` now blocks on its
+own `State.Blocking`, which reads like a mistake and makes a second activation unrepresentable,
+because the first one applies the tag.
+
+**Mutual cancellation had no ordering.** Attack cancels guard, guard's end resumes it, resumed guard
+cancels the attack — so a swing died a frame after it started. The user's phrasing supplied the
+missing constraint exactly: *the attack fires, and blocking resumes after recovery ends.* Nothing
+resumes while anything else is running.
+
+**The through-line worth carrying:** each fix that scoped to a *caller* failed, and each fix that
+made the bad state *unrepresentable* held. That is the same lesson the aim wedge's derived reach
+taught, arrived at from the opposite direction.
+
+### Buffer actions, not states
+
+The rule that came out of the last of them, and the one most likely to generalise. A 42 ms tap on
+RMB was refused because a previous guard was still committed, buffered, replayed when that expired,
+and became a *fresh* 250 ms guard whose own commitment held back the replayed release. A tap became
+a quarter-second guard long after the button came up, and chained.
+
+No single culprit: the buffer replaying refused presses, the minimum, and the held-back release are
+each correct alone. What was missing was a rule telling them apart. **The buffer exists so a
+deliberate tap is not lost to a brief lockout — that is reasoning about an *action*, something you
+asked for once that is still worth doing a moment later. A guard is a *state*, and a stale request
+to enter one is meaningless**, because the button either is or is not down now. Attacks still buffer
+through the guard's commitment, and that asymmetry is what keeps a swing thrown during a block
+responsive rather than dropped.
+
+It also retired a duplication this slice created: the buffer and the resume were two implementations
+of "the button is still held". They have disjoint jobs now.
+
+### The minimum duration, and a diagnosis the user overruled
+
+Play found the guard could be feathered at input speed. **The first explanation offered was a
+missing animation blend, and it was wrong** — recorded because the reasoning was seductive and will
+recur: the number a designer reaches for here (~150 ms) is also roughly a blend's duration, so a
+mechanical problem and a presentation problem look alike from the outside. The user's correction was
+flat: *"It's not just a feel change... Little to do with aesthetics."*
+
+`State.Blocking.Committed` is deliberately parallel to `State.Attacking.Committed`. Attacks commit
+at a checkpoint partway through; a guard commits the moment it goes up. **It has to gate the attack
+or it does nothing**, so it narrows *whichever comes last wins* rather than sitting beside it.
+
+**All guards are created equal**, the user's rule, and it settles two questions at once — the
+minimum and the initial cost both apply to resumed guards. An exemption was tried for the minimum
+and produced bimodal durations, which is worse than either answer alone.
+
+### What instrumentation cost, three times
+
+Three separate bugs in this slice were prolonged by a trace that could not see the thing it was
+pointed at, and it is worth naming as a pattern rather than three incidents:
+
+- **`BLOCK down` logged in `InputReleased`**, one of five ways a guard ends, so a guard surviving its
+  own break looked identical to one correctly cancelled.
+- **The same line logged before `Super::EndAbility`**, which no-ops when the ability is not active —
+  so twenty calls that ended nothing each announced an end. *A trace reporting an event that did not
+  happen is worse than none, because it is evidence against the bug that is present.*
+- **`REFUSED` could not see tag refusals**, which are now most refusals. A whole session of Block
+  produced an empty list while refusing constantly.
+
+And the fix that broke the deadlock was the same each time: log the *physical* thing rather than the
+system's interpretation of it. `INPUT pressed/released` is the only line describing the button
+rather than what was done with it, and it decoded the last two bugs immediately.
 
 ## 2026-08-14 — Block ships its mechanics, and stamina splits into two things that are not the same
 

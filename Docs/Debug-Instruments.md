@@ -59,11 +59,29 @@ enumerated from the source 2026-08-14 rather than remembered — `ACTIVATE`, `CO
 `BUFFER`, `REFUSED`, `DEATH`, `REVIVE`, `TARGET`, `AIM ASSIST`, `AIM WEDGE` and `LUNGE STOP`. Turn
 it off with `TD.DebugCombatTiming 0` when combat is not under test.
 
-**Block adds four** *(2026-08-14)*: `BLOCK up` / `BLOCK down` for the guard's edges, `BLOCKED` when
-a hit lands on one — carrying the stamina damage and the bar remaining, which is the pair that says
-whether the next hit will break it — and `GUARD BREAK` / `GUARD END` around the stun. **`BLOCKED`
-with `remaining=0.0` and no `GUARD BREAK` beside it is the failure to watch for**: it means the
-break has been moved somewhere that cannot see a hit landing on an already-empty bar.
+**Block adds several** *(2026-08-14)*: `BLOCK up` / `BLOCK down` for the guard's edges, `BLOCK cost`
+when a guard charges its initial stamina, `BLOCKED` when a hit lands on one — carrying the stamina
+damage and the bar remaining, which is the pair that says whether the next hit will break it — and
+`GUARD BREAK` / `GUARD END` around the stun. **`BLOCKED` with `remaining=0.0` and no `GUARD BREAK`
+beside it is the failure to watch for**: it means the break has been moved somewhere that cannot see
+a hit landing on an already-empty bar.
+
+**`BLOCK down` carries `(released)` or `(cancelled)`, and it is logged in `EndAbility`** — five
+things end a guard and only one is the button coming up. It was in `InputReleased` for a day and a
+guard that survived its own guard break looked exactly like one correctly cancelled.
+
+**`INPUT <tag> pressed/released` is the physical button, and the only line in the trace that is.**
+Everything else — `BUFFER`, `REFUSED`, the ability edges — describes what the *system* did with a
+press, so a replayed press and a real one are indistinguishable by the time they reach an ability.
+Reach for this whenever the question is "did the player actually do that", and pair the two edges
+when the question is a duration. It is what separated a lost release from a genuine long hold, and
+two bugs sat undecidable without it.
+
+**`REFUSED` now names the offending tags** and covers `ActivationBlockedTags`, which is where most
+refusals live. Before 2026-08-14 it saw only the three C++ checks, so a session could refuse
+constantly and log nothing. An empty reason is informative: a cost, a missing required tag, or the
+ability already running. **It is deduped by reason and by half a second**, because the resume retries
+every tick while its input is held — undeduped it emits at frame rate and buries everything else.
 
 **`ABILITY END` carries `elapsed`, which is an attack's true total** — the one number arithmetic
 over the authored phases cannot give you, since it includes whatever the coil and the phase

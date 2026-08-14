@@ -187,6 +187,11 @@ So prefer the details panel for anything a designer would touch anyway, and rest
 a programmatic write. **The rule is about Blueprint CDOs and does not extend to plain assets**
 *(confirmed 2026-08-12)* — an AnimSequence's `bEnableRootMotion` took effect immediately.
 
+**Staleness is per property, so an object can be *partially* live** *(confirmed 2026-08-14)* —
+`GA_Block`'s live instance had one tag container current and another empty, split by which side of
+the last restart each write landed on, while the CDO read correct for both. **Batch CDO writes and
+restart once**, and when a setting "is not working" **read the runtime instance before touching it**.
+
 **Prove the instrument before trusting a null result.** When the evidence is *"I changed it and the
 symptom did not move"*, the restart rule makes that ambiguous between a refuted hypothesis and a
 write that never landed. Make one write whose effect is numerically measurable, confirm it, then
@@ -267,18 +272,18 @@ asset type before concluding a thing cannot be made.
 **Renaming an AnimNotify class is expensive** — placed notifies serialize against the class path.
 
 **`create_node` cannot target a nested state graph** *(confirmed 2026-08-14)* — it resolves the
-Blueprint through the graph's outer, which for a state is an `AnimStateNode`
-(*"Cannot cast type 'AnimStateNode' to 'Blueprint'"*); `read_graph_dsl` returns empty there too.
-**Placing a node inside a state is the one AnimBP job needing a human.** Diagnose it carefully:
-**a creation `type_id` is not the one a node reports** — `get_node_infos` gives `|GetGroundSpeed`,
-`create_node` wants `Variables|Default|GetGroundSpeed`, and guessing fails with *"does not exist"*,
-which reads like a wall and is not. Use `find_node_types`.
+Blueprint through the graph's outer, an `AnimStateNode`; `read_graph_dsl` is empty there too, though
+both work on `EventGraph`. **Placing a node inside a state is the one AnimBP job needing a human**,
+so diagnose before concluding it: **a creation `type_id` is not the one a node reports** —
+`get_node_infos` gives `|GetGroundSpeed` where `create_node` wants `Variables|Default|GetGroundSpeed`,
+and guessing fails with *"does not exist"*, which reads like a wall. Use `find_node_types`, filtered
+tightly.
 
 **Optional anim-node properties become pins by writing `ShowPinForProperties`** *(confirmed
-2026-08-14)* — flip `bShowPin` where `bCanToggleVisibility` is true, `compile_blueprint`, read the
-node back. That is how a `BlendSpacePlayer`'s `BlendSpace` or a `SequencePlayer`'s `Sequence`
-becomes drivable, and `set_pin_value` then swaps the asset without touching the graph — also **the
-cheapest way to eyeball an animation**: point the pin at it, PIE, `CaptureViewport`, point it back.
+2026-08-14)* — flip `bShowPin` where `bCanToggleVisibility` is true, compile, read the node back.
+That is how a `BlendSpacePlayer`'s `BlendSpace` becomes drivable; `set_pin_value` then swaps the
+asset without touching the graph, which is also **the cheapest way to eyeball an animation**: point
+the pin at it, PIE, `CaptureViewport`, point it back.
 
 **AnimGraph *editing* is scriptable** *(confirmed 2026-08-11)*; only creation is not. `BlueprintTools`
 has `list_graphs`, `find_nodes`, `get_node_infos`, `create_node`, `connect_pins`, `set_pin_value`,
