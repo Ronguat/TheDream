@@ -304,17 +304,33 @@ void ATDCombatCharacter::HandleAbilityEndedForResume(const FAbilityEndedData& En
 
 void ATDCombatCharacter::TickResumeHeldAbilities()
 {
-	if (!bResumePending)
+	if (!bResumePending || !AbilitySystem)
 	{
 		return;
+	}
+
+	// **Nothing resumes while anything else is running, and this is the whole rule rather than a
+	// safety check.** A guard is displaced by an attack cancelling it, so the attack is still going
+	// when block's end requests the resume. Resuming immediately put the guard back one frame
+	// later, and the guard cancels attacks -- so the swing died a frame after it started, which is
+	// exactly what play reported.
+	//
+	// The user's phrasing is the specification: the guard comes back *after recovery ends*. That is
+	// this condition, because recovery ending is the ability ending.
+	//
+	// Deliberately left pending rather than consumed when skipping. The attack's own end will
+	// request again, but relying on that makes correctness depend on which events happen to fire;
+	// retrying until the character is genuinely free does not. It also means a guard blocked by
+	// exhaustion comes up the instant exhaustion lifts, which is what a held button should do.
+	for (const FGameplayAbilitySpec& Spec : AbilitySystem->GetActivatableAbilities())
+	{
+		if (Spec.IsActive())
+		{
+			return;
+		}
 	}
 
 	bResumePending = false;
-
-	if (!AbilitySystem)
-	{
-		return;
-	}
 
 	// A held button is a continuous statement of intent, so an ability that *is* a held state comes
 	// back when whatever interrupted it finishes. Opt-in per ability -- see bResumeWhileInputHeld --
