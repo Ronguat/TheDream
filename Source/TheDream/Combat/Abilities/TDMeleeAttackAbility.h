@@ -54,6 +54,17 @@ protected:
 	float Damage = 15.0f;
 
 	/**
+	 *  Stamina removed instead of health when this hit is blocked. Fallback for the branch value.
+	 *
+	 *  Zero is meaningful and dangerous here: an attack that deals no stamina damage can never
+	 *  break a guard, so blocking it is free forever. That is authorable on purpose -- a chip
+	 *  attack is a legitimate thing to want -- but it is not a sensible default, which is why
+	 *  this carries the light's value rather than nothing.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Damage", meta=(ClampMin="0.0"))
+	float StaminaDamage = 5.0f;
+
+	/**
 	 *  A target carrying any of these takes no damage from this attack -- i-frames.
 	 *
 	 *  **Leaving this empty silently disables invulnerability**, which looks exactly like
@@ -239,6 +250,9 @@ protected:
 
 	/** Damage for the swing currently being thrown. Overridden when a swing has variants. */
 	virtual float GetAttackDamage() const { return Damage; }
+
+	/** Stamina damage for the swing currently being thrown, used when it is blocked. */
+	virtual float GetAttackStaminaDamage() const { return StaminaDamage; }
 
 	/** Hitboxes for the swing currently being thrown. Overridden when a swing has variants. */
 	virtual const TArray<FTDAttackHitbox>& GetAttackHitboxes() const { return Hitboxes; }

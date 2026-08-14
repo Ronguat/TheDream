@@ -36,4 +36,20 @@ namespace TDTags
 	 *  stale. See Docs/Working-In-Unreal.md.
 	 */
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Dead);
+
+	/**
+	 *  A guard was broken. Refuses every ability for GuardBreakStunSeconds.
+	 *
+	 *  Native for the same reason State_Dead is: it is plumbing the C++ depends on by name, and an
+	 *  EditDefaultsOnly equivalent can be silently stale on a placed actor -- which is exactly how
+	 *  the training dummy shipped for days with ExhaustedTag unset. A native tag has no
+	 *  per-instance value to go stale, and this one refuses *every* action, so a defender whose tag
+	 *  never applied would look invulnerable to guard breaks rather than merely mis-tuned.
+	 *
+	 *  Deliberately not State.Blockstun. Blockstun is the lockout a *successful* block imposes on
+	 *  the defender and is a later pass; this is the penalty for a guard that failed. They differ
+	 *  in cause, duration and what they forbid, and sharing a tag would make the first one built
+	 *  silently define the other.
+	 */
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_GuardBroken);
 }

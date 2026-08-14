@@ -68,7 +68,21 @@ void ATDCombatCharacter::Tick(float DeltaSeconds)
 	// Attributes are authority-only state; clients see regen by replication.
 	if (HasAuthority())
 	{
+		// Drain before regen, so a frame in which both are live spends first and tops up second.
+		// The order is observable at exactly one point -- a guard held at full stamina -- where
+		// the reverse would let regen mask the drain entirely and the bar would never move.
+		TickBlockDrain(DeltaSeconds);
 		TickStaminaRegen(DeltaSeconds);
+
+		// The stun is a timestamp rather than a timer; see GuardBreakEndsAt.
+		if (bGuardBroken)
+		{
+			const UWorld* World = GetWorld();
+			if (World && World->GetTimeSeconds() >= GuardBreakEndsAt)
+			{
+				EndGuardBreak();
+			}
+		}
 	}
 
 	// Not authority-gated: a buffered press is local input waiting to be spent, and it is
@@ -129,6 +143,17 @@ void ATDCombatCharacter::TickStaminaRegen(float DeltaSeconds)
 		bSuppressorActive = true;
 	}
 
+	// A broken guard suppresses regen for the stun, and the ordinary pause then runs on from
+	// there -- which is what the user asked for and falls straight out of the max-push above
+	// rather than needing to be sequenced. Pushing StaminaRegenPauseSeconds (not the stun's own
+	// length) is the whole trick: while the stun is live the resume time keeps moving to
+	// "half a second from now", so the pause begins measuring from the instant the stun ends.
+	if (bGuardBroken)
+	{
+		RegenSuppressedUntil = FMath::Max(RegenSuppressedUntil, Now + StaminaRegenPauseSeconds);
+		bSuppressorActive = true;
+	}
+
 	if (GetStamina() >= GetMaxStamina())
 	{
 		return;
@@ -155,6 +180,157 @@ void ATDCombatCharacter::TickStaminaRegen(float DeltaSeconds)
 		UTDAttributeSet::GetStaminaAttribute(),
 		EGameplayModOp::Additive,
 		RegenPerSecond * DeltaSeconds);
+}
+
+void ATDCombatCharacter::TickBlockDrain(float DeltaSeconds)
+{
+	if (!AbilitySystem || BlockDrainPerSecond <= 0.0f || !IsBlocking())
+	{
+		return;
+	}
+
+	// Floors at zero and stays there. **Drain can never break a guard** -- that is the line
+	// between the two stamina mechanisms, and it is enforced here by simply not asking. A guard
+	// held at zero is a guard that has stopped being able to absorb anything, which is a
+	// consequence an attacker has to come and collect rather than one that arrives on its own.
+	//
+	// The attribute set clamps to [0, Max], so no floor is applied here; doing it in both places
+	// would be a second copy of a rule that already has one home.
+	AbilitySystem->ApplyModToAttribute(
+		UTDAttributeSet::GetStaminaAttribute(),
+		EGameplayModOp::Additive,
+		-BlockDrainPerSecond * DeltaSeconds);
+}
+
+bool ATDCombatCharacter::IsBlocking() const
+{
+	return AbilitySystem && BlockingTag.IsValid() && AbilitySystem->HasMatchingGameplayTag(BlockingTag);
+}
+
+bool ATDCombatCharacter::IsGuardFacing(const FVector& AttackOriginWorld) const
+{
+	FVector ToAttacker = AttackOriginWorld - GetActorLocation();
+	ToAttacker.Z = 0.0f;
+
+	// An attacker standing exactly on top of you has no bearing to test, and refusing the block
+	// there would be an arbitrary answer to a degenerate question. Grant it: the defender is
+	// holding a guard, and there is no direction the hit demonstrably came from.
+	if (ToAttacker.IsNearlyZero())
+	{
+		return true;
+	}
+
+	// 180 degrees means the whole forward hemisphere, so the test is simply "not behind me".
+	// Written as a dot product rather than an angle because the spec's number is exactly the
+	// one value where the comparison needs no arc arithmetic at all -- and if the arc ever stops
+	// being 180 this becomes an authored number and should move to a UPROPERTY rather than
+	// growing a constant here.
+	FVector Forward = GetActorForwardVector();
+	Forward.Z = 0.0f;
+
+	return FVector::DotProduct(Forward.GetSafeNormal(), ToAttacker.GetSafeNormal()) >= 0.0f;
+}
+
+void ATDCombatCharacter::ApplyStaminaDamage(float Amount)
+{
+	if (!HasAuthority() || !AbilitySystem || Amount <= 0.0f)
+	{
+		return;
+	}
+
+	AbilitySystem->ApplyModToAttribute(
+		UTDAttributeSet::GetStaminaAttribute(),
+		EGameplayModOp::Additive,
+		-Amount);
+
+	// **Read the bar back rather than predicting it.** The attribute set clamps to [0, Max] in
+	// both base and current value, so "did this empty them" is a question only the clamped result
+	// can answer -- computing it from Amount would disagree with the bar the moment anything else
+	// touches stamina in the same frame, which the drain above does whenever a guard is held.
+	if (GetStamina() <= 0.0f)
+	{
+		EnterGuardBreak();
+	}
+}
+
+void ATDCombatCharacter::EnterGuardBreak()
+{
+	const UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+
+	// Re-entrant deliberately: a second blocked hit landing during a stun extends it rather than
+	// being ignored. Being hit again while your guard is already broken is strictly worse than
+	// being hit once, and the alternative -- an early-out on bGuardBroken -- would make the stun
+	// a window of free hits.
+	GuardBreakEndsAt = World->GetTimeSeconds() + GuardBreakStunSeconds;
+
+	if (!bGuardBroken)
+	{
+		bGuardBroken = true;
+		ApplyGuardBreakState();
+	}
+}
+
+void ATDCombatCharacter::EndGuardBreak()
+{
+	if (!bGuardBroken)
+	{
+		return;
+	}
+
+	bGuardBroken = false;
+	ClearGuardBreakState();
+}
+
+void ATDCombatCharacter::ApplyGuardBreakState()
+{
+	if (AbilitySystem)
+	{
+		AbilitySystem->AddLooseGameplayTag(TDTags::State_GuardBroken);
+
+		// The guard is gone, so the ability holding it has to go with it -- otherwise BlockingTag
+		// survives the break and the drain keeps running on a guard the player no longer has.
+		// Cancelled rather than left to end on input release, because a broken guard should not
+		// wait for the player to notice.
+		FGameplayTagContainer BlockingTags;
+		if (BlockingTag.IsValid())
+		{
+			BlockingTags.AddTag(BlockingTag);
+			AbilitySystem->CancelAbilities(&BlockingTags);
+		}
+	}
+
+	TD_TIMING_LOG(TEXT("[%.3f] GUARD BREAK %s  stun=%.2fs"),
+		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f,
+		*GetName(),
+		GuardBreakStunSeconds);
+}
+
+void ATDCombatCharacter::ClearGuardBreakState()
+{
+	if (AbilitySystem)
+	{
+		AbilitySystem->RemoveLooseGameplayTag(TDTags::State_GuardBroken);
+	}
+
+	TD_TIMING_LOG(TEXT("[%.3f] GUARD END  %s"),
+		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f,
+		*GetName());
+}
+
+void ATDCombatCharacter::OnRep_GuardBroken()
+{
+	if (bGuardBroken)
+	{
+		ApplyGuardBreakState();
+	}
+	else
+	{
+		ClearGuardBreakState();
+	}
 }
 
 bool ATDCombatCharacter::IsIdle() const
@@ -240,6 +416,7 @@ void ATDCombatCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& O
 	// exhausted, because that is what its own ragdoll and greyed bar are drawn from.
 	DOREPLIFETIME(ATDCombatCharacter, bDead);
 	DOREPLIFETIME(ATDCombatCharacter, bExhausted);
+	DOREPLIFETIME(ATDCombatCharacter, bGuardBroken);
 }
 
 void ATDCombatCharacter::EnterDeath()

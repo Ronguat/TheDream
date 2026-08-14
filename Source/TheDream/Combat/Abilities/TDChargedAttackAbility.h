@@ -97,6 +97,26 @@ struct FTDAttackBranch
 	float Damage = 15.0f;
 
 	/**
+	 *  Stamina taken from a target who *blocks* this branch. Zero health damage is dealt instead.
+	 *
+	 *  **Stamina damage is not stamina drain, and the distinction is the whole design.** Drain is
+	 *  self-inflicted by holding a guard and can run the bar to zero harmlessly. Damage is what an
+	 *  attacker inflicts on that guard, and it is the *only* thing that can break one -- a guard
+	 *  breaks exactly when a blocked hit leaves the defender at zero. So this number is not "how
+	 *  fast blocking costs you", it is "how much of a defender's remaining safety this attack
+	 *  removes at a stroke".
+	 *
+	 *  Authored per branch beside Damage, so "heavies drain more" lives where the rest of the
+	 *  ladder is authored rather than in a table somewhere else. The shipped values are the user's:
+	 *  5 / 50 / 100 against a 100 bar, which makes the charged break a *full* guard exactly and the
+	 *  heavy break one that has already taken anything at all. That relationship is deliberate and
+	 *  is what makes the spec's "charged heavy breaks block" true without a special case in code --
+	 *  change the bar's maximum and it silently stops being true.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Attack", meta=(ClampMin="0.0"))
+	float StaminaDamage = 5.0f;
+
+	/**
 	 *  The volumes this branch strikes with. Empty falls back to the ability's own set.
 	 *
 	 *  Per branch rather than per ability because the spec gives heavy a higher range than light
@@ -292,6 +312,7 @@ protected:
 	TArray<FTDAttackBranch> Branches;
 
 	virtual float GetAttackDamage() const override;
+	virtual float GetAttackStaminaDamage() const override;
 	virtual const TArray<FTDAttackHitbox>& GetAttackHitboxes() const override;
 
 	/**

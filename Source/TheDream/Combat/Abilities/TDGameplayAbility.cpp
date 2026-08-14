@@ -56,6 +56,24 @@ bool UTDGameplayAbility::CanActivateAbility(const FGameplayAbilitySpecHandle Han
 		return false;
 	}
 
+	// Same treatment as death and for the same reason: a stun that any one ability could be
+	// granted without is a stun that will eventually be missed by one. A broken guard forbids
+	// everything for its duration, so there is no per-ability judgement to make.
+	//
+	// Deliberately *not* buffered -- see ShouldBufferFailedInput. A guard break is a punish
+	// window, and replaying every press made during one would hand back the exact seconds the
+	// break exists to take away.
+	if (ActorInfo && ActorInfo->AbilitySystemComponent.IsValid()
+		&& ActorInfo->AbilitySystemComponent->HasMatchingGameplayTag(TDTags::State_GuardBroken))
+	{
+		TD_TIMING_LOG(TEXT("[%.3f] REFUSED    %s on %s: guard broken"),
+			ActorInfo->AvatarActor.IsValid() && ActorInfo->AvatarActor->GetWorld()
+				? ActorInfo->AvatarActor->GetWorld()->GetTimeSeconds() : 0.0f,
+			*GetName(),
+			*GetNameSafe(ActorInfo->AvatarActor.Get()));
+		return false;
+	}
+
 	if (bBlockedWhileAirborne)
 	{
 		const ACharacter* Character = ActorInfo ? Cast<ACharacter>(ActorInfo->AvatarActor.Get()) : nullptr;
@@ -89,6 +107,16 @@ bool UTDGameplayAbility::ShouldBufferFailedInput(const FGameplayAbilityActorInfo
 	// the window length exists to prevent.
 	if (ActorInfo && ActorInfo->AbilitySystemComponent.IsValid()
 		&& ActorInfo->AbilitySystemComponent->HasMatchingGameplayTag(TDTags::State_Dead))
+	{
+		return false;
+	}
+
+	// A broken guard is the same shape as death, one second instead of several. The stun *is* the
+	// punish window, so replaying whatever was mashed during it would refund the opening the break
+	// was supposed to create -- and a player who has just been guard-broken is reacting to that,
+	// not still asking for what they pressed a second ago.
+	if (ActorInfo && ActorInfo->AbilitySystemComponent.IsValid()
+		&& ActorInfo->AbilitySystemComponent->HasMatchingGameplayTag(TDTags::State_GuardBroken))
 	{
 		return false;
 	}

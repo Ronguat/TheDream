@@ -312,6 +312,37 @@ void UTDMeleeAttackAbility::HandleTraceHit(const FHitResult& Hit)
 		return;
 	}
 
+	// Block, resolved here for the same reason i-frames are: this is the only place that knows a
+	// hit happened at all, and a defender cannot refuse damage it never sees.
+	//
+	// **Ordered after i-frames and before the lunge stop, and both halves of that matter.** A dodge
+	// beats a block if somehow both are live, because intangibility is the stronger claim. And a
+	// blocked attack *does* stop its lunge, unlike a dodged one: the defender is still standing
+	// there with a body in the way, so sliding through them would be the attacker walking into a
+	// guard and out the other side.
+	if (ATDCombatCharacter* Defender = Cast<ATDCombatCharacter>(HitActor))
+	{
+		const AActor* Avatar = GetAvatarActorFromActorInfo();
+		if (Defender->IsBlocking() && Avatar && Defender->IsGuardFacing(Avatar->GetActorLocation()))
+		{
+			StopLunge();
+
+			// Stamina instead of health, and the guard break falls out of the bar reaching zero
+			// inside this call rather than being decided here. That keeps "what breaks a guard"
+			// a property of the stamina economy, where drain and damage can be told apart, and
+			// not a rule each attack has to restate.
+			Defender->ApplyStaminaDamage(GetAttackStaminaDamage());
+
+			TD_TIMING_LOG(TEXT("[%.3f] BLOCKED    %s by %s  staminaDamage=%.0f  remaining=%.1f"),
+				GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f,
+				*GetNameSafe(Avatar),
+				*Defender->GetName(),
+				GetAttackStaminaDamage(),
+				Defender->GetStamina());
+			return;
+		}
+	}
+
 	// A viable target was struck, so the lunge is finished -- keyed to the hit rather than to the
 	// damage landing. The two are the same instant on the server today, but they are different
 	// events: the hit is detected here, while damage has to travel through effect application. Tying

@@ -593,6 +593,15 @@ float UTDChargedAttackAbility::GetAttackDamage() const
 	return Branches.IsValidIndex(SelectedBranchIndex) ? Branches[SelectedBranchIndex].Damage : Damage;
 }
 
+float UTDChargedAttackAbility::GetAttackStaminaDamage() const
+{
+	// Falls back to the ability's own value on an invalid index, exactly as damage does. Note the
+	// asymmetry with hitboxes, which fall back on an *empty array* as well: a stamina damage of
+	// zero is a legitimate authored value meaning "this can never break a guard", so it must not
+	// be treated as unset.
+	return Branches.IsValidIndex(SelectedBranchIndex) ? Branches[SelectedBranchIndex].StaminaDamage : StaminaDamage;
+}
+
 const TArray<FTDAttackHitbox>& UTDChargedAttackAbility::GetAttackHitboxes() const
 {
 	// An authored-but-empty branch falls back to the ability's own set rather than to nothing.

@@ -144,6 +144,41 @@ public:
 	UFUNCTION(BlueprintPure, Category="Combat|Health")
 	bool IsDead() const { return bDead; }
 
+	/** True while BlockingTag is present, i.e. a guard is up. */
+	UFUNCTION(BlueprintPure, Category="Combat|Stamina")
+	bool IsBlocking() const;
+
+	/**
+	 *  True if this attack's origin lies inside the guard's forward arc.
+	 *
+	 *  The spec's "180 degree forward coverage" as a single question, asked in the *defender's*
+	 *  frame at the moment the hit resolves. A block is a claim about where you are looking, so a
+	 *  hit from behind is not blocked however long the button has been held.
+	 *
+	 *  Deliberately measured against facing rather than against the camera: the defender's body is
+	 *  what an attacker can see, and defence has to be legible from the outside. That is the same
+	 *  reason the damage wedge is actor-framed while aim assist is camera-framed.
+	 */
+	UFUNCTION(BlueprintPure, Category="Combat|Stamina")
+	bool IsGuardFacing(const FVector& AttackOriginWorld) const;
+
+	/**
+	 *  Spends stamina from a blocked hit and breaks the guard if that empties the bar.
+	 *
+	 *  **This is the only thing that can break a guard**, which is the distinction the whole
+	 *  design rests on: drain runs you to zero and leaves you there, damage is what punishes you
+	 *  for being there. Returns true if the guard broke.
+	 *
+	 *  The break condition is *post-damage stamina is zero*, one rule that covers both cases
+	 *  without a special case -- damage exceeding what is left, and damage landing on a bar that
+	 *  is already empty. The second is what makes holding a guard at zero costly rather than free,
+	 *  and it is also why this cannot be driven from the stamina-changed delegate: that fires only
+	 *  on a *change*, so a hit taken at exactly zero would move nothing and be silently ignored.
+	 *
+	 *  Server only. The bar replicates, and the tag is applied on both sides by the state pair.
+	 */
+	void ApplyStaminaDamage(float Amount);
+
 protected:
 
 	virtual void BeginPlay() override;
@@ -327,6 +362,52 @@ protected:
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Stamina")
 	FGameplayTag ExhaustedTag;
+
+	/**
+	 *  Present while a guard is held, via GA_Block's owned tags. Drives the drain below.
+	 *
+	 *  Read from the character rather than the ability draining itself, because every other
+	 *  stamina rule already lives here -- regen, its pause and exhaustion are orchestrated in one
+	 *  place precisely so they cannot disagree, and a second spender running on an ability's own
+	 *  clock would be the first thing able to.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Stamina")
+	FGameplayTag BlockingTag;
+
+	/**
+	 *  Stamina spent per second for as long as a guard is held. **Drain, not damage.**
+	 *
+	 *  The two are separate mechanisms and only one of them can break a guard. This one is
+	 *  self-inflicted: it runs the bar down and parks it at zero, harmlessly, for as long as the
+	 *  player cares to hold. What it actually buys the attacker is that the defender stops being
+	 *  able to *absorb* anything -- a guard at zero breaks to the very next blocked hit.
+	 *
+	 *  So this is not a countdown on how long you may block. It is how fast holding a guard
+	 *  converts into risk, which is why raising it makes blocking more committal without ever
+	 *  taking the option away. The user's value is 10, giving ten seconds from full before a guard
+	 *  is breakable by anything at all.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Stamina", meta=(ClampMin="0.0"))
+	float BlockDrainPerSecond = 10.0f;
+
+	/**
+	 *  How long a broken guard is stunned for, and how long regen stays suppressed across it.
+	 *
+	 *  **One number for both deliberately.** The stun and the suppression are the same event seen
+	 *  from two sides, and authoring them apart would immediately allow the pair that makes no
+	 *  sense -- regen resuming while you are still stunned for it.
+	 *
+	 *  The existing StaminaRegenPauseSeconds runs *after* this rather than instead of it, because
+	 *  the regen tick takes the max of every live suppressor rather than assigning: so a break
+	 *  reads as the stun, then the ordinary pause, then recovery at the exhausted rate. The user's
+	 *  value is 1.0, which with the shipped 0.5 pause and 25/s exhausted regen puts a broken guard
+	 *  at roughly five and a half seconds from break to full.
+	 *
+	 *  Bounded, and that is what keeps it on the right side of the 2026-08-14 rule about
+	 *  suppressors: an unbounded one is a deadlock, a bounded one is a cost.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Stamina", meta=(ClampMin="0.0"))
+	float GuardBreakStunSeconds = 1.0f;
 
 	/**
 	 *  Collapse into a ragdoll on death.
@@ -648,6 +729,9 @@ private:
 	/** Adds StaminaRegenPerSecond * delta, unless suppressed or already full. */
 	void TickStaminaRegen(float DeltaSeconds);
 
+	/** Spends BlockDrainPerSecond * delta while BlockingTag is present. Never breaks a guard. */
+	void TickBlockDrain(float DeltaSeconds);
+
 	/** Applies ExhaustedTag. Removed only once stamina is back to Max -- there is no timer. */
 	void EnterExhaustion();
 	void ExitExhaustion();
@@ -671,11 +755,25 @@ private:
 	void ApplyDeathState();
 	void ClearDeathState();
 
+	/**
+	 *  Starts and ends the guard-break stun. Server decides; the state pair runs everywhere.
+	 *
+	 *  EndGuardBreak is driven from Tick against GuardBreakEndsAt rather than from a timer, so
+	 *  the stun cannot outlive a pause, a seek or a slow frame in a way nothing observes.
+	 */
+	void EnterGuardBreak();
+	void EndGuardBreak();
+	void ApplyGuardBreakState();
+	void ClearGuardBreakState();
+
 	UFUNCTION()
 	void OnRep_Dead();
 
 	UFUNCTION()
 	void OnRep_Exhausted();
+
+	UFUNCTION()
+	void OnRep_GuardBroken();
 
 	/**
 	 *  Applies State.Dead, cancels everything running, and stops the character moving.
@@ -726,6 +824,20 @@ private:
 
 	UPROPERTY(ReplicatedUsing = OnRep_Dead)
 	bool bDead = false;
+
+	/** Follows the same server-decides/OnRep-applies contract as the two above. */
+	UPROPERTY(ReplicatedUsing = OnRep_GuardBroken)
+	bool bGuardBroken = false;
+
+	/**
+	 *  When the guard-break stun expires, in world seconds. Server-authoritative.
+	 *
+	 *  A timestamp checked in Tick rather than a SetTimer, deliberately: the two network-unaware
+	 *  SetTimer sites this project already has are filed as a multiplayer trap, and a third would
+	 *  have joined them for no gain. A timestamp is also what the regen suppressor beside it
+	 *  already uses, so the stun and the pause it implies are expressed the same way.
+	 */
+	float GuardBreakEndsAt = 0.0f;
 
 	/**
 	 *  The mesh's authored offset from the capsule, captured once before physics ever moves it.
