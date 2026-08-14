@@ -22,10 +22,15 @@ code cannot drift from itself. Audited on the day this bar was set: 9 of the fir
 cleared it; the rest explained the current design, which the codebase does better.
 
 **How to read this file.** The sections above the first dated entry — **known traps**, the
-**tuning map**, **what has been superseded**, **retired item numbers** and **retired names** — are the working part, and
-they are short on purpose. The dated entries below are an archive. Read the working sections
-when starting a slice; grep the entries when you want to know *why* something is the shape it
-is. Do not read it front to back.
+**tuning map**, **what has been superseded**, **retired item numbers**, **retired names** and the
+**symbol index** — are the working part, and they are short on purpose. The dated entries below are
+an archive. Read the working sections when starting a slice; grep the entries when you want to know
+*why* something is the shape it is. Do not read it front to back.
+
+**Two of those sections answer the two questions anyone actually arrives with.** *"I am starting
+slice X, what bites"* is the traps section, indexed by trigger. *"I am about to change symbol Y, what
+was decided about it"* is the symbol index, and until 2026-08-14 there was nothing for it — you had
+to already know which entry to grep.
 
 **On the fact that it only grows.** Reviewed 2026-08-11 and kept deliberately. **The growth is
 proportionate, not pathological** — a codebase accumulates decisions as it accumulates code, and
@@ -742,6 +747,210 @@ concludes the log is wrong rather than merely old. Add a row whenever a name cha
 | `StationaryTurnRateDegrees` | **`TurnRateDegrees`**, renamed 2026-08-12 when facing stopped having a separate moving mode. No longer stationary-only, and no longer cosmetic — it decides where an attack points. |
 | `bSnapFacingWhileMoving` | Never shipped. A temporary A/B switch for the facing pass, deleted with the snap branch it selected. |
 | `RecoveryPlayRate` | **`FTDAttackBranch::RecoverySeconds`**, 2026-08-12. Recovery is authored as a duration per branch and its rate is derived, as windup and release already were. A rate could only set the punish window indirectly, through however long the clip's tail happened to be. |
+
+---
+
+---
+
+## Symbol index — which entries discuss this thing
+
+**Entries are titled by insight, and insight is not what anyone searches for.** *"The gate is per
+tick, and lunge duration is a designed quantity"* is a good title to read and a useless one to find
+`LungeDurationSeconds` by. This table closes that gap: every project symbol, asset and property
+named anywhere in the dated archive, against the dates of the entries naming it. All dates are 2026.
+
+Use it as the *first* step of the traps grep the working loop asks for — the trap section is
+indexed by trigger, this is indexed by name, and a symbol you are about to change will usually hit
+both. **Added 2026-08-14, after an audit claimed `CoilTurnRateDegrees` was undocumented on the
+strength of grepping the working sections; it was recorded in full in a dated entry, and only
+reading the file front to back found it.** An index nobody has to read front to back is the fix.
+
+Generated from the archive rather than maintained by hand, so it goes stale rather than wrong —
+a missing row means the entry is newer than the index, never that the symbol is absent. Regenerate
+when it starts missing things; the rule for reading it is the standing one, that **a search finding
+nothing proves only that the filter did not match.**
+
+Regenerate by extracting every backticked identifier from the dated entries, keeping only those
+that resolve against `Source/TheDream` (excluding `Variant_Combat/`) or a `Content/TheDream` asset
+name — that filter is what keeps vendor clip names and engine symbols out. The command lives in
+this commit's message rather than here, since it is run about once a slice and is three pipelines
+long.
+
+| Symbol | Entries |
+|---|---|
+| `ABP_Combat` | 08-11, 08-12 |
+| `ACharacter` | 08-12 |
+| `ACharacter::SetAnimRootMotionTranslationScale` | 08-12 |
+| `AM_Attack` | 08-12 |
+| `AM_Dodge` | 08-10, 08-11, 08-12, 08-13 |
+| `APawn::FaceRotation` | 08-12 |
+| `ATDCombatCharacter` | 08-10, 08-12 |
+| `ATDCombatCharacter::Jump` | 08-12 |
+| `ATDCombatCharacter::StartRagdoll` | 08-13 |
+| `ATDPlayerState` | 08-11 |
+| `ATheDreamCharacter` | 08-12, 08-13 |
+| `ATheDreamCharacter::ApplyCameraCollisionExemption` | 08-13 |
+| `ActivateAbility` | 08-10, 08-12 |
+| `ActivationBlockedTags` | 08-10, 08-11, 08-12 |
+| `AddMovementInput` | 08-12 |
+| `AirControl` | 08-13 |
+| `AnimRootMotionTranslationScale` | 08-10 |
+| `ApplyDeathState` | 08-11 |
+| `ApplyModToAttribute` | 08-10 |
+| `BP_PlayerCharacter` | 08-11, 08-12 |
+| `BP_TrainingDummy` | 08-11, 08-12 |
+| `BlendOutTriggerTime` | 08-12 |
+| `CanActivateAbility` | 08-10, 08-11 |
+| `CancelAllAbilities` | 08-11, 08-12 |
+| `ClampVelocity` | 08-14 |
+| `ClearExhaustionState` | 08-11 |
+| `CoilEndSeconds` | 08-09, 08-12 |
+| `CoilTurnRateDegrees` | 08-12 |
+| `CommitAttack` | 08-13 |
+| `CostGameplayEffectClass` | 08-10 |
+| `DamageEffectClass` | 08-14 |
+| `DefaultEffects` | 08-10 |
+| `DisableMovement` | 08-11 |
+| `DoMove` | 08-12 |
+| `DodgeSeconds` | 08-10, 08-11 |
+| `DodgeTargetDistanceCm` | 08-11, 08-12, 08-13 |
+| `ECC_Camera` | 08-12, 08-13 |
+| `ETriggerEvent::Started` | 08-11 |
+| `EffectOnEnd` | 08-10 |
+| `EffectOnStart` | 08-10 |
+| `EndAbility` | 08-12 |
+| `EndTask` | 08-14 |
+| `EnterCoil` | 08-14 |
+| `EnterDeath` | 08-11 |
+| `ExhaustedStaminaRegenPerSecond` | 08-14 |
+| `ExhaustedTag` | 08-11 |
+| `ExhaustionSeconds` | 08-10, 08-14 |
+| `ExitExhaustion` | 08-11 |
+| `FCollisionShape` | 08-12 |
+| `FMath::IsNearlyEqual` | 08-13 |
+| `FRootMotionSource` | 08-12, 08-14 |
+| `FTDAimAssistWedge` | 08-14 |
+| `FTDAttackBranch::LungeDistanceCm` | 08-12 |
+| `FTDAttackBranch::LungeDurationSeconds` | 08-13 |
+| `FTDAttackBranch::RecoverySeconds` | 08-12 |
+| `FTDAttackBranch::RootMotionScale` | 08-12 |
+| `FTDAttackHitbox` | 08-12, 08-13, 08-14 |
+| `FTDRootMotionSource_FacingForce` | 08-12, 08-13 |
+| `FTDRootMotionSource_FacingForce::IsWithinStandoff` | 08-14 |
+| `FTDRootMotionSource_FacingForce::PrepareRootMotion` | 08-13 |
+| `FacingLockFadeSeconds` | 08-12 |
+| `FinishVelocityParams` | 08-14 |
+| `GA_Attack` | 08-09, 08-10, 08-11, 08-12 |
+| `GA_Dodge` | 08-10, 08-11, 08-13 |
+| `GetActorForwardVector` | 08-12 |
+| `GetAimYawDegrees` | 08-13 |
+| `GetLastInputVector` | 08-10 |
+| `GetScriptStruct` | 08-12 |
+| `HandleCheckpoint` | 08-14 |
+| `HeightMaxCm` | 08-12 |
+| `HeightMinCm` | 08-12 |
+| `Hitboxes` | 08-12 |
+| `HoldSeconds` | 08-11 |
+| `HoldUntilSeconds` | 08-09, 08-12 |
+| `IdleTurnRateDegrees` | 08-12 |
+| `InitCapsuleSize` | 08-12 |
+| `InitialiseAbilitySystem` | 08-11 |
+| `InputBufferSeconds` | 08-11, 08-12 |
+| `IsFacingLocked` | 08-12 |
+| `IsFalling` | 08-10 |
+| `IsIdle` | 08-12 |
+| `JumpRegenPauseSeconds` | 08-10 |
+| `LaunchCharacter` | 08-12 |
+| `LocalPredicted` | 08-11 |
+| `LogTDCombatTiming` | 08-12 |
+| `LungeStandoffCm` | 08-13 |
+| `MakeDisabled` | 08-14 |
+| `MaxReachCm` | 08-12, 08-14 |
+| `MaxWalkSpeed` | 08-11, 08-12, 08-13 |
+| `MeasuredTravelCm` | 08-11, 08-12, 08-13 |
+| `MontageSection` | 08-09 |
+| `NetExecutionPolicy` | 08-11 |
+| `NetSerialize` | 08-12 |
+| `OnCompleted` | 08-12 |
+| `OnDestroy` | 08-14 |
+| `OnRep` | 08-11 |
+| `OverlapsCapsule` | 08-14 |
+| `PhysicsRotation` | 08-12 |
+| `PreAttributeBaseChange` | 08-10 |
+| `PreAttributeChange` | 08-10 |
+| `PrepareRootMotion` | 08-12 |
+| `REPNOTIFY_Always` | 08-11 |
+| `RecoveryPlayRate` | 08-12 |
+| `RecoverySeconds` | 08-12, 08-13 |
+| `RegenSuppressedUntil` | 08-10 |
+| `ReleaseAtSeconds` | 08-09, 08-11, 08-12 |
+| `ReleaseSeconds` | 08-09, 08-12, 08-13 |
+| `ReleaseStartSeconds` | 08-09, 08-10, 08-11, 08-12 |
+| `RemoveRootMotionSourceByID` | 08-14 |
+| `ResolveDodgeDirection` | 08-10, 08-12 |
+| `ResolveHits` | 08-13 |
+| `ReturnToDebugAutoAttackHome` | 08-11 |
+| `RootMotionScale` | 08-12 |
+| `RotationRate` | 08-10, 08-12 |
+| `SKM_Manny` | 08-11, 08-12 |
+| `SKM_Manny_Simple` | 08-11 |
+| `SetAbilityFacingLocked` | 08-13 |
+| `SetActorLocation` | 08-12 |
+| `SetTimer` | 08-11 |
+| `ShieldMesh` | 08-11 |
+| `ShouldBufferFailedInput` | 08-11 |
+| `StaminaRegenPauseSeconds` | 08-10, 08-14 |
+| `StaminaRegenPerSecond` | 08-10, 08-14 |
+| `StandoffCm` | 08-13 |
+| `StartAttackMontage` | 08-13 |
+| `StartLunge` | 08-14 |
+| `StopLunge` | 08-14 |
+| `StopRagdoll` | 08-13 |
+| `StrengthOverTime` | 08-12 |
+| `SwordShield` | 08-10, 08-11 |
+| `TDChargedAttackAbility` | 08-11 |
+| `TDDodgeAbility` | 08-11, 08-13 |
+| `TargetImmunityTags` | 08-13 |
+| `TraceRadius` | 08-11, 08-12 |
+| `TurnRateDegrees` | 08-12, 08-13, 08-14 |
+| `UAbilityTask_PlayMontageAndWait` | 08-12 |
+| `UAnimNotifyState_MeleeWindow` | 08-09 |
+| `UCharacterMovementComponent` | 08-12 |
+| `UGameplayAbility` | 08-11 |
+| `UTDChargedAttackAbility` | 08-09, 08-10, 08-12 |
+| `UTDDodgeAbility` | 08-10 |
+| `UTDGameplayAbility` | 08-12, 08-14 |
+| `UTDGameplayAbility::InputTag` | 08-09 |
+| `UTDGameplayAbility::StartLunge` | 08-13 |
+| `UTDMeleeAttackAbility` | 08-10 |
+| `UTDMeleeAttackAbility::HandleTraceHit` | 08-14 |
+| `UTDMeleeAttackAbility::LungeDistanceCm` | 08-12 |
+| `UTDMeleeAttackAbility::LungeDurationSeconds` | 08-13 |
+| `UTDMeleeAttackAbility::RootMotionScale` | 08-12 |
+| `UpdateCameraRelativeFacing` | 08-11, 08-12 |
+| `UpdateStateFrom` | 08-14 |
+| `WeaponMesh` | 08-11 |
+| `WithNetSerializer` | 08-12 |
+| `YawOffsetDegrees` | 08-13 |
+| `bAbilityFacingLocked` | 08-12 |
+| `bAllowPhysicsRotationDuringAnimRootMotion` | 08-12 |
+| `bAttackCommitted` | 08-12 |
+| `bBlockedWhileAirborne` | 08-10, 08-12 |
+| `bDead` | 08-11 |
+| `bDebugAutoAttack` | 08-11 |
+| `bDebugAutoAttackResetPosition` | 08-11 |
+| `bDoCollisionTest` | 08-12 |
+| `bEnableRootMotion` | 08-12, 08-13 |
+| `bEnabled` | 08-14 |
+| `bExhausted` | 08-11 |
+| `bJumpRegenPauseActive` | 08-11, 08-12 |
+| `bLocksMovement` | 08-12 |
+| `bOrientRotationToMovement` | 08-10 |
+| `bRagdollOnDeath` | 08-11 |
+| `bTookMovementLock` | 08-12 |
+| `bUseControllerDesiredRotation` | 08-12 |
+| `bUseControllerRotationYaw` | 08-12 |
+| `gEComponents` | 08-10, 08-11 |
 
 ---
 
