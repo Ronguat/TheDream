@@ -234,9 +234,15 @@ That is the question it asked, answered: *"if the hitbox genuinely goes live ~70
 `ReleaseAtSeconds` claims, heavy and charged are more reactable than authored… nobody has separated
 those two."* Separated by comparing press-to-release across tiers, which is what it proposed.
 
-**Not fully closed, and deliberately left here:** the *total* overhead was never re-measured,
-because the trace has no ability-end line and nothing prints one. So this records where the
-overhead is **not**, rather than what remains. Anyone wanting the total needs to add the line first.
+**The blocker this recorded is gone, found by the 2026-08-14 doc audit.** It said the total
+overhead could not be re-measured "because the trace has no ability-end line and nothing prints
+one. Anyone wanting the total needs to add the line first." `UTDChargedAttackAbility` prints
+`ABILITY END pos=… elapsed=…`, and has since `19500ea` during Attack Swap — `elapsed` is exactly
+the total being asked for, and it was already there when the paragraph was written.
+
+So what remains open is only the measurement, and it is one held attack per tier with the trace on.
+Compare `elapsed` against authored windup + release + recovery; the tiers to watch are heavy and
+charged, since the light is the one with no overhead. **Nothing needs building first.**
 
 The original measurement, kept because it is the evidence: totals against arithmetic — light
 authored 0.75 s and measured 0.758–0.771 (**+0.01**), heavy authored 1.10 and measured 1.172

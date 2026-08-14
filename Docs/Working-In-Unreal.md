@@ -295,9 +295,9 @@ moves". Vary the spacing deliberately rather than taking more samples at the sam
 
 **The debug auto-attacker has a configuration that silently invalidates it.**
 `DebugAutoAttackResetDelaySeconds` **plus the attack's full length** must fit inside
-`DebugAutoAttackInterval`, or the reset fires mid-attack and the numbers still look plausible. 1.0 s
-clears all three tiers at the 3 s interval. Interval is read once in `BeginPlay`; only the delay is
-live at runtime.
+`DebugAutoAttackInterval`, or the reset fires mid-attack and the numbers still look plausible. The
+shipped defaults (0.35 and 3.0) clear all three tiers with room — the charged is the binding case at
+1.45 s. Interval is read once in `BeginPlay`; only the delay is live at runtime.
 
 **Prefer normal PIE for anything timed.** In `bSimulate: true` the dummy's looping timer stopped
 after ~30 s and never resumed, unexplained *(2026-08-12)*. Editor focus is **not** the variable — that
@@ -316,11 +316,19 @@ commit reading `2026-08-12 17:26 -0600` are the same evening.
 
 ### Reading the logs
 
-**`TD.DebugCombatTiming` defaults to ON** and gives the per-attack phase trace: windup rate wanted
-versus applied, coil start and rate, commit position, each release edge with its montage position,
-facing error at every lock, plus `DODGE`, `BUFFER`, `REFUSED`, `DEATH`, `REVIVE`, `TARGET`,
-`AIM ASSIST`, `AIM WEDGE`, `ESCALATE` and `LUNGE STOP`. Turn it off with `TD.DebugCombatTiming 0`
-when combat is not under test.
+**`TD.DebugCombatTiming` defaults to ON** and gives the per-attack phase trace. The full tag list,
+enumerated from the source 2026-08-14 rather than remembered — `ACTIVATE`, `COIL START`, `COMMIT`,
+`ESCALATE`, `RELEASE` / `RELEASE OFF`, `RELEASE BEGIN` / `END` (from the notify), `ABILITY END`,
+`MONTAGE` (seven variants, including the delegate outcomes), `FACING LOCK`, `DODGE`, `DODGE END`,
+`BUFFER`, `REFUSED`, `DEATH`, `REVIVE`, `TARGET`, `AIM ASSIST`, `AIM WEDGE` and `LUNGE STOP`. Turn
+it off with `TD.DebugCombatTiming 0` when combat is not under test.
+
+**`ABILITY END` carries `elapsed`, which is an attack's true total** — the one number arithmetic
+over the authored phases cannot give you, since it includes whatever the coil and the phase
+transitions cost. Reach for it before concluding an attack runs long.
+
+**`TD.DebugHUD` also defaults to ON** and draws health, stamina and active tags. It is the fastest
+way to read a state tag, and the only way to see one without a log round-trip.
 
 **Never judge a debug wedge's size by eye — read `AIM WEDGE`.** It prints the reach and arc of the
 volume being drawn, at every change. A session was lost to comparing remembered radii: the drawn
