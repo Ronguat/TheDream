@@ -174,21 +174,50 @@ The pattern that works is already in use here — *"`GA_Attack`'s `Branches` arr
 Deliberately **not** kept: per-system design docs. Local rationale belongs in header comments, which are read at the moment the code is; a doc that describes a system drifts out of sync and then gets trusted over the code.
 
 ## Working Rules
-- **The loop is: objective → *read the traps* → measure → plan → greenlight → execute.** Named by the user 2026-08-12,
+
+**Autonomy on the HOW. Interrupt on the WHAT or the WHY.** Stated by the user 2026-08-14, and it is
+the principle every rule below is an instance of. Once what to build and why has been agreed, running
+the how through to completion is not merely acceptable, it is **preferred** — do not hand steps back
+one at a time. But if a genuine question about *what* or *why* emerges mid-run, stop and raise it.
+
+- **The test for which one you are looking at is reversibility.** A HOW decision is one you can undo
+  alone; a WHAT decision needs the user to undo it. **Irreversibility therefore converts a HOW into a
+  WHAT** — deleting an asset looks like a how ("how do I clean this up") and is not, because only
+  they can undo it.
+- **The tell, in the moment, is whether you are composing a justification.** If a choice needs
+  *defending* in a commit message or a report, it was a WHAT. HOW decisions do not need defending,
+  they need doing.
+- **Not every WHAT/WHY interrupts.** One that blocks the work does. One that is merely noticed in
+  passing goes in the report. If everything routes to an interruption, interruptions stop being
+  meaningful — the same reason a permission prompt you always approve is not oversight.
+- **Permission prompts are not the mechanism, and must not be used as one.** A prompt only ever asks
+  a HOW question, so it cannot gate a WHAT. Rules like *never delete assets or change project
+  settings without explicit approval* rest on the classification above, not on a prompt standing
+  behind them. **Do not add a prompt to cover a rule.** Reasoning in `Docs/Combat-Decisions.md`.
+
+- **The loop follows from that: objective → *read the traps* → measure → plan → greenlight → execute → report.** Named by the user 2026-08-12,
   after it turned a two-session bug hunt into a measured one-line fix. Given an objective, do all the
   reading and measuring needed to actually understand the problem, **then present a plan and stop.**
-  Three parts carry the weight. *Measuring comes before planning*, so the plan is built on numbers
+  *Measuring comes before planning*, so the plan is built on numbers
   instead of on a guess about what is wrong — a plan proposed before measuring is just the first
   hypothesis wearing a schedule. *The pause is real*: do not begin work that has not been described
   and agreed, however obvious it looks. *Execution after a greenlight is unattended* — drive the
-  editor closes, rebuilds, asset writes and verification through to the end rather than handing
-  steps back one at a time. If a measurement taken mid-execution changes what should happen, that is
-  a **new plan** and needs its own greenlight; say so and stop rather than quietly widening scope.
+  editor closes, rebuilds, asset writes and verification through to the end. If something mid-execution
+  changes what should happen, that is a **new plan** and needs its own greenlight; say so and stop
+  rather than quietly widening scope. **This applies to scope as much as to direction**, which is the
+  half that is easy to miss — a planned cut that stops short because finishing it would mean deleting
+  live rules has changed WHAT is being delivered, however sound the stopping point.
   **Reading the traps is a step, not a hope.** Before measuring, grep `Docs/Combat-Decisions.md`'s
   known-traps section for the name of the item in play and say what it turned up. That section asks to be
   re-read at the start of the slice it is filed against, and on 2026-08-12 that failed exactly as an
   unenforced instruction does: a trap discharged during Attack Swap sat filed for a day and was found
   by an audit rather than by anyone reading it. One grep, at the moment it is most relevant.
+- **Do not declare a task finished on your own.** The loop closes where it opened: greenlight is the
+  WHAT gate going in, and *"is this done"* is the WHAT gate coming out. Report what was built, what
+  was verified versus merely written, and **what was done beyond what was agreed, or that nothing
+  was** — then stop and let the user call it. Added 2026-08-14, and it is deliberately a
+  conversational gate rather than a prompt on the push. **This is what makes unattended execution
+  safe**, so it is not optional tidiness.
 - **Combat and gameplay work is deliberate, not vibed.** Minimize assumptions and state the reasoning, even when it is slower. If a gameplay question has more than one defensible answer, raise it rather than picking one quietly — and record the choice in `Docs/Combat-Decisions.md`. Unprompted initiative is welcome for debug and tooling conveniences (adding a readout to the debug HUD, say); it is not welcome for anything that changes how the game plays.
 - **When play and rationale disagree, play wins.** This file and `Docs/Combat-Decisions.md` are full of carefully argued positions. They exist to make choices legible, not to defend them against evidence — a designed distinction that does not survive contact with feel gets dropped, and the entry recording it gets superseded rather than argued for. Do not treat a persuasive past entry as a commitment.
 - Always propose a short plan before creating or modifying multiple assets.
@@ -197,7 +226,7 @@ Deliberately **not** kept: per-system design docs. Local rationale belongs in he
 - When implementing an attack or defensive move, include the relevant input binding, montage/notify windows, stamina cost, and at least a basic success/failure outcome.
 - **An animation plays in full across the mechanical duration it belongs to.** Fit the clip to the duration; never trim it to hit a number nobody has felt. The fix for a bad-feeling number is to change the number. Reasoning in `Docs/Combat-Decisions.md`.
 - After making changes, briefly list the assets created or modified and the key values set.
-- **Commit and push whenever a notable contribution is finished**, without waiting to be asked. The bar is a coherent, verified unit of work — not every file edit, and not a half-finished slice. Pending *tuning* questions do not block a push; pending *correctness* verification does.
+- **Commit freely; the push waits for the user to call the work done.** Amended 2026-08-14, having previously read *"commit and push… without waiting to be asked."* The split is reversibility: a local commit is a HOW — undoable, and the message is where reasoning gets recorded anyway — so commit in coherent, verified units as the work lands, which also means the user reviews a series rather than a pile of working-tree changes. Pushing is the outward-facing half and follows the completion gate above. The bar for a commit is unchanged: not every file edit, and not a half-finished slice. Pending *tuning* questions do not block a push; pending *correctness* verification does.
 - **Every commit you author gets the `Co-Authored-By` trailer, without exception.** A trailer that is present only sometimes makes its absence ambiguous, which is worse than never using one; six commits on 2026-08-09 lost it late in a long session. Do not automate it with a hook — a hook cannot tell who wrote a change, so it would falsely claim the ones you did not.
 - **Report what was found, not who found it.** When the user contributes an idea or catches
   something, note it in a clause if it matters to the reasoning and move on. Do not tally credit,
@@ -214,8 +243,12 @@ Deliberately **not** kept: per-system design docs. Local rationale belongs in he
 
 ## Closing down a session
 
-Run this when the user says they are winding down, or when a session ends on a finished item. It
-exists because the 2026-08-12 audit found eight wrong claims across the docs, and **every one of
+**Run this only when the user says so.** Whether a session continues or concludes is theirs to decide
+and never yours to infer — the user took that responsibility explicitly on 2026-08-14, when this read
+*"or when a session ends on a finished item"* and thereby handed the judgement over. **A session
+ending on a finished item is not a session the assistant may end.**
+
+It exists because the 2026-08-12 audit found eight wrong claims across the docs, and **every one of
 them was cheap to catch at a boundary and expensive to trip over later**. Steps 3 and 4 are the
 audit in miniature; the rest is making sure nothing is left on the floor.
 
@@ -228,8 +261,10 @@ audit in miniature; the rest is making sure nothing is left on the floor.
    `git status` rather than against the act of closing. Anything mid-session that *does* need the
    editor closed — a header change, a full rebuild — still announces first; that rule lives in
    `Docs/Working-In-Unreal.md`, where every other reason to close it lives.
-2. **Leave nothing verified uncommitted.** Push anything finished. For anything deliberately left
-   out, say so and why — pending *tuning* does not block a push, pending *correctness* does.
+2. **Leave nothing verified uncommitted, and *propose* the push.** Commit anything finished; the
+   push itself waits on the completion gate in Working Rules, so this step ends by naming what is
+   ready to go rather than by sending it. For anything deliberately left out, say so and why —
+   pending *tuning* does not block a push, pending *correctness* does.
 3. **Audit the two files that are read every session, for bloat as well as truth.** `CLAUDE.md` and
    `Docs/Working-In-Unreal.md` are both loaded or read in full at every startup, so **length is a
    correctness problem for them and not only a tidiness one** — a file nobody finishes reading
@@ -257,6 +292,12 @@ audit in miniature; the rest is making sure nothing is left on the floor.
 7. **Hand off explicitly.** Where to pick up, what is verified versus merely written, and what is
    open. **Name anything claimed but not verified** — that is the item most likely to be believed
    next session and least likely to be re-checked.
+
+   **And state what was done beyond what was agreed, or that nothing was.** Added 2026-08-14, and it
+   is what makes unattended execution reviewable: the drift that gets caught is the drift that looks
+   wrong, so the additions a reasonable person would have made anyway are exactly the ones that go
+   unmentioned. Saying "nothing" is a real answer and should be said out loud rather than left to
+   silence, which is indistinguishable from not having checked.
 8. **Title the session, for the archive. Five words maximum.** What the session *did*, not what it
    touched — "Ship Lunge, lock attack movement" over "worked on combat". Verbs over nouns; no date,
    no item numbers, nothing the archive already knows.

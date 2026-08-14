@@ -708,6 +708,122 @@ long.
 
 ---
 
+## 2026-08-14 — Autonomy on the how, interruption on the what; and permission prompts are a cost gate
+
+The user's formulation, and it resolved four questions that had been argued separately as though
+they were separate: whether to run in a more permissive permission mode, whether to allowlist common
+commands instead, whether pushing should prompt, and what the assistant may decide alone mid-run.
+
+> The ultimate goal is to afford autonomy in these sessions for the HOW, but to ask questions when
+> they relate to the WHAT or the WHY. If we've already discussed the what and the why, and a plan is
+> greenlit, running with the how through to completion is not only acceptable, but preferred. But,
+> if during that run, legitimate questions emerge about WHAT or WHY, then the desired behavior is an
+> interruption.
+
+### Why the permission model was the wrong instrument, in this project's own vocabulary
+
+**A permission prompt is `CostGameplayEffectClass`.** The combat model's central position is that
+costs are *paid, not required* — GAS's cost gate is refused because it checks at activation, and
+*"an input that does nothing is the worst possible feedback, because it is indistinguishable from a
+dropped input."* A prompt is that gate applied to the workflow: it interrupts at activation and asks
+a question already answered at greenlight.
+
+Worse, it can only ever ask a **how** question. *"May I run `git commit`"* is never about what or
+why. So prompts are not merely noisy, they are **anti-correlated with the signal** — they interrupt
+exclusively on the axis where autonomy is wanted and structurally cannot interrupt on the axis where
+it is not. That mismatch is why adding more of them felt wrong and removing them felt risky; both
+instincts were reading the same fact.
+
+And a prompt that is always approved is not oversight. That is the same defect as the stale
+tuning-map row and the clean `FACING LOCK` that does not exonerate: **a check that reads as
+protection while protecting nothing**, which this project treats as worse than no check.
+
+### The allowlist alternative was measured, not argued, and it fails on arithmetic
+
+The proposal was to stay in a stricter mode and allowlist the usual suspects. Scanned across 24
+transcripts and ~5,400 tool calls:
+
+| Surface | Calls | Allowlistable? |
+|---|---:|---|
+| `mcp__unreal-mcp__call_tool` | 2,158 | **No** |
+| Already auto-allowed (`echo`, `grep`, `sed`, `head`, git read-only subcommands…) | ~3,000 | No rule needed |
+| `describe_toolset`, `list_toolsets`, `tasklist` | ~155 | Yes |
+
+**The largest single surface is unallowlistable by construction.** `call_tool` is a dispatcher: one
+permission name covering `get_properties` (368) and `GetLogEntries` (251) alongside `set_properties`
+(152), `save_assets` (113), and `execute_tool_script` (127) — the last being arbitrary code
+execution inside the editor. There is no read-only subset to grant. The achievable allowlist covers
+about **3%** of calls, so the stricter mode's fail-closed property costs nearly all of the friction
+while buying a backstop only on decisions the user has just said they do not want to be consulted
+about.
+
+### Where the safety actually went
+
+**Irreversibility converts a how into a what.** That is the operative test, and it is what makes
+prompts unnecessary rather than merely annoying: a how is a decision the assistant can undo alone; a
+what needs the user to undo it. Deleting an asset looks like a how and is not. The standing rule
+*never delete assets or change project settings without explicit approval* therefore survives the
+mode change intact — it just rests on classification rather than on a prompt that happened to be
+standing behind it.
+
+Stated honestly: if something irreversible is misclassified as a how, nothing stops it. The
+mitigation is that the irreversible surface here is small and enumerated — push, asset deletion,
+project settings — and is now covered by a principle rather than a list, which is the more durable
+of the two.
+
+### The push prompt was proposed and withdrawn, which is the frame doing work
+
+It was argued for on this project's own evidence that unenforced rules fail — *"asking politely did
+not work"* is why the traps re-read became a loop step. The frame killed it: **pushing is a how.**
+Once *"is this done and right"* has been answered, pushing is mechanical execution of that answer, so
+gating it mechanically asks the wrong question at the wrong moment.
+
+What replaced it is stronger and is not a prompt. Continuing past a completion gate requires
+actively deciding the work is finished — which is the exact thing being gated — so the gate is
+self-enforcing in a way a remember-to-ask rule is not.
+
+### Two gates, and the second one existed only as a special case
+
+The loop already had the opening gate. What it lacked was the closing one, and the mid-run rule it
+did have was written narrowly: *"if a **measurement** taken mid-execution changes what should happen,
+that is a new plan."* Under the frame that stops being a rule about measurements and becomes one
+instance of the general thing — the same move as deriving `TurnRateDegrees` from the 180° bound
+rather than fitting it to observed flicks. **State the principle and the specific cases come free.**
+
+**The gap it was missing is scope, not direction**, and this session supplied the example. A cut
+planned at ~80 lines stopped at ~45 because further cutting meant deleting live rules. That
+judgement — which consequences have stopped being able to bite — is a *what*, and it was made
+mid-run and reported afterwards rather than raised. Nothing was harmed, which is precisely why it is
+the useful case: **the drift that gets caught is the drift that looks wrong.** Additions a reasonable
+person would have made anyway are the ones that go unmentioned, so the handoff now has to state them
+or state that there were none.
+
+### And the session boundary is the same gate again
+
+Added hours later, when the closedown procedure was being edited and the wording gave itself away:
+it read *"run this when the user says they are winding down, **or when a session ends on a finished
+item**."* That second clause lets the assistant decide a session is over.
+
+The user took the responsibility explicitly: whether a session continues or concludes is theirs. It
+is the completion gate one level up, and it fails in the same shape — the work looks done, the tree
+is clean, and closing down reads as tidiness rather than as a decision. **A session ending on a
+finished item is not a session the assistant may end.**
+
+### What was rejected
+
+**A broader `ask` list** covering asset deletion and project settings alongside push. Rejected
+because every candidate is already a *what* under the reversibility test and therefore already gated
+by the loop — so the prompt is either redundant, or it is a check that never fires until the one
+time it matters, which is the failure mode above.
+
+**Writing the rules as "under Auto."** They are phrased mode-neutrally, because the principle does
+not depend on the permission mode and a rule that names one goes stale the moment it changes.
+
+**Leaving this reasoning in `CLAUDE.md`.** It is the argument, not the rule, and `CLAUDE.md` is
+loaded in full every session — where length is a correctness problem rather than a tidiness one.
+
+---
+
 ## 2026-08-14 — The regen pause survives exhaustion, and a held button is not a deadlock
 
 Shipped and reverted the same day. The bypass — exhaustion ignoring `State.StaminaRegenPaused`
