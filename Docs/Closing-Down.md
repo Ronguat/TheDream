@@ -49,8 +49,17 @@ audit in miniature; the rest is making sure nothing is left on the floor.
 4. **Discharge what you fixed.** Did this session fix anything filed as a trap? Clear it *and say
    what discharged it*, in the same commit. Did anything supersede an entry, or make an absence
    claim? Rows and dates, per the rules above.
-5. **Update the focus.** If the next item changed, `Current Focus` is the only place that says so —
-   and completed items keep one line plus whatever they left behind that can still bite.
+5. **Update the focus, and run the eviction if an item shipped.** If the next item changed,
+   `Current Focus` is the only place that says so.
+
+   **This is where the Done eviction rule fires, and nowhere else.** Done carries detail for the two
+   most recent shipped items; if a third has just shipped, the oldest is evicted *by routing* — the
+   destination table is in `CLAUDE.md`'s Done section, and the eviction is not finished until every
+   consequence is at its destination and you have said where each one went. **Verify each landed
+   before removing its old home**, in that order, because the reverse loses content silently.
+
+   Attached here deliberately: the rule was written 2026-08-14 with no trigger, which is how the
+   traps re-read failed until it became a step. An unenforced instruction fails.
 6. **Check memory is still pointing, not restating.** Only `combat-prototype-state` normally needs
    touching, and only if the state actually moved. Anything a future contributor would need belongs
    in the repo instead.
