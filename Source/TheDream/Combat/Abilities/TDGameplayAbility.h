@@ -105,6 +105,32 @@ protected:
 	bool bLocksMovement = false;
 
 	/**
+	 *  Re-activate this ability when another ends, if its input is still held.
+	 *
+	 *  For *held states* rather than actions. A guard interrupted by a dodge or a swing should come
+	 *  back when that finishes and the player is still holding the button, because the button being
+	 *  down is a continuous statement of intent rather than a one-off press.
+	 *
+	 *  **Opt-in, and that is the whole safety argument.** The general form -- re-attempting anything
+	 *  whose input is held -- was the first design and is dangerous: holding attack through the end
+	 *  of a swing would silently become auto-repeat, turning a held button into a fire rate nobody
+	 *  authored. Only abilities that are *states* want this, and only they should carry it.
+	 *
+	 *  Off by default. It cannot resurrect an ability the game still forbids -- the re-attempt goes
+	 *  through CanActivateAbility like any other, so exhaustion, a broken guard or being airborne
+	 *  refuse it exactly as they refuse a fresh press.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Activation")
+	bool bResumeWhileInputHeld = false;
+
+public:
+
+	/** Whether this ability wants re-activating when another ends and its input is still down. */
+	bool ShouldResumeWhileInputHeld() const { return bResumeWhileInputHeld; }
+
+protected:
+
+	/**
 	 *  Whether *this activation* took the movement lock. Runtime only.
 	 *
 	 *  The release is guarded on this rather than on bLocksMovement, because EndAbility runs on

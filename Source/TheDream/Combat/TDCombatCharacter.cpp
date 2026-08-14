@@ -85,6 +85,23 @@ void ATDCombatCharacter::Tick(float DeltaSeconds)
 		}
 	}
 
+	// A guard does not survive leaving the ground. Keyed to the *falling state* rather than to
+	// having jumped, so walking off a ledge drops it too -- the user's call, and the opposite of
+	// the jump regen pause beside it, which keys on the action precisely because it is charging
+	// you for a choice. Here the question is what is physically coherent, and holding a shield up
+	// is not something the air supports.
+	//
+	// bBlockedWhileAirborne on GA_Block covers only *raising* one; ActivationBlockedTags and the
+	// airborne flag both gate activation and neither can end something already running.
+	if (IsBlocking() && GetCharacterMovement() && GetCharacterMovement()->IsFalling())
+	{
+		CancelBlockAbility();
+	}
+
+	// Not authority-gated: the speed cap is local presentation of a local state, and the movement
+	// component is already client-predicted.
+	TickBlockingMoveSpeed();
+
 	// Not authority-gated: a buffered press is local input waiting to be spent, and it is
 	// spent through the same path a live press takes.
 	TickInputBuffer();
@@ -196,10 +213,83 @@ void ATDCombatCharacter::TickBlockDrain(float DeltaSeconds)
 	//
 	// The attribute set clamps to [0, Max], so no floor is applied here; doing it in both places
 	// would be a second copy of a rule that already has one home.
+	//
+	// Flagged across the write so HandleStaminaChanged can tell this apart from every other way
+	// the bar empties. See bApplyingBlockDrain -- drain parks you at zero, it does not exhaust you.
+	bApplyingBlockDrain = true;
 	AbilitySystem->ApplyModToAttribute(
 		UTDAttributeSet::GetStaminaAttribute(),
 		EGameplayModOp::Additive,
 		-BlockDrainPerSecond * DeltaSeconds);
+	bApplyingBlockDrain = false;
+}
+
+void ATDCombatCharacter::CancelBlockAbility()
+{
+	if (!AbilitySystem || !BlockingTag.IsValid())
+	{
+		return;
+	}
+
+	FGameplayTagContainer BlockingTags;
+	BlockingTags.AddTag(BlockingTag);
+	AbilitySystem->CancelAbilities(&BlockingTags);
+}
+
+void ATDCombatCharacter::TickBlockingMoveSpeed()
+{
+	UCharacterMovementComponent* Movement = GetCharacterMovement();
+	if (!Movement || DefaultMaxWalkSpeed <= 0.0f)
+	{
+		return;
+	}
+
+	// Recomputed every tick from the current state rather than set on the ability's edges. An
+	// edge-driven version has to restore on every exit path -- released, cancelled, guard broken,
+	// airborne, interrupted -- and stranding the slow speed is both easy and invisible, since a
+	// character that walks at a quarter speed forever looks like a tuning mistake rather than a bug.
+	const float Target = IsBlocking() ? BlockingMaxWalkSpeed : DefaultMaxWalkSpeed;
+	if (!FMath::IsNearlyEqual(Movement->MaxWalkSpeed, Target))
+	{
+		Movement->MaxWalkSpeed = Target;
+	}
+}
+
+void ATDCombatCharacter::HandleAbilityEndedForResume(const FAbilityEndedData& EndedData)
+{
+	if (!AbilitySystem)
+	{
+		return;
+	}
+
+	// A held button is a continuous statement of intent, so an ability that *is* a held state comes
+	// back when whatever interrupted it finishes. Opt-in per ability -- see bResumeWhileInputHeld --
+	// because the general form turns a held attack button into auto-repeat.
+	//
+	// Iterated over a copy: activating inside the loop can reallocate the spec array, and the
+	// original is the ASC's live container.
+	TArray<FGameplayAbilitySpecHandle> Resumable;
+	for (const FGameplayAbilitySpec& Spec : AbilitySystem->GetActivatableAbilities())
+	{
+		if (Spec.IsActive() || !Spec.InputPressed)
+		{
+			continue;
+		}
+
+		const UTDGameplayAbility* Ability = Cast<UTDGameplayAbility>(Spec.Ability);
+		if (Ability && Ability->ShouldResumeWhileInputHeld())
+		{
+			Resumable.Add(Spec.Handle);
+		}
+	}
+
+	for (const FGameplayAbilitySpecHandle& Handle : Resumable)
+	{
+		// Goes through CanActivateAbility like any press, so exhaustion, a broken guard or being
+		// airborne refuse it exactly as they would refuse a fresh one. Nothing here has to know
+		// which of those is currently true.
+		AbilitySystem->TryActivateAbility(Handle);
+	}
 }
 
 bool ATDCombatCharacter::IsBlocking() const
@@ -295,12 +385,7 @@ void ATDCombatCharacter::ApplyGuardBreakState()
 		// survives the break and the drain keeps running on a guard the player no longer has.
 		// Cancelled rather than left to end on input release, because a broken guard should not
 		// wait for the player to notice.
-		FGameplayTagContainer BlockingTags;
-		if (BlockingTag.IsValid())
-		{
-			BlockingTags.AddTag(BlockingTag);
-			AbilitySystem->CancelAbilities(&BlockingTags);
-		}
+		CancelBlockAbility();
 	}
 
 	TD_TIMING_LOG(TEXT("[%.3f] GUARD BREAK %s  stun=%.2fs"),
@@ -383,7 +468,11 @@ void ATDCombatCharacter::HandleStaminaChanged(const FOnAttributeChangeData& Data
 {
 	if (!bExhausted)
 	{
-		if (Data.NewValue <= 0.0f)
+		// **Drain never exhausts.** Holding a guard runs the bar to zero and leaves it there, which
+		// is what converts holding into risk rather than into a countdown: a guard at zero has
+		// stopped being able to absorb anything and breaks to the next blocked hit. Every other
+		// spender still exhausts -- a dodge taken at 30 empties you and locks you out, as designed.
+		if (Data.NewValue <= 0.0f && !bApplyingBlockDrain)
 		{
 			EnterExhaustion();
 		}
@@ -702,6 +791,15 @@ void ATDCombatCharacter::Jump()
 	}
 
 	Super::Jump();
+
+	// **The guard does not survive the jump, and is dropped here rather than on becoming airborne.**
+	// Tick already drops it on the falling state, which covers walking off a ledge -- but that is a
+	// frame or more away, and a jump that begins with the shield still up is visible. Doing both is
+	// deliberate: this one is for the look, the Tick one is for the rule.
+	//
+	// After Super::Jump() so a refused jump -- one the movement component itself declines, having
+	// passed the checks above -- does not silently cost the player their guard.
+	CancelBlockAbility();
 }
 
 void ATDCombatCharacter::OnJumped_Implementation()
@@ -737,6 +835,13 @@ void ATDCombatCharacter::BeginPlay()
 	if (const USkeletalMeshComponent* SkeletalMesh = GetMesh())
 	{
 		MeshRestRelativeTransform = SkeletalMesh->GetRelativeTransform();
+	}
+
+	// Captured before a guard can lower it, so the restore returns to whatever this Blueprint
+	// authored rather than to a constant this class invented.
+	if (const UCharacterMovementComponent* Movement = GetCharacterMovement())
+	{
+		DefaultMaxWalkSpeed = Movement->MaxWalkSpeed;
 	}
 
 	// Covers characters that are never possessed, such as a placed training dummy.
@@ -873,6 +978,10 @@ void ATDCombatCharacter::SeedAbilitySystemDefaults()
 
 	AbilitySystem->GetGameplayAttributeValueChangeDelegate(UTDAttributeSet::GetHealthAttribute())
 		.AddUObject(this, &ATDCombatCharacter::HandleHealthChanged);
+
+	// Bound for every character rather than behind a flag: resuming is a property of the ability
+	// that opted in, not of the pawn, so a dummy granted a guard later gets it without a change here.
+	AbilitySystem->OnAbilityEnded.AddUObject(this, &ATDCombatCharacter::HandleAbilityEndedForResume);
 
 	if (bDebugAutoAttack && DebugAutoAttackInputTag.IsValid())
 	{

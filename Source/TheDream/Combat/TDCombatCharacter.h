@@ -410,6 +410,20 @@ protected:
 	float GuardBreakStunSeconds = 1.0f;
 
 	/**
+	 *  Ground speed cap while a guard is up. Authored, not derived.
+	 *
+	 *  Chosen as 25% of the 500 `MaxWalkSpeed` the character otherwise runs at, which puts it
+	 *  halfway between the locomotion blendspace's idle and walk rows -- a braced shuffle rather
+	 *  than a walk. **Recorded as a relationship, not implemented as one**: it stays a number to
+	 *  tune, so changing `MaxWalkSpeed` will not move it and should prompt a second look here.
+	 *
+	 *  Restored from the value captured at BeginPlay rather than to a constant, so a Blueprint that
+	 *  authors a different `MaxWalkSpeed` is not silently overwritten with this class's idea of one.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Stamina", meta=(ClampMin="0.0"))
+	float BlockingMaxWalkSpeed = 125.0f;
+
+	/**
 	 *  Collapse into a ragdoll on death.
 	 *
 	 *  The minimal death shipped by the Death slice is otherwise *inert* rather than legible --
@@ -732,6 +746,21 @@ private:
 	/** Spends BlockDrainPerSecond * delta while BlockingTag is present. Never breaks a guard. */
 	void TickBlockDrain(float DeltaSeconds);
 
+	/**
+	 *  Ends any running block. Used by the guard break and by becoming airborne.
+	 *
+	 *  One helper because a guard has grown three ways to end that are not the player letting go,
+	 *  and each of them must also stop the drain -- which happens for free, since the drain reads
+	 *  BlockingTag and the tag leaves with the ability.
+	 */
+	void CancelBlockAbility();
+
+	/** Applies BlockingMaxWalkSpeed while a guard is up, and the captured default otherwise. */
+	void TickBlockingMoveSpeed();
+
+	/** Re-activates abilities that opted into resuming and whose input is still held. */
+	void HandleAbilityEndedForResume(const FAbilityEndedData& EndedData);
+
 	/** Applies ExhaustedTag. Removed only once stamina is back to Max -- there is no timer. */
 	void EnterExhaustion();
 	void ExitExhaustion();
@@ -838,6 +867,24 @@ private:
 	 *  already uses, so the stun and the pause it implies are expressed the same way.
 	 */
 	float GuardBreakEndsAt = 0.0f;
+
+	/**
+	 *  True only while TickBlockDrain is writing. **This is what stops drain exhausting you.**
+	 *
+	 *  Exhaustion is decided by the stamina-changed delegate, which sees "the bar reached zero" and
+	 *  cannot see what emptied it. That is correct for every other spender -- a dodge that empties
+	 *  you should exhaust you -- and wrong for the guard's drain, which is the only *continuous*
+	 *  spend in the game and is meant to park the bar at zero harmlessly.
+	 *
+	 *  The rule it encodes: **exhaustion is a consequence of an action or an attack, never of a
+	 *  state you are holding.** A flag rather than a redesign because the delegate is right about
+	 *  everything except this one case, and moving every spender onto explicit calls would trade a
+	 *  narrow exception for a broad chance of forgetting one.
+	 */
+	bool bApplyingBlockDrain = false;
+
+	/** MaxWalkSpeed as authored, captured before any block modifies it. */
+	float DefaultMaxWalkSpeed = 0.0f;
 
 	/**
 	 *  The mesh's authored offset from the capsule, captured once before physics ever moves it.
