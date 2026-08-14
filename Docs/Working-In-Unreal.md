@@ -8,7 +8,7 @@ changes nothing, a build that never happened, a log that lies about absence.
 It is kept short enough for that to be reasonable. **Anything that can be compressed to its rule
 has been**, and the incidents behind them live in git history and `Docs/Combat-Decisions.md`. If
 this file grows past a comfortable read-through, audit it rather than skimming it — that audit is
-step 3 of the closedown ritual in `CLAUDE.md`.
+step 3 of the closedown ritual in `Docs/Closing-Down.md`.
 
 **Confidence marks.** *(confirmed)* was observed directly. *(reported once)* comes from a single
 incident and has not been reproduced — work around it, but re-test rather than treat as settled if
@@ -418,10 +418,10 @@ With the stamina economy involved, add:
 - **Stamina lands on exact values** — a dodge from full reads exactly 50
 - **Regen resumes at the right moment** — the action's duration *plus* `StaminaRegenPauseSeconds`
   from when it ended, then at `StaminaRegenPerSecond`
-- **Exhaustion triggers at zero and clears at Max, not on a timer.** Regen must *continue* while
-  exhausted, at `ExhaustedStaminaRegenPerSecond`, and that rate may never be zero. **The regen pause
-  still applies while exhausted** — check this specifically, since it briefly did not: a dodge that
-  exhausts you must finish, then wait `StaminaRegenPauseSeconds`, before the bar moves at all
+- **Exhaustion triggers at zero and clears at Max, not on a timer**, and the regen pause applies
+  throughout — **check that pair specifically, since it briefly did not**: a dodge that exhausts you
+  must finish, then wait, before the bar moves at all. `CLAUDE.md`'s Stamina section is the rule; this
+  is only the check
 - **Nothing in the build can drain stamina without a human at the keyboard**, so every check above
   needs hands on the dodge key. The attribute set cannot be written through the toolset either —
   `SpawnedAttributes` is not reflection-readable — so there is no automated substitute *(2026-08-14)*
