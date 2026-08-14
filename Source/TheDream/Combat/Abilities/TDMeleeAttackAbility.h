@@ -114,13 +114,20 @@ protected:
 	 *  root motion suppresses every root motion source while it plays, and scaling it to zero does
 	 *  not help -- see the warning in StartAttackMontage, which is what catches it.
 	 *
+	 *  **Displayed as "Base Lunge Distance Cm", and the rename is load-bearing.** This and
+	 *  FTDAttackBranch::LungeDistanceCm are different properties at different nesting levels that read
+	 *  identically in the details panel -- as do the duration and the strength curve. A designer
+	 *  expanded inside a Branches element sees the same three labels and no indication which lunge
+	 *  they are editing, which cost real time on 2026-08-14. The prefix is only on this trio because
+	 *  the shared one is the one worth marking; inside Branches the context is already the branch.
+	 *
 	 *  **Keep it modest, and the bound is the capsule radius (42 cm).** The direction is fixed at
 	 *  the press while facing stays steerable, so a flick during the windup lunges one way and
 	 *  swings another. Under about 42 cm even a full 180 degree divergence displaces the character
 	 *  less than its own width, which reads as a step rather than as a lunge going wrong. Above
 	 *  it the artifact becomes visible, and the knob that fixes it is this number.
 	 */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Motion", meta=(ClampMin="0.0"))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Motion", meta=(ClampMin="0.0", DisplayName="Base Lunge Distance Cm"))
 	float LungeDistanceCm = 30.0f;
 
 	/**
@@ -151,8 +158,20 @@ protected:
 	 *  the 100 cm separating the tiers' lunges, so all three assist from similar overshoot even though
 	 *  their hit ranges differ -- deliberate, since how wrong your aim may be is a property of the
 	 *  player rather than of the swing.
+	 *
+	 *  **Shared across the ladder rather than authored per branch**, considered and rejected the same
+	 *  day. It is the same class of quantity as the arc -- how wrong the *player* may be -- and a
+	 *  per-branch margin would put back the monotonicity trap that deriving reach had just made
+	 *  unrepresentable: reach is 450/550/650 plus the margin, so per-tier margins differing by more
+	 *  than 100 let a later branch reach *less* than an earlier one and drop a target already locked.
+	 *  Cheap to add later if a tier is ever felt to want its own; expensive to remove once three
+	 *  numbers have been tuned against it.
+	 *
+	 *  **Deliberately in its own category rather than beside the lunge it is derived from.** Sitting
+	 *  under Combat|Motion made it unfindable: a designer looks for it near aim assist, not near the
+	 *  arithmetic that produces it. Categories follow the person, not the formula.
 	 */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Motion", meta=(ClampMin="0.0"))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Aim Assist", meta=(ClampMin="0.0"))
 	float AimAssistMarginCm = 200.0f;
 
 	/**
@@ -168,7 +187,7 @@ protected:
 	 *  before the branch lunge begins -- two Override root motion sources at equal priority is not
 	 *  a design. So the boundary remains a ceiling and stopped being the value.
 	 */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Motion", meta=(ClampMin="0.01"))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Motion", meta=(ClampMin="0.01", DisplayName="Base Lunge Duration Seconds"))
 	float LungeDurationSeconds = 0.15f;
 
 	/**
@@ -179,7 +198,7 @@ protected:
 	 *  travelled is LungeDistanceCm times the curve's mean. An ease-out that starts at 2 and
 	 *  falls to 0 keeps the distance; one that merely falls from 1 to 0 halves it silently.
 	 */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Motion")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Motion", meta=(DisplayName="Base Lunge Strength Curve"))
 	TObjectPtr<UCurveFloat> LungeStrengthCurve = nullptr;
 
 	/**
