@@ -277,22 +277,18 @@ being verified good, not by a position; see its entry at the end.
 
 **Pick up at Block.** Nothing stands between it and the next session.
 
-### Open checks — cheap, and each needs an editor
+### Open checks — all five discharged 2026-08-14
 
-Filed 2026-08-14 by the documentation audit, which could not run them: the unreal-mcp toolset does
-not register unless the editor was open when Claude Code started. **None blocks Block.**
+Filed by the documentation audit, which could not run them: the unreal-mcp toolset does not register
+unless the editor was open when Claude Code started. It was, so they ran.
 
-**Four were discharged 2026-08-14** — the four shadowed values are all correct in the asset,
-`CoilTurnRateDegrees` is 600 on `BP_PlayerCharacter` as the entry claimed, `AM_Attack`'s live
-segment is the `_IP` clip, and **the total attack overhead is a flat one frame at every tier**
-(+16/+18/+16 ms against the authored sums), which discharges the last live half of the ~70 ms trap.
-
-- **The wedges' vertical band (±70) has never excluded anybody**, and an attempt on 2026-08-14 did
-  not exercise it: every attack that session was thrown from 480–980 cm against a 150 cm reach, so
-  nothing could have hit at any height. **The band needs contact, not just a slope** — the two
-  bodies have to be inside reach *and* separated vertically, which the ramp makes fiddly because
-  the dummy resets to its home transform between attacks. Read `LUNGE STOP`: no line means no hit
-  landed, so the run says nothing about the band either way.
+The four shadowed values are all correct in the asset; `CoilTurnRateDegrees` is 600 on
+`BP_PlayerCharacter` as the entry claimed; `AM_Attack`'s live segment is the `_IP` clip; **the total
+attack overhead is a flat one frame at every tier** (+16/+18/+16 ms), discharging the last live half
+of the ~70 ms trap; and **the vertical band cannot be exercised on `L_CombatTest`** — its ramp is
+15° where the band needs 40.8°, so a jump is the way to see one, not a slope. Authoring heights is
+the designer's burden and some misses will be deliberate; the arithmetic is in the felt-numbers
+table of `Docs/Combat-Decisions.md`.
 
 ### Done
 

@@ -57,7 +57,9 @@ done anything. One held attack should print three `AIM WEDGE` lines with non-dec
 
 **`LUNGE STOP` is the only way to see a lunge end early**, because a stop and a standoff gate that
 simply stayed shut leave the character in the same place. Absence of it after a connecting hit is the
-tell that the stop did not fire.
+tell that the stop did not fire. **It names the *attacker*, not who was hit** — the avatar whose
+lunge stopped. Easy to read backwards in a log where both sides are swinging, and the pairing that
+disambiguates is the `TARGET release` line 30–150 ms before it.
 **`TD.DebugMeleeTrace` defaults to OFF** and draws the authored wedges.
 
 **Reach for the trace early.** Every real bug in the timing system was found by measuring, and
