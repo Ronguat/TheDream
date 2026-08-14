@@ -180,7 +180,7 @@ Five files carry knowledge the code cannot. Read them before working in their ar
 
 The pattern that works is already in use here — *"`GA_Attack`'s `Branches` array is authoritative for live values"*. **Prefer naming the authority over restating the value**, especially for anything that lives in code. Numbers still belong in prose where they carry an argument, but then they are a *measurement with a date*, not a live value.
 
-**Name the asset, not the C++ class, and this is a correctness rule rather than a style one** (2026-08-14). A Blueprint CDO override shadows a C++ default silently, so a class is the authority only until someone touches a details panel. Four documented live values disagree with their headers today — the buffer, the regen pause, `DodgeSeconds` and `AimAssistMarginCm` — and the *asset* is expected to be right in all four, though **that is unconfirmed and is filed as an open check.** Pointing at `ATDCombatCharacter` therefore lands a reader on a number that is not live. Write *"`BP_PlayerCharacter`'s CDO is authoritative, defaults in `ATDCombatCharacter`"*, which names both and says which wins.
+**Name the asset, not the C++ class, and this is a correctness rule rather than a style one** (2026-08-14). A Blueprint CDO override shadows a C++ default silently, so a class is the authority only until someone touches a details panel. Five documented live values disagree with their headers today — the buffer, the regen pause, `DodgeSeconds`, `AimAssistMarginCm` and `CoilTurnRateDegrees` — and **the asset was confirmed right in all five on 2026-08-14**, by reading the CDOs. Pointing at `ATDCombatCharacter` therefore lands a reader on a number that is not live. Write *"`BP_PlayerCharacter`'s CDO is authoritative, defaults in `ATDCombatCharacter`"*, which names both and says which wins.
 
 Deliberately **not** kept: per-system design docs. Local rationale belongs in header comments, which are read at the moment the code is; a doc that describes a system drifts out of sync and then gets trusted over the code.
 
@@ -280,21 +280,13 @@ being verified good, not by a position; see its entry at the end.
 ### Open checks — cheap, and each needs an editor
 
 Filed 2026-08-14 by the documentation audit, which could not run them: the unreal-mcp toolset does
-not register unless the editor was open when Claude Code started. **None blocks Block.** Each is a
-question the docs currently answer by assertion.
+not register unless the editor was open when Claude Code started. **None blocks Block.**
 
-- **Four documented live values disagree with their C++ defaults**, because a Blueprint CDO shadows
-  them: `InputBufferSeconds` (0.20 documented, 0.1 in code), `StaminaRegenPauseSeconds` (0.5 / 1.0),
-  `DodgeSeconds` (0.4 / 0.5), `AimAssistMarginCm` (100 / 200). The asset is expected to be right in
-  all four. **Read them off `BP_PlayerCharacter` and `GA_Attack` and confirm** — the numbers this
-  file and `Docs/Combat-Decisions.md` quote all descend from prior sessions' readings.
-- **`CoilTurnRateDegrees` is 300 in code and recorded as 600** in the 2026-08-12 Lunge entry, and
-  `git log -S` shows it has never been 600. Either it shipped at half the intended value or the
-  Blueprint overrides it. One CDO read settles which.
-- **`AM_Attack`'s package references both the `_IP` and `_RM` forms** of `Attack4_Stage1_Complete`.
-  The `_IP` one is required — a montage carrying root motion produces *no* lunge — and the ungated
-  warning would have fired by now if it were wrong, so this is confirmation rather than suspicion.
-  Confirm the segment, and drop the stale reference if that is all it is.
+**Three were discharged 2026-08-14** by reading the CDOs — the four shadowed values are all correct
+in the asset, `CoilTurnRateDegrees` is 600 on `BP_PlayerCharacter` as the entry claimed, and
+`AM_Attack`'s live segment is the `_IP` clip. The two left need a human at the keyboard rather than
+a read, which is why they are still here.
+
 - **The total attack overhead has never been measured**, and the trap that asked for it wrongly said
   a log line had to be built first. `ABILITY END … elapsed=` already prints it. One held attack per
   tier with `TD.DebugCombatTiming` on; heavy and charged are the tiers to watch.

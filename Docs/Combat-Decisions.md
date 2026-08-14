@@ -86,7 +86,7 @@ and not the order anyone reads in. Keep it sorted when adding.)*
 | 2026-08-12 — A hitbox is authored, not traced | the hover is "cosmetic, filed rather than fixed" and shared by every *root-motion* montage | 2026-08-12 — The hover was six centimetres of mesh offset (it is shared by every pose, root motion irrelevant, and it is fixed) |
 | 2026-08-12 — Attack displacement is two scales | displacement is two multipliers on the clip's root motion, and a branch can only differentiate the travel its clip performs after commit | 2026-08-12 — Lunge is two authored distances (both scales are deleted; displacement is authored in centimetres and the clip contributes nothing, so what a branch can differentiate no longer depends on the clip at all) |
 | 2026-08-12 — Lunge is two authored distances | Lunge added two distances and **zero** timing values, because the boundaries it needed already existed — recorded as a virtue | 2026-08-13 — The gate is per tick, and lunge duration is a designed quantity (play found the lunge simultaneously too slow and too far, which is one fact: `ReleaseSeconds` was setting a movement feel) |
-| 2026-08-12 — Lunge is two authored distances | `CoilTurnRateDegrees` is "600, the user's value" | **Unresolved as of 2026-08-14, and flagged rather than corrected.** The C++ default is **300** and `git log -S` shows it has never been anything else in code, so either it shipped at half the value named or `BP_PlayerCharacter` overrides it. Not readable without an editor; filed as a check in `CLAUDE.md`'s Current Focus. The entry's *reasoning* — that the rate is safe at any value including zero — is unaffected either way. |
+| 2026-08-12 — Lunge is two authored distances | `CoilTurnRateDegrees` is "600, the user's value" | **Not superseded — confirmed 2026-08-14 by reading the CDO.** `BP_PlayerCharacter` overrides the C++ 300 with **600**, so the entry was right and the code default was the misleading half. Kept as a row because the flag that stood here for a day is worth leaving visible: a C++ default disagreeing with an entry is not evidence the entry is wrong, and this is the case that demonstrates it. |
 | 2026-08-12 — Root motion scaling is not enough control | the likely answer is that Lunge takes `RootMotionScale` to 0 and owns displacement outright | 2026-08-12 — Lunge is two authored distances (taking the scale to 0 does **not** work: animation root motion suppresses root motion sources whether or not it is scaled, so the character stops moving entirely. The montage must carry no root motion) |
 | 2026-08-12 — The attack montage hovers because it is bound to the wrong skeleton | the whole entry — the skeleton was never the cause | 2026-08-12 — The hover was six centimetres of mesh offset |
 | 2026-08-12 — The facing unlock is asymmetrical with the lock | facing fades into and out of its lock, over 50 ms in and half of recovery out | 2026-08-12 — The real cause was an engine default (the fades were deleted the same day: any value below full authority disables the snap, so chained attacks never caught the camera) |
@@ -171,6 +171,13 @@ character that does not move at all. **Enforced in code:** `StartAttackMontage` 
 warning when the montage has root motion and a lunge distance is non-zero. Trust the warning over
 this paragraph.
 
+**Confirmed 2026-08-14 rather than assumed:** `AM_Attack`'s only segment is the `_IP` clip
+(0.967 s, play rate 1). The `_RM` form is *also* an asset-registry dependency, which read as
+suspicious and is not — the montage was built on `_RM` at `6bfbb73` and swapped to `_IP` by the
+Lunge slice at `9e4743b`, and the import outlived the swap. **Stale residue, nothing live points
+at it**, and no readable property on the montage does either. It will drop itself the next time
+the montage is edited and saved for any reason; it is not worth a resave of its own.
+
 **Before Light String — *a buffered attack aims where the camera is when it fires, not when it was
 pressed.*** The `FACING LOCK` trace reads ±0.0° and is *correct*: the body is aligned with the
 camera at commit. What it cannot see is that commit happened up to **~440 ms after the press**, and
@@ -244,6 +251,29 @@ permanent half-walk at full speed, with no error anywhere.
 500 was inherited from Epic's template and **has never been measured** against what the `Run` clips
 are authored for. The `_RM` variants encode the authored displacement, so this stays measurable
 rather than a matter of taste.
+
+**Before Block, Parry or Stun — *the dummy's held attacks track at half the player's rate, so
+offense parity is not as complete as it reads.*** Found 2026-08-14 by CDO read.
+`BP_TrainingDummy` carries **no** overrides on the turn rates: `CoilTurnRateDegrees` is the C++
+**300** against `BP_PlayerCharacter`'s **600**. Both characters share `GA_Attack`, so every timing,
+wedge and distance really is one set — but coil tracking lives on the *character*, and that is the
+half the 2026-08-11 parity entry did not anticipate.
+
+**It bites exactly where the parity decision said it would.** Every defensive verdict from here is
+measured against what the dummy throws, and a held heavy that redirects onto a sidestepping player
+at half rate makes block coverage and blockstun read more forgiving than a human opponent would.
+This is the *"stable reference to the wrong number"* failure that entry rejected the unarmed dummy
+to avoid, reappearing one property lower down.
+
+**Not silently fixable — it is a design question, not a typo.** Whether the dummy should track like
+a player depends on whether it is a sparring partner or a fixed instrument, and the parity entry's
+own rule is *"accurate in the dimension being measured"*, which points at 600 for defensive work
+and at nothing in particular otherwise.
+
+Two sibling divergences checked at the same time and **harmless, recorded so nobody re-derives
+them**: the dummy's `InputBufferSeconds` (0.1) and `StaminaRegenPauseSeconds` (1.0) are also C++
+defaults, and nothing reaches either — the dummy takes no input and nothing in the build spends its
+stamina.
 
 ---
 
@@ -510,7 +540,7 @@ value in the same state it was in.
 | `DodgeSeconds`, `DodgeTargetDistanceCm` | **Felt** | 0.4 judged before any animation existed, deliberately; 405 is Dodge Distance's play-verified V1 figure, preserved through the V3 swap. |
 | `InputBufferSeconds` | **Felt**, with a known cost | 0.20 chosen by play. One press in seven dropped under deliberately abusive tapping, not felt in normal play. |
 | `StaminaRegenPerSecond`, `ExhaustedStaminaRegenPerSecond` | **Unfelt** | 40 and 25, the user's numbers but verified by construction only — nothing in the build spends stamina without a human on the dodge key. The arithmetic to check is 0 → full in 2.5 s normally, 4.0 s exhausted. |
-| `CoilTurnRateDegrees` | **Unfelt, and disputed** | The entry says 600 and the code says 300. See the supersession table. |
+| `CoilTurnRateDegrees` | **Unfelt** | 600 on `BP_PlayerCharacter`'s CDO, confirmed 2026-08-14 — the user's chosen value, verified by construction only. The dispute with the C++ 300 is closed; the Blueprint overrides it. **`BP_TrainingDummy` does not**, which is a trap above. |
 | `TurnRateDegrees` | **Derived, not felt — and must stay that way** | 180° ÷ the light's `HoldUntilSeconds`. It is not a candidate for this table's treatment; tuning it by feel is what the tuning map forbids. |
 | `LungeStandoffCm` | **Felt** as a slide fix | 40. Its *second* job — the spacing of a non-connecting exchange — has never been judged. |
 | `C_Lunge_Base`, `C_Lunge_Attack` | **Inert** | Authored, wired to nothing, parked against the structure audit. A curve's mean must be 1.0 or it silently scales the authored distance. |
