@@ -107,533 +107,247 @@ and not the order anyone reads in. Keep it sorted when adding.)*
 
 Latent defects and unverified assumptions in code that **already exists**, each filed against
 the slice that makes it bite. Re-read this when starting that slice, not at session start — a
-flat list read once is forgotten by the time it matters.
-
-**That re-read is now a step in `CLAUDE.md`'s working loop rather than a request made here**, because
-asking politely did not work: a trap discharged during Attack Swap sat filed for a day afterwards and
-was found by a documentation audit, not by anyone starting the slice it was filed against. Grep this
-section for the item's name before measuring anything.
+flat list read once is forgotten by the time it matters. That re-read is a step in `CLAUDE.md`'s
+working loop rather than a request made here, because asking politely did not work: a trap
+discharged during Attack Swap sat filed for a day and was found by a documentation audit.
 
 These are not design questions. Nothing here needs play to settle; they need checking.
 
 **Discharge a trap in the same commit that fixes it.** This section is the most load-bearing part
 of the file and the only one with no natural expiry: a trap fixed by someone not reading this file
 stays here and misdirects the next person, which is worse than never having filed it. Say what
-discharged it and keep anything from it that is still true — the Slice B entry became a note about
-the client path being unexercised rather than simply disappearing. Removing a trap silently is the
-one edit here that cannot be reviewed, because nothing is left to review.
+discharged it and keep anything from it that is still true. Removing a trap silently is the one
+edit here that cannot be reviewed, because nothing is left to review.
 
-**Mid-Attack-Swap — *reach has changed and the placed spacing has not.*** Filed when the trace moved
-onto the blade, and **still live after 2026-08-12's swap to authored hitboxes**, which is the
-third time reach has moved in two days. `MaxReachCm` is now the authored answer per branch, so
-the *re-judge `TraceRadius`* half is discharged — that property no longer exists — but the
-placed-spacing half is not. Re-check the training dummy's distance in `L_CombatTest` against the
-new wedges, and remember an automated PIE run is one fixed spawn: no damage from a scripted swing
-says nothing about hit detection.
+**Each trap is trigger, live claim, and status.** The arguments and the evidence live in the dated
+entries; the hunts that produced them live in git. *(Compressed 2026-08-14 from 534 lines, which
+was long enough that the section asking most to be re-read had become the hardest to. No trap was
+removed. Two general-form lessons that lived only here — the assumed control, and measuring travel
+against an assumed position — moved to `Docs/Working-In-Unreal.md`, where the rest of that family
+already lives.)*
 
-*This replaces a trap filed hours earlier claiming the trace connected with nothing. It was
-wrong — see the diagnostic note below, which is the part worth keeping.*
+---
 
-**Sharply worse as of 2026-08-12, and now the blocking item rather than a background one.** Lunge
-authors travel outright, and the first values played put a light at **400 cm of travel** against a
-dummy placed at **200 cm** with a `MaxReachCm` of **150**. Attacks now overshoot the target by more
-than its entire standing distance. Reach and the placed spacing have to be re-authored *together*
-with the lunge distances, because all three are one felt quantity — and until they are, no spacing
-verdict from this level means anything.
+**Before the reach/travel/spacing pass — *reach, travel and the placed spacing are one felt
+quantity and none of them is authored yet.*** The oldest live trap, filed at Attack Swap and
+re-shaped three times since. **Everything mechanical about it is discharged; what remains is
+design.** The clamp works, hit detection works, and the ladder connects at the placed 200 cm —
+re-measured 2026-08-14 with damage in exact multiples and `TARGET release` at 118.7 / 117.1 /
+123.0 cm against the 124 the geometry predicts. What is open is **what the authored distances
+should be**, given the clamp is what decides them at close range and two tiers still play the
+light's clip.
 
-**Half-answered 2026-08-13 by Target Lock's clamp, and the half that remains changed shape.**
-Overshoot is no longer possible — travel is clamped to stop short of a body, so the failure the
-paragraph above describes cannot occur. What replaced it is the opposite reading: with the clamp in,
-the *authored* distances barely run at the placed spacing at all. Measured over six attacks at
-200 cm, the base lunge ran in full (~100 cm, the sweep correctly finding nothing in reach of it) and
-the branch lunge was clamped **200 → 0** every time, because the attacker was already 13.5 cm from
-contact and inside the 40 cm standoff. A light that authors 300 cm of travel is now performing 100.
+Two withdrawn readings, recorded so nobody re-derives them: the *overshoot* this trap described
+before 2026-08-13 cannot occur now, and the *"branch lunge clamped 200 → 0 every time"* reading
+that replaced it was an instrument fault, not a finding. Both are in the dated entries.
 
-So the numbers still need re-authoring together and the trap stays open, but the question is no
-longer "how do we stop overshooting" — it is **what the authored distances should be given that the
-clamp is what actually decides them at close range.** That is the reach/travel/spacing pass, and it
-now has a working clamp to be tuned against rather than being tuned around a defect.
-
-*And the placed spacing is 200 cm, which this trap said all along.* A reading of 175.8 was taken on
-2026-08-13 and reported as a correction to it; it was measured in a live PIE world where the dummy
-had drifted 24 cm during play. The trap was right and the correction was wrong. See
-`Docs/Working-In-Unreal.md` on why a PIE-world transform is not a placed transform.
-
-**The hit-detection half is discharged 2026-08-14, and it was never broken.** Re-measured in a fresh
-PIE with nobody moving, placed transforms confirmed in the *editor* world first (dummy `x=200`,
-`PlayerStart x=0`): damage lands in exact multiples of the authored 15, and `TARGET release` reads
-**118.7 / 117.1 / 123.0 cm** against the 124 the geometry predicts — 42 capsule radius + 40 standoff +
-42 radius. The branch lunge measured **70.8 cm in 43 ms**, or 1646 cm/s against an authored 1667. The
-clamp does exactly what it claims and the ladder connects at the placed spacing.
-
-*The "clamped 200 → 0 every time" reading above is **withdrawn** — an instrument fault, not a
-finding, and not a decision that needs superseding.* Both it and a second attempt on 2026-08-14 computed the attacker's closing distance against
-the target's **placed** origin while the target had been shoved across the floor by the very attacks
-being measured — the player finished one run at `x=-110.75`. This is the PIE-transform trap wearing a
-different hat: it is usually stated as "do not read an actor's own transform out of PIE", and the
-general form is broader — **do not measure one actor's travel against another actor's assumed
-position.** A moving reference frame reads as a movement fault in the thing being measured.
-
-**What remains open is only the authoring**, and it is a design question rather than a defect: what
-the distances *should* be, given the clamp is what decides them at close range. Reach, travel and the
-placed spacing are still one felt quantity, and two tiers still play the light's clip.
-
-**~~Open bug — the character hovers while a root-motion montage plays.~~ Discharged 2026-08-12.**
-It was never about montages, root motion, skeletons or clips. The mesh component sat at Z **−90**
-under a **96** capsule half-height, so the feet floated exactly **6 cm** in every pose on both
-characters. `ABP_Combat`'s foot-IK Control Rig spent those 6 cm of correction every frame absorbing
-it, which is why the offset was visible only where that IK does not run: inside montages, and in
-mid-air. Fixed in `ATheDreamCharacter`'s constructor, beside the `InitCapsuleSize` it has to agree
-with. Full account in the dated entry below.
-
-Four things from the hunt are kept here because they are still true and outlived the bug:
-
-**An assumed control is worse than no control.** The `RootMotionRootLock` hypothesis was first
-killed by "the dodge has the same setting and does not hover" — and **nobody had ever checked
-whether the dodge hovers.** A report that the hover does not occur *during locomotion* was silently
-converted into *the dodge is fine*: two different claims about two different systems, one observed
-and one assumed. A comparison case only disconfirms if the case was actually *measured*; an assumed
-control carries the authority of evidence while being a guess. It corrupts not the conclusion but
-the test used to reject a conclusion.
-
-**Before testing whether a symptom depends on X, test whether it depends on anything at all.** This
-is the one that would have ended the hunt on the first day. The very first measurement correctly
-established *pose, not translation* — actor Z was constant to four decimals through every montage —
-and the next question should have been "does it hover with nothing playing?" rather than which
-animation property caused it. **The dummy hovers in the level viewport, statically, with no PIE.**
-A static symptom deserves a static test first, and the cheapest instrument in the project turned
-out to be looking at the level.
-
-**A sufficient explanation is not the actual one**, three times on this bug: the Epic skeleton
-binding, `RootMotionRootLock`, and the `IsSlotActive` wiring were each true, each capable of
-producing the symptom, and each not the cause. The pattern is only broken by manipulating the
-suspected cause and watching the symptom fail to move.
-
-**Build a montage *from its clip*, never empty-then-assign**, so the skeleton is right by
-construction. The rename came with it — one montage serves light, heavy and charged, so
-`AM_LightAttack_01` was always a misnomer and `AM_Attack` matches `GA_Attack`.
-
-**Before the charged or heavy gets its own clip, and during Lunge + Recovery** — *the coil is a freeze, and
-this is now measured rather than predicted.* The 2026-08-12 entry "The coil has no room on a short
-clip" predicted a coil play rate of 0.03–0.05× from the arithmetic. Measured the same day across
-~40 heavy and charged throws on the current timings: **`rate=0.049` to `rate=0.097`**, mean around
-0.072. The montage advances at 5–10% speed for the whole coil, which is a freeze with a slight drift
-rather than a slowdown.
-
-**The 2× spread between throws is itself the diagnosis.** The rate is derived from the montage
-distance *remaining* to `ReleaseStartSeconds`, and that distance is only about 0.06 of montage — so
-a single frame of jitter in where escalation fires (observed positions 0.2265 to 0.2533) swings the
-derived rate by a factor of two. It is a small difference between two nearly-equal numbers, which is
-what "no room" looks like in the arithmetic rather than in the animation.
-
-Nothing is broken by it and no warning fires — the ungated *coil skipped* and *notify drift* checks
-were both silent across every throw, and escalation lands at 151–169 ms against an authored 150,
-about a frame late as the spec claims. **What it is, is the concrete argument for the charged and
-heavy getting their own clips**, which is otherwise only argued on appearance: a longer clip with a
-later damage point is the only thing that gives the coil somewhere to live. Expect this to surface
-during Lunge + Recovery, since re-authoring reach and travel per tier is when bespoke clips would land anyway.
-
-**~~Whenever the ladder's reactability is judged — heavy and charged run ~70 ms longer than their
-authored numbers, and the coil is where it goes.~~ The reactability half is discharged 2026-08-12:
-the hitbox is on time on every tier.** Measured from the trace's own world clock, press to
-`RELEASE BEGIN`: light **202–207 ms** against an authored 200, heavy **506–508** against 500,
-charged **751–754** against 750. The heavy carries the *same* +6 ms bias as the light, which never
-coils — so the coil is not delaying anything, and heavy and charged are **not** more reactable than
-authored. Whatever runs long sits after the damaging window, which is the outcome the trap called
-harmless.
-
-That is the question it asked, answered: *"if the hitbox genuinely goes live ~70 ms after
-`ReleaseAtSeconds` claims, heavy and charged are more reactable than authored… nobody has separated
-those two."* Separated by comparing press-to-release across tiers, which is what it proposed.
-
-**The blocker this recorded is gone, found by the 2026-08-14 doc audit.** It said the total
-overhead could not be re-measured "because the trace has no ability-end line and nothing prints
-one. Anyone wanting the total needs to add the line first." `UTDChargedAttackAbility` prints
-`ABILITY END pos=… elapsed=…`, and has since `19500ea` during Attack Swap — `elapsed` is exactly
-the total being asked for, and it was already there when the paragraph was written.
-
-So what remains open is only the measurement, and it is one held attack per tier with the trace on.
-Compare `elapsed` against authored windup + release + recovery; the tiers to watch are heavy and
-charged, since the light is the one with no overhead. **Nothing needs building first.**
-
-The original measurement, kept because it is the evidence: totals against arithmetic — light
-authored 0.75 s and measured 0.758–0.771 (**+0.01**), heavy authored 1.10 and measured 1.172
-(**+0.07**), charged authored 1.45 and measured 1.515–1.525 (**+0.07**).
-
-**Recovery is not the source** — it was measured directly in the same runs and lands within 8 ms of
-authored at every tier. The light is the tier that never coils and it is the tier with no overhead,
-which is what points at the coil. It also predates authored recovery: charged measured 1.17 against
-an arithmetic 1.10 before any of this existed.
-
-**And the inference from it was wrong, which is the part worth keeping.** "The light is the tier
-with no overhead and the tier that never coils" pointed at the coil, and the coil was innocent —
-the light also had no overhead *because it starts closest to its own release*, and both facts have
-the same cause without one causing the other. The measurement that settled it did not compare tiers
-at all; it compared each tier against its own authored number. **A correlation across tiers
-suggested the mechanism, and only a per-tier absolute measurement could test it.**
+**Before the charged or heavy gets its own clip** — *the coil is a freeze, measured rather than
+predicted.* `rate=0.049` to `0.097` across ~40 throws, mean ~0.072: the montage advances at 5–10%
+speed for the whole coil. Nothing is broken by it and no warning fires. **It is the concrete
+argument for bespoke clips** — a longer clip with a later damage point is the only thing that gives
+the coil somewhere to live. The 2× spread between throws is itself the diagnosis; see the
+2026-08-12 entry.
 
 **Whenever the light's `HoldUntilSeconds` changes** — *`TurnRateDegrees` is derived from it and
-nothing enforces the link.* The rate is 180° ÷ the light's commit time, which makes 1200 the slowest
-value that can always bring facing round before the attack's wedge freezes. Move the commit and the
-guarantee lapses silently: the character simply starts committing attacks partway through a turn,
-which is invisible without the `FACING LOCK` trace and was measured at 71% of flick-attacks landing
-outside their own wedge before it was found. Recompute both together.
+nothing enforces the link.* 180° ÷ the light's commit time is the slowest rate that always brings
+facing round before the wedge freezes. Move the commit and the guarantee lapses **silently** —
+attacks start committing partway through a turn, invisible without the `FACING LOCK` trace, and
+measured at 71% of flick-attacks landing outside their own wedge before it was found. Recompute
+both together.
 
-**That number now has a second dependent, added 2026-08-12 — the base lunge ends on the same
-boundary.** `UTDChargedAttackAbility::GetBaseLungeDurationSeconds()` returns `Branches[0].HoldUntilSeconds`
-rather than an authored copy, deliberately, so *that* link cannot drift. But it means one value now
-sets three things: when the tiers become distinguishable, how long the shared lunge runs, and the
-turn rate that must close 180° inside it. Two of the three are derived in code and safe; the turn
-rate is the one still copied by hand.
-
-**A consequence worth knowing before it surprises someone:** the maximum rotation possible during
-the base lunge is `TurnRateDegrees × HoldUntilSeconds` = exactly **180°**, by construction. A
-corkscrew lunge is therefore impossible without changing one of those two numbers, and a *lower*
-turn rate during that window would break the aim guarantee rather than tame anything. This was
-raised as a proposed cap and rejected on those grounds.
+That value has **three** dependents now: where the tiers become distinguishable, how long the base
+lunge runs, and the turn rate. The first two are derived in code and safe. **The turn rate is the
+one still copied by hand.**
 
 **Whenever an attack montage is swapped, or any new ability drives a root motion source** —
 *animation root motion suppresses root motion sources completely, and scaling it to zero does not
-help.* `UCharacterMovementComponent::PerformMovement` says so in its own comment: *"Animation root
-motion overrides Velocity and currently doesn't allow any other root motion sources"*, and the
-branch it guards is `if (HasAnimRootMotion())` — which stays true no matter what
-`SetAnimRootMotionTranslationScale` is set to.
+help.* `PerformMovement` guards on `if (HasAnimRootMotion())`, which stays true whatever
+`SetAnimRootMotionTranslationScale` is set to. So a montage carrying root motion produces **zero**
+lunge, not a doubled one. `AM_Attack` plays the `_IP` clip for this reason.
 
-So a montage carrying root motion produces **zero** lunge, not a doubled one. Measured 2026-08-12:
-the character stood perfectly still through a dozen charged attacks while every authored distance
-read back correctly. The fix is that `AM_Attack` plays the library's in-place (`_IP`) clip rather
-than the `_RM` one — same length to four decimals, same skeleton, so no notify drift.
+Worth a trap rather than a comment because **the failure is silent and the obvious remedy is the
+wrong one** — zeroing the animation's contribution is what everyone tries first and it produces a
+character that does not move at all. **Enforced in code:** `StartAttackMontage` logs an ungated
+warning when the montage has root motion and a lunge distance is non-zero. Trust the warning over
+this paragraph.
 
-**This is enforced in code, not by memory**: `StartAttackMontage` logs an ungated warning when
-`AttackMontage->HasRootMotion()` and a lunge distance are both non-zero. Trust the warning over
-this paragraph, and never "fix" a suppressed lunge by scaling something.
+**Before Light String — *a buffered attack aims where the camera is when it fires, not when it was
+pressed.*** The `FACING LOCK` trace reads ±0.0° and is *correct*: the body is aligned with the
+camera at commit. What it cannot see is that commit happened up to **~440 ms after the press**, and
+the camera moved during it. **A clean `FACING LOCK` is not a clean bill of health** — it answers an
+angle question and this is a time question. `BUFFER` knows the lateness, `FACING LOCK` knows the
+angle, and nothing correlates them; logging the camera yaw delta between press and commit would.
 
-The reason it is worth a trap rather than a comment: **the failure is silent and the obvious remedy
-is the wrong one.** Zeroing the animation's contribution is what everyone tries first, it reads as
-correct, and it produces a character that does not move at all — a symptom easily blamed on the new
-system rather than on the old one still winning.
-
-**Before Light String — a buffered attack aims where the camera is when it *fires*, not when it was
-pressed.** Filed 2026-08-12, from play. The `FACING LOCK` trace reads ±0.0° and is *correct*: the
-body is aligned with the camera at commit. What it cannot see is that the commit happened up to
-**~440 ms after the press** — buffer wait plus the 150 ms windup — and the camera moved during it.
-
-So the aim guarantee holds and the attack still goes somewhere the player did not choose. **A clean
-`FACING LOCK` is not a clean bill of health**; it answers an angle question, and this is a time
-question. Neither trace shows it alone — `BUFFER` knows the lateness, `FACING LOCK` knows the angle,
-and nothing correlates them. Logging the camera yaw delta between press and commit would.
-
-**It scales with the lunge**, which is what promotes it from a curiosity: at 400 cm of travel you
-now go the wrong way, where before you only swung the wrong way.
-
-**The user's worst-case test, to run when Light String lands** — a three-light chain in 1vX, first
-attack on target A, second on target B 180° away, third back on A. That is the case where camera
-movement between press and commit is both maximal *and* deliberate, rather than the flailing that
-surfaced it. Deferred on the judgement that good-faith play against normally-moving targets does not
-reach it; the chain test is what would falsify that.
-
-**Two defensible behaviours, and only one has been felt:** aim at activation (current — the attack
-tracks your latest intent) or aim latched at press (the attack honours the moment of decision).
-Most action games do the first. This one is a spacing game, and the first is what felt wrong.
-
-**Unexplained, filed 2026-08-12 — one burst of per-frame activation attempts that never
-reproduced.** During airborne-input testing, `REFUSED … airborne` fired on **15 consecutive frames**
-(world 13.710–13.842, ~8.8 ms apart). Everywhere else in that log and in a deliberately heavier
-follow-up test, refusals sit **110–210 ms** apart, which is a human mashing.
-
-**Two explanations were killed by evidence, and no third is offered.** Held input repeating: the
-ability input binds `ETriggerEvent::Started` / `Completed`, once per press. A buffered press
-retrying each tick: no `stored` line within four seconds either side, and no `fired` or `expired`
-closing it out. No project code calls `CanActivateAbility` except the override that logs.
-
-**It is not a correctness problem** — every refusal in the burst was the correct answer, and the
-airborne rule is verified working. What it costs is instrument trust: a per-frame event drowns
-low-frequency ones inside any capped `GetLogEntries` window, which `Docs/Working-In-Unreal.md`
-already files as a way logs lie about absence.
-
-**What would identify it next time, and is now in place:** the `REFUSED` line carries the avatar's
-name. It did not before, and because abilities are `InstancedPerActor` the player's and the training
-dummy's instances are *both* legitimately `GA_Attack_C_0` — so the log could not say whose refusal
-it was, and "was this the dummy?" could not be ruled out. That gap is what made the burst
-unresolvable rather than the burst itself being subtle.
+**It scales with the lunge**, which is what promotes it from a curiosity: you now go the wrong way
+rather than only swinging the wrong way. **The test to run when Light String lands** is a
+three-light chain in 1vX — target A, target B 180° away, back to A — where camera movement between
+press and commit is maximal *and* deliberate. Two defensible behaviours and only one has been felt:
+aim at activation (current) or aim latched at press.
 
 **Whenever an ability's input binding is changed** — *`IA_Attack` carries an `InputTriggerDown`,
-which holds the action in the Triggered state every frame the button is down.* Nothing spams today
-only because the C++ binds `Started` and `Completed`, which fire once each per press. Rebinding to
-`ETriggerEvent::Triggered` — an ordinary-looking change — would produce a per-frame activation
-attempt, a per-frame refusal trace, and per-frame buffer churn, for as long as the button is held.
-The asset and the binding have to be read together; neither is wrong alone.
+which holds the action Triggered every frame the button is down.* Nothing spams today only because
+the C++ binds `Started` and `Completed`. Rebinding to `ETriggerEvent::Triggered` — an
+ordinary-looking change — gives a per-frame activation attempt, refusal trace and buffer churn for
+as long as the button is held. **The asset and the binding have to be read together; neither is
+wrong alone.**
+
+**Unexplained, filed 2026-08-12 — *one burst of per-frame activation attempts that never
+reproduced.*** `REFUSED … airborne` on **15 consecutive frames**, where every other refusal in the
+project sits 110–210 ms apart. Two explanations were killed by evidence and no third is offered.
+**Not a correctness problem** — every refusal was the correct answer. What it costs is instrument
+trust, since a per-frame event drowns low-frequency ones inside any capped `GetLogEntries` window.
+The `REFUSED` line now carries the avatar's name, which is what would identify it next time.
 
 **Whenever `LungeStandoffCm` or any branch's `MaxReachCm` moves** — *the two are coupled and
-nothing enforces it.* The clamp stops a lunge `LungeStandoffCm` before contact, so the attacker
-finishes at `84 + LungeStandoffCm` centre-to-centre. Reach is measured to the target's body, so the
+nothing enforces it.* The attacker finishes at `84 + LungeStandoffCm` centre-to-centre, so the
 attack lands only while `LungeStandoffCm < MaxReachCm`. Above that the clamp **causes** whiffs by
-parking the attacker outside the hitbox it just aimed — silently, and looking exactly like a
-hit-detection fault rather than a spacing one.
+parking the attacker outside the hitbox it just aimed, silently, looking exactly like a
+hit-detection fault. Today's margin is wide (40 against 150) and the realistic way to break it is
+tuning reach *down* during the re-author. **Standoff is per ability and reach is per branch**,
+which is the asymmetry that makes it easy to miss.
 
-Today's values leave a wide margin (40 against 150) and the realistic way to break it is to tune
-reach *down* during the reach/travel re-author and not think of this. Note the asymmetry that makes
-it easy to miss: **standoff is per ability and reach is per branch**, so one number has to stay below
-the smallest of three that are edited in a different part of the same asset.
+**Whenever `LungeStandoffCm` is tuned — *it is also the spacing of every linked exchange.*** One
+number, two jobs, and the second is the one nobody thinks of while tuning it: it is judged on the
+slide it was authored to fix and felt as how far apart people stand while trading. **Milder since
+2026-08-14**, when the lunge began stopping on a hit — a *connecting* chain now breathes, because
+final spacing depends on where in the release window the hitbox caught them. What it still pins is
+an exchange in which nothing connects.
 
-**Before Light String and before Stun** — *knockback and the next attack's travel are one budget, and
-nothing connects them.* A displacement that pushes a target further than the following attack can
-cover — today base 100 + branch 200 + `MaxReachCm` 150 — makes a chain structurally unable to link.
-It will read as the combo being broken rather than as knockback being too strong, because the number
-that has to change lives in a different system from the symptom.
+**Before Light String and before Stun** — *knockback and the next attack's travel are one budget,
+and nothing connects them.* A displacement pushing a target further than the following attack can
+cover makes a chain structurally unable to link, and it will read as the combo being broken rather
+than as knockback being too strong. Filed before knockback exists, since this is exactly the value
+that gets tuned in isolation for impact feel.
 
-Filed before knockback exists rather than after, since this is exactly the kind of value that gets
-tuned in isolation for impact feel and then breaks something two slices away.
-
-*Two things that make it less urgent than it sounds, both from the user, 2026-08-13.* The per-tick
-gate already handles displacement natively — a knocked-back target is the retreating-target case,
-which is the one the gate was rewritten to serve, so linking survives being pushed. **The
-pre-shortened clamp we deleted would have been actively hostile here**: knockback pushes them out,
-the travel was already zeroed on their behalf, and the link becomes impossible. Good thing it went
-before knockback arrived rather than after.
-
-And the constraint binds *finishers and heavies* rather than the linking hits, because lights are
-intended to have low knockback by design. **That intent is recorded as illustration, not
-commitment** — the user was explicit that they did not want to promise the pattern yet: lights link
-into each other, dropping a chain leaves both parties awkwardly close in a scramble, and finishing it
-is a knockdown into oki. Useful as a worked example even if it turns out not to be the design.
-
-**Whenever `LungeStandoffCm` is tuned — it is also the spacing of every linked exchange.** Filed
-2026-08-13, following from the low-knockback intent above. If lights barely displace, each hit in a
-chain re-closes to exactly the gate distance, so two characters sit pinned at 84 + `LungeStandoffCm`
-(currently 124 cm) for the whole chain. The number will be *judged* on the slide it was authored to
-fix and *felt* mostly as how far apart people stand while trading — one number, two jobs, and the
-second is the one nobody will think of while tuning it.
-
-**Decided 2026-08-14, and the trap is milder as a result.** The lunge now stops on a hit against a
-viable target, so this pinning only describes an exchange in which nothing connects. Where hits *do*
-land, final spacing depends on where in the release window the hitbox caught them, so a chain
-breathes rather than sitting still — which is the property this note said would be traded away, now
-bought. The number still does two jobs and the second is still the easy one to forget; what it no
-longer sets is the spacing of a *connecting* chain.
-
-**~~Whenever any branch's `AimAssistWedge` is authored — reaches must not decrease across the
-ladder.~~ Discharged 2026-08-14, hours after being filed, by making it unrepresentable.** Reach is no
-longer authored: it is derived as `base lunge + branch lunge + branch damage reach + AimAssistMarginCm`,
-so it is a constant plus the branch's own lunge, and lunges increase up the ladder. A later branch
-reaching less than an earlier one cannot be expressed.
-
-**The sharper half went with it.** The case that actually bit was `MaxReachCm` of 0 — *disabled*
-rather than narrow — which switched homing off partway through a hold. Derived reach is never 0, so
-that route is gone too; `FTDAimAssistWedge::bEnabled` is now the only way to turn a branch's assist
-off, and it defaults to *on*.
-
-*The rule this trap protected is now in the type system rather than in a list, which is the outcome
-to prefer wherever a constraint can be made unrepresentable. Kept as a record because the reasoning —
-that a shrinking wedge drops a target already locked — is still why the derivation must stay
-monotonic if anyone changes the formula.*
-
-**Before the first multiplayer slice — *aim assist reads a loose tag across the network boundary,
-and loose tags do not replicate.*** Filed 2026-08-13, found by the traps grep before building the
-rotational half rather than after.
-
-`UTDDodgeAbility` applies `IFrameTag` with `AddLooseGameplayTag`, which is local to the machine that
-calls it. **Damage gets away with this** because `HandleTraceHit` is authority-gated, so only the
-server ever asks. **Aim assist does not**: `FindAimAssistTarget` runs on both machines, so an
-attacking client cannot see a remote opponent's `State.Dodging` at all. The client would steer onto
-a dodging target the server skips, and the attack points two different ways.
-
-So this is the loose-tag trap in a new and worse place — the existing entry warns that a client's
-`CanActivateAbility` can pass a check the server failed, and this is the same defect deciding
-*geometry* rather than permission. Unreachable today, single-player only. The fix is the standing
-one: **decide on the server, apply everywhere** — a replicated property whose `OnRep` applies the
-tag, following `bDead` / `bExhausted`.
-
-**~~Before Block — exhaustion can become permanent.~~ Closed 2026-08-14 as a non-defect.** The
-mechanism is real and unchanged: `ActivationBlockedTags` gates activation, not continuation, so a
-guard held through zero keeps `State.StaminaRegenPaused` applied, and regen is the only thing that
-ends exhaustion. **It is not a trap because the player is holding the button.**
-
-The user's call, and it is the general form worth keeping: **a state you are choosing to stay in, with
-the exit always available, is not a deadlock.** Holding block at zero accomplishes nothing — anything
-actually blocked breaks the guard — so a player doing it is griefing only themselves, and releasing
-both ends it and starts recovery. Nothing needs defending against.
-
-*This replaces a discharge claimed earlier the same day, which said the trap was fixed by making
-suppression not apply while exhausted. That fix shipped and play threw it out within hours: it closed
-the bounded cases along with the unbounded one, so a dodge that exhausted you began regenerating
-during its own duration, refunding the cost of the action that emptied the bar. **The pause is a cost
-of acting and exhaustion is not a refund** — see the dated entry.*
-
-**The related edge is untouched and still filed**: the stamina delegate only fires on a *change*, so
-a cost applied at exactly 0 changes nothing and cannot retrigger exhaustion. Narrow today, since costs
-clamp at 0 and the 100→0 transition does fire.
-
-**And `ExhaustedStaminaRegenPerSecond` can still make exhaustion permanent in one keystroke.** Zero is
-not "no recovery while exhausted", it is a character locked out of every defensive action for the rest
-of the match — and unlike the held guard, *that* one has no exit the player can reach. The
-`ClampMin="0.01"` is load-bearing rather than tidy, and the reason lives here as well as in the header
-because a clamp with no stated reason is the kind of thing a later edit removes.
-
-**Before the first real multiplayer test — the ASC's client path is written and unexercised.**
-Slice B shipped 2026-08-11 and its three filed traps are discharged: the PlayerState's 1 Hz net
-update frequency is raised in `ATDPlayerState`'s constructor, the character re-resolves its ASC
-in `OnRep_PlayerState` as well as `PossessedBy`, and `ATheDreamGameMode` now sets
-`PlayerStateClass`. What is *verified* is the server path only — single-player PIE has no client,
-so `OnRep_PlayerState` never fired in any test that passed. It is the half that is hardest to
-reason about and the only half nothing has run.
-
-A fourth trap was **not** filed in advance and is the one worth carrying forward as a pattern
-rather than a fact: *the ordering hazard was invisible from the design and obvious from the
-engine's callback order.* Seeding was guarded by one bool on the character, and a player pawn's
-`BeginPlay` runs **before** it is possessed — so the flag would have been spent on the fallback
-ASC and the PlayerState's real one never seeded. The player would have had no attributes and no
-abilities **while the never-possessed training dummy worked perfectly**, which is what would have
-made it hard to find. The guard now lives with the ASC (`ATDPlayerState::HasSeededDefaults`).
-The general form: **when one code path serves two lifecycles, the one that works is not evidence
-about the one that does not** — and here the working one was the simpler, so it would have been
-tested first.
-
-**Whenever new state is added, from 2026-08-11 on** — *a loose gameplay tag does not replicate,
-and this is now a PvP project.* `AddLooseGameplayTag` is local to the machine that calls it. If
-the caller is authority-only — anything driven by an attribute delegate, which are all bound
-behind the authority gate — clients never see the state at all, and their own
-`CanActivateAbility` will happily pass a check the server has already failed. Use a replicated
-property whose `OnRep` applies the tag locally, following `bDead` / `bExhausted`. The rule is
-**decide on the server, apply everywhere.**
-
-**Before any multiplayer slice** — *i-frames have no lag compensation, and the dodge is 400 ms of
-invulnerability.* The immunity check reads the target's ASC on the server. A client dodges at T
-and the server learns at T+RTT/2; an attack resolving inside that gap ignores a dodge the player
-has already watched begin. This is the "I dodged that!" complaint and this design can least
-afford it — i-frames last exactly as long as the dodge, with no vulnerable tail to absorb the
-disagreement. Also unsolved: no prediction windows despite every ability being `LocalPredicted`,
-and **2** network-unaware `SetTimer` sites — `TDChargedAttackAbility`'s checkpoint and
-`TDDodgeAbility`'s duration.
-
-*Recounted 2026-08-11; the original figure of 14 came from a module-wide grep.* There are 13, and
-**six are in `Variant_Combat/`** — Epic template code this project explicitly does not derive
-from. Of our seven, four are debug-only (auto-attack press/release/reset, the debug revive) and
-one is the buffered-release replay, which is *local input* and by this project's own rule
-deliberately must **not** be networked. Note the correction does not shrink the work: the dodge
-timer is the i-frame problem in this same paragraph, which is the hardest item on the list. **A
-count taken across a whole module measures the module, not the debt** — the same filtered-view
-error the absence rule exists for, in its counting form.
-
-**~~Before Attack Swap~~ — *the melee trace follows `hand_r`.***
-**Discharged 2026-08-12, twice over.** The trace moved to the blade on 2026-08-11, and on
-2026-08-12 the whole socket-following approach was replaced by authored `FTDAttackHitbox` wedges
-— so `TraceSocket`, `BladeAxisLocal`, `BladeStartCm`, `BladeLengthCm`, `BladeTraceSegments` and
-`TraceRadius` are all deleted. Reach is `MaxReachCm`, authored per branch.
-
-Kept because it is still true and no longer has a home: **the values were tuned against a fist
-standing in for the whole hitbox**, so nothing carried forward from them numerically. The
-starting wedges are a fresh guess and have never been played.
-
-**~~Before a second `Release Window` notify exists (Attack Swap, or Light String)~~ — *the melee trace opens
-on any `Event.Melee.WindowBegin` reaching that ASC.*** **Discharged during Attack Swap, and it sat here
-filed for a day after being fixed** — found by the 2026-08-12 doc audit, not by anyone reading this
-section. `UAbilityTask_MeleeTrace::IsWindowForThisAttack` now filters on **both** edges, deliberately:
-a foreign montage's window *ending* must not close ours, which would truncate an active swing rather
-than merely failing to start one. A null montage still means accept-any, which is the pre-item-6
-behaviour kept for abilities that do not set one.
-
-**That this survived is the argument for the rule above it.** The file says discharging a trap in
-the same commit that fixes it is the most load-bearing habit here, and this is what breaking it
-looks like: a fixed defect still warning the next reader off a fix that already exists. Light String
-was its trigger and would have hit it.
-
-**~~Before Recovery~~ — *recovery is shorter than it looks, by exactly the montage's blend-out.***
-**Discharged 2026-08-12** by `FTDAttackBranch::RecoverySeconds`, which settles it the first way the
-trap offered: **recovery ends at blend-out**, and the authored duration is measured to that
-boundary, with the montage warped to fit. The blend still plays afterwards and is still
-mechanically over; it is now follow-through by design rather than by accident.
-
-Two things from it are kept because they are still true. **Mechanical and visible recovery differ**,
-and always will under this resolution — a spectator sees 0.25 s more attack than the attacker is
-committed to. And the blend-out is still the true cause of the debug attacker resetting before its
-swing looked done, which was patched with a delay rather than diagnosed.
-
-**And one thing the trap did not know, found the same day and worth more than the rest:** *the
-blend-out boundary is not a fixed montage position — it moves with the play rate.* With
-`BlendOutTriggerTime` negative, the engine begins blending when the montage's **remaining time at
-the current rate** equals the blend duration, so halving the rate halves the distance from the end.
-Anything deriving a rate against a fixed `Length - BlendTime` is right only at rate 1.0. See the
-dated entry; the correct solution is `R = (Length - Position) / (RecoverySeconds + BlendTime)`.
-
-**~~Re-check `InputBufferSeconds`, which was sized against a recovery nobody chose.~~ Checked
-2026-08-12, and it is now a *watch* rather than a re-check.** Recovery was tuned to 0.40 / 0.50 /
-0.60 and played, and the window did drop exactly one input — a light tap expiring 260 ms after
-press while chaining. **Left at 0.20 deliberately**: the user did not feel it, and there is no
-value that is simply correct, because a buffer long enough to never drop a tap during a 0.75 s
-swing queues an attack most of a swing ahead. Full account and the arithmetic in the dated entry.
-
-**What makes it live again**, in rough order of likelihood: recovery tuned longer still, the light
-string making rapid tapping the primary input pattern, or a dropped input reported in normal play.
-Read the `BUFFER` trace before touching the number — `expired` is a window question, and no line at
-all means the press never reached the character. Its ceiling is set by the longest lockout the
-design refuses to shorten, which is exhaustion; see the 200 ms entry.
-
-**The third trigger fired 2026-08-12: 13 dropped presses out of 88 buffered, about one in seven.**
-All expiries clustered at **256–306 ms after press**. Not caused by the lunge — attack durations
-were untouched — but by tapping faster than the 0.75 s attack cycle, hard enough that *every* press
-in the session was buffered. Left at 0.20 pending a decision, because the session was deliberately
-abusive rather than representative.
-
-**Two things that measurement clarified about the number itself.** First, the window runs from the
-**release**, not the press: while the button is down the expiry is pushed forward every tick
-(`ExpiryWorldTime = Now + InputBufferSeconds`), and that stops on release. A 90 ms tap therefore
-gets ~290 ms of real grace, which is why the expiries cluster where they do rather than at 200.
-
-Second, and this is the consideration the original entry did not have: **the window is also a cap
-on how stale a buffered attack's aim can be.** Lengthening it drops fewer inputs *and* allows more
-aim drift; shortening it does the reverse. See the buffered-aim trap above. There is no value that
-is simply correct because the same number is answering two questions that want opposite answers.
-
-Note this replaces the trap that stood here until 2026-08-11 — that every timing verdict was
-confounded by inputs which never registered. That was Input Buffer's whole justification and it is
-discharged.
-
-**Before the first multiplayer slice, added 2026-08-12, rewritten the same day** — *the attack
-facing lock is local state on the character and does not replicate.* `FacingTurnScale` and its
-two fade fields are plain floats, not even `UPROPERTY`, set by `SetFacingAuthority` from the
-ability. **This does not meet the project's own rule that new state is a replicated property or
-an attribute.** It is recorded as a knowing exception rather than an oversight.
-
-Why it is nonetheless *not* a teardown: `SetFacingAuthority` is the correct API either way, and
-what a networked version changes is who calls it and whether the decision replicates. That is an
-extension. Under `LocalPredicted` the owning client runs the ability and so applies the lock
-itself, and the server has authority and replicates rotation, so the two machines that matter
-agree.
-
-**The first draft of this trap said "harmless today" and that was the easy read, not the checked
-one.** What actually made it harmless was that a simulated proxy has no `Controller`, so
-`UCharacterMovementComponent::PhysicsRotation` returns before `bUseControllerDesiredRotation` can
-do anything — an engine implementation detail nobody here chose, propping up a rule this project
-had already written down. `UpdateCameraRelativeFacing` is now explicitly guarded to locally
-controlled or authority, so the correctness no longer rests on that.
-
-**The general form, which is the part worth carrying:** *"it works" and "it is guarded" are
-different claims, and a system that only works is one refactor in someone else's code away from
-not working.* The same distinction the Slice B entry draws between the server path being verified
-and the client path merely being written.
-
-**A second local-state exception joined it 2026-08-12: `bAbilityMovementLocked`**, driven by
-`UTDGameplayAbility::bLocksMovement`. Same category, same knowing exception, recorded here rather
-than as a second trap because it is the same fact about the same character. It is *input*
-suppression, so the machine that owns the input is the one that must honour it — and a simulated
-proxy has no input to suppress, which is why it is more clearly local than the facing lock is.
-
-Still owed when multiplayer is real: the fade is a float changing every frame, so replicating the
-*value* is wasteful — replicate the decision (this attack is in its lock phase) and let each
-machine run its own fade. That is "decide on the server, apply everywhere" again, but it is not a
-third copy of the `bDead` / `bExhausted` pattern, because what replicates is a phase rather than
-a bool.
+Less urgent than it sounds: the per-tick gate handles a retreating target natively, so linking
+survives being pushed. The constraint binds *finishers and heavies*, lights being intended to have
+low knockback — **recorded as illustration, not commitment.**
 
 **Whenever `MaxWalkSpeed` changes** — *it is coupled to the blendspace's top row and nothing
 enforces the link.* `BS_SwordShield_Locomotion` places its run samples at Speed 500 because
 `MaxWalkSpeed` is 500. Change one and the character tops out partway up the blend, playing a
-permanent half-walk at full speed, with no error anywhere. Change both together.
+permanent half-walk at full speed, with no error anywhere.
 
-Note 500 was inherited from Epic's template and **still has never been measured** against what
-the `Run` clips are authored for — 3c shipped without visible foot sliding, which makes it
-acceptable rather than correct. The `_RM` variants encode the authored displacement, so this
-stays measurable rather than a matter of taste. See the tuning map's foot-sliding row.
+500 was inherited from Epic's template and **has never been measured** against what the `Run` clips
+are authored for. The `_RM` variants encode the authored displacement, so this stays measurable
+rather than a matter of taste.
+
+---
+
+### Multiplayer — filed against the first slice that runs two machines
+
+**Nothing here is reachable in single player, and none of it has ever run.**
+
+**Loose gameplay tags do not replicate, and this is a PvP project.** `AddLooseGameplayTag` is local
+to the machine that calls it. Where the caller is authority-only — anything driven by an attribute
+delegate — clients never see the state, and their own `CanActivateAbility` passes a check the
+server already failed. Use a replicated property whose `OnRep` applies the tag locally, following
+`bDead` / `bExhausted`. **Decide on the server, apply everywhere.**
+
+**Aim assist reads a loose tag across that boundary, which is the same defect deciding geometry
+rather than permission.** `UTDDodgeAbility` applies `IFrameTag` loosely. Damage gets away with it
+because `HandleTraceHit` is authority-gated; `FindAimAssistTarget` runs on **both** machines, so an
+attacking client cannot see a remote opponent's `State.Dodging` and would steer onto a target the
+server skips — the attack points two different ways.
+
+**The lunge stop has the same shape and is stated rather than solved.** The gate is safe across the
+boundary because it is *geometric*: both machines run the same sweep against replicated positions.
+A stop is not — it is driven by a fact only the server has, so an owning client keeps travelling
+until a correction arrives. Bounded at ~117 cm light / ~175 heavy / ~233 charged at the earliest
+possible hit, and far less in practice. `FRootMotionSource::UpdateStateFrom` is the channel the
+engine intends for it.
+
+**I-frames have no lag compensation, and the dodge is 400 ms of invulnerability.** A client dodges
+at T, the server learns at T+RTT/2, and an attack resolving inside that gap ignores a dodge the
+player has watched begin. This is the "I dodged that!" complaint and this design can least afford
+it — i-frames last exactly as long as the dodge, with no vulnerable tail to absorb disagreement.
+Also unsolved: **no prediction windows** despite every ability being `LocalPredicted`, and **2**
+network-unaware `SetTimer` sites — `TDChargedAttackAbility`'s checkpoint and `TDDodgeAbility`'s
+duration. Those two are one problem: **the dodge timer *is* the i-frame lag compensation.**
+
+**The ASC's client path is written and unexercised.** Slice B's three filed traps are discharged —
+`ATDPlayerState`'s net update frequency raised, the character re-resolving its ASC in
+`OnRep_PlayerState` as well as `PossessedBy`, `PlayerStateClass` set. What is *verified* is the
+server path only: single-player PIE has no client, so **`OnRep_PlayerState` has never fired in any
+test that passed.**
+
+**Two local-state exceptions, recorded as knowing rather than as oversights.** `FacingTurnScale`
+and `bAbilityMovementLocked` are plain floats and bools on the character, not replicated
+properties, which does not meet this project's own rule. Neither is a teardown:
+`SetAbilityFacingLocked` is the correct API either way, and what a networked version changes is who
+calls it. Still owed — replicate the *decision* (this attack is in its lock phase) and let each
+machine run its own fade, rather than putting a per-frame float on the wire.
+
+---
+
+### Discharged, kept because a discharge is the one edit that cannot be reviewed silently
+
+**~~The character hovers while a root-motion montage plays.~~ Discharged 2026-08-12.** Never about
+montages, root motion, skeletons or clips: the mesh sat at Z −90 under a 96 capsule half-height, so
+the feet floated 6 cm in every pose, and foot IK absorbed it everywhere the IK runs. Fixed in
+`ATheDreamCharacter`'s constructor beside the `InitCapsuleSize` it must agree with. **Build a
+montage from its clip, never empty-then-assign**, so the skeleton is right by construction.
+
+**~~Heavy and charged run ~70 ms longer than their authored numbers.~~ The reactability half is
+discharged 2026-08-12: the hitbox is on time on every tier.** Press to `RELEASE BEGIN` measured
+light 202–207 ms against 200, heavy 506–508 against 500, charged 751–754 against 750. The heavy
+carries the *same* +6 ms bias as the light, which never coils, so the coil delays nothing and
+neither tier is more reactable than authored. **The inference that pointed at the coil was wrong,
+and that is the part worth keeping**: a correlation across tiers suggested the mechanism, and only
+a per-tier absolute measurement could test it.
+
+**Still open, and no longer blocked:** the *total* overhead was never re-measured. This trap said
+that needed a log line built first; `ABILITY END … elapsed=` has printed exactly that since Attack
+Swap. One held attack per tier with the trace on settles it.
+
+**~~Reaches must not decrease across the `AimAssistWedge` ladder.~~ Discharged 2026-08-14 by making
+it unrepresentable.** Reach is derived as `base lunge + branch lunge + branch damage reach +
+AimAssistMarginCm`, so a later branch reaching less than an earlier one cannot be expressed. The
+sharper half went with it: `MaxReachCm` of 0 was *disabled* rather than narrow and switched homing
+off mid-hold; derived reach is never 0, and `FTDAimAssistWedge::bEnabled` is now the only off
+switch. **The reasoning still binds anyone changing the formula** — a shrinking wedge drops a
+target already locked, so the derivation must stay monotonic.
+
+**~~Exhaustion can become permanent.~~ Closed 2026-08-14 as a non-defect.** The mechanism is real
+and unchanged — `ActivationBlockedTags` gates activation, not continuation — but **a state you are
+choosing to stay in, with the exit always available, is not a deadlock.** Holding block at zero
+accomplishes nothing and releasing ends it.
+
+**Two related edges are still live.** The stamina delegate fires only on a *change*, so a cost
+applied at exactly 0 cannot retrigger exhaustion — narrow today, since costs clamp at 0 and the
+100→0 transition does fire. And **`ExhaustedStaminaRegenPerSecond = 0` is permanent exhaustion**,
+not "no recovery while exhausted", with no exit the player can reach. The `ClampMin="0.01"` is
+load-bearing rather than tidy.
+
+**~~The melee trace follows `hand_r`.~~ Discharged 2026-08-12, twice over** — first onto the blade,
+then replaced entirely by authored `FTDAttackHitbox` wedges. Kept because it is still true and has
+no other home: **the values were tuned against a fist standing in for the whole hitbox**, so
+nothing carried forward from them numerically.
+
+**~~The melee trace opens on any `Event.Melee.WindowBegin` reaching that ASC.~~ Discharged during
+Attack Swap.** `IsWindowForThisAttack` filters on **both** edges deliberately — a foreign montage's
+window *ending* must not close ours, which would truncate an active swing rather than merely
+failing to start one. A null montage still means accept-any. **It sat filed for a day after being
+fixed**, which is what the discharge rule above exists to prevent.
+
+**~~Recovery is shorter than it looks, by exactly the montage's blend-out.~~ Discharged 2026-08-12**
+by `FTDAttackBranch::RecoverySeconds`: recovery ends at blend-out, and the montage is warped to fit.
+Two things stay true. **Mechanical and visible recovery differ** — a spectator sees ~0.25 s more
+attack than the attacker is committed to, now by design. And **the blend-out boundary moves with
+the play rate**, so anything deriving a rate against a fixed `Length - BlendTime` is right only at
+rate 1.0; the solution is `R = (Length - Position) / (RecoverySeconds + BlendTime)`.
+
+**~~Re-check `InputBufferSeconds`.~~ Now a watch rather than a re-check.** Left at **0.20**
+deliberately: the user did not feel the drops, and there is no value that is simply correct,
+because a buffer long enough never to drop a tap during a 0.75 s swing queues an attack most of a
+swing ahead. It also caps **how stale a buffered attack's aim can be** — see the buffered-aim trap,
+which wants it shorter while dropped inputs want it longer.
+
+**What makes it live again**, in rough order of likelihood: recovery tuned longer, the light string
+making rapid tapping the primary input pattern, or a dropped input in normal play. **Read the
+`BUFFER` trace first** — `expired` is a window question; no line at all means the press never
+reached the character. Measured under deliberately abusive tapping: 13 of 88 buffered presses
+dropped, all expiring 256–306 ms after press.
 
 ---
 

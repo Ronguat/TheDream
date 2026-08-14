@@ -273,6 +273,13 @@ offset, a wrong attachment — is fully visible on a placed actor with no PIE an
 suspected cause over one that only observes it. When two hypotheses are killed by evidence, file the
 anomaly rather than inventing a third.
 
+**An assumed control is worse than no control.** A comparison case only disconfirms if the case was
+actually *measured*. The hover hunt killed its first hypothesis with "the dodge has the same setting
+and does not hover" — and nobody had ever checked whether the dodge hovers; a report that it looked
+fine *during locomotion* had been silently converted into *the dodge is fine*. An assumed control
+carries the authority of evidence while being a guess, and what it corrupts is not the conclusion
+but the test used to reject one.
+
 **What the user glosses over is often the decisive observation.** "The dummy hovers in the preview
 too" reframed a two-session bug instantly, volunteered casually. When a bug resists, ask explicitly
 what *else* shows the symptom.
@@ -288,6 +295,14 @@ way to measure around a pawn without dirtying the level.
 **Measuring an actor's own movement requires nothing else touching it, and a capsule counts.** Two
 42 cm radii touch at 84 cm of separation, so contamination begins long before two characters look
 close. A travel figure measured against a blocked capsule was reported and had to be withdrawn.
+
+**And do not measure one actor's travel against another actor's *assumed* position.** The general
+form of the PIE-transform trap above, and the one that actually bites twice: two 2026-08-14 readings
+computed an attacker's closing distance against the dummy's **placed** origin while the dummy was
+being shoved across the floor by the very attacks being measured — the player finished one run at
+`x=-110.75`. Both were reported as findings about the lunge and both had to be withdrawn. **A moving
+reference frame reads as a movement fault in the thing being measured.** Re-read both transforms, or
+measure against something that cannot be pushed.
 
 **A periodic world aliases against a periodic sampler.** Polling near a multiple of the 3 s
 auto-attack cycle returned the same phase nine times, reading exactly like "the character never
