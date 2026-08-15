@@ -302,6 +302,20 @@ happen to suspect.** Eighteen were diffed against the CDO beforehand and the deb
 five were not; they turned out to live on the Blueprint rather than as overrides, so nothing was
 lost, but that was luck. A placed actor's overrides are exactly the thing nobody has a list of.
 
+**Before touching `AM_Blockstun` — *it exists, and its length disagrees with its own clip.*** Filed
+2026-08-15 by the pass that built it. The segment is `AS_SwordAndShieldAnimV1_Defense_Hit_Fw_RM` at
+**0.867 s** and the montage still reports `sequenceLength` **0.967**, inherited from the `AM_Attack`
+it was duplicated from; `compositeSections` cannot be read, so what the default section spans is
+unknown. **Nothing plays it yet**, so the effect of the mismatch is *unmeasured* rather than benign
+— do not record it as harmless without playing it.
+
+**The fix is a human opening it and saving**, which forces `CalculateSequenceLength()`; whether
+opening alone suffices is untested. **It is also fine to delete and start over** — it was built as a
+capability test that happened to be useful, so nothing depends on it. Two further things it is
+*not*: it is not wired (no `UAnimMontage*` property exists anywhere in the codebase, so blockstun
+has nothing to play it from), and it is not directional — the other three `Defense_Hit_*` clips are
+unused, and sections being unscriptable means directional blockstun is four montages.
+
 ---
 
 ### Multiplayer — filed against **Netcode** (the slice gained a name and a roster position 2026-08-15)
@@ -865,6 +879,54 @@ long.
 | `bUseControllerDesiredRotation` | 08-12 |
 | `bUseControllerRotationYaw` | 08-12 |
 | `gEComponents` | 08-10, 08-11 |
+
+---
+
+## 2026-08-15 — The chore sitting re-tests its own walls, and two of four fall
+
+**The user's framing, and it is the reason this produced anything:** before doing the accumulated
+human-pending chores, re-test what the tools can actually do, *"as recon, not enabling laziness —
+we want solid, documented limits."* Every wall in the docs had been recorded at the moment someone
+hit it, and none had been re-tested since.
+
+**The finding that reframes the rest: `SlateInspectorToolset` had never been tried.** A
+Playwright-style automation surface over the editor's own widget tree, present the whole time,
+mentioned in no doc. **So every "needs a human" claim written before today was made without it** —
+which is the general lesson, not a fact about one toolset. The mechanics are in
+`Docs/Working-In-Unreal.md`; what belongs here is which chores moved.
+
+**Console commands are drivable, so `Net PktLag` was never human-blocked.** That unblocks the
+kill-question's emulation half of **Netcode** without a keyboard.
+
+**Keyboard input into the game is a real wall, now confirmed rather than assumed.** The PIE viewport
+is not in the accessibility tree at all, in-viewport or floating. Recorded here because of *how* it
+was nearly got wrong: the control — "a real press does print an `INPUT` line" — was first taken
+from a log line attributed to the user without checking, which is the assumed-control trap the
+tooling doc warns about, committed while quoting it. The user challenged the attribution. Re-derived
+properly, it holds: `BP_PlayerCharacter`'s CDO carries no debug fixture, so nothing but a human
+could have produced that press. **A correct conclusion reached through an unearned control is still
+a defect in the method**, and it is only luck that re-deriving agreed.
+
+**Blockstun's montage is ~90% scriptable, against a doc that said 0%.** Duplicate, repoint the
+segment, and the swap is genuinely live. What does not follow is the derived state — `sequenceLength`
+keeps the source's value and `compositeSections` cannot be read — so `AM_Blockstun` now exists
+**internally inconsistent** and needs a human open-and-save. Filed as a trap below rather than left
+implicit, since a half-built asset in the tree is exactly the thing a later reader trusts.
+
+**One design consequence, not a chore:** multi-section montages cannot be scripted at all, so
+directional blockstun must be **four montages, not four sections**. That is a live fork for whoever
+picks up Block's remainder, and it is the user's call.
+
+**The stance state machine is confirmed fully human, and the old note understated it.** The recorded
+limit was that `create_node` cannot reach inside a state; the same cast failure occurs one level up,
+on the state machine graph itself. So creating the state, wiring transitions and filling it are all
+human. `ABP_Combat` was never dirtied — every attempt errored cleanly.
+
+**Regression-loop coupling, decided at plan time as the rule requires:** this package adds **no
+combat capability**, so it owes neither scenarios nor a deferral trap. Blockstun's timing is already
+asserted by `s2-light`/`s2-heavy`; an animation makes a shipped mechanic *read* without changing
+what it does. **When the montage is wired**, that is still not a new assertion — but the wiring
+itself is a header change, and that package owes the choice again.
 
 ---
 

@@ -18,6 +18,13 @@ visible, and its correct responses are: compress, relocate to a triggered doc �
 read every session, raise the budget with a dated note. Deleting a live rule to satisfy the number
 is the one wrong answer.
 
+**Raised ~400 → ~500 on 2026-08-15**, the first use of that hatch here, for a capability-recon pass
+that found a whole untried toolset. Compression ran first and found **no fat that was not a live
+rule** after the 820→400 cut, so the saving came from rewriting the state-graph paragraph to carry a
+general rule in the space its special case held, then tightening the new prose itself — 481 → 473.
+Relocation was **declined on purpose**: toolset capability fails silently, so it has to be in your
+head *before* you touch the editor, and a trigger would defeat why this file is read at all.
+
 **Growth that is genuinely this file's belongs here; growth that is the project's does not.** Those
 47 lines were our own debug instrumentation, which grows once per combat feature forever and now
 lives in `Docs/Debug-Instruments.md`. What is left grows only when Unreal or its toolset surprises us.
@@ -80,6 +87,28 @@ scripts define `run()` returning a dict and pass **full dotted names** to `execu
 
 **Stop PIE before compiling a Blueprint or saving an asset.** While PIE runs, actor lookups return
 the `UEDPIE_0_` world's actors — right for inspecting live state, wrong for authoring.
+
+### Driving the editor's UI, and the console
+
+**`SlateInspectorToolset` is a Playwright-style automation surface over the editor's own widget
+tree** — `Windows`, `Observe`, `Snapshot`, `Click`, `Type`, `PressKey`, `Drag`, `Screenshot`.
+*(Found 2026-08-15; it had never been tried, so every "needs a human" claim predating that was
+written without it. Re-test a wall before trusting one.)*
+
+**The editor console is drivable, and that is the useful half.** `Observe` the main window,
+`Snapshot` for the status-bar textbox beside the **"Cmd"** combobox, `Type` with `submit: true`.
+Verified by toggling `TD.DebugMeleeTrace` 0 → 1 → 0 and reading back via
+`EditorAppToolset.SearchCVars` — a different path from the one that wrote it. **This is the only
+console-command route there is**: `EditorAppToolset` searches cvars and cannot set one.
+
+**It does not reach the game** *(confirmed 2026-08-15, not assumed)*. `PressKey` delivers to the
+focused **accessible** widget and the PIE viewport is absent from the accessibility tree — true both
+in-viewport and for a floating window fronted with `Windows action=select`. Both confounds were
+killed first: the log demonstrably prints `INPUT` for a real press, and `IMC_Combat` confirmed the
+key was bound. **There is no synthetic gameplay input**; anything needing a player to act needs a
+human, or a debug driver on the pawn. No exec route either — `OnAbilityInputPressed` and
+`DebugAutoAttackPress` carry no `UFUNCTION`, and **a timer-driven function is not evidence of
+reflection** (`SetTimer`'s function-pointer overload needs none).
 
 **A PIE transform is not a placed transform** *(confirmed 2026-08-13)*: it is where an actor *ended
 up* — settled under gravity, pushed if anything could push it — and one PIE reading was written up
@@ -255,11 +284,24 @@ type.** Comparing against stock `IMC_Default` is what exposed the input bug; our
 
 Needs a human in the editor:
 
-- Creating levels, AnimMontages, BlendSpaces and AnimBlueprints
+- Creating levels, BlendSpaces and AnimBlueprints **from scratch**
 - Placing or configuring AnimNotifies — a montage's `notifies` is not even readable, so notify
   placement can only be verified at runtime
 - A montage's **`compositeSections`** — neither readable nor writable, and `sequenceLength` is
   read-only and does not recompute after a reflection write
+
+**A montage is the exception and is ~90% scriptable** *(2026-08-15, replacing "creating
+AnimMontages" above)*. `AssetTools.duplicate` clones one with its skeleton intact, and the segment
+repoints by writing **`slotAnimTracks` whole** — `animReference`, `animStartTime`, `animEndTime`,
+`cachedPlayLength`. That write is **live, not a round-trip**: two montages sharing a parent rendered
+visibly different poses through `CaptureAssetImage`, a path the reflection layer never touches.
+
+**What stops it is the derived state, exactly as the two bullets above predict.** `sequenceLength`
+keeps the *source* montage's value — a clip swapped 0.967 → 0.867 s left it still reporting 0.967 —
+and `compositeSections` cannot be read to see what the default section spans. A scripted montage
+lands **internally inconsistent**, and only opening and saving it reconciles that. Same family as
+the BlendSpace. **Multi-section montages are fully out**, a design constraint rather than a chore:
+four directional clips must be four montages.
 - **`UCurveFloat`'s keys** *(confirmed 2026-08-13)* — `FloatCurve` is a bare `UPROPERTY()` the
   reflection layer cannot see. Creating the asset by duplication works, so the split is **script the
   asset, have a human author the keys.** A curve's mean therefore cannot be verified through the
@@ -271,13 +313,25 @@ asset type before concluding a thing cannot be made.
 
 **Renaming an AnimNotify class is expensive** — placed notifies serialize against the class path.
 
-**`create_node` cannot target a nested state graph** *(confirmed 2026-08-14)* — it resolves the
-Blueprint through the graph's outer, an `AnimStateNode`; `read_graph_dsl` is empty there too, though
-both work on `EventGraph`. **Placing a node inside a state is the one AnimBP job needing a human**,
-so diagnose before concluding it: **a creation `type_id` is not the one a node reports** —
-`get_node_infos` gives `|GetGroundSpeed` where `create_node` wants `Variables|Default|GetGroundSpeed`,
-and guessing fails with *"does not exist"*, which reads like a wall. Use `find_node_types`, filtered
-tightly.
+**Any graph whose outer is a *node* rather than the Blueprint is unreachable** *(generalised
+2026-08-15 from the 2026-08-14 special case)*. These tools resolve the Blueprint through the graph's
+outer and fail with *"Cannot cast type 'X' to 'Blueprint'"*. Two X's are known and they are two
+different levels: **`AnimStateNode`** — a state's inner graph — and **`AnimGraphNode_StateMachine`**
+— the state machine graph itself. It is not only `create_node`: `find_node_types` fails the same
+way, and **`find_nodes` returns an empty array rather than an error**, which is the dangerous one.
+
+So **the whole of a state machine is a human job**: creating a state, wiring its transitions, and
+placing nodes inside a state. The 2026-08-14 note that "placing a node inside a state is the one
+AnimBP job needing a human" was true of that job and is **wrong as a general claim** — it was
+written when the work was two nodes in an existing state.
+
+`list_graphs` still enumerates all of it, states and transitions included, so the tree is readable
+even where the graphs are not. **Prove the instrument before believing an empty `find_nodes`** —
+it returns 8 nodes on `ABP_Combat:AnimGraph` and `[]` on `Locomotion`, which is how you tell a real
+emptiness from a silent refusal. And **a creation `type_id` is not the one a node reports** —
+`get_node_infos` gives `|GetGroundSpeed` where `create_node` wants `Variables|Default|GetGroundSpeed`;
+guessing fails with *"does not exist"*, which reads like a wall. Use `find_node_types`, filtered
+tightly, and only on a graph that is actually reachable.
 
 **Optional anim-node properties become pins by writing `ShowPinForProperties`** *(confirmed
 2026-08-14)* — flip `bShowPin` where `bCanToggleVisibility` is true, compile, read the node back.
