@@ -292,7 +292,7 @@ protected:
 	 *  activation, before any notify has fired. The ability checks itself against the
 	 *  real thing when the window opens and warns if they have drifted apart.
 	 */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Timing", meta=(ClampMin="0.0"))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Animation", meta=(ClampMin="0.0"))
 	float ReleaseStartSeconds = 0.36f;
 
 	/**
@@ -312,7 +312,7 @@ protected:
 	// it set one indirectly, through however long the clip's tail happened to be.
 
 	/** Optional section played on activation. None starts the montage from the beginning. */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Timing")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Animation")
 	FName WindupSection = NAME_None;
 
 	/**

@@ -393,27 +393,26 @@ In execution order, and all sequential. **Target Lock shipped 2026-08-13**, and 
   home for a **turn cap** if fast-spin inputs ever need bounding, which single-rate facing already
   provides incidentally. Last in the order; nothing depends on it.
 
-**Structure Audit — the project's structure as a whole. It has a trigger, not a position.**
+**Structure Audit — the structural half ran 2026-08-15, by the user's call; the feel half keeps
+its trigger.**
 
-Raised 2026-08-12 as an audit of what is designer-facing, **widened the same day** to the project
-entire: the C++ module layout, `/Game/TheDream/` content organisation, asset naming, the gameplay
-tag hierarchy, and these docs. It is listed apart from the sequence above because it does not have
-a place in it.
+Raised 2026-08-12 as an audit of what is designer-facing, widened the same day to the project
+entire. **Run 2026-08-15**: the docs re-audited for truth and budget, the never-referenced
+`Variant_Combat` / `ThirdPerson` / `LevelPrototyping` template trees deleted from source and
+content (the asset registry showed zero external referencers; `Characters` and `Input` are the
+template content that remains, both live), StateTree dropped from the module and plugin lists,
+and the founding irritant discharged — `ReleaseStartSeconds` and `WindupSection` now live in
+`Combat|Animation`, the guard's knobs and getters in `Combat|Block`. One limit met: the details
+panel ignores struct-member categories inside arrays, so grouping *inside* `Branches` still
+rests on the property comments.
 
-What prompted it is still the smallest concrete example: property categories mix *design* data with
-*animation* data and give no sign which is which. `ReleaseStartSeconds` is a hand-copied measurement
-of a notify's position sitting beside `ReleaseAtSeconds`, which is a genuine design knob, and the
-wedges are authored under `Combat|Timing` when they are spacing.
+**Deliberately not done, and why:** splitting `ATDCombatCharacter` — moving a UPROPERTY orphans
+every Blueprint CDO override of it, so reorganising before the systems settle would be paid for
+twice; jump-as-ability, which is Stun's per the guard-break trap; and the decision log's
+archive, which is append-only by design.
 
-**Lunge strength curves are parked against this same trigger** (2026-08-13, the user's call), and are
-listed here rather than in the sequence for that reason. They are *not* structural work — the reason
-they share the trigger is that they are last-10% feel tuning, which is the same thing verified-good
-is a precondition for. Assets exist and are wired to nothing; `Docs/Combat-Decisions.md`'s tuning
-map carries the warning that a curve's mean must be 1.0 or it silently scales the authored distance.
-
-**The trigger is the combat model being verified good in play.** Deferring the audit is right —
-anything reorganised before the systems settle gets reorganised again — but *last* is not a
-schedule. An audit parked at the end of a list that keeps growing is one that never runs, and this
-list has grown every session it has existed. Verified-good is the prototype's actual finish line
-and the first moment reorganising stops being wasted work. **If that is true and this has not run,
-it is next**, whatever else has accumulated by then.
+**Lunge strength curves stay parked on the verified-good trigger** (2026-08-13, the user's
+call). They are last-10% feel tuning, not structure: assets exist, wired to nothing, and the
+tuning map carries the warning that a curve's mean must be 1.0 or it silently scales the
+authored distance. The reach/travel/spacing re-author shares that trigger — **when the combat
+model is verified good in play, that work is next**, whatever else has accumulated by then.

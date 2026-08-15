@@ -145,11 +145,11 @@ public:
 	bool IsDead() const { return bDead; }
 
 	/** True while BlockingTag is present, i.e. a guard is up. */
-	UFUNCTION(BlueprintPure, Category="Combat|Stamina")
+	UFUNCTION(BlueprintPure, Category="Combat|Block")
 	bool IsBlocking() const;
 
 	/** True from a guard breaking until its stun expires. Every ability is refused throughout. */
-	UFUNCTION(BlueprintPure, Category="Combat|Stamina")
+	UFUNCTION(BlueprintPure, Category="Combat|Block")
 	bool IsGuardBroken() const { return bGuardBroken; }
 
 	/**
@@ -159,7 +159,7 @@ public:
 	 *  failed and refuses everything. A block that worked still costs the defender initiative;
 	 *  it does not cost them their guard.
 	 */
-	UFUNCTION(BlueprintPure, Category="Combat|Stamina")
+	UFUNCTION(BlueprintPure, Category="Combat|Block")
 	bool IsInBlockstun() const { return bInBlockstun; }
 
 	/**
@@ -192,7 +192,7 @@ public:
 	void PayBlockInitialCost();
 
 	/** True while a guard is inside its minimum duration and cannot be acted out of. */
-	UFUNCTION(BlueprintPure, Category="Combat|Stamina")
+	UFUNCTION(BlueprintPure, Category="Combat|Block")
 	bool IsBlockCommitted() const;
 
 	/**
@@ -206,7 +206,7 @@ public:
 	 *  what an attacker can see, and defence has to be legible from the outside. That is the same
 	 *  reason the damage wedge is actor-framed while aim assist is camera-framed.
 	 */
-	UFUNCTION(BlueprintPure, Category="Combat|Stamina")
+	UFUNCTION(BlueprintPure, Category="Combat|Block")
 	bool IsGuardFacing(const FVector& AttackOriginWorld) const;
 
 	/**
@@ -427,7 +427,7 @@ protected:
 	 *  place precisely so they cannot disagree, and a second spender running on an ability's own
 	 *  clock would be the first thing able to.
 	 */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Stamina")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Block")
 	FGameplayTag BlockingTag;
 
 	/**
@@ -443,7 +443,7 @@ protected:
 	 *  taking the option away. The user's value is 10, giving ten seconds from full before a guard
 	 *  is breakable by anything at all.
 	 */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Stamina", meta=(ClampMin="0.0"))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Block", meta=(ClampMin="0.0"))
 	float BlockDrainPerSecond = 10.0f;
 
 	/**
@@ -462,7 +462,7 @@ protected:
 	 *  Bounded, and that is what keeps it on the right side of the 2026-08-14 rule about
 	 *  suppressors: an unbounded one is a deadlock, a bounded one is a cost.
 	 */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Stamina", meta=(ClampMin="0.0"))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Block", meta=(ClampMin="0.0"))
 	float GuardBreakStunSeconds = 1.0f;
 
 	/**
@@ -476,7 +476,7 @@ protected:
 	 *  Restored from the value captured at BeginPlay rather than to a constant, so a Blueprint that
 	 *  authors a different `MaxWalkSpeed` is not silently overwritten with this class's idea of one.
 	 */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Stamina", meta=(ClampMin="0.0"))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Block", meta=(ClampMin="0.0"))
 	float BlockingMaxWalkSpeed = 125.0f;
 
 	/**
@@ -522,7 +522,7 @@ protected:
 	 *  0.25 is the user's value, signed off knowing it is untuned, with the reasoning that a
 	 *  clearly-too-long first probe answers "is feathering dead" better than a borderline one.
 	 */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Stamina", meta=(ClampMin="0.0"))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Block", meta=(ClampMin="0.0"))
 	float MinimumBlockSeconds = 0.25f;
 
 	/**
@@ -549,7 +549,7 @@ protected:
 	 *  the player did not ask for and cannot distinguish -- would make the cost conditional on
 	 *  something invisible, which is the failure the bimodal durations already demonstrated.
 	 */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Stamina", meta=(ClampMin="0.0"))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Block", meta=(ClampMin="0.0"))
 	float BlockInitialStaminaCost = 0.0f;
 
 	/**
