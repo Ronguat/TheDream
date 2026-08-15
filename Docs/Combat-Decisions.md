@@ -614,6 +614,14 @@ table had begun carrying value patches to cover the gap, which is not what it is
 **Update this when a number is felt, not when it is changed.** A retune by an assistant leaves a
 value in the same state it was in.
 
+**Sparse feel coverage is the plan while the combat vocabulary is incomplete, not a gap** (2026-08-15,
+the user, closing a concern three assistant assessments had raised in a row). Final feel derives from
+how the systems interplay, not from any one of them in a vacuum, so deliberate feel passes wait for
+the full "megaslice" — and the project is architected designer-tunable everywhere precisely so that
+pass is cheap when it arrives. This table is therefore **provenance for that day, not a debt ledger
+pressing for payment**: an unfelt value is not a defect, and only a verdict-shaped claim — "X is
+reactable", "Y is too safe" — requires a felt number behind it.
+
 | Number | State | Notes |
 |---|---|---|
 | `AimAssistMarginCm` | **Felt** 2026-08-14 | Authored 200, played the same day, settled at **100**. The one aim-assist number with feel behind it. |
