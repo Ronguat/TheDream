@@ -64,7 +64,7 @@ along with the audit and the reasoning behind the model.)
 **Two machines have run once** (2026-08-15, V2 recon — observational, no client input). They connect,
 replicate and stay up, and all four replicated bools reach the client. **Everything else above is
 still structure rather than behaviour**: nothing has run under latency or with a client acting, and
-**`OnRep_PlayerState` is still unverified** — nothing can currently observe it. See the decision log.
+**`OnRep_PlayerState` is still unverified** — observable since 2026-08-15's `ASC RESOLVE` line; the next two-machine run settles it. See the decision log.
 
 **On commitment level, stated 2026-08-11 so nobody has to guess it:** *building* networkably is
 non-negotiable and binds every slice, as above. *Actually networking the game* is the *final

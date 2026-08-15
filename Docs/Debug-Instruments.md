@@ -97,8 +97,9 @@ any change with two `SceneTools.trace_world` probes, one inside and one beyond, 
 enumerated from the source 2026-08-14 rather than remembered — `ACTIVATE`, `COIL START`, `COMMIT`,
 `ESCALATE`, `RELEASE` / `RELEASE OFF`, `RELEASE BEGIN` / `END` (from the notify), `ABILITY END`,
 `MONTAGE` (seven variants, including the delegate outcomes), `FACING LOCK`, `DODGE`, `DODGE END`,
-`BUFFER`, `REFUSED`, `DEATH`, `REVIVE`, `TARGET`, `AIM ASSIST`, `AIM WEDGE` and `LUNGE STOP`. Turn
-it off with `TD.DebugCombatTiming 0` when combat is not under test.
+`BUFFER`, `REFUSED`, `DEATH`, `REVIVE`, `TARGET`, `AIM ASSIST`, `AIM WEDGE` and `LUNGE STOP`;
+`DAMAGED` and `ASC RESOLVE` joined 2026-08-15. Turn it off with `TD.DebugCombatTiming 0` when
+combat is not under test.
 
 **Block adds several** *(2026-08-14)*: `BLOCK up` / `BLOCK down` for the guard's edges, `BLOCK cost`
 when a guard charges its initial stamina, `BLOCKED` when a hit lands on one — carrying the stamina
@@ -106,6 +107,17 @@ damage and the bar remaining, which is the pair that says whether the next hit w
 `GUARD BREAK` / `GUARD END` around the stun. **`BLOCKED` with `remaining=0.0` and no `GUARD BREAK`
 beside it is the failure to watch for**: it means the break has been moved somewhere that cannot see
 a hit landing on an already-empty bar.
+
+**`DAMAGED` is a health hit's ledger line** *(2026-08-15)* — target, attacker, `damage=` and the
+clamped `health=` read back after the effect lands, mirroring `BLOCKED`'s stamina pair. It closed
+the last silent resource change: between full and `DEATH`, health previously moved with no line at
+all, so three guard-down hits took a defender 100 → 55 invisibly. **Between `REVIVE`s, consecutive
+`health=` values step by exactly `damage=`** — the checker asserts that ledger in every `s2-*` run.
+
+**`ASC RESOLVE` names which ability system a character bound** *(2026-08-15)* — `(PlayerState)` or
+`(owned fallback)` — on every resolution path, including `OnRep_PlayerState`. It exists because the
+two-machine recon could not distinguish a resolved client from an unseeded fallback by any other
+channel; the next two-machine run reads it off `TheDream_2.log` and settles `OnRep_PlayerState`.
 
 **`BLOCK down` carries `(released)`, `(cancelled)` or `(exhausted)`, and the first two are logged in
 `EndAbility`** — six things end a guard and only one is the button coming up. It was in
@@ -186,7 +198,10 @@ exhaustion" gap)*. Both carry the bar, and **the two numbers are the assertion**
 exhaustion begins at 0 and ends at Max rather than on a clock, so `stamina=0.0` on entry and
 `stamina=100.0` on exit is the check, and anything else says the mechanism has moved. Both fire only
 on a real transition. **`EXHAUSTED` prints *before* the `GUARD BREAK` it shares a frame with** — the
-blocked hit empties the bar, the delegate exhausts you, and the break follows.
+blocked hit empties the bar, the delegate exhausts you, and the break follows. **Re-sited the same
+day, with `DEATH`/`REVIVE`, from the authority transitions into the `Apply*`/`Clear*` state pairs**
+— those run on every machine, so clients now announce all four; the recon's 6-of-24 client-tag
+measurement predates this and wants re-measuring.
 
 **An exhausted holder's `REFUSED` stream is expected output, not a fault.** A held guard retries
 every tick while exhausted, deduped to one line per reason per half second — measured at ~0.503 s
@@ -256,9 +271,10 @@ gitignored, so this is machine state and never travels with the repo. **Restore 
 - `RunUnderOneProcess=False` spawns a second `UnrealEditor.exe` writing `Saved/Logs/TheDream_2.log`
   — **the only channel to client-side state that exists**, because the MCP toolset returns only
   `UEDPIE_0_` actors and cannot see the client world at all.
-- The client receives **6 of the 24 trace tags**: `RELEASE BEGIN`/`END`, `BLOCKSTUN`/`END`,
-  `GUARD BREAK`/`END`. Death and exhaustion are absent because their logs sit on the authority-side
-  transition rather than in the `Apply*` the `OnRep` calls.
+- The client received **6 of the 24 trace tags** when measured: `RELEASE BEGIN`/`END`,
+  `BLOCKSTUN`/`END`, `GUARD BREAK`/`END`. Death and exhaustion were absent because their logs sat
+  on the authority-side transitions — **re-sited into `Apply*`/`Clear*` later the same day**, so
+  expect `DEATH`/`REVIVE`/`EXHAUSTED`/`EXHAUSTION END` client-side too; re-measure next run.
 - **`BLOCKSTUN until=` reads `0.000` on a client** — that field is server-only state, not a bug.
 - **A second `PlayerStart` makes single-player spawn random**, so the loop's `startTransform` is now
   load-bearing rather than a convenience.
@@ -294,9 +310,9 @@ looks ignored.
 | `s1-light` | 0.1 | `Off` | press→`RELEASE BEGIN` 200 ms ±30; elapsed 0.750 +10–35 ms; 0 escalations, 0 coils |
 | `s1-heavy` | 0.3 | `Off` | 500 ms ±30; elapsed 1.150 +10–35 ms; exactly 1 escalation, 1 coil |
 | `s1-charged` | 0.8 | `Off` | 750 ms ±30; elapsed 1.500 +10–35 ms; exactly 2 escalations, 1 coil |
-| `s2-light` | 0.1 | `HoldBlock` | stamina damage exactly 5; `BLOCK cost` per `BLOCK up`; `GUARD BREAK` count equals blocks at `remaining=0.0`; break stun 1.0 s ±25 ms; `BLOCKSTUN` span 0.400 ±20 ms |
-| `s2-heavy` | 0.3 | `HoldBlock` | as above, damage 50, `BLOCKSTUN` span 0.500 |
-| `s2-charged` | 0.8 | `HoldBlock` | as above, damage 100, and **`BLOCKSTUN` never fires at all** |
+| `s2-light` | 0.1 | `HoldBlock` | stamina damage exactly 5; `BLOCK cost` per `BLOCK up`; `GUARD BREAK` count equals blocks at `remaining=0.0`; break stun 1.0 s ±25 ms; `BLOCKSTUN` span 0.400 ±20 ms; guard-down `DAMAGED` exactly 15 with the health ledger stepping exactly |
+| `s2-heavy` | 0.3 | `HoldBlock` | as above with damage 50, `BLOCKSTUN` span 0.500, `DAMAGED` 25 |
+| `s2-charged` | 0.8 | `HoldBlock` | as above with damage 100, `DAMAGED` 40, and **`BLOCKSTUN` never fires at all** |
 | `s3` | 0.1 | `PeriodicDodge` | `DODGE`/`DODGE END` paired; clean travel 400–420 cm; dodge from full leaves exactly 50; `EXHAUSTED`/`EXHAUSTION END` paired, entering at 0 and clearing at 100 |
 
 **`s2-charged`'s blockstun assertion is a filed trap promoted to a standing check.** The charged's
@@ -313,4 +329,7 @@ drop the charged's stamina damage below `MaxStamina`, or raise `MaxStamina`, and
 **The dodger's travel needs the lateral filter or a fifth of the samples are wrong.** The checker
 keeps only `DODGE END` lines with `|right| ≤ 1.0`; 5 of 22 in the reference run read ~297 cm with
 `right≈-67`, all of them the attacker colliding with a displaced dodger. **Never widen the distance
-band to admit them** — that is fitting the band to contamination.
+band to admit them** — that is fitting the band to contamination. **A duration gate rides beside
+it** *(2026-08-15)*: the final dodge before `StopPIE` ends mid-travel with *zero* drift — measured
+141 cm at 0.14 s — so only dodges running at least `BAND_DODGE_MIN_DURATION` (DodgeSeconds minus a
+frame) count as travel samples at all.

@@ -850,9 +850,6 @@ void ATDCombatCharacter::EnterDeath()
 	}
 	bDead = true;
 
-	TD_TIMING_LOG(TEXT("[%.3f] DEATH      %s"),
-		GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f, *GetName());
-
 	// Server-only, and deliberately outside ApplyDeathState. Cancelling abilities is an
 	// authority decision that replicates through GAS on its own; running it again from a
 	// client's OnRep would cancel that client's *predicted* copies out from under a
@@ -905,6 +902,14 @@ void ATDCombatCharacter::OnRep_Dead()
 
 void ATDCombatCharacter::ApplyDeathState()
 {
+	// Logged here rather than in EnterDeath, and the siting is the point (2026-08-15): the
+	// Apply*/Clear* pairs run on every machine while Enter/Exit run on the server alone, so a log
+	// on the transition is invisible to exactly the client the replicated bool exists for. The
+	// two-machine recon measured death and exhaustion as the trace's only silent-on-client states,
+	// both for this one reason. The server still logs once -- Enter calls this directly.
+	TD_TIMING_LOG(TEXT("[%.3f] DEATH      %s"),
+		GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f, *GetName());
+
 	if (AbilitySystem)
 	{
 		AbilitySystem->AddLooseGameplayTag(TDTags::State_Dead);
@@ -932,6 +937,10 @@ void ATDCombatCharacter::ApplyDeathState()
 
 void ATDCombatCharacter::ClearDeathState()
 {
+	// Sited with DEATH's log above, for the same client-visibility reason.
+	TD_TIMING_LOG(TEXT("[%.3f] REVIVE     %s"),
+		GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f, *GetName());
+
 	if (AbilitySystem)
 	{
 		AbilitySystem->RemoveLooseGameplayTag(TDTags::State_Dead);
@@ -1040,9 +1049,6 @@ void ATDCombatCharacter::ReviveFromDebug()
 	}
 	bDead = false;
 
-	TD_TIMING_LOG(TEXT("[%.3f] REVIVE     %s"),
-		GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f, *GetName());
-
 	// Authority-only: attribute writes are the server's, and clients receive them by
 	// replication. Restoring them from a client's OnRep would be a client rewriting its own
 	// health, which is both wrong and the shape of an exploit.
@@ -1066,20 +1072,6 @@ void ATDCombatCharacter::ReviveFromDebug()
 void ATDCombatCharacter::EnterExhaustion()
 {
 	bExhausted = true;
-
-	// **The one combat state that had no trace at all**, so confirming it meant a GetActiveTags
-	// round-trip or an inference from a dropped buffer -- neither of which an unattended run can
-	// do. Both edges carry the bar because the *rule* is that exhaustion begins at 0 and ends at
-	// Max rather than on a clock: the two numbers are the assertion, and a value here that is
-	// neither says the mechanism has moved.
-	//
-	// Unguarded, because the caller only reaches here on a genuine transition -- see
-	// HandleStaminaChanged, which tests bExhausted before either call.
-	TD_TIMING_LOG(TEXT("[%.3f] EXHAUSTED  %s  stamina=%.1f"),
-		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f,
-		*GetName(),
-		GetStamina());
-
 	ApplyExhaustionState();
 }
 
@@ -1090,14 +1082,6 @@ void ATDCombatCharacter::ExitExhaustion()
 		return;
 	}
 	bExhausted = false;
-
-	// After the early return, so this is a real transition rather than every revive from an
-	// already-full bar. See EnterExhaustion for why the bar is printed.
-	TD_TIMING_LOG(TEXT("[%.3f] EXHAUSTION END %s  stamina=%.1f"),
-		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f,
-		*GetName(),
-		GetStamina());
-
 	ClearExhaustionState();
 }
 
@@ -1115,6 +1099,17 @@ void ATDCombatCharacter::OnRep_Exhausted()
 
 void ATDCombatCharacter::ApplyExhaustionState()
 {
+	// Both edges carry the bar because the *rule* is that exhaustion begins at 0 and ends at Max
+	// rather than on a clock: the two numbers are the assertion, and a value here that is neither
+	// says the mechanism has moved. Logged in the state pair rather than Enter/Exit for the reason
+	// ApplyDeathState gives (2026-08-15) -- these run on every machine, the transitions do not,
+	// and this was one of the trace's two silent-on-client states. Fires only on real transitions:
+	// the server guards in HandleStaminaChanged, clients in OnRep on a changed bool.
+	TD_TIMING_LOG(TEXT("[%.3f] EXHAUSTED  %s  stamina=%.1f"),
+		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f,
+		*GetName(),
+		GetStamina());
+
 	if (AbilitySystem && ExhaustedTag.IsValid())
 	{
 		AbilitySystem->AddLooseGameplayTag(ExhaustedTag);
@@ -1123,6 +1118,12 @@ void ATDCombatCharacter::ApplyExhaustionState()
 
 void ATDCombatCharacter::ClearExhaustionState()
 {
+	// Sited with EXHAUSTED's log above, for the same client-visibility reason.
+	TD_TIMING_LOG(TEXT("[%.3f] EXHAUSTION END %s  stamina=%.1f"),
+		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f,
+		*GetName(),
+		GetStamina());
+
 	if (AbilitySystem && ExhaustedTag.IsValid())
 	{
 		AbilitySystem->RemoveLooseGameplayTag(ExhaustedTag);
@@ -1265,6 +1266,17 @@ void ATDCombatCharacter::InitialiseAbilitySystem()
 	{
 		AttributeSet = OwnedAttributeSet;
 	}
+
+	// The line the first two-machine recon was missing (2026-08-15): nothing could say which ASC
+	// a client resolved -- the toolset cannot see the client world, and an unseeded fallback reads
+	// the same 100/100 on the HUD as the real thing, because the attribute constructor inits to
+	// 100. Logged on every resolution path (BeginPlay, PossessedBy, OnRep_PlayerState), so the
+	// swap a client makes when its PlayerState arrives is visible in its own log.
+	TD_TIMING_LOG(TEXT("[%.3f] ASC RESOLVE %s -> %s (%s)"),
+		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f,
+		*GetName(),
+		*GetNameSafe(OwnerActor),
+		OwnerActor == this ? TEXT("owned fallback") : TEXT("PlayerState"));
 
 	// Rebound every time rather than once: possession changes the owner, and the owner is what
 	// GAS resolves prediction keys and net roles against. The avatar stays the pawn, so traces,

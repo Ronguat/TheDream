@@ -38,6 +38,10 @@ BAND_COIL_LIGHT=0;     BAND_COIL_HEAVY=1;     BAND_COIL_CHARGED=1
 # S2 -- authored stamina damage per tier.
 BAND_STAMDMG_LIGHT=5; BAND_STAMDMG_HEAVY=50; BAND_STAMDMG_CHARGED=100
 
+# S2 -- authored health damage per tier, for hits landing while the guard is down.
+# Source: GA_Attack's Branches CDO, read 2026-08-15.
+BAND_HEALTHDMG_LIGHT=15; BAND_HEALTHDMG_HEAVY=25; BAND_HEALTHDMG_CHARGED=40
+
 # S2 -- blockstun span equals the tier's authored RecoverySeconds.
 # The charged has none reachable: its stamina damage empties any bar, so it
 # always breaks instead. That is a filed trap, asserted here as a standing fact.
@@ -49,6 +53,9 @@ BAND_GUARDSTUN=1.000; BAND_GUARDSTUN_TOL=0.025
 
 # S3 -- DodgeTargetDistanceCm and the spread measured on clean samples.
 BAND_DODGE_MIN=400; BAND_DODGE_MAX=420
+# A travel sample must be a *finished* dodge: DodgeSeconds 0.4 minus one frame. The final dodge
+# before StopPIE ends mid-travel with zero drift and is a session artifact, not a short dodge.
+BAND_DODGE_MIN_DURATION=0.38
 # A dodge is contaminated when anything touched the mover. A stationary dodge
 # is purely backward, so lateral drift is the tell -- filter on this, never on
 # the distance you were hoping for.
@@ -118,6 +125,25 @@ count_per_attack() { # count_per_attack <TAG-regex>; count of TAG per ACTIVATE
 
 stamina_damage_values() { grep -o "staminaDamage=[0-9.]*" "$SLICE" | cut -d= -f2; }
 
+damaged_values() { grep "^\[[0-9.]*\] DAMAGED" "$SLICE" | grep -o " damage=[0-9.]*" | cut -d= -f2; }
+
+damaged_ledger_violations() { # consecutive health= must step by exactly damage=; REVIVE resets
+	awk '
+		/^\[[0-9.]+\] REVIVE/ { prev=""; next }
+		/^\[[0-9.]+\] DAMAGED/ {
+			d=""; h=""
+			for (i=1;i<=NF;i++) {
+				if ($i ~ /^damage=/) { split($i,a,"="); d=a[2] }
+				if ($i ~ /^health=/) { split($i,b,"="); h=b[2] }
+			}
+			if (prev != "" && d != "" && h != "") {
+				diff = (prev - h) - d; if (diff < 0) diff = -diff
+				if (diff > 0.01) print prev "->" h "(damage " d ")"
+			}
+			if (h != "") prev = h
+		}' "$SLICE"
+}
+
 blockstun_spans() { # until= minus the timestamp it was printed at
 	awk '
 		/^\[[0-9.]+\] BLOCKSTUN  / {
@@ -179,10 +205,23 @@ run_s1() { # run_s1 <release_ms> <elapsed_authored> <escalations> <coils>
 	assert_all_equal "COIL START per attack" "count_per_attack '] COIL START'" "$coil"
 }
 
-run_s2() { # run_s2 <stamina_damage> <blockstun_span|none>
-	local dmg="$1" bs="$2" raises costs breaks zeros
+run_s2() { # run_s2 <stamina_damage> <blockstun_span|none> <health_damage>
+	local dmg="$1" bs="$2" hdmg="$3" raises costs breaks zeros viol dcount
 
 	assert_all_equal "BLOCKED staminaDamage" stamina_damage_values "$dmg"
+
+	# Guard-down hits: every stun and every exhaustion window lets swings through onto health,
+	# so a HoldBlock run structurally contains DAMAGED lines -- none at all means the fixture
+	# stopped trading, not that damage is clean.
+	assert_all_equal "DAMAGED health damage" damaged_values "$hdmg"
+
+	viol=$(damaged_ledger_violations | tr '\n' ';')
+	dcount=$(damaged_values | grep -c '[0-9]')
+	if [ -n "${viol//;/}" ]; then
+		check "health ledger steps by damage" 1 "$viol"
+	else
+		check "health ledger steps by damage" 0 "n=$dcount, all consecutive steps exact"
+	fi
 
 	# Parity: every guard raised charges its initial cost. This is only true
 	# because the dummy mirrors the player's BlockInitialStaminaCost.
@@ -219,12 +258,8 @@ run_s3() {
 	ends=$(grep -c "^\[[0-9.]*\] DODGE END" "$SLICE")
 	assert_count "DODGE/DODGE END paired" "$ends" "$starts"
 
-	# Travel, clean samples only. Anything the attacker collided with carries
-	# lateral drift; a stationary dodge is purely backward.
-	clean_n=$(grep "^\[[0-9.]*\] DODGE END" "$SLICE" \
-		| awk -v m="$BAND_DODGE_LATERAL_MAX" '{
-			for (i=1;i<=NF;i++) if ($i ~ /^right=/) { split($i,a,"="); if (a[2]<0) a[2]=-a[2]; if (a[2]<=m) print }
-		}' | wc -l)
+	# Travel, clean samples only -- one filter, defined in clean_dodge_distances.
+	clean_n=$(clean_dodge_distances | grep -c '[0-9]')
 	if [ "$clean_n" -eq 0 ]; then
 		check "dodge travel (clean)" 1 "no uncontaminated samples"
 	else
@@ -249,21 +284,39 @@ run_s3() {
 }
 
 clean_dodge_distances() {
-	grep "^\[[0-9.]*\] DODGE END" "$SLICE" | awk -v m="$BAND_DODGE_LATERAL_MAX" '{
-		r=""; d=""
-		for (i=1;i<=NF;i++) {
-			if ($i ~ /^right=/) { split($i,a,"="); r=a[2]; if (r<0) r=-r }
-			if ($i ~ /^dist=/)  { split($i,b,"="); d=b[2]; sub(/uu$/,"",d) }
-		}
-		if (r != "" && r <= m) print d
-	}'
+	# Full-duration, uncontaminated samples only. The lateral gate excludes collisions (the
+	# attacker shoving a mid-dodge body reads as right= drift); the duration gate excludes
+	# dodges truncated by the session itself -- the last dodge before StopPIE ends mid-travel
+	# with zero drift and read as a 141 cm travel failure until this existed (2026-08-15).
+	awk -v m="$BAND_DODGE_LATERAL_MAX" -v mind="$BAND_DODGE_MIN_DURATION" '
+		/^\[[0-9.]+\] DODGE      dir=/ { t=$1; gsub(/[\[\]]/,"",t); start=t+0; have=1; next }
+		have && /^\[[0-9.]+\] DODGE END/ {
+			t=$1; gsub(/[\[\]]/,"",t); dur=(t+0)-start; have=0
+			r=""; d=""
+			for (i=1;i<=NF;i++) {
+				if ($i ~ /^right=/) { split($i,a,"="); r=a[2]; if (r<0) r=-r }
+				if ($i ~ /^dist=/)  { split($i,b,"="); d=b[2]; sub(/uu$/,"",d) }
+			}
+			if (dur >= mind && r != "" && r <= m) print d
+		}' "$SLICE"
 }
 
 dodge_from_full_remaining() {
-	# Only dodges that began from a full bar: remaining is exactly Max-cost.
-	# Identified as the first dodge of each exhaustion-free run at the cap.
-	grep "^\[[0-9.]*\] DODGE      dir=" "$SLICE" | grep -o "remaining=[0-9.]*" | cut -d= -f2 \
-		| awk -v v="$BAND_DODGE_REMAINING_FROM_FULL" '$1+0 == v+0'
+	# The first dodge of each full-bar stretch: session start, after every EXHAUSTION END
+	# (which by rule fires at Max), and after every REVIVE (which refills). Selected by
+	# *position*, never by the value under test -- the earlier version filtered samples to the
+	# expected 50 and then asserted 50, so it could only fail via "no samples" (found in
+	# review, 2026-08-15).
+	awk '
+		BEGIN { expect=1 }
+		/^\[[0-9.]+\] EXHAUSTION END/ { expect=1; next }
+		/^\[[0-9.]+\] REVIVE/ { expect=1; next }
+		/^\[[0-9.]+\] DODGE      dir=/ {
+			if (expect) {
+				for (i=1;i<=NF;i++) if ($i ~ /^remaining=/) { split($i,a,"="); print a[2] }
+				expect=0
+			}
+		}' "$SLICE"
 }
 
 exhaust_enter_stamina() {
@@ -284,6 +337,8 @@ self_test() {
 [1.000] INPUT      InputTag.Attack pressed on Fixture
 [1.200] RELEASE BEGIN  pos=0.3
 [1.769] ABILITY END  pos=0.0000 elapsed=0.769
+[2.000] DAMAGED    Defender by Fixture  damage=15  health=85.0
+[2.500] DAMAGED    Defender by Fixture  damage=15  health=70.0
 EOF
 	# Correct band: 200 ms press->release. Should PASS.
 	PASSES=0; FAILS=0; ROWS=""
@@ -293,14 +348,21 @@ EOF
 	PASSES=0; FAILS=0; ROWS=""
 	assert_all_in_band "deliberately wrong band" press_to_release 470 530 "ms"
 	local bad=$FAILS
+	# Same pair for the damage ledger: 15s must pass as 15 and fail as 25.
+	PASSES=0; FAILS=0; ROWS=""
+	assert_all_equal "control (damaged=15)" damaged_values 15
+	local good2=$FAILS
+	PASSES=0; FAILS=0; ROWS=""
+	assert_all_equal "deliberately wrong (damaged=25)" damaged_values 25
+	local bad2=$FAILS
 	rm -f "$SLICE"
 
-	if [ "$good" -eq 0 ] && [ "$bad" -eq 1 ]; then
-		echo "  PASS  control band passed and the wrong band FAILED."
+	if [ "$good" -eq 0 ] && [ "$bad" -eq 1 ] && [ "$good2" -eq 0 ] && [ "$bad2" -eq 1 ]; then
+		echo "  PASS  both control bands passed and both wrong bands FAILED."
 		echo "  The instrument can fail, so its passes mean something."
 		exit 0
 	fi
-	echo "  BROKEN  control_fails=$good wrong_band_fails=$bad (want 0 and 1)."
+	echo "  BROKEN  timing $good/$bad, damage $good2/$bad2 (want 0/1 and 0/1)."
 	echo "  Do not trust any result from this checker until fixed."
 	exit 1
 }
@@ -323,9 +385,9 @@ case "$SCENARIO" in
 	s1-light)   run_s1 $BAND_RELEASE_LIGHT   $BAND_ELAPSED_LIGHT   $BAND_ESCALATE_LIGHT   $BAND_COIL_LIGHT ;;
 	s1-heavy)   run_s1 $BAND_RELEASE_HEAVY   $BAND_ELAPSED_HEAVY   $BAND_ESCALATE_HEAVY   $BAND_COIL_HEAVY ;;
 	s1-charged) run_s1 $BAND_RELEASE_CHARGED $BAND_ELAPSED_CHARGED $BAND_ESCALATE_CHARGED $BAND_COIL_CHARGED ;;
-	s2-light)   run_s2 $BAND_STAMDMG_LIGHT   $BAND_BLOCKSTUN_LIGHT ;;
-	s2-heavy)   run_s2 $BAND_STAMDMG_HEAVY   $BAND_BLOCKSTUN_HEAVY ;;
-	s2-charged) run_s2 $BAND_STAMDMG_CHARGED none ;;
+	s2-light)   run_s2 $BAND_STAMDMG_LIGHT   $BAND_BLOCKSTUN_LIGHT $BAND_HEALTHDMG_LIGHT ;;
+	s2-heavy)   run_s2 $BAND_STAMDMG_HEAVY   $BAND_BLOCKSTUN_HEAVY $BAND_HEALTHDMG_HEAVY ;;
+	s2-charged) run_s2 $BAND_STAMDMG_CHARGED none $BAND_HEALTHDMG_CHARGED ;;
 	s3)         run_s3 ;;
 	*) echo "regression-check: unknown scenario '$SCENARIO'" >&2; usage ;;
 esac

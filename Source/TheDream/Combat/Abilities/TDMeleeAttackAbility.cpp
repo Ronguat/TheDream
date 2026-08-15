@@ -2,6 +2,7 @@
 
 #include "Combat/Abilities/TDMeleeAttackAbility.h"
 #include "Combat/Tasks/AbilityTask_MeleeTrace.h"
+#include "Combat/Attributes/TDAttributeSet.h"
 #include "Combat/TDGameplayTags.h"
 #include "Combat/TDCombatDebug.h"
 #include "Core/TheDreamCharacter.h"
@@ -378,6 +379,19 @@ void UTDMeleeAttackAbility::HandleTraceHit(const FHitResult& Hit)
 	if (UAbilitySystemComponent* SourceASC = GetAbilitySystemComponentFromActorInfo())
 	{
 		SourceASC->ApplyGameplayEffectSpecToTarget(*SpecHandle.Data.Get(), TargetASC);
+
+		// Read back off the target after the effect lands, exactly as ApplyStaminaDamage reads the
+		// bar -- the attribute set clamps, so the clamped result is the only truthful ledger entry.
+		// This was the last resource change with no trace at all: BLOCKED prints the stamina
+		// ledger, while a hit on health printed nothing between full and DEATH, so an unattended
+		// run could count the silences but never audit the amounts (found 2026-08-15, when three
+		// guard-down hits moved a defender 100 -> 55 and the log never said so).
+		TD_TIMING_LOG(TEXT("[%.3f] DAMAGED    %s by %s  damage=%.0f  health=%.1f"),
+			GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f,
+			*GetNameSafe(HitActor),
+			*GetNameSafe(GetAvatarActorFromActorInfo()),
+			GetAttackDamage(),
+			TargetASC->GetNumericAttribute(UTDAttributeSet::GetHealthAttribute()));
 	}
 }
 
