@@ -36,8 +36,9 @@ where you stand, which is a *useful control* and an easy thing to mistake for br
 **Read `TARGET commit`'s bearing to tell which mode you are in** — a bearing pinned near ±90 while
 you circle is a dummy that is not turning.
 
-**Beware the placed axis when testing facing.** `L_CombatTest` puts the dummy at (200, 0) yaw 180
-and `PlayerStart` at (0, 0) — *directly along its facing*, so `bearing=+0.0` there is what a dummy
+**Beware the placed axis when testing facing.** `L_CombatTest` puts the dummy at (200, 0, 96.0) yaw
+180 — actor `BP_TrainingDummy_C_0` since it was re-placed 2026-08-14, `_C_1` before that — and
+`PlayerStart` at (0, 0), *directly along its facing*, so `bearing=+0.0` there is what a dummy
 that never turns also reports. Use `StartPIE`'s `startTransform` to spawn off-axis; (200, −400)
 reads +90 for a non-turning dummy and 0 for a turning one.
 

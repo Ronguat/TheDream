@@ -333,6 +333,16 @@ void UTDMeleeAttackAbility::HandleTraceHit(const FHitResult& Hit)
 			// not a rule each attack has to restate.
 			Defender->ApplyStaminaDamage(GetAttackStaminaDamage());
 
+			// Logged before the blockstun it causes, so the trace reads cause then effect. It ran the
+			// other way for one session and inverted the tell Docs/Debug-Instruments.md gives for a
+			// break -- "BLOCKED with no BLOCKSTUN beside it" is read downward.
+			TD_TIMING_LOG(TEXT("[%.3f] BLOCKED    %s by %s  staminaDamage=%.0f  remaining=%.1f"),
+				GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f,
+				*GetNameSafe(Avatar),
+				*Defender->GetName(),
+				GetAttackStaminaDamage(),
+				Defender->GetStamina());
+
 			// **Blockstun only if the guard survived, and the order is the reason this reads the
 			// defender back instead of predicting.** ApplyStaminaDamage above may have broken the
 			// guard, and a break already refuses every ability for longer than any blockstun -- so
@@ -342,13 +352,6 @@ void UTDMeleeAttackAbility::HandleTraceHit(const FHitResult& Hit)
 			{
 				Defender->EnterBlockstun(GetAttackBlockstunSeconds());
 			}
-
-			TD_TIMING_LOG(TEXT("[%.3f] BLOCKED    %s by %s  staminaDamage=%.0f  remaining=%.1f"),
-				GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f,
-				*GetNameSafe(Avatar),
-				*Defender->GetName(),
-				GetAttackStaminaDamage(),
-				Defender->GetStamina());
 			return;
 		}
 	}

@@ -36,10 +36,8 @@ in-editor plugin (`127.0.0.1:8000`, see `.mcp.json`).
 - **Editor closed and reopened mid-session** *(confirmed)* — fine, tools resume by themselves.
 
 The distinction is **registration versus connection**: schemas are picked up once at session start,
-the connection can drop and re-establish. So the assistant closing the editor for a rebuild is safe;
-starting without one is not.
-
-If asset writes are needed, confirm the tools respond before promising any.
+the connection can drop and re-establish. So closing the editor for a rebuild is safe; starting
+without one is not. If asset writes are needed, confirm the tools respond before promising any.
 
 ---
 
@@ -156,23 +154,20 @@ input schema, which is the fastest way to learn one.
 through the layer that wrote it.** These tools have reported success while changing nothing in
 several distinct ways:
 
-- **`set_properties` can return true and `get_properties` read the value back intact while the write
-  accomplishes nothing** *(reported once, twice in a session)*. Round-trip verification is not
-  sufficient.
-- **Binary presence proves a write landed, not that anything derived from it was rebuilt**
-  *(confirmed 2026-08-11)*. A BlendSpace's `SampleData` wrote, read back, grew the `.uasset` and
-  displayed correctly on the grid — and produced no pose at all, because the derived interpolation
-  grid never rebuilt. Suspect this for **any asset type with a build step**; the fix is a real edit
-  in the editor, then save. Only play confirms those.
-- **CDO writes are property-dependent, and reading the CDO cannot tell you** *(confirmed
-  2026-08-13)*. Two writes to `GA_Attack`'s CDO seconds apart: a direct object reference did **not**
-  reach the live ability instance, while object references inside a struct array did. Both read
-  correctly off the CDO throughout.
+- **Round-tripping proves nothing**: `set_properties` returns true and `get_properties` reads the
+  value back intact while the write accomplishes nothing *(reported once, twice in a session)*.
+- **Binary presence proves a write landed, not that anything derived from it rebuilt** *(2026-08-11)*.
+  A BlendSpace's `SampleData` wrote, read back, grew the `.uasset` and displayed on the grid — and
+  produced no pose, the derived interpolation grid never having rebuilt. Suspect **any asset type
+  with a build step**; fix with a real edit in the editor, then save. Only play confirms those.
+- **CDO writes are property-dependent and the CDO cannot tell you** *(2026-08-13)*. Two writes to
+  `GA_Attack` seconds apart: a direct object reference did **not** reach the live instance, object
+  references inside a struct array did, and both read correctly off the CDO throughout.
 
 **For a CDO, the artefact is the runtime instance** — not the CDO, not the file. Reach it during PIE
-by reading `ActivatableAbilities` on the `AbilitySystemComponent`; each spec's `nonReplicatedInstances`
-holds the live ability's `refPath`. The GAS inspector cannot do this (`GetGrantedAbilities` returns
-names only). No mechanism is offered for why properties differ.
+via `ActivatableAbilities` on the ASC; each spec's `nonReplicatedInstances` holds the live ability's
+`refPath`. The GAS inspector cannot (`GetGrantedAbilities` returns names only), and no mechanism is
+offered for why properties differ.
 
 **A Blueprint CDO property set programmatically is generally not live in the current editor session**
 *(confirmed 2026-08-10, reproduced deliberately on a second, older property)*. Return value,
@@ -245,8 +240,11 @@ type.** Comparing against stock `IMC_Default` is what exposed the input bug; our
   *(confirmed 2026-08-10)*. The placed dummy read `DefaultAbilities: []` against a populated CDO and
   was granted nothing. The signature is the instance showing **C++ class defaults** — it was placed
   before the Blueprint authored them. `reset_properties` fails on exactly those names while
-  succeeding on `EditAnywhere` ones, which is the cheapest confirmation. **The fix is to delete and
-  re-place the actor**; note its transform and label first.
+  succeeding on `EditAnywhere` ones, which is the cheapest confirmation; `set_properties` refuses
+  them too *(both confirmed 2026-08-14)*, so **delete-and-re-place is the only route**, not merely
+  the tidiest. **Diff the whole instance against the CDO first, not the properties you suspect** —
+  overrides are the one thing nobody has a list of — and note the transform and label. Expect the
+  actor's internal name to change (`_C_1` → `_C_0`), which breaks any doc naming it.
 
 ---
 
@@ -308,16 +306,14 @@ offset, a wrong attachment — is fully visible on a placed actor with no PIE an
 suspected cause over one that only observes it. When two hypotheses are killed by evidence, file the
 anomaly rather than inventing a third.
 
-**An assumed control is worse than no control.** A comparison case only disconfirms if the case was
+**An assumed control is worse than no control.** A comparison case only disconfirms if it was
 actually *measured*. The hover hunt killed its first hypothesis with "the dodge has the same setting
-and does not hover" — and nobody had ever checked whether the dodge hovers; a report that it looked
-fine *during locomotion* had been silently converted into *the dodge is fine*. An assumed control
-carries the authority of evidence while being a guess, and what it corrupts is not the conclusion
-but the test used to reject one.
+and does not hover", having never checked — a report that it looked fine *during locomotion* was
+silently converted into *the dodge is fine*. It carries the authority of evidence while being a
+guess, and corrupts not the conclusion but the test used to reject one.
 
 **What the user glosses over is often the decisive observation.** "The dummy hovers in the preview
-too" reframed a two-session bug instantly, volunteered casually. When a bug resists, ask explicitly
-what *else* shows the symptom.
+too" reframed a two-session bug instantly. When a bug resists, ask what *else* shows the symptom.
 
 **A single fixed test configuration is a filter.** An automated PIE run spawns both characters at
 their placed transforms and nobody moves, so **"no damage landed" is not evidence about hit

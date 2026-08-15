@@ -47,7 +47,20 @@ bool UTDGameplayAbility::CanActivateAbility(const FGameplayAbilitySpecHandle Han
 		{
 			FGameplayTagContainer Owned;
 			ActorInfo->AbilitySystemComponent->GetOwnedGameplayTags(Owned);
-			const FGameplayTagContainer Offending = ActivationBlockedTags.Filter(Owned);
+
+			// **Owned.Filter(Blocked), never Blocked.Filter(Owned) -- the direction is the whole
+			// correctness of this line.** Filter expands the tags of the container it is called on,
+			// so the reversed form expands each *blocked* tag upward and matches a blocked
+			// State.Blocking.Committed against a merely-owned State.Blocking. That reported a
+			// committed guard on every refusal thrown during any block, three seconds after a 0.25 s
+			// commitment had expired, and it was wrong every time -- caught 2026-08-14 by an attack
+			// that activated while the trace claimed the tag forbidding it was present.
+			//
+			// This direction expands the *owned* tags instead, which is what
+			// HasAnyMatchingGameplayTags does, so the set named here is the set GAS actually refused
+			// on. It also names the tags the avatar *has*, which is the more useful half of "which
+			// rule stopped me".
+			const FGameplayTagContainer Offending = Owned.Filter(ActivationBlockedTags);
 
 			// Deduped, because the resume retries every tick while its input is held: without this
 			// a guard waiting on exhaustion would emit sixty identical lines a second and drown

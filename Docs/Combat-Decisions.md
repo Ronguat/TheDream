@@ -276,17 +276,22 @@ silently comes alive at whatever it was left at. **It is the same coupling that 
 breaks block" true without a special case**, seen from the other side — which is why both belong in
 the same head when either moves.
 
-**Whenever anything grants a placed actor `GA_Block` — *`BP_TrainingDummy`'s instance in
-`L_CombatTest` has `BlockingTag` stale at None.*** Filed 2026-08-14, and created by that day's own
-save: the level was written while the CDO change was not yet live, so the old value was baked in as
-a per-instance override. `BlockingTag` is `EditDefaultsOnly`, so it can be neither set nor reset on
-the instance — the only fix is delete-and-re-place, which is destructive and was not taken.
+**~~Whenever anything grants a placed actor `GA_Block`.~~ Discharged 2026-08-14** by deleting and
+re-placing the dummy, with the user's explicit approval — the fix is destructive, which is what had
+deferred it. `BlockingTag` now reads `State.Blocking` on the placed instance and on the live PIE
+actor. **The actor's internal name changed `BP_TrainingDummy_C_1` → `_C_0`** as a result; label,
+transform and every other property were captured first and restored identically.
 
-**Inert today, and that is the whole hazard.** The dummy has only `GA_Attack`, so it cannot block
-and `IsBlocking()` is correctly false either way. The moment anything grants it a guard — which
-**Parry will want**, since a parry wants something to parry against — its guard registers as absent,
-it takes full health damage through a raised block, and nothing says why. The player is unaffected:
-it spawns from `PlayerStart` and reads the CDO, with no placed instance to go stale.
+Kept because two things it established are still true. **`EditDefaultsOnly` really is unfixable in
+place** — both `reset_properties` and `set_properties` were tried on `blockingTag` and both refused,
+so delete-and-re-place is the *only* route and that is now confirmed rather than assumed. And the
+hazard it described was real but latent: the dummy had only `GA_Attack`, so `IsBlocking()` was
+correctly false either way, and it would have bitten the moment **Parry** granted it a guard.
+
+**The lesson that outlives it: capture the whole instance before deleting, not the properties you
+happen to suspect.** Eighteen were diffed against the CDO beforehand and the debug auto-attacker's
+five were not; they turned out to live on the Blueprint rather than as overrides, so nothing was
+lost, but that was luck. A placed actor's overrides are exactly the thing nobody has a list of.
 
 ---
 
@@ -829,6 +834,45 @@ long.
 | `bUseControllerDesiredRotation` | 08-12 |
 | `bUseControllerRotationYaw` | 08-12 |
 | `gEComponents` | 08-10, 08-11 |
+
+---
+
+## 2026-08-14 — The refusal trace lied about the tag doing the refusing
+
+Blockstun's first play test passed on every mechanical measure — four blocked hits, four lockouts,
+durations 0.401 to 0.404 against an authored 0.400, no stacking, and the buffer firing the refused
+attack the instant the lockout lifted. The defect was in the instrument reporting it.
+
+Every `REFUSED` line named **`State.Blocking.Committed`** among the offending tags, on refusals
+thrown up to three seconds into a guard whose `MinimumBlockSeconds` is 0.25. The commitment was
+fine; the line was wrong.
+
+```cpp
+ActivationBlockedTags.Filter(Owned)   // wrong
+Owned.Filter(ActivationBlockedTags)   // right
+```
+
+`FGameplayTagContainer::Filter` **expands the tags of the container it is called on**, so the first
+form expands each *blocked* tag upward and matches a blocked `State.Blocking.Committed` against a
+merely-owned `State.Blocking` — which is present for the whole of any guard. It therefore accused
+the commitment on every refusal thrown during a block, which is precisely the situation the line
+exists to explain. The second form expands the *owned* tags, which is what
+`HasAnyMatchingGameplayTags` does, so it names the set GAS actually refused on.
+
+**What settled it was the log contradicting itself**, not reading the API docs: at `9.258` an attack
+*activated* while the trace claimed the tag forbidding attacks was present. A tag cannot both refuse
+and not refuse, so one of the two was lying, and only the diagnostic had a reason to.
+
+**This is the fourth time an instrument has lied about Block**, after `BLOCK down` logging in
+`InputReleased`, the log placed before a `Super::EndAbility` that no-ops, and `REFUSED` being blind
+to tag refusals at all. The pattern is worth naming: **every one was a diagnostic that agreed with
+the implementer's expectation and was never checked against a case where it should disagree.** A
+trace is only load-bearing if something can make it print the unexpected — this one had never been
+read during a block before, which is the one state that broke it.
+
+Filed as a lesson rather than a trap because it is fixed. The trap it *would* have caused is worse
+than the bug: a future reader debugging a stuck commitment would have found confirming evidence for
+a defect that does not exist.
 
 ---
 
