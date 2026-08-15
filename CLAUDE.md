@@ -297,7 +297,7 @@ counted 2026-08-14) and is never rewritten; `Docs/Combat-Decisions.md` carries t
 
 Execution order, the only line that changes when the order does:
 
-> **~~Attack Ladder~~ → ~~Dodge~~ → ~~Sword & Shield~~ → ~~Input Buffer~~ → ~~Death~~ → ~~Dodge Distance~~ → ~~Attack Swap~~ → ~~[hover bug]~~ → ~~[facing pass]~~ → ~~Recovery~~ + ~~Lunge~~ → ~~Target Lock~~ → Block → Light String → Parry → Knockdown & Oki → Death-full → Settings → Netcode → Interplay**
+> **~~Attack Ladder~~ → ~~Dodge~~ → ~~Sword & Shield~~ → ~~Input Buffer~~ → ~~Death~~ → ~~Dodge Distance~~ → ~~Attack Swap~~ → ~~[hover bug]~~ → ~~[facing pass]~~ → ~~Recovery~~ + ~~Lunge~~ → ~~Target Lock~~ → Block → Light String → Parry → Knockdown & Oki → Death-full → Settings → Netcode → Tuning Rig → Interplay**
 
 **Structure Audit is deliberately absent from that line** — its structural half ran 2026-08-15,
 and what remains keeps a trigger rather than a position; see its entry at the end.
@@ -421,6 +421,18 @@ In execution order, and all sequential. **Target Lock shipped 2026-08-13**, and 
   log; **a netcheck sibling — bands, assertions and a self-test over both logs, grown from the
   two-log recipe — is a budgeted deliverable of this slice, not an option** (2026-08-15, the
   user's call: the riskiest phase does not run on the weakest verification).
+- **Tuning Rig** — every designer-facing combat value live-tunable at runtime, because Interplay's
+  real cost is iteration latency: a tweak today is a PIE restart locally and a full reconnect
+  against a remote player. **v1 is local-only and lands inside the megaslice** (2026-08-15, the
+  user's call — the first sitting that wants it): a reflection-driven panel over the `Combat|*`
+  categories writing **live instances**, `TUNE` trace lines for every change, and **the checker
+  refusing any log containing them — shipped with v1**, or a tuned smoke-log silently pollutes a
+  regression run. CDO write-back stays a once-per-session editor-side step, where the staleness
+  traps live. **v2 is this roster position**: the dev-only remote channel for per-machine values
+  (the far client's buffer, their sensitivity), designed against Netcode's replication reality.
+  **Derived values surface as derivations, read-only or auto-recomputed** — the rig encodes the
+  tuning map's relationships rather than exposing bare floats, or it industrializes the exact trap
+  class the docs fence. Rationale and the design questions: `Docs/Combat-Decisions.md`, 2026-08-15.
 - **Interplay** — the deliberate feel pass, one remote human against the designer, **on the wire**,
   because the shipping game is the networked one. Consumes everything parked on verified-good —
   the reach/travel/spacing re-author, the lunge strength curves, the heavy's reactability retune,

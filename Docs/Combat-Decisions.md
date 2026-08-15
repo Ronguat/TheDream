@@ -868,6 +868,54 @@ long.
 
 ---
 
+## 2026-08-15 — The Tuning Rig: Interplay's multiplier, adopted with an early local v1
+
+**The idea is the user's, and it answers a question they asked first:** where did the
+designer-friendliness slice go? The answer needed precision. Item 14 — the Structure Audit — was
+raised 2026-08-12 as an audit of what is designer-facing, and its structural half ran 2026-08-15:
+values became *findable and correctly grouped* (the `Combat|Animation` / `Combat|Block` pass
+discharged its founding irritant). But it never promised making values *live*. Nearly nothing
+combat-side is runtime-tunable today — ability values are read from CDOs at activation, and the
+staleness table means a details-panel tweak costs a PIE restart locally and a **full reconnect
+against a remote player**. The rig is new scope beyond anything item 14 contained.
+
+**Why it multiplies Interplay rather than merely helping it:** the feel pass's dominant cost is
+iteration latency, and the project's own philosophy (sparse feel until the vocabulary completes,
+then tune the interplay) concentrates all tuning into exactly the phase where iteration is most
+expensive. Collapsing tweak-cost from restart-and-reconnect to same-exchange multiplies the most
+expensive phase the project has.
+
+**Three existing assets already point at it**, which is what makes the "experimental" label softer
+than it sounds. The category pass is the rig's data model — a reflection walk over `Combat|*`
+properties is how the panel generates itself. The tuning map becomes operational instead of
+documentary: which-knob-for-which-complaint, clickable. And the trace culture extends to tuning
+itself — the rig logs `TUNE <property> <old>→<new>`, so feel sessions become auditable, the
+felt-numbers table takes provenance from the rig's log, and Interplay's final rig state is
+precisely the settled set the band re-derivation reads.
+
+### The four design questions, inherited by the rig's plan session
+
+1. **Value routing.** Writes go to *live instances* — the character and every granted ability
+   instance on every combatant — never to CDOs mid-session. CDO write-back is a once-per-session
+   editor-side step afterwards, where the staleness traps are documented and expected.
+2. **The remote channel.** Designer-as-listen-server covers server-authoritative values for free;
+   per-machine feel values (the far client's `InputBufferSeconds`, their sensitivity) need a
+   dev-only replicated tuning push, designed against Netcode's reality — which is why v2 sits
+   after Netcode.
+3. **Derived values.** The rig must encode relationships, not expose bare floats: `TurnRateDegrees`
+   is derived, the charged's stamina damage equals the bar by design, blockstun sits relative to
+   recovery. Shown as derivations — read-only or auto-recomputed — or the rig industrializes the
+   trap class the docs spent a week fencing.
+4. **Checker hygiene.** A log containing `TUNE` lines is not a regression log. The checker's
+   refusal ships **with v1**, not after it, or the first tuned smoke-test silently pollutes a
+   green run.
+
+**Adopted with the early local v1** (the user's call, same day): v1 — local panel, live-instance
+writes, `TUNE` lines, checker guard — lands inside the megaslice at the first sitting that wants
+it, so per-slice smoke tests get live tuning too. v2 — the remote channel and completion — holds
+the roster position between Netcode and Interplay. The rig is tooling rather than combat surface,
+so the living-coverage rule does not bind it; its verification story is its own trace.
+
 ## 2026-08-15 — Netcode precedes Interplay, because the second human is remote
 
 **The constraint that decides it:** all local testing has exactly one human. The deliberate feel
