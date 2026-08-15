@@ -73,6 +73,11 @@ same turn; opening needs no announcement.
 fails with `Unable to connect`; the only reliable signal is **an MCP call returning a result**.
 Poll `SceneTools.get_current_level` rather than sleeping — a blind wait is wrong in both directions.
 
+**Calling a tool takes three fields** *(re-derived from transcripts at six calls' cost,
+2026-08-15)*: `toolset_name` exactly as `list_toolsets` prints it, `tool_name` as the bare function
+name, and `arguments`. Inside `execute_tool_script`, call `get_execution_environment` once first;
+scripts define `run()` returning a dict and pass **full dotted names** to `execute_tool`.
+
 **Stop PIE before compiling a Blueprint or saving an asset.** While PIE runs, actor lookups return
 the `UEDPIE_0_` world's actors — right for inspecting live state, wrong for authoring.
 
