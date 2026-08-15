@@ -15,8 +15,11 @@ struct FInputActionValue;
 DECLARE_LOG_CATEGORY_EXTERN(LogTemplateCharacter, Log, All);
 
 /**
- *  A simple player-controllable third person character
- *  Implements a controllable orbiting camera
+ *  Third person character with the orbiting camera, and the home of camera-relative facing:
+ *  the three turn rates, the facing and movement locks, and the aim frame (GetAimYawDegrees).
+ *
+ *  Deliberately knows nothing about combat state -- IsFacingLocked, IsIdle and
+ *  GetFacingHomingYaw are hooks ATDCombatCharacter answers.
  */
 UCLASS(abstract)
 class ATheDreamCharacter : public ACharacter

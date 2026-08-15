@@ -1115,13 +1115,11 @@ void ATDCombatCharacter::Jump()
 	// GameplayAbility, so the dead check in UTDGameplayAbility does not cover it and has
 	// to be repeated here -- the one place that rule is not centralised.
 	//
-	// The movement lock is here for the same reason and is the third rule this function has had
-	// to copy. That is the argument for jump eventually becoming an ability: every lockout the
-	// abilities get for free has to be restated here, and this is the only place that can be
-	// forgotten. Deferred to the structure audit rather than done inline.
-	// The guard's minimum duration allows movement and nothing else, which includes jumping -- the
-	// fourth rule this function has had to restate, and the clearest argument yet for jump becoming
-	// an ability so it inherits these instead of copying them. Deferred to the structure audit.
+	// The movement lock and the guard's minimum duration are the third and fourth rules this
+	// function has had to copy. That is the standing argument for jump eventually becoming an
+	// ability -- every lockout the abilities get for free has to be restated here, and this is
+	// the only place that can be forgotten. The 2026-08-15 structure audit left that call with
+	// Stun, which owns the full-lockout treatment the guard-break gap below already waits on.
 	//
 	// A broken guard is deliberately *not* checked here, and that is a known gap rather than an
 	// oversight: full loss of control during a guard break belongs to Stun, which owns the
@@ -1192,7 +1190,8 @@ void ATDCombatCharacter::BeginPlay()
 		DefaultMaxWalkSpeed = Movement->MaxWalkSpeed;
 	}
 
-	// Covers characters that are never possessed, such as a placed training dummy.
+	// First resolution; every possession re-runs it. Also the safety net for a pawn that is never
+	// possessed at all -- the dummy is not one: its AAIController possesses it after spawn.
 	InitialiseAbilitySystem();
 }
 

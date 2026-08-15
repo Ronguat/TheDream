@@ -306,10 +306,8 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Timing", meta=(ClampMin="0.0"))
 	float CoilEndSeconds = 0.35f;
 
-	// RecoveryPlayRate lived here until 2026-08-12 and is gone: recovery is authored as a
-	// duration on the branch (FTDAttackBranch::RecoverySeconds) and its rate is derived, which
-	// is what windup and release already do. An authored rate could not be a punish window --
-	// it set one indirectly, through however long the clip's tail happened to be.
+	// RecoveryPlayRate lived here until 2026-08-12 and is gone -- recovery is authored as
+	// FTDAttackBranch::RecoverySeconds and its rate derived; see the retired names table.
 
 	/** Optional section played on activation. None starts the montage from the beginning. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Animation")

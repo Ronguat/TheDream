@@ -89,8 +89,8 @@ void UAbilityTask_MeleeTrace::Activate()
 
 bool UAbilityTask_MeleeTrace::IsWindowForThisAttack(const FGameplayEventData* Payload) const
 {
-	// Null means accept any, which is the pre-item-6 behaviour. Deliberately kept so an ability
-	// can opt out, but it is not the default: the events reach the whole ASC.
+	// Null means accept any, which is the pre-Attack-Swap behaviour. Deliberately kept so an
+	// ability can opt out, but it is not the default: the events reach the whole ASC.
 	if (!ExpectedMontage.IsValid())
 	{
 		return true;
@@ -103,11 +103,11 @@ void UAbilityTask_MeleeTrace::HandleWindowBegin(FGameplayTag Tag, const FGamepla
 {
 	if (!IsWindowForThisAttack(Payload))
 	{
-		// Ungated warning, like the other two in this system, because the failure it describes is
+		// Ungated warning, like the others on this category, because the failure it describes is
 		// an attack that silently deals no damage rather than one that crashes. If this fires for
 		// the montage an attack is actually playing, the notify and the ability disagree about
 		// which asset is which and no hitbox will ever go live.
-		UE_LOG(LogTemp, Warning, TEXT("MeleeTrace: ignoring a Release Window from '%s'; this attack is testing for '%s'."),
+		UE_LOG(LogTDCombatTiming, Warning, TEXT("MeleeTrace: ignoring a Release Window from '%s'; this attack is testing for '%s'."),
 			(Payload && Payload->OptionalObject) ? *Payload->OptionalObject->GetName() : TEXT("<none>"),
 			ExpectedMontage.IsValid() ? *ExpectedMontage->GetName() : TEXT("<none>"));
 		return;

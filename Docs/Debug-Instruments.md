@@ -123,8 +123,10 @@ disambiguates is the `TARGET release` line 30–150 ms before it.
 **Reach for the trace early.** Every real bug in the timing system was found by measuring, and
 reasoning about play rates on paper mis-diagnosed several confidently.
 
-**Two warnings are deliberately ungated**, because both describe an attack that silently stops
-dealing damage: a skipped coil, and a `ReleaseStartSeconds` drifted from its notify.
+**Warnings on `LogTDCombatTiming` are deliberately ungated as a family** — each one describes
+authored data that has silently stopped fitting the clip, or an attack that will silently stop
+dealing damage. Eight exist as of 2026-08-15; grep `LogTDCombatTiming, Warning` in `Source/` for
+the list rather than trusting a count written here.
 
 
 **Not every state is traced.** There is **nothing for exhaustion** — absence from the log is evidence

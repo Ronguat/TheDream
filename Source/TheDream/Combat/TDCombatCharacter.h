@@ -758,7 +758,7 @@ protected:
 	 *  The ASC this character is actually using: its PlayerState's, or OwnedAbilitySystemComponent.
 	 *
 	 *  Resolved rather than assumed, because only *players* have a PlayerState -- the training
-	 *  dummy is an unpossessed placed pawn and has none. Null until InitialiseAbilitySystem has
+	 *  dummy is AI-possessed with no PlayerState at all. Null until InitialiseAbilitySystem has
 	 *  run, and on a client that is later than you expect, so every use is null-checked.
 	 *
 	 *  **Never reach past this to OwnedAbilitySystemComponent.** For a player that subobject

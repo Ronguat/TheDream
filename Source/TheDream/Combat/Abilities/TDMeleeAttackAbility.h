@@ -107,13 +107,9 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Hitbox")
 	bool bDrawDebugTrace = false;
 
-	// Facing has no tuning knobs by design. An attack freezes it at commit and returns it at the
-	// release window's end, both instantly. FacingLockFadeSeconds and
-	// FacingUnlockRecoveryFraction existed here for one day, 2026-08-12, and were removed by
-	// play: every value below full authority disables the camera snap, so the fades left chained
-	// attacks perpetually behind the camera. The smoothing it was meant to provide arrived by
-	// another route and needs nothing further: the lock now runs to EndAbility and
-	// IdleTurnRateDegrees covers the catch-up, so no value gates the snap on rotation authority.
+	// Facing has no tuning knobs by design: an attack freezes it at commit and returns it in
+	// EndAbility, both instantly. The fades that briefly lived here (2026-08-12) are in the
+	// decision log's retired names -- any value below full authority disabled the snap outright.
 
 	/**
 	 *  The base lunge: how far the attack carries itself from the press, in centimetres.
@@ -131,9 +127,8 @@ protected:
 	 *  by how far they travelled. Per-tier displacement starts at the commit checkpoint -- see
 	 *  FTDAttackBranch::LungeDistanceCm.
 	 *
-	 *  **The attack's montage must play an in-place clip for any of this to do anything.** Animation
-	 *  root motion suppresses every root motion source while it plays, and scaling it to zero does
-	 *  not help -- see the warning in StartAttackMontage, which is what catches it.
+	 *  **The montage must play an in-place clip or none of this does anything** -- the rule, its
+	 *  mechanism and its enforcement all live at StartAttackMontage's warning.
 	 *
 	 *  **Displayed as "Base Lunge Distance Cm", and the rename is load-bearing.** This and
 	 *  FTDAttackBranch::LungeDistanceCm are different properties at different nesting levels that read
@@ -297,24 +292,24 @@ protected:
 	void LogTargetGeometry(const TCHAR* Phase) const;
 
 	/**
-	 *  Target Lock, rotational half: turns the avatar the minimum amount that brings the best
-	 *  candidate into the damage wedge. Call at commit, before facing is frozen.
+	 *  Target Lock, rotational half: turns the avatar all the way onto the best candidate in the
+	 *  wedge. Call at commit, before facing is frozen.
 	 *
 	 *  **It corrects where you are pointed, never whether you were close enough.** The rotation
 	 *  cannot rescue a spacing miss, which is what keeps whiff punish intact -- and it is why this
 	 *  deliberately fires at targets that are *out of range*, producing the "locked on, committed,
 	 *  and short" outcome rather than silently declining to help.
 	 *
-	 *  **Post-commit only, once, then frozen.** The windup is the one window where the player is
-	 *  actively steering, and correcting someone mid-aim is how assist comes to feel intrusive.
-	 *  After commit the player has no agency by design, so this fills a gap rather than taking
-	 *  anything. Continuous tracking would be homing, and homing means a defender's movement can no
-	 *  longer make an attack whiff.
+	 *  **The last correction, not the only one.** Homing has been closing this gap at the turn
+	 *  rate for the whole base lunge, so what lands here is the residual -- usually nothing.
+	 *  Firing at commit is what ends assist exactly where the defender's reaction window opens:
+	 *  past this instant, tracking would be homing, and homing means a defender's movement can no
+	 *  longer make a committed attack whiff.
 	 *
-	 *  **Minimum sufficient correction, not a snap to centre.** A target already inside the damage
-	 *  wedge rotates nothing. Two reasons, and the second is the stronger: it is less intrusive, and
-	 *  a snap to centre would *actively undo a lead* -- a player aiming where a moving target will
-	 *  be, rotated back onto where it is, by the system meant to help them.
+	 *  **All the way onto the target, not to the edge of a tolerance** (2026-08-13, superseding a
+	 *  minimum-sufficient design: measured against the damage wedge, that correction is always
+	 *  zero, and the deadzone that replaced it protected leading, which this game does not have).
+	 *  The wedge is the margin of error, and it is aimed rather than corrected into.
 	 *
 	 *  **Rotates the character, not the camera**, which is what keeps it invisible: the player is
 	 *  steering the camera, and the body following it is not something they are watching. Facing

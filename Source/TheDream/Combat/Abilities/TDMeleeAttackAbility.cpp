@@ -156,17 +156,12 @@ void UTDMeleeAttackAbility::ApplyAimAssist(const FTDAttackHitbox& AssistWedge)
 
 void UTDMeleeAttackAbility::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled)
 {
-	// Facing comes back here because this is where every exit converges -- completed, blended
-	// out, interrupted, cancelled, and the CancelAllAbilities that death fires. Unconditional
-	// and idempotent, so the normal path clearing it a second time costs nothing while the
-	// abnormal paths cannot be missed. A stranded lock is a character who can never turn again.
+	// The single funnel the header doc describes: unconditional and idempotent, because every
+	// exit converges here. The coil flag rides along -- a coil cancelled before its commit
+	// checkpoint would otherwise leave the character turning at the coil rate forever.
 	if (ATheDreamCharacter* Character = GetFacingCharacter())
 	{
 		Character->SetAbilityFacingLocked(false);
-
-		// Same reasoning, same place. A coil that was cancelled before its commit checkpoint
-		// would otherwise leave the character turning at the coil rate forever, which is a
-		// slow, silent version of the stranded lock above.
 		Character->SetAbilityCoiling(false);
 	}
 

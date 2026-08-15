@@ -12,12 +12,6 @@
 #include "Engine/World.h"
 #include "TimerManager.h"
 
-// The constructor seeded eight MeasuredTravelCm entries until 2026-08-13 -- calibration data
-// describing how far each V3 Dash clip carried, so that eight scales could correct a 90.6 cm
-// disagreement between them. Displacement is authored now, so there is nothing to calibrate and
-// nothing to re-measure when the montage is rebuilt. The trap that asked for exactly that goes
-// with it.
-
 namespace
 {
 	/** Montage section per direction. The montage must use these exact names. */

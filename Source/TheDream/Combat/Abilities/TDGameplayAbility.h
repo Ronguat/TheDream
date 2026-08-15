@@ -186,11 +186,10 @@ protected:
 	 *  fear, while this rides the same prediction and replication machinery animation root motion
 	 *  does. See FTDRootMotionSource_FacingForce.
 	 *
-	 *  **The montage must carry no root motion or this does nothing at all.** Animation root
-	 *  motion suppresses every root motion source while it plays, and scaling it to zero does not
-	 *  help -- the character simply stops moving. Attacks satisfy this by playing an in-place clip;
-	 *  the dodge satisfies it by having bEnableRootMotion switched off on its eight source clips,
-	 *  which is the library's own default and was only ever enabled by us.
+	 *  **The montage must carry no root motion or this does nothing at all** -- animation root
+	 *  motion suppresses every root motion source, and scaling it to zero does not help. Attacks
+	 *  play an in-place clip and the dodge's source clips have bEnableRootMotion off; the full
+	 *  account and the enforcement warning live at StartAttackMontage.
 	 *
 	 *  @param DistanceCm        How far to travel. The authored ceiling; the standoff gate may
 	 *                           shorten it but nothing lengthens it.

@@ -67,10 +67,6 @@ private:
 	/** Tests every hitbox and broadcasts newly struck actors. Authority only. */
 	void ResolveHits(UWorld* World, AActor* Avatar);
 
-#if ENABLE_DRAW_DEBUG
-	/** Outlines one hitbox: arcs at both radii across both ends of the vertical band. */
-#endif
-
 	/** The volumes this attack strikes with, in the attacker's frame. */
 	TArray<FTDAttackHitbox> Hitboxes;
 
@@ -81,7 +77,7 @@ private:
 	 *
 	 *  The events are broadcast to the whole ASC and carry no ownership of their own, so without
 	 *  this any montage carrying the notify opens every listening trace. Null means accept any,
-	 *  which is the pre-item-6 behaviour and is kept only so an ability may opt out deliberately.
+	 *  which is the pre-Attack-Swap behaviour, kept only so an ability may opt out deliberately.
 	 */
 	TWeakObjectPtr<const UAnimMontage> ExpectedMontage;
 

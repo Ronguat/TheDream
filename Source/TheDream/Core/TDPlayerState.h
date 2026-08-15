@@ -18,9 +18,9 @@ class UTDAttributeSet;
  *  rather than the debug revive it is today. Keeping it on the character was defensible on
  *  current behaviour and was rejected because the destination is known.
  *
- *  **Only players have one.** The training dummy is an unpossessed placed pawn with no
- *  PlayerState at all, so ATDCombatCharacter *resolves* which ASC it uses rather than assuming
- *  this one exists. Reasoning in Docs/Combat-Decisions.md, 2026-08-11.
+ *  **Only players have one.** The training dummy is AI-possessed under a stock AAIController
+ *  and has no PlayerState at all, so ATDCombatCharacter *resolves* which ASC it uses rather
+ *  than assuming this one exists. Reasoning in Docs/Combat-Decisions.md, 2026-08-11.
  */
 UCLASS()
 class ATDPlayerState : public APlayerState, public IAbilitySystemInterface

@@ -11,7 +11,7 @@
 #include "EnhancedInputSubsystems.h"
 #include "InputActionValue.h"
 #include "TheDream.h"
-// Temporary, with the facing polish pass: the lock error is logged on LogTDCombatTiming.
+// The facing lock error is logged on LogTDCombatTiming; kept past the facing pass deliberately.
 #include "Combat/TDCombatDebug.h"
 
 ATheDreamCharacter::ATheDreamCharacter()
@@ -138,8 +138,8 @@ void ATheDreamCharacter::UpdateCameraRelativeFacing(float DeltaSeconds)
 
 	// Simulated proxies do not decide their own facing; it arrives replicated from the server
 	// with the rest of the movement state. Everyone else runs this -- the owning client because
-	// it predicts, the server because it decides, and the training dummy because it is an
-	// unpossessed authority pawn whose death still has to stop it turning.
+	// it predicts, the server because it decides, and the AI-possessed training dummy because it
+	// is an authority pawn whose death still has to stop it turning.
 	//
 	// This was benign before it was guarded, but only by accident: a simulated proxy has no
 	// Controller, so UCharacterMovementComponent::PhysicsRotation returns before
@@ -379,8 +379,10 @@ void ATheDreamCharacter::DoJumpEnd()
 
 float ATheDreamCharacter::GetAimYawDegrees() const
 {
-	// The training dummy and anything else unpossessed has no camera, so the body is the only aim
-	// it has. That is correct rather than a fallback: an AI's facing *is* its intent.
+	// A player's aim is the camera, read off the controller. The AI-possessed dummy answers here
+	// too: a stock AAIController copies its control rotation from the pawn, or points it at a
+	// focus while the debug attacker swings -- an AI's aim *is* its facing or its target. The
+	// body below is the fallback only for a pawn with no controller at all.
 	if (const AController* AimController = GetController())
 	{
 		return AimController->GetControlRotation().Yaw;
