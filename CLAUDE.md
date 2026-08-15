@@ -26,14 +26,15 @@ Feel goals (in priority order):
 - Armor classes
 - Abilities / specials
 - Full frame-data tuning pass (placeholder numbers are fine)
-- **Live multiplayer sessions** — lobbies, matchmaking, connection handling, a real network test
-  pass. *Building networkably is not on this list and never should have been;* see below.
+- **Multiplayer session UX** — lobbies, matchmaking, reconnect handling. *A real network test pass
+  left this list on 2026-08-15: **Netcode** holds a roster position ahead of Interplay; see below.*
 
 ## Building for the network
 
 **Networkability is a property of every slice, not a later phase** (2026-08-11, replacing an
-earlier call that put netcode flatly out of scope). What is deferred is *running* multiplayer —
-sessions, lobbies, a real test pass against latency. Being *able* to is not.
+earlier call that put netcode flatly out of scope). What stays out is session UX — lobbies,
+matchmaking, reconnect handling. *Running* multiplayer stopped being deferred on 2026-08-15:
+**Netcode** is a roster item, and the test pass against latency is its opening sub-slice.
 
 The model is **server-authoritative with client prediction**, the one GAS is designed around.
 Three rules bind all new work:
@@ -66,13 +67,15 @@ replicate and stay up, and all four replicated bools reach the client. **Everyth
 still structure rather than behaviour**: nothing has run under latency or with a client acting, and
 **`OnRep_PlayerState` is still unverified** — observable since 2026-08-15's `ASC RESOLVE` line; the next two-machine run settles it. See the decision log.
 
-**On commitment level, stated 2026-08-11 so nobody has to guess it:** *building* networkably is
-non-negotiable and binds every slice, as above. *Actually networking the game* is the *final
-frontier* — attempted in earnest, held with a stretch-goal mentality. The distinction matters in
-two directions. It means netcode difficulty must never be a reason to compromise combat feel,
-which is what the prototype exists to establish. And it means **the prototype is not a failure if
-netcode proves too hard** — a combat model that is verified good and provably networkable has
-answered its question. Do not let readiness work crowd out the feel work it exists to protect.
+**On commitment level — restated 2026-08-15, superseding the 2026-08-11 stretch-goal framing:**
+*building* networkably is non-negotiable and binds every slice, as above. *Actually networking the
+game* is now a **prerequisite for the feel verdict, not a stretch goal**: with one local human, the
+second player is remote by definition, so **Netcode precedes Interplay** and verified-good cannot
+exist without it — the feel pass measures the game that ships, latency included. What survives:
+netcode difficulty must never be a reason to compromise combat feel, and readiness work must not
+crowd out the feel work it protects. The failure case is front-loaded rather than fallen back on —
+**Netcode opens with the kill-question** (see Remaining). Reasoning and the fallback's new meaning:
+`Docs/Combat-Decisions.md`, 2026-08-15.
 
 ## Core Combat Rules (must respect)
 
@@ -187,7 +190,7 @@ Five standing files carry knowledge the code cannot (a work-in-flight plan file 
 
 **Durable knowledge belongs in these files, not in an assistant's per-machine memory.** Anything a future contributor would need — combat reasoning, tooling behaviour, rules and current facts — goes in the repo, where it can be reviewed and corrected. Memory keeps only what is genuinely session- or machine-scoped, and *points* at the repo rather than restating it: `Docs/Working-In-Unreal.md` exists precisely because those notes were once memory-only and therefore invisible.
 
-**This file's budget is ~445 lines, enforced when you add rather than when you audit** (2026-08-14 at 420, raised 2026-08-15 — see below). Past that, compress or relocate something first — the person adding a line is the one who knows what it replaces. Stated as a number because the vaguer form did not hold: it once went 486 → 466 → **514** within one session, caught by a manual re-read rather than by anything structural. **The two mechanisms that keep it there are the Done eviction rule and this budget**; if it drifts anyway, the question is which kind of content is growing, not which lines look longest. **The number is a tripwire, not a cap** (2026-08-15, the user's call): compress or route what grew, and when what grew is genuinely rule material with no other home, raise the budget with a dated note — deleting a live rule to hit a number is the one wrong answer. **Raised 420 → ~445 on 2026-08-15**, the first use of that hatch, and it set two standards for the next one. **Compress first and mean it** — two passes came before the raise and each found real duplication, so what remained was new standing rule rather than retelling. And **raise with headroom, never to the current count**: a budget set at where the file already sits trips on the next line anyone adds, which teaches people to ignore it.
+**This file's budget is ~470 lines, enforced when you add rather than when you audit** (2026-08-14 at 420, raised twice 2026-08-15 — see below). Past that, compress or relocate something first — the person adding a line is the one who knows what it replaces. Stated as a number because the vaguer form did not hold: it once went 486 → 466 → **514** within one session, caught by a manual re-read rather than by anything structural. **The two mechanisms that keep it there are the Done eviction rule and this budget**; if it drifts anyway, the question is which kind of content is growing, not which lines look longest. **The number is a tripwire, not a cap** (2026-08-15, the user's call): compress or route what grew, and when what grew is genuinely rule material with no other home, raise the budget with a dated note — deleting a live rule to hit a number is the one wrong answer. **Raised 420 → ~445 on 2026-08-15**, the first use of that hatch, and it set two standards for the next one. **Compress first and mean it** — two passes came before the raise and each found real duplication, so what remained was new standing rule rather than retelling. And **raise with headroom, never to the current count**: a budget set at where the file already sits trips on the next line anyone adds, which teaches people to ignore it. **Raised again ~445 → ~470 later the same day**, when the roster gained its endgame (the Stun split, Netcode, Interplay) in one adoption; the additions were compressed first, and the bulge is Remaining-shaped, which shrinks back as items ship. Two raises in one day is itself a signal: if a third is ever owed, route Remaining's per-item detail into a triggered file instead of raising.
 
 **One fact, one home; everywhere else points at it.** This applies *inside* the repo, not only between memory and repo — including between two items in this file, and between a doc and a code comment. The 2026-08-12 audit found eight wrong claims and three were a fact stated twice where only one copy was updated; the 2026-08-15 audit found a fourth, this file's own summary of another doc naming a count that had since quadrupled. **Summaries and descriptions are where this happens** — they restate values nobody thinks to update. A second copy does not reinforce a fact, it creates something nobody reviews.
 
@@ -294,7 +297,7 @@ counted 2026-08-14) and is never rewritten; `Docs/Combat-Decisions.md` carries t
 
 Execution order, the only line that changes when the order does:
 
-> **~~Attack Ladder~~ → ~~Dodge~~ → ~~Sword & Shield~~ → ~~Input Buffer~~ → ~~Death~~ → ~~Dodge Distance~~ → ~~Attack Swap~~ → ~~[hover bug]~~ → ~~[facing pass]~~ → ~~Recovery~~ + ~~Lunge~~ → ~~Target Lock~~ → Block → Light String → Parry → Stun → Settings**
+> **~~Attack Ladder~~ → ~~Dodge~~ → ~~Sword & Shield~~ → ~~Input Buffer~~ → ~~Death~~ → ~~Dodge Distance~~ → ~~Attack Swap~~ → ~~[hover bug]~~ → ~~[facing pass]~~ → ~~Recovery~~ + ~~Lunge~~ → ~~Target Lock~~ → Block → Light String → Parry → Knockdown & Oki → Death-full → Settings → Netcode → Interplay**
 
 **Structure Audit is deliberately absent from that line** — its structural half ran 2026-08-15,
 and what remains keeps a trigger rather than a position; see its entry at the end.
@@ -397,15 +400,32 @@ In execution order, and all sequential. **Target Lock shipped 2026-08-13**, and 
 - **Block** — **mechanics shipped and played 2026-08-14**; the rules are in Core Combat Rules above. Two things remain, neither blocking the other:
    - **The blocking stance.** `BS_SwordShield_Block` exists (V1 locomotion, 27 samples) and is driven from `IsBlocking()` through the ABP's `LocomotionBlendSpace` / `IdleSequence`. **The agreed end state is a separate state in the `Locomotion` state machine**, which gives the blend-in for free and is the correct architecture — the happy accident that V1's whole locomotion set reads as a guard will not repeat for other weapons, and that is accepted. Needs a human: `create_node` cannot target a state machine graph. `IsBlocking` is on the ABP for the transition rules.
    - **Blockstun's animation.** The mechanics shipped 2026-08-14 and are in Core Combat Rules above; what is left is that it does not yet *read*. The four directional `AS_SwordAndShieldAnimV1_Defense_Hit_*_RM` clips are already in the project under `/Game/GDHBundle/` (plus four die-while-blocking variants), but a montage needs a human — creating one is not scriptable.
-- **Light String** — the 2–4 hit light string. **It cannot fully finish before Stun**, since its last hit knocks down; expect to ship the string and leave its terminator behind. **Measured 2026-08-11:** no family in either pack offers 3+ uniformly short stages, so the string must be assembled from short stages **across** families, or accept uneven lengths. The one exception is **V3 `Attack4`**, the only four-stage family (0.600 / 1.167 / 0.667 / 2.333), which carries two short stages inside one authored chain. V3's families are deeper than V1's generally — a real argument for V3 that pulls against V1's short two-stage openers being better for **Attack Swap**'s single light.
+- **Light String** — the 2–4 hit light string. **It cannot fully finish before Knockdown & Oki**, since its last hit knocks down; expect to ship the string and leave its terminator behind. **The string's guarantee needs a mechanism decided at plan time** (flagged 2026-08-15): hitstun pulled forward from the old Stun family, or string-internal cadence — without one, "any hit guarantees the rest" is not true of the build. **Measured 2026-08-11:** no family in either pack offers 3+ uniformly short stages, so the string must be assembled from short stages **across** families, or accept uneven lengths. The one exception is **V3 `Attack4`**, the only four-stage family (0.600 / 1.167 / 0.667 / 2.333), which carries two short stages inside one authored chain. V3's families are deeper than V1's generally — a real argument for V3 that pulls against V1's short two-stage openers being better for **Attack Swap**'s single light.
 - **Parry.** **Re-searched 2026-08-11** by enumerating every distinct `SwordShield` move rather than grepping for parry words, and the earlier picture was too thin. Beyond `Block1_Parry` there are `Block1` and `Block2` — discrete block actions with their own `_Idle` and `_Hit` — so there are **three candidate shapes plus failure states**, not one clip, and all are already migrated. The two packs split by **idiom**: V1 does held guard (Block's), V3 does discrete actions (a parry's). The `SwordShield` archetype holds three differently-named packs (`SwordAndShieldAnimV1`, `SwordShieldAnimV2`, `SwordSwordAnimV3`) and dual-sword content is all `DualSwordAnimation*` in its own archetype — so `SwordSword` is a vendor naming quirk, not a stance. What is still open needs a preview, not a search: whether V3's guard pose reads consistently beside V1's. Details in `Docs/Animation-Library.md`. **Re-derive the spec's numbers against the current ladder before building** — the 400 ms window / 500 ms reward / 1000 ms whiff lockout predate the light's move to 200 ms (flagged 2026-08-15).
-- **Stun** — hit reaction, knockdown, and death's full treatment, taken together since they share state plumbing and the questions **Death** deferred get answered here. Verified 2026-08-10: `SwordSwordAnimV3` has **four directional** `Hit_<DIR>` and **four directional** `Death_<DIR>` clips, not single standalone ones. **`SwordShield` has no get-up content whatsoever** — unfiltered search for `Rise|GetUp|StandUp|Recover|Wake|Prone|Ground|KnockDown|Knock|Fallen|Down` returns zero for the archetype. It exists only in `DaggerCombatAnimationV1` (18: `Rise1`–`Rise9`, two variants each) and `Unarmed` (8, including the bundle's only explicit `KnockDown` and `KnockDown_React`). Knockdown recovery therefore needs a **cross-archetype migration** — raise it before the slice starts.
+- **Knockdown & Oki** *(from Stun's 2026-08-15 split — shared plumbing justified adjacency, not a mono-slice)* — knockdown, the 1.5 s default get-up, the three early get-up options and the get-up attack, plus the guard break's full-lockout state the trap defers here and **jump-as-ability**, which rides it. **`SwordShield` has no get-up content whatsoever** — unfiltered search for `Rise|GetUp|StandUp|Recover|Wake|Prone|Ground|KnockDown|Knock|Fallen|Down` returned zero for the archetype (2026-08-10). It exists only in `DaggerCombatAnimationV1` (18: `Rise1`–`Rise9`, two variants each) and `Unarmed` (8, including the bundle's only explicit `KnockDown`). Knockdown recovery therefore needs a **cross-archetype migration** — raise it before the slice starts.
+- **Death-full** *(from the same split)* — death's real treatment replacing the debug ragdoll, hit-reaction animation, and the questions **Death** deferred. `SwordSwordAnimV3` has **four directional** `Hit_<DIR>` and **four directional** `Death_<DIR>` clips, not single standalone ones (verified 2026-08-10). **Hitstun's home is decided at Light String's plan** — see that item.
 - **Settings menu.** Raised 2026-08-12. Mouse sensitivity is the immediate want, and it should own
   **`TurnRateDegrees`** too — that number stopped being cosmetic the moment attacks began pointing
   wherever it had turned to, so exposing it is a balance decision rather than a comfort one, and a
   player lowering it would be quietly worsening their own aim without being told. Also the natural
   home for a **turn cap** if fast-spin inputs ever need bounding, which single-rate facing already
-  provides incidentally. Last in the order; nothing depends on it.
+  provides incidentally. **A remote playtester's packaged build has no editor and no cvars — this
+  menu is their only tuning surface** (2026-08-15); it precedes Netcode's real-remote milestone by
+  construction. Last of the megaslice.
+- **Netcode** — the behavioural pass the 2026-08-15 recon mapped: the two `SetTimer` sites and
+  i-frame lag compensation (one problem twice), prediction windows, client stamina prediction, the
+  loose-tag aim-assist asymmetry, and a shareable direct-connect build — lobbies and matchmaking
+  stay out of scope. **The kill-question comes first**: `PktLag` 40/80/120 emulation, one human as
+  client versus the fixtures, measuring whether the reactability budget survives a round trip
+  *before* any prediction machinery exists. The single-player checker never reads a two-player
+  log; verification grows from the two-log recipe, scenarios-or-trap chosen at plan time.
+- **Interplay** — the deliberate feel pass, one remote human against the designer, **on the wire**,
+  because the shipping game is the networked one. Consumes everything parked on verified-good —
+  the reach/travel/spacing re-author, the lunge strength curves, the heavy's reactability retune,
+  blockstun and commitment tuning — and **re-derives the checker's bands once, against final
+  numbers, never patching them to green**. The naive player's reads outweigh the designer's.
+  **Verified-good is called here; Combat AI follows it, never precedes it** — the reasoning,
+  including why Netcode needs no AI, is in `Docs/Combat-Decisions.md`, 2026-08-15.
 
 **Structure Audit — the structural half ran 2026-08-15, by the user's call; the feel half keeps
 its trigger.**

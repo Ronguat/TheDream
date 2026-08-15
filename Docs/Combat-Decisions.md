@@ -80,6 +80,7 @@ and not the order anyone reads in. Keep it sorted when adding.)*
 | 2026-08-11 — Dodge travel ships at the clips' authored distance | the eight directions agree, so one uniform scale is the right shape and no per-direction data is needed | 2026-08-11 — V3 becomes the base stance (true of V1's clips, false of V3's: spread 90.6 uu) |
 | 2026-08-11 — PvP is the destination | 14 network-unaware `SetTimer` sites | corrected **inline** in that same entry — the real figure is **2**; the count swept in Epic template code, debug timers, and one that must stay local |
 | 2026-08-11 — PvP is the destination | `CLAUDE.md` still lists netcode as out of scope "and that stands" | corrected **inline** in that same entry, within the hour — the user withdrew the scope call once it was restated back to them |
+| 2026-08-11 — PvP is the destination | *actually networking* is the final frontier, held with a stretch-goal mentality, and the prototype is not a failure if netcode proves too hard — verified-good was assumed reachable locally | 2026-08-15 — Netcode precedes Interplay (one local human makes the second player remote, so netcode is a prerequisite for the feel verdict; the kill-question is front-loaded into emulation instead of fallen back on) |
 | 2026-08-11 — The light is reactable at 250 ms | facing snaps on movement input and turns smoothly at rest | 2026-08-12 — Facing becomes one rate (one derived rate in all states, plus an idle rate) |
 | 2026-08-11 — The light is reactable at 250 ms | prefer scaling root motion over code-driven movement; code is the exception to pay for knowingly | 2026-08-12 — Root motion scaling is not enough control (play says a multiplier only amplifies the animator's curve; the netcode reason survives and is answered by GAS root motion *sources*, not by hand-rolled movement) |
 | 2026-08-11 — The training dummy gets the sword too | the blade's length is an authored number, `BladeLengthCm` | 2026-08-12 — A hitbox is authored, not traced (the *principle* survives and is why it generalised: authored beat mesh-derived, then authored volumes beat authored blades) |
@@ -303,7 +304,7 @@ lost, but that was luck. A placed actor's overrides are exactly the thing nobody
 
 ---
 
-### Multiplayer — filed against the first slice that runs two machines
+### Multiplayer — filed against **Netcode** (the slice gained a name and a roster position 2026-08-15)
 
 **Two machines have now run** *(2026-08-15, V2 recon; see the dated entry)*. What that changes is
 narrow and worth stating exactly: a listen server and a client connect, replicate and stay up, and
@@ -554,7 +555,7 @@ entries are cited — treat it as a dated measurement, not a live figure.
 | item 8 | **Input Buffer** | done |
 | item 9 | **Light String** | |
 | item 10 | **Parry** | |
-| item 11 | **Stun** | |
+| item 11 | **Stun** | split 2026-08-15 into **Knockdown & Oki** + **Death-full**; hitstun's home is decided at Light String's plan |
 | item 12 | **Recovery** | ships with Lunge as one slice |
 | item 13 | **Lunge** | ships with Recovery as one slice |
 | item 14 | **Structure Audit** | **widened and re-scoped 2026-08-12** — see below |
@@ -866,6 +867,67 @@ long.
 | `gEComponents` | 08-10, 08-11 |
 
 ---
+
+## 2026-08-15 — Netcode precedes Interplay, because the second human is remote
+
+**The constraint that decides it:** all local testing has exactly one human. The deliberate feel
+pass — where final feel is judged from how the systems interplay, per the felt-table preamble —
+requires a second player, and the only second player this project will have before shipping-shaped
+netcode is a remote one. So the ordering is forced rather than preferred: **megaslice → Netcode →
+Interplay**, and verified-good moves to the far side of the wire.
+
+**It was also the right order on the project's own terms**, worth recording because the constraint
+could lift someday: latency comes out of the reactability budget and has been a stated design input
+since 2026-08-11. A feel pass at 0 ms tunes a game that does not ship; running Interplay on the
+wire makes every verdict — the light's 200 ms, whiff punish, spacing — a verdict about the real
+game.
+
+### What this supersedes, and what survives
+
+The 2026-08-11 commitment held *actually networking* as a stretch goal, with an explicit fallback:
+the prototype is not a failure if netcode proves too hard, because a locally-verified-good,
+provably-networkable model has answered its question. **The fallback's premise — that verified-good
+could exist without netcode — died with the one-human constraint.** Netcode is now load-bearing for
+the core question. What survives unchanged: netcode difficulty must never compromise combat feel.
+The failure case is front-loaded instead of fallen back on — **Netcode's first sub-slice is the
+kill-question**: `PktLag` 40/80/120 emulation, the one human as client, fixtures as the opponent,
+measuring effective press-to-hit *before* any prediction machinery exists. If the budget cannot
+survive a realistic round trip, that surfaces as a design conversation for the price of a recon.
+
+### Combat AI: after Interplay, and the tempting shortcut declined
+
+The obvious move under a one-human constraint is an AI sparring partner — and it is wrong twice
+before Interplay. A policy encodes the matchup (when to block, which whiffs to punish, what spacing
+to hold), so an AI built pre-Interplay is built on numbers the feel pass exists to move, and the
+whole policy rots on retune day. And the one human, having sparred a policy for weeks, brings its
+learned patterns to the interplay verdicts — contaminating exactly the data the pass produces.
+
+**What makes declining it affordable: Netcode does not need an AI.** Mechanical netcode
+verification wants a *deterministic* opponent, which the fixtures already are — the dummy pair
+exercises every replicated state, `PeriodicDodge`'s phase sweep is a timed-defence-under-lag test
+by construction, and the one human supplies the only genuinely client-side ingredient, real input.
+Fixtures are metronomes; they do not teach matchup habits. The AI lands after verified-good, on
+settled numbers, and **joins the living-coverage rule the day it is contracted** — every new combat
+capability updates its behaviours or files a dated trap. **It never joins the regression checker**:
+fixtures are deterministic and band-checkable; a policy is neither.
+
+One contamination is unavoidable and is weighted rather than prevented: the designer will be the
+most practiced player alive. Interplay's verdicts weight the naive remote player's reads
+accordingly.
+
+### Stun splits, and one fork moves forward
+
+Stun was three slices sharing plumbing: hit reaction, knockdown/oki, and death's full treatment.
+Shared plumbing justifies *adjacency*, not a mono-slice — and the living-coverage rule prices a
+mono-Stun as one enormous scenarios-or-trap decision instead of three tractable ones. Split into
+**Knockdown & Oki** (with jump-as-ability and the guard break's full lockout, as filed) and
+**Death-full**. **Hitstun's home is deliberately left to Light String's plan**: the string's "any
+hit guarantees the rest" needs a mechanism — hitstun covering the next hit's arrival, or
+string-internal cadence — and without one the string is three swings a defender can walk out of.
+A design fork, raised rather than picked.
+
+Also withdrawn the same day, before it reached any doc: a "second-input" slice (local gamepad for
+player two). It enabled local two-human play, and there is no local second human.
 
 ## 2026-08-15 — Two machines run for the first time, and the client is mostly invisible
 
