@@ -151,7 +151,25 @@ seen to fail before its passes are trusted.
 
 **Estimate:** script + docs, no rebuild; the first full run doubles as V1's deep verification.
 
-## V2 — Two-player PIE recon (independent)
+## V2 — Two-player PIE recon — **SHIPPED 2026-08-15**
+
+Both sessions run (one process, then a separate client process), findings filed as a dated entry and
+as updated rows in `Docs/Combat-Decisions.md`'s multiplayer section, the recipe recorded in
+`Docs/Debug-Instruments.md`, play settings restored to single player. **Nothing was fixed**, per
+scope. **V2 owes the regression loop no new scenarios** under the 2026-08-15 coupling rule — it
+shipped no combat capability — but it changed the level, so `s2-light` was re-run afterwards and
+passes.
+
+**Two checklist items remain, both blocked only on input**: client attack → server damage in exact
+multiples, and `Net PktLag 100`. Driving them needs a human alternating windows, which this plan
+already listed as a non-goal.
+
+**With all three packages shipped, this file has discharged its purpose and can be deleted** — its
+header says so. Its durable content now lives in `Docs/Debug-Instruments.md` (fixtures, scenario
+matrix, two-player recipe), `Docs/Working-In-Unreal.md` (the verification pointer) and
+`Docs/Combat-Decisions.md` (the V1/V2 dated entries and the multiplayer traps).
+
+### V2 as planned, kept for the reasoning
 
 **Ships:** a second PlayerStart; play settings to 2 players + Listen Server (cleanest: edit the
 editor's per-project user settings ini while the editor is closed; ConfigSettingsToolset or two

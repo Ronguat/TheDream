@@ -61,8 +61,10 @@ dodge's duration. Those two are the same problem twice: the dodge timer *is* the
 compensation. (Recounted 2026-08-11 from 14; the breakdown is in `Docs/Combat-Decisions.md`,
 along with the audit and the reasoning behind the model.)
 
-**Nothing has ever run with two machines**, so every claim of networkability above is about
-structure, not behaviour — including `OnRep_PlayerState`, which is written and has never fired.
+**Two machines have run once** (2026-08-15, V2 recon — observational, no client input). They connect,
+replicate and stay up, and all four replicated bools reach the client. **Everything else above is
+still structure rather than behaviour**: nothing has run under latency or with a client acting, and
+**`OnRep_PlayerState` is still unverified** — nothing can currently observe it. See the decision log.
 
 **On commitment level, stated 2026-08-11 so nobody has to guess it:** *building* networkably is
 non-negotiable and binds every slice, as above. *Actually networking the game* is the *final
@@ -177,8 +179,7 @@ Timings land within about a frame, biased late. `GA_Attack`'s `Branches` array i
 ## Project Documentation
 Five standing files carry knowledge the code cannot (a work-in-flight plan file may sit beside them, and says so in its own header). Read them before working in their area; keep them true in the same commit that makes them wrong. **Each has a trigger rather than being read at large** — that is why they are not in this file, which is loaded in full every session.
 - **`Docs/Closing-Down.md`** — the eight-step procedure for ending a session. Trigger: the user says to wind down, and nothing else.
-- **`Docs/Debug-Instruments.md`** — this project's own instrumentation: every trace tag, the cvars, the ungated warnings, the attacker and defender fixtures with the configurations that silently invalidate them, the test level's measurable geometry, and the regression checker's scenario matrix. Trigger: you are about to measure something in combat. Split from `Working-In-Unreal.md` 2026-08-14 because it was the only part of it that grew — one line per combat feature, forever, which is the correct shape for a doc read by whoever is measuring and the wrong shape for one read every session. *(This line carried its own counts until 2026-08-15, when "the two ungated warnings" was found describing eight — a summary of another doc is exactly where restated values rot.)*
-- **`Docs/Working-In-Unreal.md`** — how to drive the editor and its MCP toolset without losing work: which writes silently do nothing, when Live Coding is safe versus needing a full editor-closed rebuild, what is not scriptable at all, and the standing regression checks for combat changes.
+- **`Docs/Debug-Instruments.md`** — this project's own instrumentation: every trace tag, the cvars, the ungated warnings, the attacker and defender fixtures with the configurations that silently invalidate them, the test level's measurable geometry, and the regression checker's scenario matrix. Trigger: you are about to measure something in combat. Split from `Working-In-Unreal.md` 2026-08-14 because it was the only part of it that grew — one line per combat feature, forever, which is the correct shape for a doc read by whoever is measuring and the wrong shape for one read every session.- **`Docs/Working-In-Unreal.md`** — how to drive the editor and its MCP toolset without losing work: which writes silently do nothing, when Live Coding is safe versus needing a full editor-closed rebuild, what is not scriptable at all, and the standing regression checks for combat changes.
 
   **Read it front to back at the start of every session** (2026-08-13, the user's instruction). It is not a reference to reach for when something breaks — nearly everything in it **fails silently**, so it only helps if it is already in your head before you touch the editor. It was cut from 820 lines to ~400 on 2026-08-13 to make that reasonable, and **keeping it readable is now a closedown step**: anything compressible to its rule gets compressed, and the incidents behind them live in git and `Docs/Combat-Decisions.md`. *(Re-trimmed by the 2026-08-15 structure audit after a day parked at its 420 tripwire. Two successive notes here stating a live count both went stale within hours, so this line no longer carries one — `wc -l` is the authority.)*
 - **`Docs/Combat-Decisions.md`** — dated log of combat decisions and the reasoning behind them, plus the working sections at the top. **Known traps** are latent defects filed against the slice that trips them; the **tuning map** says which knob to move when a verdict comes back and which obvious-looking knob is wrong; **which numbers have been felt** separates a played value from an assistant's guess; the **symbol index** answers *"what was decided about this thing"* for any symbol in the codebase; and the bridge tables cover anything superseded or renamed, **including the item numbers this file stopped using on 2026-08-12**. Append an entry whenever a gameplay choice is made that a future reader could reasonably second-guess; never rewrite an entry to match new code, supersede it with a new one.
@@ -238,17 +239,16 @@ one at a time. But if a genuine question about *what* or *why* emerges mid-run, 
 - **The regression loop is a living artifact: combat surface and loop coverage stay coupled**
   (2026-08-15, the user's rule). Any package that plans or green-lights a new combat capability must
   explicitly include **one of two things, and there is no third option**:
-   1. the specific scenarios and band checks it will add to `Tools/RegressionCheck/regression-check.sh`,
+   1. the scenarios and band checks it will add to `Tools/RegressionCheck/regression-check.sh`,
       **in the same package**; or
-   2. a **dated trap** in `Docs/Combat-Decisions.md` recording that loop coverage is deliberately
-      deferred, and **naming what is now untested**.
+   2. a **dated trap** in `Docs/Combat-Decisions.md` recording that coverage is deliberately deferred
+      and **naming what is now untested**.
 
-  Shipping a combat capability without one of those is a **process violation**, not an oversight to be
-  caught later. **It binds at plan time, not at ship time** — which of the two is part of what gets
-  agreed, so it cannot be quietly resolved by whoever is tired at the end. The reason is the failure
-  mode: a loop that lags the combat surface **still prints green**, so it stops being evidence without
-  ever announcing that it has. Binds pending slices as well as future ones — Block's remainders,
-  Light String, Parry, Stun and Settings each owe this choice when they are picked up.
+  **Doing neither is a process violation**, not an oversight to be caught later, and it **binds at
+  plan time rather than ship time** — which of the two is part of what gets agreed, so it cannot be
+  settled by whoever is tired at the end. Why it matters is in `Docs/Debug-Instruments.md`: a loop
+  that lags the combat surface still prints green. Binds pending slices as well as future ones —
+  Block's remainders, Light String, Parry, Stun and Settings each owe the choice when picked up.
 - **Do not declare a task finished on your own.** The loop closes where it opened: greenlight is the
   WHAT gate going in, and *"is this done"* is the WHAT gate coming out. Report what was built, what
   was verified versus merely written, and **what was done beyond what was agreed, or that nothing
@@ -431,6 +431,7 @@ tuning map carries the warning that a curve's mean must be 1.0 or it silently sc
 authored distance. The reach/travel/spacing re-author shares that trigger — **when the combat
 model is verified good in play, that work is next**, whatever else has accumulated by then.
 
-**Verification infrastructure — approved 2026-08-15:** the dummy and the regression loop have
-shipped; **two-player PIE recon remains**. `Docs/Verification-Plan.md` is the contract;
-`Docs/Debug-Instruments.md` carries the fixture, the scenario matrix and the checker.
+**Verification infrastructure — all three packages shipped 2026-08-15** (defense-capable dummy,
+regression loop, two-player recon). `Docs/Debug-Instruments.md` carries the fixtures, scenario matrix,
+checker and two-player recipe; `Docs/Verification-Plan.md` has discharged its purpose and its own
+header says to delete it — left in place pending your call.

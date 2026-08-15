@@ -298,7 +298,17 @@ lost, but that was luck. A placed actor's overrides are exactly the thing nobody
 
 ### Multiplayer — filed against the first slice that runs two machines
 
-**Nothing here is reachable in single player, and none of it has ever run.**
+**Two machines have now run** *(2026-08-15, V2 recon; see the dated entry)*. What that changes is
+narrow and worth stating exactly: a listen server and a client connect, replicate and stay up, and
+the four replicated bools all reach the client. **Nothing below is discharged by it** — every trap
+here is about behaviour under latency or under a client acting, and V2 involved neither. It was
+observational, with no input driven on the client at all.
+
+**Three new instrument constraints bind anyone working here.** The MCP toolset sees only the server
+world (`UEDPIE_0_`), so client state is unreachable except through the client's own log, which exists
+only in separate-process mode as `Saved/Logs/TheDream_2.log`. The combat trace reaches a client for
+six tags out of twenty-four. And a two-player log **interleaves two worlds on different clocks**, so
+no log-based measurement — the regression checker included — is valid against one.
 
 **Loose gameplay tags do not replicate, and this is a PvP project.** `AddLooseGameplayTag` is local
 to the machine that calls it. Where the caller is authority-only — anything driven by an attribute
@@ -327,11 +337,15 @@ Also unsolved: **no prediction windows** despite every ability being `LocalPredi
 network-unaware `SetTimer` sites — `TDChargedAttackAbility`'s checkpoint and `TDDodgeAbility`'s
 duration. Those two are one problem: **the dodge timer *is* the i-frame lag compensation.**
 
-**The ASC's client path is written and unexercised.** Slice B's three filed traps are discharged —
-`ATDPlayerState`'s net update frequency raised, the character re-resolving its ASC in
-`OnRep_PlayerState` as well as `PossessedBy`, `PlayerStateClass` set. What is *verified* is the
-server path only: single-player PIE has no client, so **`OnRep_PlayerState` has never fired in any
-test that passed.**
+**The ASC's client path is written and *still* unverified, now for a documented reason.** Slice B's
+three filed traps are discharged — `ATDPlayerState`'s net update frequency raised, the character
+re-resolving its ASC in `OnRep_PlayerState` as well as `PossessedBy`, `PlayerStateClass` set. A
+client has now existed *(2026-08-15)*, but **whether `OnRep_PlayerState` fired still cannot be
+observed**: it logs nothing, the toolset cannot see the client world, and the debug HUD cannot
+discriminate because `UTDAttributeSet`'s constructor initialises Health and Stamina to 100 — so the
+**unresolved fallback set reads identically to the resolved one**. That last point is the trap:
+full bars on a client look like success and prove nothing. **One trace line in
+`InitialiseAbilitySystem`, naming the resolved ASC and its owner, settles this in a single run.**
 
 **Two local-state exceptions, recorded as knowing rather than as oversights.** `FacingTurnScale`
 and `bAbilityMovementLocked` are plain floats and bools on the character, not replicated
@@ -837,6 +851,75 @@ long.
 | `gEComponents` | 08-10, 08-11 |
 
 ---
+
+## 2026-08-15 — Two machines run for the first time, and the client is mostly invisible
+
+**V2 of the verification plan: recon, not repair.** One listen-server PIE session under one process
+and one with a separate client process. **Nothing found was fixed** — that was the scope, and the
+findings below are filed rather than actioned. Fixture: a second `PlayerStart` at (−400, 0, 100),
+2 players, `PIE_ListenServer`; play settings restored to 1 player / Standalone afterwards, since the
+regression loop assumes single player.
+
+**It genuinely networked.** Listen server bound `0.0.0.0:17777`, the client resolved `127.0.0.1` and
+logged *"Welcomed by server (Level: /Game/TheDream/Maps/UEDPIE_0_L_CombatTest, Game:
+BP_CombatGameMode_C)"*. The server world held two of everything — two `TDPlayerState`, two
+`BP_CombatPlayerController`, two `BP_PlayerCharacter`, each pawn's ASC seeded to Health 100/100 and
+Stamina 100/100 with all three abilities granted and base equal to current.
+
+### The instrument findings, which are the real yield
+
+**The MCP toolset sees the server world only.** Every actor returned by `find_actors` is `UEDPIE_0_`;
+`UEDPIE_1_` does not appear at all, with an empty name filter. **So client state cannot be inspected
+through the toolset**, and the only client-side channel is its *log* — which exists only in
+separate-process mode, as `Saved/Logs/TheDream_2.log`. That is the recipe worth remembering.
+
+**The combat trace splits 24 tags server-side to 6 client-side**, measured on the same run. The
+client sees `RELEASE BEGIN`/`END`, `BLOCKSTUN`/`END` and `GUARD BREAK`/`END`, and nothing else — no
+`ACTIVATE`, `COMMIT`, `BLOCKED`, `DEATH`, `EXHAUSTED`, `INPUT`, `TARGET` or `LUNGE STOP`.
+
+**All four replicated bools are uniform; the *trace* is not, and that distinction matters.**
+`bExhausted`, `bDead`, `bGuardBroken` and `bInBlockstun` all replicate via `OnRep_` → `Apply*`/
+`Clear*`. Blockstun and guard break announce themselves on a client because their `Apply*` functions
+carry the log; **death and exhaustion do not, because their logs sit in the authority-side transition
+functions instead** (`Die()`, `EnterExhaustion()`). **This is a trace gap, not a replication defect**
+— the states themselves reach the client. Moving or duplicating those two logs into `ApplyDeathState`
+and `ApplyExhaustionState` would close it. Noted against the `EXHAUSTED` line added the same day by
+V1: siting it on the transition rather than the application is exactly what makes it server-only.
+
+**`BLOCKSTUN` prints `until=0.000` on a client.** `BlockstunEndsAt` is server-only state, so the
+client knows *that* it is in blockstun and not *until when*. Harmless today because the expiry check
+is authority-gated, and latent the instant anything client-side reads that field.
+
+**Zero `LogAbilitySystem` warnings on the client** — the first real data on the LocalPredicted
+inventory, and it is empty. The client process logged 105 warnings in total and every one is engine
+or editor boilerplate (`LogD3D12RHI`, `LogGameFeatures`, `LogEditorDataStorageUI`).
+
+**The trace interleaves two worlds running different clocks.** One attack produced `RELEASE BEGIN` at
+**2.788** and again at **3.242** — both worlds run the notify. **Any log-based measurement is invalid
+against a two-player log**, the regression checker included: it has no world discrimination and would
+happily pair a press from one world with a release from the other.
+
+### What could not be settled, and why
+
+**`OnRep_PlayerState` remains unverified — an instrument gap rather than a failure.** Three routes
+were tried and all three fail to discriminate. It logs nothing; the toolset cannot see the client
+world; and **the debug HUD cannot tell a resolved PlayerState ASC from the unresolved fallback**,
+because `UTDAttributeSet`'s constructor calls `InitHealth(100)`/`InitStamina(100)` — so an
+*unseeded* fallback set reads exactly the same 100/100 the resolved one does. The client HUD showing
+full bars was briefly taken as proof and withdrawn; it is the assumed-control trap in its purest
+form. **The fix is one trace line** in `InitialiseAbilitySystem` naming which ASC and owner resolved,
+and it would settle this in a single run.
+
+**Client attack → server damage was not observed**, because it needs a human at the keyboard — the
+plan's own non-goal, since one keyboard alternates windows. `Net PktLag 100` was likewise not run.
+Both remain outstanding and neither is blocked by anything but input.
+
+**A second `PlayerStart` makes single-player spawn random.** `AGameModeBase::ChoosePlayerStart_Implementation`
+picks with `FMath::RandRange` over unoccupied starts, and nothing in this project overrides it. Two
+mitigations, both deliberate: the new start is sited so that **either** choice leaves the defender
+(150 cm) nearer the attacker than the player is, preserving the fixture invariant; and the regression
+loop passes `StartPIE`'s `startTransform`, which overrides selection entirely. **That override is now
+load-bearing rather than convenient.**
 
 ## 2026-08-14 — The refusal trace lied about the tag doing the refusing
 

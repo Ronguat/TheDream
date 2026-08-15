@@ -231,6 +231,31 @@ deliberately wrong one fails, because a checker that cannot fail is indistinguis
 passes everything. A sharper version of the same check: run a scenario against another tier's log
 (`s1-light` against an `s1-heavy` session) and watch all four assertions fail with the real numbers.
 
+### Two-player PIE, and why the checker must never be run against one
+
+**The checker assumes a single world and has no way to notice otherwise.** A two-player log
+interleaves the server and client worlds, which run **different clocks** — one attack produced
+`RELEASE BEGIN` at 2.788 and again at 3.242 *(measured 2026-08-15)*. Pairing a press from one world
+with a release from the other yields numbers that look plausible and mean nothing. **Run the loop in
+single-player only**, and keep `PlayNumberOfClients=1`.
+
+**The recipe, for when a two-player session is wanted.** Edit
+`Saved/Config/WindowsEditor/EditorPerProjectUserSettings.ini` **with the editor closed** — it is
+rewritten on exit, so an in-session edit is lost — setting `PlayNumberOfClients=2` and
+`PlayNetMode=PIE_ListenServer` under `[/Script/UnrealEd.LevelEditorPlaySettings]`. That file is
+gitignored, so this is machine state and never travels with the repo. **Restore it afterwards.**
+
+- `RunUnderOneProcess=True` is easier to drive but gives **no client-side log**.
+- `RunUnderOneProcess=False` spawns a second `UnrealEditor.exe` writing `Saved/Logs/TheDream_2.log`
+  — **the only channel to client-side state that exists**, because the MCP toolset returns only
+  `UEDPIE_0_` actors and cannot see the client world at all.
+- The client receives **6 of the 24 trace tags**: `RELEASE BEGIN`/`END`, `BLOCKSTUN`/`END`,
+  `GUARD BREAK`/`END`. Death and exhaustion are absent because their logs sit on the authority-side
+  transition rather than in the `Apply*` the `OnRep` calls.
+- **`BLOCKSTUN until=` reads `0.000` on a client** — that field is server-only state, not a bug.
+- **A second `PlayerStart` makes single-player spawn random**, so the loop's `startTransform` is now
+  load-bearing rather than a convenience.
+
 ### The loop is a living artifact, and that is a standing rule
 
 **Combat surface and loop coverage stay coupled** (2026-08-15, the user's rule; stated in
