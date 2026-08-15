@@ -416,3 +416,6 @@ call). They are last-10% feel tuning, not structure: assets exist, wired to noth
 tuning map carries the warning that a curve's mean must be 1.0 or it silently scales the
 authored distance. The reach/travel/spacing re-author shares that trigger — **when the combat
 model is verified good in play, that work is next**, whatever else has accumulated by then.
+
+**Verification infrastructure — approved 2026-08-15, not yet built:** defense-capable dummy →
+regression loop → two-player PIE recon. `Docs/Verification-Plan.md` is the contract; read it first.
