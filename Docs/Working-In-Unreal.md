@@ -12,6 +12,12 @@ this past about 420, compress something first — the person adding it knows wha
 as a number because the vaguer version drifted **47 lines in a single day** after the 2026-08-13 cut
 from 820, without anyone noticing; step 3 of `Docs/Closing-Down.md` is the backstop, not the mechanism.
 
+**The number is a tripwire, not a cap** (2026-08-15, the user's call). It exists to make growth
+visible, and its correct responses are: compress, relocate to a triggered doc — how
+`Docs/Debug-Instruments.md` was born — or, when the growth is genuinely rule material that must be
+read every session, raise the budget with a dated note. Deleting a live rule to satisfy the number
+is the one wrong answer.
+
 **Growth that is genuinely this file's belongs here; growth that is the project's does not.** Those
 47 lines were our own debug instrumentation, which grows once per combat feature forever and now
 lives in `Docs/Debug-Instruments.md`. What is left grows only when Unreal or its toolset surprises us.
