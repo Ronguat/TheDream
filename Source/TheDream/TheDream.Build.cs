@@ -15,8 +15,6 @@ public class TheDream : ModuleRules
 			"InputCore",
 			"EnhancedInput",
 			"AIModule",
-			"StateTreeModule",
-			"GameplayStateTreeModule",
 			"UMG",
 			"Slate",
 			"GameplayAbilities",
@@ -30,17 +28,6 @@ public class TheDream : ModuleRules
 		// #include "Combat/Attributes/TDAttributeSet.h"
 		PublicIncludePaths.AddRange(new string[] {
 			"TheDream"
-		});
-
-		// Epic's stock Variant_Combat sample uses bare cross-folder includes and
-		// needs these. Remove this block when Variant_Combat is deleted.
-		PublicIncludePaths.AddRange(new string[] {
-			"TheDream/Variant_Combat",
-			"TheDream/Variant_Combat/AI",
-			"TheDream/Variant_Combat/Animation",
-			"TheDream/Variant_Combat/Gameplay",
-			"TheDream/Variant_Combat/Interfaces",
-			"TheDream/Variant_Combat/UI"
 		});
 
 		// Uncomment if you are using Slate UI

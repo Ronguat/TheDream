@@ -562,8 +562,9 @@ real gap, and do not treat one as a hard blocker — the library is a bought pac
 outside the repo, so the request is normally "please migrate these", not "please buy these".
 
 Confirm the gap is real first, and check **all** the places content already lives: this bundle,
-Epic template content under `/Game/`, and `Variant_Combat`. Then name precisely what the current
-slice needs — specific moves, how many, root motion or not — and nothing beyond it.
+and the Epic template content still under `/Game/` (`Characters`, `Input` — the rest was deleted
+by the 2026-08-15 structure audit). Then name precisely what the current slice needs — specific
+moves, how many, root motion or not — and nothing beyond it.
 
 **The index guarantees names, not suitability.** The token vocabulary and
 `Animation-Library-Index.tsv` make *absence* checkable, which is what they exist for. They say

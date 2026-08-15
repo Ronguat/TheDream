@@ -30,11 +30,11 @@
 		},
 		{
 			"Name": "StateTree",
-			"Enabled": true
+			"Enabled": false
 		},
 		{
 			"Name": "GameplayStateTree",
-			"Enabled": true
+			"Enabled": false
 		},
 		{
 			"Name": "ModelContextProtocol",
