@@ -375,8 +375,8 @@ new dumping ground and the problem has merely moved.
      writing one yaw would deadlock. **No hysteresis yet**, so expect selection flicker as the wedge
      grows.
    - **Two ideas recorded, not decided:** dodge intangibility, worth trying only once the clamp has
-     been felt; and the **lunge strength curves**, which exist wired to nothing and are parked
-     against the structure audit. Measuring a curve means moving the dummy past ~800 cm first, since
+     been felt; and the **lunge strength curves**, which exist wired to nothing and are parked for
+     **Interplay**. Measuring a curve means moving the dummy past ~800 cm first, since
      the gate truncates both lunges at the placed spacing.
 
 **Evicted 2026-08-14 and fully routed:** Attack Ladder, Dodge, Sword & Shield, Death, Dodge
@@ -456,14 +456,14 @@ rests on the property comments.
 
 **Deliberately not done, and why:** splitting `ATDCombatCharacter` — moving a UPROPERTY orphans
 every Blueprint CDO override of it, so reorganising before the systems settle would be paid for
-twice; jump-as-ability, which is Stun's per the guard-break trap; and the decision log's
-archive, which is append-only by design.
+twice; jump-as-ability, which rides **Knockdown & Oki** per the guard-break trap; and the decision
+log's archive, which is append-only by design.
 
-**Lunge strength curves stay parked on the verified-good trigger** (2026-08-13, the user's
-call). They are last-10% feel tuning, not structure: assets exist, wired to nothing, and the
-tuning map carries the warning that a curve's mean must be 1.0 or it silently scales the
-authored distance. The reach/travel/spacing re-author shares that trigger — **when the combat
-model is verified good in play, that work is next**, whatever else has accumulated by then.
+**Lunge strength curves stay parked for Interplay** (2026-08-13 as the verified-good trigger,
+resolved to Interplay's roster position 2026-08-15). They are last-10% feel tuning, not
+structure: assets exist, wired to nothing, and the tuning map carries the warning that a curve's
+mean must be 1.0 or it silently scales the authored distance. The reach/travel/spacing re-author
+shares that home — **Interplay consumes both**; see its entry in Remaining.
 
 **Verification infrastructure — all three packages shipped 2026-08-15** (defense-capable dummy,
 regression loop, two-player recon). `Docs/Debug-Instruments.md` carries the fixtures, scenario matrix,
