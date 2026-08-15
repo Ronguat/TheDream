@@ -168,6 +168,13 @@ disambiguates is the `TARGET release` line 30–150 ms before it.
 **Reach for the trace early.** Every real bug in the timing system was found by measuring, and
 reasoning about play rates on paper mis-diagnosed several confidently.
 
+**Arithmetic over authored values counts as measurement, and it is the cheapest instrument here.**
+Predict the number from the authored inputs, then check the log against it — a prediction that lands
+to the millisecond confirms the whole chain at once, and one that misses tells you which link. On
+2026-08-15 exhaustion's recovery was predicted three times as *action end + `StaminaRegenPauseSeconds`
++ Max ÷ `ExhaustedStaminaRegenPerSecond`* and landed on 14.733, 12.028 and 9.279 against measured
+14.733, 12.039 and 9.279. **Do this before reaching for a new trace line**; it often removes the need.
+
 **Warnings on `LogTDCombatTiming` are deliberately ungated as a family** — each one describes
 authored data that has silently stopped fitting the clip, or an attack that will silently stop
 dealing damage. Eight exist as of 2026-08-15; grep `LogTDCombatTiming, Warning` in `Source/` for
