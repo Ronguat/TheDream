@@ -367,7 +367,10 @@ After any structural change — a refactor, a type change, a system swapped out 
 everything that previously worked, not only what changed.** Migrating ability input from an enum to
 tags wiped a Blueprint map purely because the value type changed, and nothing announced it.
 
-Name the checks up front, run them in one session, report as a pass/fail table.
+Name the checks up front, run them in one session, report as a pass/fail table. **Much of the list
+below is now automated** — `Tools/RegressionCheck/regression-check.sh` asserts the timing, stamina
+and guard invariants against a PIE log and prints that table itself; see `Docs/Debug-Instruments.md`
+for the scenario matrix, and run its `--self-test` before trusting a green result.
 
 - Damage lands in **exact expected multiples**, not "a bar moved"
 - Abilities still grant, and end cleanly (`bIsActive: false` at rest)
@@ -385,19 +388,15 @@ Name the checks up front, run them in one session, report as a pass/fail table.
 
 With the stamina economy involved, add:
 
-- **Stamina lands on exact values** — a dodge from full reads exactly 50
-- **Regen resumes at the right moment** — the action's duration *plus* `StaminaRegenPauseSeconds`
-  from when it ended, then at `StaminaRegenPerSecond`
-- **Exhaustion triggers at zero and clears at Max, not on a timer**, and the regen pause applies
-  throughout — **check that pair specifically, since it briefly did not**: a dodge that exhausts you
-  must finish, then wait, before the bar moves at all. `CLAUDE.md`'s Stamina section is the rule; this
-  is only the check
+- **Exact values, regen resumption and the exhaustion pair are all asserted by `s2-*`/`s3`** — a
+  dodge from full reading exactly 50, regen resuming at action end plus `StaminaRegenPauseSeconds`,
+  and exhaustion entering at 0 and clearing at Max rather than on a timer. `CLAUDE.md`'s Stamina
+  section is the rule; the checker is the check
 - **Stamina can now be drained unattended** *(2026-08-15, replacing "nothing in the build can drain
   stamina without a human at the keyboard")* — `ETDDebugDefendMode` on the training dummy holds a
-  guard or dodges on a timer, so the drain, break, exhaustion and regen path all run with nobody at
-  the keyboard. See `Docs/Debug-Instruments.md` for the fixture. **The attribute set still cannot be
-  written through the toolset** — `SpawnedAttributes` is not reflection-readable — so *setting* a
-  bar to an arbitrary value remains impossible; you drive it by spending, not by assignment
+  guard or dodges on a timer. **The attribute set still cannot be written through the toolset** —
+  `SpawnedAttributes` is not reflection-readable — so *setting* a bar to an arbitrary value remains
+  impossible; you drive it by spending, not by assignment
 - **Attribute *base* values are clamped, not just current.** A base drifted above Max is invisible on
   the bar and makes every cost read wrong
 - **Costs never gate.** Dodging below the cost must still work and empty the bar

@@ -56,20 +56,34 @@ Grep the known-traps section at slice start as usual; these are the ones already
 
 Built and play-verified as described below. Both modes run unattended; the fixture, its placement
 constraints and the two new trace lines are documented in `Docs/Debug-Instruments.md`, which is now
-the authority for all of it. **Three things came back different from the prediction below**, and V3
-inherits them:
+the authority for all of it.
 
-- **The HoldBlock cycle is ~15.2 s, not 25–30**, because the defender pays no
-  `BlockInitialStaminaCost` (0 on the dummy against 10 on the player) and so starts each cycle at a
-  full 100. Measured: raise at 0.000 → blocked at 5/hit leaving 62.7 / 27.7 / 0.0 → `EXHAUSTED`
-  `stamina=0.0` → `GUARD BREAK` → `GUARD END` +1.001 s → `EXHAUSTION END` `stamina=100.0` at 15.231,
-  guard back up in the same frame.
-- **S2's "cost lines equal guard raises" is false against this fixture** and must not ship as an
-  assertion — there are zero `BLOCK cost` lines and N raises. Either assert zero, or raise the
-  dummy's cost to 10 first, which is a fixture decision rather than a checker one.
-- **S3's travel band needs a cleanliness predicate.** Clean stationary dodges read 405.8–414.1 with
-  `right=-0.0`; a sample the attacker collided with read 303.3 with `right=-66.8`. **Filter on
-  `right`, not on distance.** Contamination is expected — the phase sweep is the feature.
+**The parity question it raised was settled by the user, and it is the durable result.** The dummy
+had drifted from the player on three combat values, and the call was that **a fixture mirrors the
+conditions the systems exist to test — breaking parity is the design decision, not keeping it.**
+`BlockInitialStaminaCost` 0 → 10, `StaminaRegenPauseSeconds` 1.0 → 0.5, `InputBufferSeconds`
+0.10 → 0.20. Two of this plan's own assertions were wrong before that and correct after: S2's cost
+line, and S3's "action end + 0.5 s", which was the player's number all along.
+
+The defender's placement is the other finding worth keeping: a stationary dodge resolves backward,
+so on the +Y side it backs into the ramp and travels 107 cm rather than 405.
+
+## V3 — Autonomous PIE regression loop — **SHIPPED 2026-08-15**
+
+`Tools/RegressionCheck/regression-check.sh` ships with all seven scenarios of the matrix below,
+33 assertions, validated against seven real PIE sessions. Bands sit in one config block; the
+scenario matrix and how-to are in `Docs/Debug-Instruments.md`, and `Working-In-Unreal.md`'s
+verification list now points at it.
+
+**The instrument was proved before its passes were trusted, twice.** `--self-test` asserts a
+known-good band passes and a deliberately wrong one fails; and asserting `s1-light`'s bands against
+a real `s1-heavy` session fails all four checks with the true numbers printed. Both are documented
+so the next person repeats them rather than trusting a green table.
+
+**One assertion changed shape from the plan.** S3's travel check needs the `|right| ≤ 1.0` lateral
+filter — 5 of 22 samples in the reference run were the attacker colliding with a displaced dodger,
+reading ~297 cm. Widening the distance band to admit them would have been fitting the band to
+contamination.
 
 ### V1 as planned, kept for the reasoning
 

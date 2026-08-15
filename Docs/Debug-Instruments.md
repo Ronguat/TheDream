@@ -57,10 +57,18 @@ guard returns after every break for as long as PIE runs. `PeriodicDodge` taps on
 Both are instance properties: set them on the placed defender, not the CDO, or the attacker adopts
 them too.
 
-**The defender pays no `BlockInitialStaminaCost`** — 0 on `BP_TrainingDummy`'s CDO against **10** on
-`BP_PlayerCharacter`'s *(read 2026-08-15)*. So **`BLOCK cost` never appears in a defender-only log**,
-and the defender's guard economy is not the player's: it starts every cycle from a full 100. Any
-assertion of the form "cost lines equal guard raises" is false against this fixture as configured.
+**The dummy mirrors the player's combat values, and that is a rule rather than a coincidence**
+*(2026-08-15, the user's call)*. A fixture exists to reproduce the conditions the systems under test
+actually run in, so **parity is the default and any divergence is a design decision that has to be
+argued for** — not something inherited by one Blueprint authoring a value and the other not. Three
+had drifted and were mirrored onto `BP_TrainingDummy`: `BlockInitialStaminaCost` 0 → **10**,
+`StaminaRegenPauseSeconds` 1.0 → **0.5**, `InputBufferSeconds` 0.10 → **0.20**. Ten other combat
+values already matched.
+
+**Two assertions only became true because of that**, which is the concrete reason it matters:
+`BLOCK cost` now appears once per guard raise, and regen resumes at *action end + 0.5 s* as the
+verification plan always claimed — against the dummy's old 1.0 s it did not. **Check parity before
+blaming a band** if a stamina assertion starts failing.
 
 **A dodger's travel is contaminated whenever the attacker reaches it, and `right=` is the tell.** A
 stationary backward dodge reads `right=-0.0`; a sample with `right=-66.8` was one the attacker
@@ -200,3 +208,57 @@ drift that read in play as "forward is fine and it gets worse round the compass"
 problem wearing an animation problem's clothes. `DODGE` prints `sectionLen=`; that is the tell.
 
 ---
+
+## The regression checker
+
+`Tools/RegressionCheck/regression-check.sh` asserts combat invariants against a PIE session's log.
+**It is a log evaluator, not a test runner** — UE's Automation framework was considered and declined
+for V3, so orchestration stays agent-side: set the fixture, `StartPIE`, poll the log on a condition,
+`StopPIE`, then run the checker. It slices from the **last** `LogWorld: Bringing World … up for play`,
+so it always reads the most recent session in whatever file it is given.
+
+```bash
+./Tools/RegressionCheck/regression-check.sh s2-heavy          # last session in the default log
+./Tools/RegressionCheck/regression-check.sh s1-light some.log # or an explicit file
+./Tools/RegressionCheck/regression-check.sh --self-test       # prove it can still fail
+```
+
+Exit 0 = all passed, 1 = an assertion failed, 2 = usage or no data. **Bands live in one config block
+at the top**, so a retune is a one-line change; each carries its source in a comment.
+
+**Run `--self-test` before trusting a green run.** It asserts a known-good band passes *and* a
+deliberately wrong one fails, because a checker that cannot fail is indistinguishable from one that
+passes everything. A sharper version of the same check: run a scenario against another tier's log
+(`s1-light` against an `s1-heavy` session) and watch all four assertions fail with the real numbers.
+
+### Scenario matrix
+
+Each row names the fixture it expects. **The knobs are `EditAnywhere` instance writes made before
+PIE** — set them on the placed actors, not the CDO, and read the runtime instance back if a value
+looks ignored.
+
+| Scenario | Attacker `…HoldSeconds` | Defender `DebugAutoDefendMode` | Asserts |
+|---|---|---|---|
+| `s1-light` | 0.1 | `Off` | press→`RELEASE BEGIN` 200 ms ±30; elapsed 0.750 +10–35 ms; 0 escalations, 0 coils |
+| `s1-heavy` | 0.3 | `Off` | 500 ms ±30; elapsed 1.150 +10–35 ms; exactly 1 escalation, 1 coil |
+| `s1-charged` | 0.8 | `Off` | 750 ms ±30; elapsed 1.500 +10–35 ms; exactly 2 escalations, 1 coil |
+| `s2-light` | 0.1 | `HoldBlock` | stamina damage exactly 5; `BLOCK cost` per `BLOCK up`; `GUARD BREAK` count equals blocks at `remaining=0.0`; break stun 1.0 s ±25 ms; `BLOCKSTUN` span 0.400 ±20 ms |
+| `s2-heavy` | 0.3 | `HoldBlock` | as above, damage 50, `BLOCKSTUN` span 0.500 |
+| `s2-charged` | 0.8 | `HoldBlock` | as above, damage 100, and **`BLOCKSTUN` never fires at all** |
+| `s3` | 0.1 | `PeriodicDodge` | `DODGE`/`DODGE END` paired; clean travel 400–420 cm; dodge from full leaves exactly 50; `EXHAUSTED`/`EXHAUSTION END` paired, entering at 0 and clearing at 100 |
+
+**`s2-charged`'s blockstun assertion is a filed trap promoted to a standing check.** The charged's
+stamina damage equals the whole bar, so it always breaks and can never blockstun. **If that
+assertion ever starts failing, the ladder has been retuned rather than the checker having broken** —
+drop the charged's stamina damage below `MaxStamina`, or raise `MaxStamina`, and the tier's authored
+`BlockstunSeconds` silently comes alive.
+
+**Measured 2026-08-15, and these are what the bands were set from:** press→release 200–208 / 500–508
+/ 751–757 ms; elapsed overhead +15–19 / +20–26 / +17–31 ms; clean dodge travel 405.1–414.1 cm across
+17 samples. The exhaustion arithmetic reproduces to the millisecond — `GUARD END` + 0.5 s pause +
+100 ÷ 25 exhausted regen predicted 14.733 and 9.279, and both landed exactly there.
+
+**The dodger's travel needs the lateral filter or a fifth of the samples are wrong.** The checker
+keeps only `DODGE END` lines with `|right| ≤ 1.0`; 5 of 22 in the reference run read ~297 cm with
+`right≈-67`, all of them the attacker colliding with a displaced dodger. **Never widen the distance
+band to admit them** — that is fitting the band to contamination.

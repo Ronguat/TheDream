@@ -170,6 +170,9 @@ Timings land within about a frame, biased late. `GA_Attack`'s `Branches` array i
 - Name assets clearly: `GA_Attack`, `GE_StaminaCost_Dodge`, `ABP_Combat`, etc.
 - Use data-driven values (curves, data assets, or simple constants) for timings, stamina costs, and windows so they can be tuned without code changes.
 - Every new system should be playable in PIE with a debug enemy or training dummy as soon as possible.
+  **The dummy mirrors the player's combat values; divergence is a design decision needing an argument**
+  (2026-08-15) — a fixture reproduces the conditions under test, so parity is the default rather than
+  hand-maintained. Three had silently drifted, and two verification assertions were wrong until mirrored.
 
 ## Project Documentation
 Five standing files carry knowledge the code cannot (a work-in-flight plan file may sit beside them, and says so in its own header). Read them before working in their area; keep them true in the same commit that makes them wrong. **Each has a trigger rather than being read at large** — that is why they are not in this file, which is loaded in full every session.
@@ -416,7 +419,6 @@ tuning map carries the warning that a curve's mean must be 1.0 or it silently sc
 authored distance. The reach/travel/spacing re-author shares that trigger — **when the combat
 model is verified good in play, that work is next**, whatever else has accumulated by then.
 
-**Verification infrastructure — approved 2026-08-15:** defense-capable dummy *(shipped 2026-08-15)*
-→ regression loop → two-player PIE recon. `Docs/Verification-Plan.md` is the contract; read it first.
-The dummy can now hold a guard or dodge on a timer, so the stamina economy runs unattended — the
-fixture is in `Docs/Debug-Instruments.md`.
+**Verification infrastructure — approved 2026-08-15:** the dummy and the regression loop have
+shipped; **two-player PIE recon remains**. `Docs/Verification-Plan.md` is the contract;
+`Docs/Debug-Instruments.md` carries the fixture, the scenario matrix and the checker.
