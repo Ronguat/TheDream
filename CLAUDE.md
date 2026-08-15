@@ -186,7 +186,7 @@ Five standing files carry knowledge the code cannot (a work-in-flight plan file 
 
 **Durable knowledge belongs in these files, not in an assistant's per-machine memory.** Anything a future contributor would need — combat reasoning, tooling behaviour, rules and current facts — goes in the repo, where it can be reviewed and corrected. Memory keeps only what is genuinely session- or machine-scoped, and *points* at the repo rather than restating it: `Docs/Working-In-Unreal.md` exists precisely because those notes were once memory-only and therefore invisible.
 
-**This file's budget is ~420 lines, enforced when you add rather than when you audit** (2026-08-14, matching `Docs/Working-In-Unreal.md`). Past that, compress or relocate something first — the person adding a line is the one who knows what it replaces. Stated as a number because the vaguer form did not hold: it once went 486 → 466 → **514** within one session, caught by a manual re-read rather than by anything structural. **The two mechanisms that keep it there are the Done eviction rule and this budget**; if it drifts anyway, the question is which kind of content is growing, not which lines look longest. **The number is a tripwire, not a cap** (2026-08-15, the user's call): compress or route what grew, and when what grew is genuinely rule material with no other home, raise the budget with a dated note — deleting a live rule to hit a number is the one wrong answer.
+**This file's budget is ~420 lines, enforced when you add rather than when you audit** (2026-08-14, matching `Docs/Working-In-Unreal.md`). Past that, compress or relocate something first — the person adding a line is the one who knows what it replaces. Stated as a number because the vaguer form did not hold: it once went 486 → 466 → **514** within one session, caught by a manual re-read rather than by anything structural. **The two mechanisms that keep it there are the Done eviction rule and this budget**; if it drifts anyway, the question is which kind of content is growing, not which lines look longest. **The number is a tripwire, not a cap** (2026-08-15, the user's call): compress or route what grew, and when what grew is genuinely rule material with no other home, raise the budget with a dated note — deleting a live rule to hit a number is the one wrong answer. **Raised to ~435 on 2026-08-15**, with the user's leave, for the regression-loop coupling rule in Working Rules: the first use of that escape hatch, and it was taken only after an audit had already compressed 423 → 421 by removing retellings rather than rules.
 
 **One fact, one home; everywhere else points at it.** This applies *inside* the repo, not only between memory and repo — including between two items in this file, and between a doc and a code comment. The 2026-08-12 audit found eight wrong claims and three were a fact stated twice where only one copy was updated; the 2026-08-15 audit found a fourth, this file's own summary of another doc naming a count that had since quadrupled. **Summaries and descriptions are where this happens** — they restate values nobody thinks to update. A second copy does not reinforce a fact, it creates something nobody reviews.
 
@@ -235,6 +235,20 @@ one at a time. But if a genuine question about *what* or *why* emerges mid-run, 
   re-read at the start of the slice it is filed against, and on 2026-08-12 that failed exactly as an
   unenforced instruction does: a trap discharged during Attack Swap sat filed for a day and was found
   by an audit rather than by anyone reading it. One grep, at the moment it is most relevant.
+- **The regression loop is a living artifact: combat surface and loop coverage stay coupled**
+  (2026-08-15, the user's rule). Any package that plans or green-lights a new combat capability must
+  explicitly include **one of two things, and there is no third option**:
+   1. the specific scenarios and band checks it will add to `Tools/RegressionCheck/regression-check.sh`,
+      **in the same package**; or
+   2. a **dated trap** in `Docs/Combat-Decisions.md` recording that loop coverage is deliberately
+      deferred, and **naming what is now untested**.
+
+  Shipping a combat capability without one of those is a **process violation**, not an oversight to be
+  caught later. **It binds at plan time, not at ship time** — which of the two is part of what gets
+  agreed, so it cannot be quietly resolved by whoever is tired at the end. The reason is the failure
+  mode: a loop that lags the combat surface **still prints green**, so it stops being evidence without
+  ever announcing that it has. Binds pending slices as well as future ones — Block's remainders,
+  Light String, Parry, Stun and Settings each owe this choice when they are picked up.
 - **Do not declare a task finished on your own.** The loop closes where it opened: greenlight is the
   WHAT gate going in, and *"is this done"* is the WHAT gate coming out. Report what was built, what
   was verified versus merely written, and **what was done beyond what was agreed, or that nothing

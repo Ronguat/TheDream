@@ -231,6 +231,26 @@ deliberately wrong one fails, because a checker that cannot fail is indistinguis
 passes everything. A sharper version of the same check: run a scenario against another tier's log
 (`s1-light` against an `s1-heavy` session) and watch all four assertions fail with the real numbers.
 
+### The loop is a living artifact, and that is a standing rule
+
+**Combat surface and loop coverage stay coupled** (2026-08-15, the user's rule; stated in
+`CLAUDE.md`'s Working Rules, repeated here because this is where the work happens). Any package
+planning or green-lighting a new combat capability must include **either** the scenarios and band
+checks it adds to the checker **in that same package**, **or** a dated trap in
+`Docs/Combat-Decisions.md` saying coverage is deferred and naming what is now untested. **There is
+no third option, and picking neither is a process violation.**
+
+**The failure it prevents is silent.** A checker whose scenarios lag the combat surface still prints
+a full green table — it simply stops asking about the new thing. Nothing in the output distinguishes
+"seven scenarios, all passing" from "seven scenarios, and the feature you shipped last week is not
+one of them". That is why the choice is made at plan time and written down, rather than left to
+whoever notices later.
+
+**Adding a scenario is three edits**: a band block at the top of the script with its source in a
+comment, a `run_*` function or a case arm, and a row in the matrix below naming the fixture it
+expects. **Then run `--self-test`, and make the new assertion fail once on purpose** before trusting
+it — a band nobody has seen reject anything is indistinguishable from one that cannot.
+
 ### Scenario matrix
 
 Each row names the fixture it expects. **The knobs are `EditAnywhere` instance writes made before
