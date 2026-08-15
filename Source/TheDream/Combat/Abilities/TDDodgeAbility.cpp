@@ -118,6 +118,13 @@ void UTDDodgeAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, c
 		}
 	}
 
+	// Read *after* Super::ActivateAbility, which is where EffectOnStart charged the cost, so this
+	// is the bar the dodge left behind rather than the one it found. Parity with BLOCK cost's
+	// remaining=: the two together are what make an unattended stamina ledger readable, and a
+	// dodge from full must read exactly 50. -1 marks "no combatant", which cannot be a real bar.
+	const ATDCombatCharacter* Combatant = Cast<ATDCombatCharacter>(GetAvatarActorFromActorInfo());
+	const float StaminaRemaining = Combatant ? Combatant->GetStamina() : -1.0f;
+
 	if (DodgeMontage)
 	{
 		const FName Section = SectionForDirection(DodgeDirection);
@@ -157,18 +164,18 @@ void UTDDodgeAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, c
 
 		// rate x DodgeSeconds should equal the section's authored length. If it does not,
 		// the section resolved to something other than the roll that was intended.
-		TD_TIMING_LOG(TEXT("[%.3f] DODGE      dir=%s section=%s sectionLen=%.3f rate=%.3f want=%.3fs"),
+		TD_TIMING_LOG(TEXT("[%.3f] DODGE      dir=%s section=%s sectionLen=%.3f rate=%.3f want=%.3fs remaining=%.1f"),
 			World->GetTimeSeconds(), *UEnum::GetValueAsString(DodgeDirection), *Section.ToString(),
 			(SectionIndex != INDEX_NONE) ? DodgeMontage->GetSectionLength(SectionIndex) : -1.0f,
-			PlayRate, DodgeSeconds);
+			PlayRate, DodgeSeconds, StaminaRemaining);
 	}
 	else
 	{
 		// Traced even with no montage. The montage is optional and is currently unset, so
 		// gating the only record that a dodge happened on having one made the ability
 		// invisible to the trace exactly while it was the thing under test.
-		TD_TIMING_LOG(TEXT("[%.3f] DODGE      dir=%s want=%.3fs (no montage)"),
-			World->GetTimeSeconds(), *UEnum::GetValueAsString(DodgeDirection), DodgeSeconds);
+		TD_TIMING_LOG(TEXT("[%.3f] DODGE      dir=%s want=%.3fs remaining=%.1f (no montage)"),
+			World->GetTimeSeconds(), *UEnum::GetValueAsString(DodgeDirection), DodgeSeconds, StaminaRemaining);
 	}
 
 	World->GetTimerManager().SetTimer(

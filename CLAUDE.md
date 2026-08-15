@@ -416,5 +416,7 @@ tuning map carries the warning that a curve's mean must be 1.0 or it silently sc
 authored distance. The reach/travel/spacing re-author shares that trigger — **when the combat
 model is verified good in play, that work is next**, whatever else has accumulated by then.
 
-**Verification infrastructure — approved 2026-08-15, not yet built:** defense-capable dummy →
-regression loop → two-player PIE recon. `Docs/Verification-Plan.md` is the contract; read it first.
+**Verification infrastructure — approved 2026-08-15:** defense-capable dummy *(shipped 2026-08-15)*
+→ regression loop → two-player PIE recon. `Docs/Verification-Plan.md` is the contract; read it first.
+The dummy can now hold a guard or dodge on a timer, so the stamina economy runs unattended — the
+fixture is in `Docs/Debug-Instruments.md`.

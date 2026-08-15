@@ -1066,6 +1066,20 @@ void ATDCombatCharacter::ReviveFromDebug()
 void ATDCombatCharacter::EnterExhaustion()
 {
 	bExhausted = true;
+
+	// **The one combat state that had no trace at all**, so confirming it meant a GetActiveTags
+	// round-trip or an inference from a dropped buffer -- neither of which an unattended run can
+	// do. Both edges carry the bar because the *rule* is that exhaustion begins at 0 and ends at
+	// Max rather than on a clock: the two numbers are the assertion, and a value here that is
+	// neither says the mechanism has moved.
+	//
+	// Unguarded, because the caller only reaches here on a genuine transition -- see
+	// HandleStaminaChanged, which tests bExhausted before either call.
+	TD_TIMING_LOG(TEXT("[%.3f] EXHAUSTED  %s  stamina=%.1f"),
+		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f,
+		*GetName(),
+		GetStamina());
+
 	ApplyExhaustionState();
 }
 
@@ -1076,6 +1090,13 @@ void ATDCombatCharacter::ExitExhaustion()
 		return;
 	}
 	bExhausted = false;
+
+	// After the early return, so this is a real transition rather than every revive from an
+	// already-full bar. See EnterExhaustion for why the bar is printed.
+	TD_TIMING_LOG(TEXT("[%.3f] EXHAUSTION END %s  stamina=%.1f"),
+		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f,
+		*GetName(),
+		GetStamina());
 
 	ClearExhaustionState();
 }
@@ -1330,12 +1351,20 @@ void ATDCombatCharacter::SeedAbilitySystemDefaults()
 	// that opted in, not of the pawn, so a dummy granted a guard later gets it without a change here.
 	AbilitySystem->OnAbilityEnded.AddUObject(this, &ATDCombatCharacter::HandleAbilityEndedForResume);
 
-	if (bDebugAutoAttack && DebugAutoAttackInputTag.IsValid())
-	{
-		// Captured before the first swing, so it is the placed transform rather than wherever
-		// root motion has since carried us.
-		DebugAutoAttackHomeTransform = GetActorTransform();
+	const bool bDebugAttacker = bDebugAutoAttack && DebugAutoAttackInputTag.IsValid();
+	const bool bDebugDefender = DebugAutoDefendMode != ETDDebugDefendMode::Off;
 
+	// Captured before the first swing or dodge, so it is the placed transform rather than wherever
+	// root motion has since carried us. Taken for either fixture: a dodger needs it as much as an
+	// attacker, because with no movement input every dodge resolves *backward*, so an unattended
+	// defender reverses out of the exchange at DodgeTargetDistanceCm a time.
+	if (bDebugAttacker || bDebugDefender)
+	{
+		DebugAutoAttackHomeTransform = GetActorTransform();
+	}
+
+	if (bDebugAttacker)
+	{
 		// Reset when the swing actually finishes rather than on a fixed delay: attack length
 		// varies by tier, and a delay long enough for a charged attack would be most of the gap.
 		AbilitySystem->OnAbilityEnded.AddUObject(this, &ATDCombatCharacter::HandleDebugAutoAttackEnded);
@@ -1348,14 +1377,52 @@ void ATDCombatCharacter::SeedAbilitySystemDefaults()
 			true,
 			DebugAutoAttackInterval);
 	}
+
+	switch (DebugAutoDefendMode)
+	{
+	case ETDDebugDefendMode::HoldBlock:
+		if (DebugDefendBlockInputTag.IsValid())
+		{
+			// **One press, never released, and that is the entire mode.** The press marks the
+			// spec InputPressed whether or not this activation succeeds, and GA_Block opts into
+			// resuming while its input is held -- so the guard comes back after every break,
+			// exhaustion and airborne cancel from here on with nothing maintaining it.
+			OnAbilityInputPressed(DebugDefendBlockInputTag);
+
+			// Requested explicitly because nothing has *ended* yet, and the resume tick only
+			// looks when something has. Without it a guard refused at spawn would never retry:
+			// a placed pawn can still be settling onto the floor, and a guard cannot be raised
+			// airborne -- so the fixture would start silently unarmed, which reads as a bug in
+			// block rather than in the fixture. The tick clears this once the guard is really up.
+			bResumePending = true;
+		}
+		break;
+
+	case ETDDebugDefendMode::PeriodicDodge:
+		if (DebugDefendDodgeInputTag.IsValid())
+		{
+			GetWorldTimerManager().SetTimer(
+				DebugAutoDodgeTimerHandle,
+				this,
+				&ATDCombatCharacter::DebugAutoDodgePress,
+				DebugDodgeIntervalSeconds,
+				true,
+				DebugDodgeIntervalSeconds);
+		}
+		break;
+
+	default:
+		break;
+	}
 }
 
 void ATDCombatCharacter::ReturnToDebugAutoAttackHome()
 {
-	// Guarded on the auto-attack flag as well as the reset flag, because HomeTransform is only
-	// captured for auto-attackers. Without this, calling it on anything else -- the player, on
-	// revive -- teleports to an identity transform, i.e. the world origin.
-	if (!bDebugAutoAttackResetPosition || !bDebugAutoAttack)
+	// Guarded on there being a debug fixture at all, as well as on the reset flag, because
+	// HomeTransform is only captured for one. Without this, calling it on anything else -- the
+	// player, on revive -- teleports to an identity transform, i.e. the world origin.
+	if (!bDebugAutoAttackResetPosition
+		|| (!bDebugAutoAttack && DebugAutoDefendMode == ETDDebugDefendMode::Off))
 	{
 		return;
 	}
@@ -1516,6 +1583,41 @@ void ATDCombatCharacter::DebugAutoAttackPress()
 void ATDCombatCharacter::DebugAutoAttackRelease()
 {
 	OnAbilityInputReleased(DebugAutoAttackInputTag);
+}
+
+void ATDCombatCharacter::DebugAutoDodgePress()
+{
+	// Every dodge starts from the same transform, which is what makes DODGE END's distance a
+	// measurement rather than an accumulation. With no movement input the direction is always
+	// backward, so without this the dodger reverses out of the attacker's reach within two
+	// dodges and everything read afterwards is of a fixture that has left the exchange.
+	//
+	// On the press rather than on the ability's end, deliberately: the travel has to complete
+	// undisturbed to be measurable, and a reset chasing the dodge home would be the very thing
+	// Docs/Working-In-Unreal.md warns about -- something touching the mover mid-measurement.
+	ReturnToDebugAutoAttackHome();
+
+	OnAbilityInputPressed(DebugDefendDodgeInputTag);
+
+	// Tapped rather than held, and the release edge is the whole reason. Nothing about a dodge is
+	// selected by how long the button is down -- unlike the attack, where the hold picks the tier
+	// -- but a press that never comes up is never *stale*, so a refused one would sit in the input
+	// buffer indefinitely and fire at some later opportunity nobody scheduled. Releasing restores
+	// the buffer's ordinary expiry.
+	//
+	// Fits inside DebugDodgeIntervalSeconds by construction: the interval clamps at 0.1 and this
+	// is 0.05, so a release can never land in the following cycle.
+	GetWorldTimerManager().SetTimer(
+		DebugAutoDodgeReleaseTimerHandle,
+		this,
+		&ATDCombatCharacter::DebugAutoDodgeRelease,
+		0.05f,
+		false);
+}
+
+void ATDCombatCharacter::DebugAutoDodgeRelease()
+{
+	OnAbilityInputReleased(DebugDefendDodgeInputTag);
 }
 
 void ATDCombatCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)

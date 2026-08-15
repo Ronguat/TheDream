@@ -36,6 +36,38 @@ where you stand, which is a *useful control* and an easy thing to mistake for br
 **Read `TARGET commit`'s bearing to tell which mode you are in** — a bearing pinned near ±90 while
 you circle is a dummy that is not turning.
 
+**The defender is a second dummy, and it is the fixture change of 2026-08-15.** `L_CombatTest` now
+holds two: `BP_TrainingDummy_C_0`, the attacker at (200, 0, 96) yaw 180, unchanged; and
+`BP_TrainingDummy_C_1`, the defender at (200, −150, 96) yaw 90, facing it. **Measurements do not
+span this change** — a third pawn moves nearest-target selection, and every travel baseline taken
+before it was taken against a level with one dummy in it.
+
+**The defender's spacing is chosen against two constraints, and both bite if it moves.** It sits
+150 cm from the attacker so that it, not the player at `PlayerStart` (200 cm away), is the
+attacker's nearest pawn — that is what binds the pair. And it sits on the **−Y** side because a
+stationary dodge resolves backward: placed at +150 it backs into the ramp's near vertical edge face
+and travels **107 cm instead of 405**, which reads exactly like a broken dodge. *(Measured both ways
+2026-08-15; a line trace at z=96 does **not** find the ramp, because at x=200 the ramp is only ~34
+tall — pitch rotates about Y, so it tilts along X and its height varies with x, not y.)*
+
+**`ETDDebugDefendMode` drives it, mirroring `bDebugAutoAttack`.** `HoldBlock` presses the block tag
+once in `BeginPlay` and never releases — `GA_Block`'s `bResumeWhileInputHeld` does the rest, so the
+guard returns after every break for as long as PIE runs. `PeriodicDodge` taps on
+`DebugDodgeIntervalSeconds`, defaulted to **1.9 so it does not alias** against the attacker's 3.0.
+Both are instance properties: set them on the placed defender, not the CDO, or the attacker adopts
+them too.
+
+**The defender pays no `BlockInitialStaminaCost`** — 0 on `BP_TrainingDummy`'s CDO against **10** on
+`BP_PlayerCharacter`'s *(read 2026-08-15)*. So **`BLOCK cost` never appears in a defender-only log**,
+and the defender's guard economy is not the player's: it starts every cycle from a full 100. Any
+assertion of the form "cost lines equal guard raises" is false against this fixture as configured.
+
+**A dodger's travel is contaminated whenever the attacker reaches it, and `right=` is the tell.** A
+stationary backward dodge reads `right=-0.0`; a sample with `right=-66.8` was one the attacker
+collided with mid-dodge, and it measured 303 against a clean 405–414. **Filter on `right`, not on the
+distance you were hoping for.** The dodger also sits ~405 cm from home between dodges — it returns
+on the *next* press, not when the dodge ends — so the attacker spends much of the cycle chasing it.
+
 **Beware the placed axis when testing facing.** `L_CombatTest` puts the dummy at (200, 0, 96.0) yaw
 180 — actor `BP_TrainingDummy_C_0` since it was re-placed 2026-08-14, `_C_1` before that — and
 `PlayerStart` at (0, 0), *directly along its facing*, so `bearing=+0.0` there is what a dummy
@@ -81,7 +113,12 @@ beside it means the guard broke instead**, which is correct and supersedes it; `
 *neither* is the failure to watch for. **Nothing will ever print it for a charged** — its stamina
 damage empties any bar, so it always breaks. That is a filed trap, not a bug.
 
-**`INPUT <tag> pressed/released` is the physical button, and the only line in the trace that is.**
+**`INPUT <tag> pressed/released` is the button edge, and the only line in the trace that is** —
+**but it is not proof of a human** *(clarified 2026-08-15)*. The debug attacker and defender both
+drive `OnAbilityInputPressed`, so they emit `INPUT` exactly as a keyboard does; `INPUT
+InputTag.Block pressed on BP_TrainingDummy_C_1` at `[0.000]` is the auto-defender seeding its guard.
+**Read the avatar name before concluding a player did something.** Against a human at the keyboard,
+the rest of this paragraph holds:
 Everything else — `BUFFER`, `REFUSED`, the ability edges — describes what the *system* did with a
 press, so a replayed press and a real one are indistinguishable by the time they reach an ability.
 Reach for this whenever the question is "did the player actually do that", and pair the two edges
@@ -129,9 +166,23 @@ dealing damage. Eight exist as of 2026-08-15; grep `LogTDCombatTiming, Warning` 
 the list rather than trusting a count written here.
 
 
-**Not every state is traced.** There is **nothing for exhaustion** — absence from the log is evidence
-nobody logs it. Confirm with `GetActiveTags`, or infer from a `BUFFER ...Dodge: expired`. The list is
-greppable: `grep -rn "TD_TIMING_LOG" Source/`.
+**`EXHAUSTED` / `EXHAUSTION END` bracket exhaustion** *(2026-08-15, closing the "nothing traces
+exhaustion" gap)*. Both carry the bar, and **the two numbers are the assertion**: the rule is that
+exhaustion begins at 0 and ends at Max rather than on a clock, so `stamina=0.0` on entry and
+`stamina=100.0` on exit is the check, and anything else says the mechanism has moved. Both fire only
+on a real transition. **`EXHAUSTED` prints *before* the `GUARD BREAK` it shares a frame with** — the
+blocked hit empties the bar, the delegate exhausts you, and the break follows.
+
+**An exhausted holder's `REFUSED` stream is expected output, not a fault.** A held guard retries
+every tick while exhausted, deduped to one line per reason per half second — measured at ~0.503 s
+apart, so roughly 2/s per ability. **Pass bands must whitelist it.** A *dodger* produces nothing
+comparable: `GA_Dodge` does not resume, so a refused tap is one line and no more.
+
+**`DODGE` carries `remaining=`** *(2026-08-15)*, parity with `BLOCK cost`, read after the cost is
+charged — so a dodge from full reads exactly **50.0**, and the unattended stamina ledger is legible
+without a single `GetActiveTags` round-trip.
+
+**Not every state is traced.** The list is greppable: `grep -rn "TD_TIMING_LOG" Source/`.
 
 **`RELEASE BEGIN`/`END` can report the wrong montage** *(found in review)*.
 `AnimNotifyState_MeleeWindow` logs via `GetCurrentActiveMontage()`, so anything at higher priority —

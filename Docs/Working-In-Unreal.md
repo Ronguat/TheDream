@@ -392,9 +392,12 @@ With the stamina economy involved, add:
   throughout — **check that pair specifically, since it briefly did not**: a dodge that exhausts you
   must finish, then wait, before the bar moves at all. `CLAUDE.md`'s Stamina section is the rule; this
   is only the check
-- **Nothing in the build can drain stamina without a human at the keyboard**, so every check above
-  needs hands on the dodge key. The attribute set cannot be written through the toolset either —
-  `SpawnedAttributes` is not reflection-readable — so there is no automated substitute *(2026-08-14)*
+- **Stamina can now be drained unattended** *(2026-08-15, replacing "nothing in the build can drain
+  stamina without a human at the keyboard")* — `ETDDebugDefendMode` on the training dummy holds a
+  guard or dodges on a timer, so the drain, break, exhaustion and regen path all run with nobody at
+  the keyboard. See `Docs/Debug-Instruments.md` for the fixture. **The attribute set still cannot be
+  written through the toolset** — `SpawnedAttributes` is not reflection-readable — so *setting* a
+  bar to an arbitrary value remains impossible; you drive it by spending, not by assignment
 - **Attribute *base* values are clamped, not just current.** A base drifted above Max is invisible on
   the bar and makes every cost read wrong
 - **Costs never gate.** Dodging below the cost must still work and empty the bar

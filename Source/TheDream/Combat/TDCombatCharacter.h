@@ -92,6 +92,44 @@ enum class ETDDebugFacingMode : uint8
 };
 
 /**
+ *  What a debug auto-defender does with the attacks coming at it.
+ *
+ *  Offense has had an unattended driver since the auto-attacker shipped and defense has not, so
+ *  every guard, dodge and stamina reading has needed a human at the keyboard. That asymmetry is
+ *  what made the defensive economy -- drain, break, exhaustion, regen -- expensive to verify and
+ *  impossible to leave running. These modes are the cheapest thing that removes it.
+ *
+ *  **Deliberately one behaviour at a time rather than a defensive AI.** A dummy choosing between
+ *  blocking and dodging would need a policy, and a policy is a thing to debug on top of the thing
+ *  being debugged. One mode does one thing forever, which is what keeps the log readable.
+ */
+UENUM(BlueprintType)
+enum class ETDDebugDefendMode : uint8
+{
+	/** Defend nothing. The training dummy's default: a pure damage target. */
+	Off,
+
+	/**
+	 *  Raise the guard once and never let go.
+	 *
+	 *  One press is the whole implementation. GA_Block opts into bResumeWhileInputHeld, and the
+	 *  press path marks the spec InputPressed whether or not the activation succeeds -- so the
+	 *  resume tick puts the guard back after every break, every exhaustion and every airborne
+	 *  cancel, indefinitely, with nothing here to maintain it.
+	 */
+	HoldBlock,
+
+	/**
+	 *  Tap the dodge input on DebugDodgeIntervalSeconds.
+	 *
+	 *  With no movement input a dodge always resolves backward, so this both spends stamina on a
+	 *  fixed schedule and travels a known distance in a known direction -- which is what makes the
+	 *  exhaustion cycle and DodgeTargetDistanceCm measurable without a human.
+	 */
+	PeriodicDodge
+};
+
+/**
  *  Base class for anything that can fight: the player and the training dummy alike.
  *
  *  Inherits locomotion and the third person camera from ATheDreamCharacter and adds
@@ -665,6 +703,41 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat|Debug")
 	ETDDebugFacingMode DebugAutoAttackFacingMode = ETDDebugFacingMode::Never;
 
+	/**
+	 *  Debug only: defend on a loop, so the defensive economy can be watched without a human.
+	 *
+	 *  The mirror of bDebugAutoAttack, and pairing it with one is deliberately *two actors' job*.
+	 *  An attacker that also defends is two fixtures interfering -- a guard cancels an attack's
+	 *  startup and the attack's own tags refuse the guard -- so one of each is what produces a
+	 *  readable exchange. Both on one pawn is representable and is not what this is for.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat|Debug")
+	ETDDebugDefendMode DebugAutoDefendMode = ETDDebugDefendMode::Off;
+
+	/** Input the HoldBlock mode presses, normally InputTag.Block. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat|Debug")
+	FGameplayTag DebugDefendBlockInputTag;
+
+	/** Input the PeriodicDodge mode taps, normally InputTag.Dodge. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat|Debug")
+	FGameplayTag DebugDefendDodgeInputTag;
+
+	/**
+	 *  Seconds between one auto-dodge and the next. Debug only.
+	 *
+	 *  **Default 1.9 rather than a round number, and that is the point.** A dodger whose period
+	 *  divides or multiplies the attacker's DebugAutoAttackInterval meets every swing at the same
+	 *  phase and so answers one question forever. Co-prime periods sweep the phase across the
+	 *  attack instead, so an unattended run covers dodging into windup, into release and into
+	 *  recovery without anyone scripting it. Aliasing is the failure this avoids; see
+	 *  Docs/Working-In-Unreal.md on periodic samplers.
+	 *
+	 *  Clamped at 0.1 for the reason the attacker's interval is: the tap must fit inside the
+	 *  interval, or the release edge lands in the next cycle.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat|Debug", meta=(ClampMin="0.1"))
+	float DebugDodgeIntervalSeconds = 1.9f;
+
 public:
 
 	/**
@@ -853,6 +926,15 @@ private:
 	/** Presses the debug attack input, then releases it DebugAutoAttackHoldSeconds later. */
 	void DebugAutoAttackPress();
 	void DebugAutoAttackRelease();
+
+	/**
+	 *  Presses the debug dodge input, then releases it a tap later. Debug only.
+	 *
+	 *  HoldBlock has no equivalent pair on purpose: it presses once in BeginPlay and never
+	 *  releases, and the resume tick does the rest.
+	 */
+	void DebugAutoDodgePress();
+	void DebugAutoDodgeRelease();
 
 	/** Teleports back to DebugAutoAttackHomeTransform and kills leftover velocity. No-op if disabled. */
 	void ReturnToDebugAutoAttackHome();
@@ -1103,6 +1185,13 @@ private:
 	FTimerHandle DebugAutoAttackReleaseTimerHandle;
 	FTimerHandle DebugAutoAttackResetTimerHandle;
 
-	/** Where the auto-attacker started, captured once, so each swing begins from the same spot. */
+	FTimerHandle DebugAutoDodgeTimerHandle;
+	FTimerHandle DebugAutoDodgeReleaseTimerHandle;
+
+	/**
+	 *  Where a debug fixture started, captured once, so each swing or dodge begins from the same
+	 *  spot. Named for the auto-attacker because it shipped with it; the auto-defender shares it
+	 *  rather than carrying a second copy of the same transform.
+	 */
 	FTransform DebugAutoAttackHomeTransform;
 };

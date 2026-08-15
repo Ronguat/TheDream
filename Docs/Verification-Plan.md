@@ -52,7 +52,26 @@ Grep the known-traps section at slice start as usual; these are the ones already
   **file the fixture change in `Docs/Debug-Instruments.md`**, as the 2026-08-14 facing-mode
   change was filed. Measurements do not span it.
 
-## V1 — Defense-capable dummy
+## V1 — Defense-capable dummy — **SHIPPED 2026-08-15**
+
+Built and play-verified as described below. Both modes run unattended; the fixture, its placement
+constraints and the two new trace lines are documented in `Docs/Debug-Instruments.md`, which is now
+the authority for all of it. **Three things came back different from the prediction below**, and V3
+inherits them:
+
+- **The HoldBlock cycle is ~15.2 s, not 25–30**, because the defender pays no
+  `BlockInitialStaminaCost` (0 on the dummy against 10 on the player) and so starts each cycle at a
+  full 100. Measured: raise at 0.000 → blocked at 5/hit leaving 62.7 / 27.7 / 0.0 → `EXHAUSTED`
+  `stamina=0.0` → `GUARD BREAK` → `GUARD END` +1.001 s → `EXHAUSTION END` `stamina=100.0` at 15.231,
+  guard back up in the same frame.
+- **S2's "cost lines equal guard raises" is false against this fixture** and must not ship as an
+  assertion — there are zero `BLOCK cost` lines and N raises. Either assert zero, or raise the
+  dummy's cost to 10 first, which is a fixture decision rather than a checker one.
+- **S3's travel band needs a cleanliness predicate.** Clean stationary dodges read 405.8–414.1 with
+  `right=-0.0`; a sample the attacker collided with read 303.3 with `right=-66.8`. **Filter on
+  `right`, not on distance.** Contamination is expected — the phase sweep is the feature.
+
+### V1 as planned, kept for the reasoning
 
 **Design: mirror the auto-attacker exactly**, in the same `Combat|Debug` region of
 `ATDCombatCharacter`, driving `OnAbilityInputPressed/Released` like it does.
