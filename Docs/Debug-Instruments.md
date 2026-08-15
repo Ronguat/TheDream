@@ -93,11 +93,12 @@ refusals live. Before 2026-08-14 it saw only the three C++ checks, so a session 
 constantly and log nothing. An empty reason is informative: a cost, a missing required tag, or the
 ability already running.
 
-**It over-reported for one day and the fix is unexercised** *(2026-08-14)*. It filtered in the wrong
-direction, so a blocked tag was named whenever the avatar merely owned a *parent* of it — every
-refusal during a block accused `State.Blocking.Committed`, long after the commitment had expired.
-**Treat any pre-fix log's tag list as unreliable rather than as evidence**, and the first
-block-then-attack after this is what confirms the fix. **It is deduped by reason and by half a second**, because the resume retries
+**It over-reported for one day; the fix is confirmed in play** *(2026-08-15)*. It filtered in the
+wrong direction, so a blocked tag was named whenever the avatar merely owned a *parent* of it —
+every refusal during a block accused `State.Blocking.Committed`, long after the commitment had
+expired. **Treat any 2026-08-14 pre-fix log's tag list as unreliable rather than as evidence.**
+Confirmed by the first block-then-attack session after the fix: 3 such refusals across 39 guards,
+each 150–176 ms after its `BLOCK up` — inside the commitment, where the accusation is true. **It is deduped by reason and by half a second**, because the resume retries
 every tick while its input is held — undeduped it emits at frame rate and buries everything else.
 
 **`ABILITY END` carries `elapsed`, which is an attack's true total** — the one number arithmetic
