@@ -909,6 +909,11 @@ precisely the settled set the band re-derivation reads.
 4. **Checker hygiene.** A log containing `TUNE` lines is not a regression log. The checker's
    refusal ships **with v1**, not after it, or the first tuned smoke-test silently pollutes a
    green run.
+5. **Cached values** *(added later the same day — the first four questions missed it)*. Some
+   consumers read a value once: `DebugAutoAttackInterval` is documented as read-only-at-`BeginPlay`.
+   A live write its consumer never re-reads is the staleness trap reborn at runtime, inside the
+   very tool built to defeat it. The rig either guarantees re-read semantics per exposed value or
+   triggers a refresh on write — and an audit of read-once consumers is part of v1's measure step.
 
 **Adopted with the early local v1** (the user's call, same day): v1 — local panel, live-instance
 writes, `TUNE` lines, checker guard — lands inside the megaslice at the first sitting that wants
