@@ -88,10 +88,16 @@ Reach for this whenever the question is "did the player actually do that", and p
 when the question is a duration. It is what separated a lost release from a genuine long hold, and
 two bugs sat undecidable without it.
 
-**`REFUSED` now names the offending tags** and covers `ActivationBlockedTags`, which is where most
+**`REFUSED` names the offending tags** and covers `ActivationBlockedTags`, which is where most
 refusals live. Before 2026-08-14 it saw only the three C++ checks, so a session could refuse
 constantly and log nothing. An empty reason is informative: a cost, a missing required tag, or the
-ability already running. **It is deduped by reason and by half a second**, because the resume retries
+ability already running.
+
+**It over-reported for one day and the fix is unexercised** *(2026-08-14)*. It filtered in the wrong
+direction, so a blocked tag was named whenever the avatar merely owned a *parent* of it — every
+refusal during a block accused `State.Blocking.Committed`, long after the commitment had expired.
+**Treat any pre-fix log's tag list as unreliable rather than as evidence**, and the first
+block-then-attack after this is what confirms the fix. **It is deduped by reason and by half a second**, because the resume retries
 every tick while its input is held — undeduped it emits at frame rate and buries everything else.
 
 **`ABILITY END` carries `elapsed`, which is an attack's true total** — the one number arithmetic
