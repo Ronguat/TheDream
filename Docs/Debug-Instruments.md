@@ -66,9 +66,19 @@ damage and the bar remaining, which is the pair that says whether the next hit w
 beside it is the failure to watch for**: it means the break has been moved somewhere that cannot see
 a hit landing on an already-empty bar.
 
-**`BLOCK down` carries `(released)` or `(cancelled)`, and it is logged in `EndAbility`** — five
-things end a guard and only one is the button coming up. It was in `InputReleased` for a day and a
-guard that survived its own guard break looked exactly like one correctly cancelled.
+**`BLOCK down` carries `(released)`, `(cancelled)` or `(exhausted)`, and the first two are logged in
+`EndAbility`** — six things end a guard and only one is the button coming up. It was in
+`InputReleased` for a day and a guard that survived its own guard break looked exactly like one
+correctly cancelled. **`(exhausted)` comes from the commitment tick instead**, and is the guard the
+system takes back when a too-expensive block's floor expires; expect it about
+`MinimumBlockSeconds` after a `BLOCK cost` that emptied the bar.
+
+**`BLOCKSTUN` / `BLOCKSTUN END` bracket a *successful* block's lockout** *(2026-08-14)*, and
+`BLOCKSTUN` prints the `until=` timestamp rather than a duration — a second blocked hit extends it by
+taking the max, so the end time is the only figure that stays true. **`BLOCKED` with no `BLOCKSTUN`
+beside it means the guard broke instead**, which is correct and supersedes it; `BLOCKED` followed by
+*neither* is the failure to watch for. **Nothing will ever print it for a charged** — its stamina
+damage empties any bar, so it always breaks. That is a filed trap, not a bug.
 
 **`INPUT <tag> pressed/released` is the physical button, and the only line in the trace that is.**
 Everything else — `BUFFER`, `REFUSED`, the ability edges — describes what the *system* did with a

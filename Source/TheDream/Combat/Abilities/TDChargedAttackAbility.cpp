@@ -602,6 +602,13 @@ float UTDChargedAttackAbility::GetAttackStaminaDamage() const
 	return Branches.IsValidIndex(SelectedBranchIndex) ? Branches[SelectedBranchIndex].StaminaDamage : StaminaDamage;
 }
 
+float UTDChargedAttackAbility::GetAttackBlockstunSeconds() const
+{
+	// Falls back on an invalid index like the two above, and zero is likewise a legitimate authored
+	// value -- "blocking this costs nothing but stamina" -- rather than a signal that it is unset.
+	return Branches.IsValidIndex(SelectedBranchIndex) ? Branches[SelectedBranchIndex].BlockstunSeconds : BlockstunSeconds;
+}
+
 const TArray<FTDAttackHitbox>& UTDChargedAttackAbility::GetAttackHitboxes() const
 {
 	// An authored-but-empty branch falls back to the ability's own set rather than to nothing.

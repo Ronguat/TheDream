@@ -117,6 +117,26 @@ struct FTDAttackBranch
 	float StaminaDamage = 5.0f;
 
 	/**
+	 *  How long a defender who *successfully* blocks this branch is locked out of offense and parry.
+	 *
+	 *  **This is the attacker's reward for being blocked**, and it is the number that decides whether
+	 *  a blocked attack is safe. The defender keeps their guard and their movement; what they lose is
+	 *  the initiative, for as long as what they blocked deserves. Set it above the attacker's own
+	 *  RecoverySeconds and the attack is safe on block; set it below and the defender can punish.
+	 *
+	 *  Authored per branch beside StaminaDamage for the same reason: the ladder's asymmetries belong
+	 *  where the ladder is authored. The spec's shape is "light's first hit safe on block, heavy safe
+	 *  on block, charged breaks it anyway", so the values climb with the tier.
+	 *
+	 *  **Placeholders as of 2026-08-14 -- none of these has been felt.** They are scaled to the tier
+	 *  rather than tuned against recovery, and the first play pass should expect to move them.
+	 *  Zero disables blockstun for the branch entirely, which is legal and means "blocking this
+	 *  costs the defender nothing but stamina".
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Attack", meta=(ClampMin="0.0"))
+	float BlockstunSeconds = 0.3f;
+
+	/**
 	 *  The volumes this branch strikes with. Empty falls back to the ability's own set.
 	 *
 	 *  Per branch rather than per ability because the spec gives heavy a higher range than light
@@ -313,6 +333,7 @@ protected:
 
 	virtual float GetAttackDamage() const override;
 	virtual float GetAttackStaminaDamage() const override;
+	virtual float GetAttackBlockstunSeconds() const override;
 	virtual const TArray<FTDAttackHitbox>& GetAttackHitboxes() const override;
 
 	/**

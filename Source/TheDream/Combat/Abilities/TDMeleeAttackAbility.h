@@ -65,6 +65,16 @@ protected:
 	float StaminaDamage = 5.0f;
 
 	/**
+	 *  Blockstun imposed on a defender who blocks this hit. Fallback for the branch value.
+	 *
+	 *  Zero means a blocked hit costs the defender nothing but stamina, which is authorable on
+	 *  purpose and is not a sensible default -- so this carries the light's value, as StaminaDamage
+	 *  above does. See FTDAttackBranch::BlockstunSeconds for what the number actually decides.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Damage", meta=(ClampMin="0.0"))
+	float BlockstunSeconds = 0.3f;
+
+	/**
 	 *  A target carrying any of these takes no damage from this attack -- i-frames.
 	 *
 	 *  **Leaving this empty silently disables invulnerability**, which looks exactly like
@@ -253,6 +263,9 @@ protected:
 
 	/** Stamina damage for the swing currently being thrown, used when it is blocked. */
 	virtual float GetAttackStaminaDamage() const { return StaminaDamage; }
+
+	/** Blockstun for the swing currently being thrown, imposed when it is blocked. */
+	virtual float GetAttackBlockstunSeconds() const { return BlockstunSeconds; }
 
 	/** Hitboxes for the swing currently being thrown. Overridden when a swing has variants. */
 	virtual const TArray<FTDAttackHitbox>& GetAttackHitboxes() const { return Hitboxes; }

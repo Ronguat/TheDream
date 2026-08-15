@@ -148,6 +148,29 @@ public:
 	UFUNCTION(BlueprintPure, Category="Combat|Stamina")
 	bool IsBlocking() const;
 
+	/** True from a guard breaking until its stun expires. Every ability is refused throughout. */
+	UFUNCTION(BlueprintPure, Category="Combat|Stamina")
+	bool IsGuardBroken() const { return bGuardBroken; }
+
+	/**
+	 *  True while a *successful* block's lockout is running. Refuses offense and parry only.
+	 *
+	 *  Deliberately not the same state as IsGuardBroken(), which is the penalty for a guard that
+	 *  failed and refuses everything. A block that worked still costs the defender initiative;
+	 *  it does not cost them their guard.
+	 */
+	UFUNCTION(BlueprintPure, Category="Combat|Stamina")
+	bool IsInBlockstun() const { return bInBlockstun; }
+
+	/**
+	 *  Starts the blockstun lockout, or extends one already running to the later end time.
+	 *
+	 *  Called by the attacking ability when its hit is blocked, so the duration travels with the
+	 *  attack rather than being a property of the defender -- a heavy should pin a guard for longer
+	 *  than a light does, and only the attack knows which it was.
+	 */
+	void EnterBlockstun(float DurationSeconds);
+
 	/**
 	 *  Starts the guard's minimum-duration commitment. Called by the block ability on activation.
 	 *
@@ -455,6 +478,25 @@ protected:
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Stamina", meta=(ClampMin="0.0"))
 	float BlockingMaxWalkSpeed = 125.0f;
+
+	/**
+	 *  Ground speed cap while exhausted. Authored, not derived, exactly as the guard's cap is.
+	 *
+	 *  400 is the user's value: 20% below the 500 `MaxWalkSpeed` the character otherwise runs at.
+	 *  Being run dry should read in the body before the player checks a bar, and exhaustion until
+	 *  now was invisible except as a refusal -- something you discovered by pressing a button and
+	 *  getting nothing.
+	 *
+	 *  **Recorded as a relationship, not implemented as one**, following BlockingMaxWalkSpeed: it
+	 *  stays a number to tune, so changing `MaxWalkSpeed` will not move it.
+	 *
+	 *  **Combines with the guard's cap by taking the slower**, which is reachable rather than
+	 *  theoretical: raising a guard you cannot afford exhausts you with the guard still up, so both
+	 *  clamps are live at once. Both are penalties and neither is a licence to move faster, so the
+	 *  minimum is the only combination that cannot be gamed by entering states in the right order.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Stamina", meta=(ClampMin="0.0"))
+	float ExhaustedMaxWalkSpeed = 400.0f;
 
 	/**
 	 *  How long a raised guard is committed for. **Locking: nothing but movement is allowed.**
@@ -842,8 +884,14 @@ private:
 	 */
 	void CancelBlockAbility();
 
-	/** Applies BlockingMaxWalkSpeed while a guard is up, and the captured default otherwise. */
-	void TickBlockingMoveSpeed();
+	/**
+	 *  Applies whichever authored speed caps are live, and the captured default when none are.
+	 *
+	 *  Takes the *slowest* applicable cap rather than the last one checked, because blocking and
+	 *  exhaustion can overlap. Renamed from TickBlockingMoveSpeed 2026-08-14 when exhaustion became
+	 *  the second clamp; the old name would have read as though the guard owned the mechanism.
+	 */
+	void TickMoveSpeedClamps();
 
 	/**
 	 *  Maintains State.Blocking.Committed, and finishes a release that was held back by it.
@@ -894,6 +942,17 @@ private:
 	void ApplyGuardBreakState();
 	void ClearGuardBreakState();
 
+	/**
+	 *  Ends the blockstun lockout. Driven from Tick against BlockstunEndsAt, as the guard break is.
+	 *
+	 *  There is no ApplyBlockstunState pairing beyond the tag, because blockstun cancels nothing --
+	 *  it refuses activations through ActivationBlockedTags and lets whatever is running finish.
+	 *  That is the deliberate difference from a break, which takes the guard down with it.
+	 */
+	void EndBlockstun();
+	void ApplyBlockstunState();
+	void ClearBlockstunState();
+
 	UFUNCTION()
 	void OnRep_Dead();
 
@@ -902,6 +961,9 @@ private:
 
 	UFUNCTION()
 	void OnRep_GuardBroken();
+
+	UFUNCTION()
+	void OnRep_Blockstun();
 
 	/**
 	 *  Applies State.Dead, cancels everything running, and stops the character moving.
@@ -966,6 +1028,20 @@ private:
 	 *  already uses, so the stun and the pause it implies are expressed the same way.
 	 */
 	float GuardBreakEndsAt = 0.0f;
+
+	/** Follows the same server-decides/OnRep-applies contract as the three above. */
+	UPROPERTY(ReplicatedUsing = OnRep_Blockstun)
+	bool bInBlockstun = false;
+
+	/**
+	 *  When the blockstun lockout expires, in world seconds. Server-authoritative.
+	 *
+	 *  A timestamp checked in Tick rather than a SetTimer, for the reason GuardBreakEndsAt gives.
+	 *  Extended by taking the max, never reassigned, so a second blocked hit landing inside an
+	 *  existing lockout can only ever lengthen it -- blocking two attacks must not be a way to
+	 *  serve a shorter sentence than blocking the slower one alone.
+	 */
+	float BlockstunEndsAt = 0.0f;
 
 	/**
 	 *  True only while TickBlockDrain is writing. **This is what stops drain exhausting you.**

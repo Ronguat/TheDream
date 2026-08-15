@@ -84,6 +84,18 @@ void ATDCombatCharacter::Tick(float DeltaSeconds)
 				EndGuardBreak();
 			}
 		}
+
+		// Same shape, separate state: a successful block's lockout runs independently of a broken
+		// guard's stun and neither ends the other. They cannot start together -- the melee ability
+		// picks one -- but a break landing during a running blockstun must not clear it early.
+		if (bInBlockstun)
+		{
+			const UWorld* World = GetWorld();
+			if (World && World->GetTimeSeconds() >= BlockstunEndsAt)
+			{
+				EndBlockstun();
+			}
+		}
 	}
 
 	// A guard does not survive leaving the ground. Keyed to the *falling state* rather than to
@@ -101,7 +113,7 @@ void ATDCombatCharacter::Tick(float DeltaSeconds)
 
 	// Not authority-gated: the speed cap is local presentation of a local state, and the movement
 	// component is already client-predicted.
-	TickBlockingMoveSpeed();
+	TickMoveSpeedClamps();
 
 	// Before the resume, so a guard that has just finished a held-back release does not get raised
 	// again in the same frame by an input the player has already let go of.
@@ -269,7 +281,7 @@ void ATDCombatCharacter::CancelBlockAbility()
 	}
 }
 
-void ATDCombatCharacter::TickBlockingMoveSpeed()
+void ATDCombatCharacter::TickMoveSpeedClamps()
 {
 	UCharacterMovementComponent* Movement = GetCharacterMovement();
 	if (!Movement || DefaultMaxWalkSpeed <= 0.0f)
@@ -281,7 +293,21 @@ void ATDCombatCharacter::TickBlockingMoveSpeed()
 	// edge-driven version has to restore on every exit path -- released, cancelled, guard broken,
 	// airborne, interrupted -- and stranding the slow speed is both easy and invisible, since a
 	// character that walks at a quarter speed forever looks like a tuning mistake rather than a bug.
-	const float Target = IsBlocking() ? BlockingMaxWalkSpeed : DefaultMaxWalkSpeed;
+	//
+	// **The slowest live cap wins, and the overlap is reachable rather than theoretical.** Raising a
+	// guard you cannot afford exhausts you with the guard still up, so both clamps apply at once.
+	// Taking the minimum is the only combination that cannot be gamed by entering the two states in
+	// a particular order, and both are penalties -- neither should ever be a licence to move faster.
+	float Target = DefaultMaxWalkSpeed;
+	if (IsBlocking())
+	{
+		Target = FMath::Min(Target, BlockingMaxWalkSpeed);
+	}
+	if (bExhausted)
+	{
+		Target = FMath::Min(Target, ExhaustedMaxWalkSpeed);
+	}
+
 	if (!FMath::IsNearlyEqual(Movement->MaxWalkSpeed, Target))
 	{
 		Movement->MaxWalkSpeed = Target;
@@ -330,8 +356,6 @@ void ATDCombatCharacter::TickResumeHeldAbilities()
 		}
 	}
 
-	bResumePending = false;
-
 	// A held button is a continuous statement of intent, so an ability that *is* a held state comes
 	// back when whatever interrupted it finishes. Opt-in per ability -- see bResumeWhileInputHeld --
 	// because the general form turns a held attack button into auto-repeat.
@@ -370,6 +394,28 @@ void ATDCombatCharacter::TickResumeHeldAbilities()
 		//
 		AbilitySystem->TryActivateAbility(Handle);
 	}
+
+	// **Cleared only once nothing is still waiting, which is a fix rather than a tidy-up.** This
+	// used to be assigned false before the attempt above, so a resume that was *refused* consumed
+	// the request and never retried -- and the comment further up promising that "a guard blocked by
+	// exhaustion comes up the instant exhaustion lifts" described behaviour the code did not have.
+	//
+	// Nearly unreachable until 2026-08-14, when the exhausted guard began force-ending at its
+	// commitment and made it the ordinary path: the forced end requests a resume, exhaustion refuses
+	// it, and the held button was silently forgotten. Retrying costs a refused activation per tick,
+	// which is precisely what REFUSED's dedupe was built for.
+	bool bStillWaiting = false;
+	for (const FGameplayAbilitySpecHandle& Handle : Resumable)
+	{
+		const FGameplayAbilitySpec* Spec = AbilitySystem->FindAbilitySpecFromHandle(Handle);
+		if (Spec && !Spec->IsActive() && Spec->InputPressed)
+		{
+			bStillWaiting = true;
+			break;
+		}
+	}
+
+	bResumePending = bStillWaiting;
 }
 
 bool ATDCombatCharacter::IsBlocking() const
@@ -462,6 +508,28 @@ void ATDCombatCharacter::TickBlockCommitment(float Now)
 
 	if (bShouldBeCommitted)
 	{
+		return;
+	}
+
+	// **An exhausted guard ends the instant its commitment expires, held button or not** (the user,
+	// 2026-08-14). It follows from two rules already in force rather than being a new one: you
+	// cannot block while exhausted, and all blocks are created equal. Raising a guard you cannot
+	// afford is allowed, charges its cost, exhausts you -- and then owes the full commitment,
+	// because exempting it is exactly the exemption that made the floor bimodal once already.
+	//
+	// So the commitment is the *only* thing keeping this guard up, and the moment it lapses the
+	// ordinary refusal takes over. Cancelled rather than released: a release would be the player's,
+	// and this is the system taking something back.
+	//
+	// Deliberately after the tag maintenance above, so the commit tag is already gone when the
+	// guard drops and nothing sees a committed guard that is not blocking.
+	if (bExhausted && IsBlocking())
+	{
+		TD_TIMING_LOG(TEXT("[%.3f] BLOCK down %s (exhausted)"),
+			Now,
+			*GetName());
+
+		CancelBlockAbility();
 		return;
 	}
 
@@ -610,6 +678,79 @@ void ATDCombatCharacter::OnRep_GuardBroken()
 	}
 }
 
+void ATDCombatCharacter::EnterBlockstun(float DurationSeconds)
+{
+	const UWorld* World = GetWorld();
+	if (!World || !HasAuthority() || DurationSeconds <= 0.0f)
+	{
+		return;
+	}
+
+	// **Extended by taking the max, never reassigned.** A second blocked hit landing inside a running
+	// lockout can only lengthen it. Assigning would let a light thrown immediately after a heavy
+	// *shorten* the heavy's lockout, making a faster follow-up a favour to the defender -- which is
+	// the same failure the guard break's re-entrancy comment describes, in the other direction.
+	BlockstunEndsAt = FMath::Max(BlockstunEndsAt, World->GetTimeSeconds() + DurationSeconds);
+
+	if (!bInBlockstun)
+	{
+		bInBlockstun = true;
+		ApplyBlockstunState();
+	}
+}
+
+void ATDCombatCharacter::EndBlockstun()
+{
+	if (!bInBlockstun)
+	{
+		return;
+	}
+
+	bInBlockstun = false;
+	ClearBlockstunState();
+}
+
+void ATDCombatCharacter::ApplyBlockstunState()
+{
+	if (AbilitySystem)
+	{
+		// **Nothing is cancelled here, unlike the guard break.** Blockstun refuses activations via
+		// ActivationBlockedTags and lets whatever is already running finish. The defender keeps the
+		// guard they successfully used -- taking it away would punish blocking correctly, and the
+		// player never released the button.
+		AbilitySystem->AddLooseGameplayTag(TDTags::State_Blockstun);
+	}
+
+	TD_TIMING_LOG(TEXT("[%.3f] BLOCKSTUN  %s  until=%.3f"),
+		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f,
+		*GetName(),
+		BlockstunEndsAt);
+}
+
+void ATDCombatCharacter::ClearBlockstunState()
+{
+	if (AbilitySystem)
+	{
+		AbilitySystem->RemoveLooseGameplayTag(TDTags::State_Blockstun);
+	}
+
+	TD_TIMING_LOG(TEXT("[%.3f] BLOCKSTUN END  %s"),
+		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f,
+		*GetName());
+}
+
+void ATDCombatCharacter::OnRep_Blockstun()
+{
+	if (bInBlockstun)
+	{
+		ApplyBlockstunState();
+	}
+	else
+	{
+		ClearBlockstunState();
+	}
+}
+
 bool ATDCombatCharacter::IsIdle() const
 {
 	if (!Super::IsIdle())
@@ -698,6 +839,7 @@ void ATDCombatCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& O
 	DOREPLIFETIME(ATDCombatCharacter, bDead);
 	DOREPLIFETIME(ATDCombatCharacter, bExhausted);
 	DOREPLIFETIME(ATDCombatCharacter, bGuardBroken);
+	DOREPLIFETIME(ATDCombatCharacter, bInBlockstun);
 }
 
 void ATDCombatCharacter::EnterDeath()

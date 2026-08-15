@@ -46,12 +46,28 @@ namespace TDTags
 	 *  per-instance value to go stale, and this one refuses *every* action, so a defender whose tag
 	 *  never applied would look invulnerable to guard breaks rather than merely mis-tuned.
 	 *
-	 *  Deliberately not State.Blockstun. Blockstun is the lockout a *successful* block imposes on
-	 *  the defender and is a later pass; this is the penalty for a guard that failed. They differ
-	 *  in cause, duration and what they forbid, and sharing a tag would make the first one built
-	 *  silently define the other.
+	 *  Deliberately not State.Blockstun, which was built 2026-08-14 and stayed separate as predicted:
+	 *  blockstun is the lockout a *successful* block imposes, this is the penalty for one that
+	 *  failed. They differ in cause, duration and what they forbid. See State_Blockstun below.
 	 */
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_GuardBroken);
+
+	/**
+	 *  A block succeeded. Refuses offense and parry for a duration the *attack* chose.
+	 *
+	 *  **The counterpart to State_GuardBroken, and the pair only makes sense together.** A guard that
+	 *  fails costs you everything for a fixed stun; a guard that works costs you initiative for as
+	 *  long as what you blocked deserves. So this refuses attacking and parrying while leaving
+	 *  movement, dodging and the guard itself alone -- the defender never released the button, and
+	 *  taking their guard away for blocking correctly would invert the mechanic.
+	 *
+	 *  Duration is authored per attack branch rather than here, because a heavy should pin a guard
+	 *  longer than a light and only the attacker knows which was thrown.
+	 *
+	 *  Native, and moved out of DefaultGameplayTags.ini to become so, for the reason the two above
+	 *  give: C++ applies and reads it by name, and there is no per-instance value to go stale.
+	 */
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Blockstun);
 
 	/**
 	 *  A guard is inside its minimum duration and cannot be acted out of.

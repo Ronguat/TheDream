@@ -264,6 +264,18 @@ permanent half-walk at full speed, with no error anywhere.
 are authored for. The `_RM` variants encode the authored displacement, so this stays measurable
 rather than a matter of taste.
 
+**Before tuning blockstun, or the charged's stamina damage — *the charged's `BlockstunSeconds` is
+dead as the ladder is currently tuned.*** Filed 2026-08-14 with blockstun. Its stamina damage is 100
+against a 100 bar, so it empties *any* guard rather than merely a full one; a guard that empties
+breaks; and a break supersedes blockstun. So `Branches[2].BlockstunSeconds` can never apply, and the
+0.6 authored there has never done anything.
+
+**Not a defect and deliberately left authored**, because the number that kills it is a tuning value
+rather than a law: drop the charged's stamina damage below 100, or raise `MaxStamina`, and the value
+silently comes alive at whatever it was left at. **It is the same coupling that makes "charged heavy
+breaks block" true without a special case**, seen from the other side — which is why both belong in
+the same head when either moves.
+
 **Whenever anything grants a placed actor `GA_Block` — *`BP_TrainingDummy`'s instance in
 `L_CombatTest` has `BlockingTag` stale at None.*** Filed 2026-08-14, and created by that day's own
 save: the level was written while the CDO change was not yet live, so the old value was baked in as
@@ -480,6 +492,10 @@ kept in their own notes. What belongs here is only what to move once a verdict a
 | The guard feels sluggish to act out of | `MinimumBlockSeconds`, and check the `BUFFER` trace first — a refused attack should fire the *instant* the window ends | The buffer window, and never by exempting resumed guards. That exemption was tried: durations went bimodal, 250 ms pressed and 50–70 ms resumed, so feathering survived at a slower cadence. *A resume is an intended block, and all blocks are created equal.* |
 | Attacking out of a held guard costs too much stamina | `BlockInitialStaminaCost`, knowing it is charged per guard and a resume is a guard | Exempting the resume. Same rule as above: a cheaper guard the player did not ask for and cannot distinguish makes the cost conditional on something invisible. |
 | A guard raised too poor to pay for itself feels punishing | Nothing — that is the design. It cancels what it would have cancelled and then exhausts you | Refusing the activation. **Costs are paid, never required**, and refusing here would also silently remove the cancel, which is the half worth protecting. |
+| A blocked attack is too safe, or too punishable | That branch's `BlockstunSeconds`. Neutral is `recovery − 0.05`; the shipped values equal each tier's own `RecoverySeconds`, i.e. 50 ms on the safe side | That branch's `RecoverySeconds`. Recovery is the *whiff* punish window and is tuned against spacing; moving it to fix an on-block exchange retunes whiffing as a side effect. The two are only related through this comparison. |
+| Blocking a charged does nothing but break the guard | Nothing — the charged's blockstun is unreachable **by construction**, since its stamina damage empties any bar and a break supersedes blockstun | Raising `Branches[2].BlockstunSeconds`. It will not fire. If the charged should be blockable without breaking, that is its `StaminaDamage`, and it repeals "charged heavy breaks block" — see the trap. |
+| Exhaustion is invisible until you press something | `ExhaustedMaxWalkSpeed` — a body that moves worse announces the state before a bar does | `ExhaustedStaminaRegenPerSecond`, which changes how *long* exhaustion lasts rather than whether the player can tell they are in it. Different complaint. |
+| The exhausted guard drops too abruptly | Nothing, or `MinimumBlockSeconds` — the drop is at the commitment's expiry **by derivation**: you cannot block while exhausted, and all blocks are created equal | Exempting the exhausted guard from the commitment, or letting it persist while held. The first re-opens the bimodal-duration bug; the second contradicts the exhaustion lockout outright. |
 
 Add a row whenever an entry below establishes that a fix belongs in one place rather than
 another. That is the reusable part of an entry; the argument around it is not.
@@ -551,6 +567,7 @@ concludes the log is wrong rather than merely old. Add a row whenever a name cha
 | `bAttackFacingLocked`, `SetAttackFacingLocked()` | `bAbilityFacingLocked`, `SetAbilityFacingLocked()` — the dodge uses it too. |
 | `FacingLockFadeSeconds`, `FacingUnlockRecoveryFraction`, `FacingTurnScale` | Deleted 2026-08-12. Facing is a hard lock, and the smoothing these were meant to provide **proved unnecessary** rather than deferred — the lock running to `EndAbility` plus `IdleTurnRateDegrees` covers the case they would have smoothed. |
 | `StationaryTurnRateDegrees` | **`TurnRateDegrees`**, renamed 2026-08-12 when facing stopped having a separate moving mode. No longer stationary-only, and no longer cosmetic — it decides where an attack points. |
+| `TickBlockingMoveSpeed()` | **`TickMoveSpeedClamps()`**, renamed 2026-08-14 when exhaustion became a second speed clamp. It takes the slowest applicable cap rather than the guard's alone. |
 | `bSnapFacingWhileMoving` | Never shipped. A temporary A/B switch for the facing pass, deleted with the snap branch it selected. |
 | `RecoveryPlayRate` | **`FTDAttackBranch::RecoverySeconds`**, 2026-08-12. Recovery is authored as a duration per branch and its rate is derived, as windup and release already were. A rate could only set the punish window indirectly, through however long the clip's tail happened to be. |
 
@@ -585,6 +602,8 @@ value in the same state it was in.
 | `CoilTurnRateDegrees` | **Unfelt, and unexercised** | 600 on both characters' CDOs as of 2026-08-14 — the user's chosen value, verified by construction only. The dispute with the C++ 300 is closed; both Blueprints override it. **Nothing has ever reached this rate**: the player would have to hold an attack past 150 ms while turning, and the dummy's `DebugAutoAttackHoldSeconds` is 0.1 so it never coils at all. |
 | `TurnRateDegrees` | **Derived, not felt — and must stay that way** | 180° ÷ the light's `HoldUntilSeconds`. It is not a candidate for this table's treatment; tuning it by feel is what the tuning map forbids. |
 | `BlockDrainPerSecond` 10, `StaminaDamage` 5/50/100, `GuardBreakStunSeconds` 1.0 | **Felt** 2026-08-14 | The user's numbers, played the same day across several sessions and left alone. Ten seconds of guard from full before it is breakable at all; two heavies or one charged to break a full one. The charged's 100 against a 100 bar is what makes "charged heavy breaks block" true with no flag in code, and **it repeals itself silently if either number moves.** |
+| `BlockstunSeconds` 0.4 / 0.5 / 0.6 | **Unfelt, but derived rather than guessed** | Each tier's value equals its own `RecoverySeconds`, which puts it 50 ms the safe side of neutral — neutral being `recovery − 0.05`, from the attacker being free 0.15 + recovery after the hit and the defender's fastest counter being a 200 ms light. That satisfies the spec's "safe on block" at the margin, so it is a *reference point* to tune from rather than a preference. **The charged's has never fired and cannot**; see the trap. |
+| `ExhaustedMaxWalkSpeed` 400 | **Unfelt** | The user's number, 20% below the 500 `MaxWalkSpeed`. Verified by construction only — nothing in the build reaches exhaustion without a human on the dodge key. Combines with `BlockingMaxWalkSpeed` by taking the slower, so an exhausted guard walks at 125 rather than 400. |
 | `MinimumBlockSeconds` 0.25 | **Felt** 2026-08-14, and signed off as untuned | Chosen deliberately long as a first probe, on the reasoning that a clearly-too-long value answers *"is feathering dead"* better than a borderline one. The user reserved tuning it. Its cost is visible: attacking repeatedly out of a held guard pays it between swings, because a resume is a new guard. |
 | `BlockInitialStaminaCost` 10 | **Felt** 2026-08-14 | The C++ default is 0 so the mechanism ships inert; **`BP_PlayerCharacter`'s CDO is authoritative and the user set 10 in play**, having been offered 25 as a probe and chosen otherwise. Ten guards from full, against a drain that also costs 10 per second. The behaviour it was testing passed: a guard raised below the cost still cancels what it would have cancelled, then exhausts you, with no break and no stun. |
 | `BlockingMaxWalkSpeed` 125 | **Unfelt** | 25% of the 500 the character otherwise runs at, chosen as a relationship and authored as a number. Lands halfway between the locomotion blendspace's idle and walk rows. |
@@ -646,6 +665,7 @@ long.
 | `BlockDrainPerSecond` | 08-14 |
 | `BlockInitialStaminaCost` | 08-14 |
 | `BlockingMaxWalkSpeed` | 08-14 |
+| `BlockstunSeconds` | 08-14 |
 | `BS_SwordShield_Block` | 08-14 |
 | `CanActivateAbility` | 08-10, 08-11 |
 | `CancelAbilities` | 08-14 |
@@ -687,6 +707,7 @@ long.
 | `FTDRootMotionSource_FacingForce::IsWithinStandoff` | 08-14 |
 | `FTDRootMotionSource_FacingForce::PrepareRootMotion` | 08-13 |
 | `FacingLockFadeSeconds` | 08-12 |
+| `ExhaustedMaxWalkSpeed` | 08-14 |
 | `FinishVelocityParams` | 08-14 |
 | `GA_Attack` | 08-09, 08-10, 08-11, 08-12, 08-14 |
 | `GA_Block` | 08-14 |
@@ -799,6 +820,7 @@ long.
 | `bEnableRootMotion` | 08-12, 08-13 |
 | `bEnabled` | 08-14 |
 | `bExhausted` | 08-11 |
+| `bInBlockstun` | 08-14 |
 | `bJumpRegenPauseActive` | 08-11, 08-12 |
 | `bLocksMovement` | 08-12 |
 | `bOrientRotationToMovement` | 08-10 |
@@ -807,6 +829,86 @@ long.
 | `bUseControllerDesiredRotation` | 08-12 |
 | `bUseControllerRotationYaw` | 08-12 |
 | `gEComponents` | 08-10, 08-11 |
+
+---
+
+## 2026-08-14 — Blockstun, an exhausted walk, and a guard the system takes back
+
+Three things asked for together, and the third turned out to be the interesting one.
+
+### Exhaustion gets a speed, and two clamps learn to overlap
+
+`ExhaustedMaxWalkSpeed`, 400 — 20% below the 500 the character otherwise runs at, the user's number.
+Until now exhaustion was **invisible except as a refusal**: something you discovered by pressing a
+button and getting nothing back. A body that moves worse says it before a bar does.
+
+The mechanism already existed, so this cost a property and a line: the speed cap is recomputed every
+tick from current state rather than set on an ability's edges, which is what stops it being stranded
+by any of the five ways a guard can end. **What is new is that two clamps can now be live at once**,
+and that is reachable rather than theoretical — raising a guard you cannot afford exhausts you with
+the guard still up. **The slower wins.** Both are penalties, and taking the minimum is the only
+combination that cannot be gamed by entering the two states in a particular order.
+
+Renamed `TickBlockingMoveSpeed` → `TickMoveSpeedClamps` for it. The old name would have read as
+though the guard owned a mechanism it now shares.
+
+### An exhausted guard ends the moment it is allowed to
+
+The user's rule, and it is **derived from two existing rules rather than added beside them**: you
+cannot block while exhausted, and all blocks are created equal. Raising a guard you cannot afford is
+allowed, charges its cost, exhausts you — and still owes the full `MinimumBlockSeconds`, because
+exempting it is precisely the exemption that made the commitment bimodal once already.
+
+So for that window the commitment is the *only* thing holding the guard up, and the instant it lapses
+the ordinary refusal takes over. Cancelled rather than released: a release would be the player's, and
+this is the system taking something back.
+
+**The user asked whether that interaction had traps, guessing at "exhausting twice". It does have
+one, and it is not that.** Double exhaustion cannot happen — `EnterExhaustion` is guarded on
+`!bExhausted`, and re-emptying an already-empty bar does not even fire the attribute delegate, which
+is why `ApplyStaminaDamage` reads the bar back rather than predicting it.
+
+The real defect was in the **resume**. `bResumePending` was cleared *before* the activation attempt,
+so a resume that got **refused** consumed the request and never retried — and the comment three lines
+above it promised the opposite: *"a guard blocked by exhaustion comes up the instant exhaustion
+lifts."* That was describing behaviour the code did not have. Nearly unreachable before today;
+the forced end makes it the ordinary path, since the forced end requests a resume that exhaustion
+then refuses, and a held button was silently forgotten. Now cleared only once nothing is still
+waiting. Retrying costs one refused activation per tick, which is exactly what `REFUSED`'s dedupe
+was built for — the two features were designed for each other a day apart without meeting.
+
+**The general shape, again:** every fix in this slice that scoped to a caller failed, and every one
+that made the bad state unrepresentable held. A flag consumed on *attempt* rather than on *success*
+is the same class of error as a commitment with an exemption.
+
+### Blockstun is the guard break's counterpart, and stays a separate state
+
+`State.Blockstun`, moved out of `DefaultGameplayTags.ini` to become native — C++ applies and reads it
+by name, and a native tag has no per-instance value to go stale, which is a live hazard here rather
+than a hypothetical one (see the training dummy's `BlockingTag`).
+
+The pair only makes sense together. **A guard that fails costs you everything for a fixed stun; a
+guard that works costs you initiative for as long as what you blocked deserves.** So blockstun
+refuses offense and parry while leaving movement, dodging and the guard itself alone — the defender
+never released the button, and taking their guard away for blocking correctly would invert the
+mechanic. It cancels nothing, which is the deliberate difference from a break.
+
+**A break supersedes it rather than stacking**, and the ordering is why the melee ability reads the
+defender back after applying stamina damage instead of predicting: the damage may have broken the
+guard, a break already refuses more for longer, and applying both would expire the shorter invisibly
+inside the longer. A broken guard is not a successful block.
+
+**Duration is authored per branch**, beside `StaminaDamage`, because only the attacker knows which
+tier was thrown. The values are **derived rather than invented, and still placeholders**: neutral
+sits at `blockstun = recovery − 0.05` (the attacker is free 0.15 + recovery after the hit lands, the
+defender's fastest counter is a 200 ms light), so **blockstun = the attacker's own recovery** puts
+every tier 50 ms on the safe side. That matches the spec's "safe on block" and is a relationship a
+designer can hold in their head. 0.4 / 0.5 / 0.6. None has been felt.
+
+**The charged's is unreachable and that is filed as a trap.** Its stamina damage equals the whole
+bar, so it breaks *any* guard, not merely a full one — and a break supersedes blockstun, so
+`Branches[2].BlockstunSeconds` can never apply as the ladder is currently tuned. It is authored
+anyway, because the number that makes it dead is a tuning value and not a law.
 
 ---
 
