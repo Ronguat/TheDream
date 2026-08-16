@@ -302,6 +302,19 @@ happen to suspect.** Eighteen were diffed against the CDO beforehand and the deb
 five were not; they turned out to live on the Blueprint rather than as overrides, so nothing was
 lost, but that was luck. A placed actor's overrides are exactly the thing nobody has a list of.
 
+**Before Parry — *blockstun disables offense and nothing else, because parry does not exist yet.***
+Filed 2026-08-15. `State.Blockstun` appears in exactly one `ActivationBlockedTags` — `GA_Attack`'s.
+`GA_Dodge` and `GA_Block` omit it deliberately (dodge is the escape; the defender keeps the guard
+that worked), but the spec has always said blockstun disables **offense *and parry***, so the parry
+half is **unimplemented rather than declined — there is no ability yet to carry the tag.** When
+Parry ships it must add `State.Blockstun`, or a defender parries out of blockstun forever and the
+state stops meaning what the design says.
+
+**Two related things belong to that same slice** and are deliberately not solved now (the user,
+2026-08-15): **you cannot parry out of a block**, and **a guard has a minimum duration** — so the
+parry-instead-of-block read must be made *before* committing to the guard. That is intended, and it
+is what makes blockstun the consequence of a choice rather than a random punishment.
+
 **Before duplicating any montage — *the copy inherits notifies you cannot see.*** Filed 2026-08-15,
 and it is the sharper half of what `AM_Blockstun` taught. Cloning `AM_Attack` carried its **Release
 Window** across; `notifies` is unreadable through the toolset, so nothing available to an assistant
@@ -931,6 +944,37 @@ combat capability**, so it owes neither scenarios nor a deferral trap. Blockstun
 asserted by `s2-light`/`s2-heavy`; an animation makes a shipped mechanic *read* without changing
 what it does. **Directional blockstun would owe the choice**, since it adds new replicated state —
 settle that before building it, not after.
+
+### Blockstun prevents retaliation and nothing else; the rest is a skill issue
+
+**The user's ruling, 2026-08-15**, on a question they raised from the design: could a devious pair
+chain blockstun and drain a defender to zero? The criterion they set is exact — **so long as
+blockstun neither refreshes block duration nor prevents unblocking, it is working as designed.**
+Both verified against the code: `BlockCommitEndsAt` has a single write, on raising a guard, and
+`ApplyBlockstunState` adds a loose tag and cancels nothing, so releasing a running guard is never
+refused. **Blockstun is meant to prevent retaliation and that is its whole job.**
+
+Three consequences were put to the user and **all three resolved as working as designed**, recorded
+here because each looks like a defect from inside it and will otherwise be re-litigated:
+
+- **Blockstun stacks across attackers with no cap** — `FMath::Max` extension means two attackers
+  alternating lights hold a defender in permanent offensive lockout. *Skill issue: if you wanted
+  immediate retaliation you should have dodged and countered, or parried.*
+- **Two coordinated heavies break a full guard**, 50 + 50 against a 100 bar, and a break refuses
+  every ability. *Skill issue: seeing two heavies coming, dodge and evade both for one 50-stamina
+  dodge — and if you were not already committed to a guard, a parry was available too.*
+- **Dodging out below 50 stamina strands you exhausted.** *Not a true strand, because block can
+  always be released: it is the punishment for misplaying. If you expect to be stranded, lead with
+  a dodge rather than a guard, or take the timed-parry read.*
+
+**The honest caveat is the user's own, and it is a forward commitment: none of this reads as
+intuitive before the Interplay pass**, and one of the three answers depends on an ability that does
+not exist yet. So this is a design position with a known **readability** debt rather than a settled
+one — **Interplay owns whether the counterplay is discoverable**, which is exactly the sort of thing
+a naive player's reads decide and a designer's cannot.
+
+**Not covered by the loop, and worth knowing:** `s2-*` is single-attacker throughout, so every
+multi-attacker claim above is reasoned rather than measured.
 
 ### Blockstun's animation is a state, not a montage, and directional is parked
 
