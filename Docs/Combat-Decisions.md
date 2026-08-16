@@ -302,19 +302,23 @@ happen to suspect.** Eighteen were diffed against the CDO beforehand and the deb
 five were not; they turned out to live on the Blueprint rather than as overrides, so nothing was
 lost, but that was luck. A placed actor's overrides are exactly the thing nobody has a list of.
 
-**Before touching `AM_Blockstun` — *it exists, and its length disagrees with its own clip.*** Filed
-2026-08-15 by the pass that built it. The segment is `AS_SwordAndShieldAnimV1_Defense_Hit_Fw_RM` at
-**0.867 s** and the montage still reports `sequenceLength` **0.967**, inherited from the `AM_Attack`
-it was duplicated from; `compositeSections` cannot be read, so what the default section spans is
-unknown. **Nothing plays it yet**, so the effect of the mismatch is *unmeasured* rather than benign
-— do not record it as harmless without playing it.
+**Before duplicating any montage — *the copy inherits notifies you cannot see.*** Filed 2026-08-15,
+and it is the sharper half of what `AM_Blockstun` taught. Cloning `AM_Attack` carried its **Release
+Window** across; `notifies` is unreadable through the toolset, so nothing available to an assistant
+could detect it, and **the user found it by eye in the editor**. The hazard is specific:
+`UAnimNotifyState_MeleeWindow` emits `RELEASE BEGIN`/`END`, which `s1-light`/`s1-heavy`/`s1-charged`
+assert press→release timing against — so a stray window on an unrelated montage **poisons the
+regression checker while reading as a timing bug**, which is the worst possible disguise.
 
-**The fix is a human opening it and saving**, which forces `CalculateSequenceLength()`; whether
-opening alone suffices is untested. **It is also fine to delete and start over** — it was built as a
-capability test that happened to be useful, so nothing depends on it. Two further things it is
-*not*: it is not wired (no `UAnimMontage*` property exists anywhere in the codebase, so blockstun
-has nothing to play it from), and it is not directional — the other three `Defense_Hit_*` clips are
-unused, and sections being unscriptable means directional blockstun is four montages.
+**Never clone an attack montage to make a non-attack one.** The general rule is that duplication is
+only safe from a source whose notifies you actively want, and that a montage the toolset reports as
+healthy has been checked on the properties it can read — never on the ones it cannot. *Length, by
+contrast, is fine: opening the montage recomputes `sequenceLength` unaided (0.867 on open, no edit
+needed), so that half of the trap discharged the moment a human opened it.*
+
+**`AM_Blockstun` was deleted the same day**, with the user's approval — it carried the inherited
+window and nothing referenced it. The lesson above is the whole of what it produced, and that was
+its job. **Blockstun's animation does not use a montage at all now**; see the decision below.
 
 ---
 
@@ -925,8 +929,42 @@ human. `ABP_Combat` was never dirtied — every attempt errored cleanly.
 **Regression-loop coupling, decided at plan time as the rule requires:** this package adds **no
 combat capability**, so it owes neither scenarios nor a deferral trap. Blockstun's timing is already
 asserted by `s2-light`/`s2-heavy`; an animation makes a shipped mechanic *read* without changing
-what it does. **When the montage is wired**, that is still not a new assertion — but the wiring
-itself is a header change, and that package owes the choice again.
+what it does. **Directional blockstun would owe the choice**, since it adds new replicated state —
+settle that before building it, not after.
+
+### Blockstun's animation is a state, not a montage, and directional is parked
+
+**The user's call, 2026-08-15.** Blockstun is a *state* — `bInBlockstun` is a replicated bool
+exactly like the guard — so it belongs in the `Locomotion` state machine beside the blocking stance
+rather than in a montage. That is the cheap shape *and* the correct one: it needs **no C++ at all**,
+`IsInBlockstun()` having been `BlueprintPure` since blockstun shipped, and it sidesteps every
+montage limit found today — sections, inherited notifies, length recompute, all irrelevant.
+
+**Both getters are true at once**, which is the wiring detail that is easy to get wrong: blockstun
+is the penalty for a block that *worked*, so the guard is still up throughout. The transitions are
+therefore `Blocking → Blockstun` on `IsInBlockstun()` and back on its negation, not anything keyed
+to the guard going down.
+
+**Known limitation, accepted rather than missed: the legs freeze if you are moving.** Blockstun
+deliberately leaves movement free, so a full-body state holds a hit-reaction pose for 0.4–0.6 s
+while the character may be strafing. The fix is a montage into an **upper-body-masked slot**, which
+is how hit reactions are normally built and which the ABP already has a slot node for — but it costs
+a montage, a `UAnimMontage*` property and a rebuild. **Deferred to play**: blockstun is unfelt, and
+whether the freeze reads badly is exactly what feeling it answers.
+
+**Directional blockstun is parked for Interplay**, alongside the lunge strength curves and the
+reach/travel/spacing re-author, and for the same reason — it is last-10% polish on a mechanic nobody
+has judged. The design is worked out and should not be re-derived: a **1D blendspace over the
+attacker's bearing**, three samples, which beats three discrete montages because the bearing is
+needed to select between them anyway and a blend covers the whole ±90° instead of bucketing it. Two
+things it needs that do not exist: the bearing is **not computed today** — `IsHitBlocked` is a
+`DotProduct(...) >= 0` sign test that discards the angle — and it would have to **replicate**, since
+`ApplyBlockstunState` runs on both machines and the client picks the pose.
+
+**One naming question is left open on purpose:** whether the vendor's `Fw`/`Bw` suffix names the
+push or the source direction. It does not matter until directional is built — the non-directional
+version just takes whichever of the four reads best — and no readable property settles it, so it is
+a preview job for whoever picks it up.
 
 ---
 

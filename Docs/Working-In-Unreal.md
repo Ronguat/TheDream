@@ -298,10 +298,19 @@ visibly different poses through `CaptureAssetImage`, a path the reflection layer
 
 **What stops it is the derived state, exactly as the two bullets above predict.** `sequenceLength`
 keeps the *source* montage's value — a clip swapped 0.967 → 0.867 s left it still reporting 0.967 —
-and `compositeSections` cannot be read to see what the default section spans. A scripted montage
-lands **internally inconsistent**, and only opening and saving it reconciles that. Same family as
-the BlendSpace. **Multi-section montages are fully out**, a design constraint rather than a chore:
-four directional clips must be four montages.
+and `compositeSections` cannot be read to see what the default section spans. **Opening the montage
+recomputes the length by itself** *(confirmed 2026-08-15: it read 0.867 on open, no edit needed)*,
+so the human step is open-and-save and nothing more. Same family as the BlendSpace.
+**Multi-section montages are fully out**, a design constraint rather than a chore: four directional
+clips must be four montages.
+
+**Duplication also carries the source's notifies, and `notifies` is unreadable — so you cannot see
+what you copied** *(2026-08-15, found by the user in the editor after the toolset reported the
+montage healthy)*. Cloning `AM_Attack` dragged its **Release Window** into a blockstun montage
+invisibly. That is not cosmetic: `UAnimNotifyState_MeleeWindow` emits `RELEASE BEGIN`/`END`, which
+`s1-*` asserts press→release timing against, so a stray one poisons the regression checker while
+reading as a timing bug. **Duplicate from a montage whose notifies you want**, or expect a human to
+strip them — and never clone an attack montage to make a non-attack one.
 - **`UCurveFloat`'s keys** *(confirmed 2026-08-13)* — `FloatCurve` is a bare `UPROPERTY()` the
   reflection layer cannot see. Creating the asset by duplication works, so the split is **script the
   asset, have a human author the keys.** A curve's mean therefore cannot be verified through the
