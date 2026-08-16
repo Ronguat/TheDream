@@ -550,6 +550,19 @@ Migrate only what a slice needs. The discipline is the same one that applied whe
 animations were bought individually; it has just moved from purchasing to what enters the
 repository.
 
+**The link is bidirectional today, and the entry above is only half of it** *(measured 2026-08-15)*.
+Both skeletons list each other. The half above is template→GDH, from when our character was on the
+template skeleton; the **GDH→template** half is what lets `ABP_Combat`, now on the GDH skeleton, play
+the template's jump clips. Read the direction off the assets rather than off this file.
+
+**So two `SK_Mannequin` assets is deliberate, not duplication awaiting cleanup** — worth stating
+because a careful person *should* find it suspicious and nearly cleaned it up. Exactly five assets
+under `/Game/Characters` are referenced from outside it: `MM_Jump`, `MM_Fall_Loop`, `MM_Land`,
+`CR_Mannequin_FootIK` and `SK_Mannequin`. **Deleting that folder takes out jump, foot IK and the
+compatibility link together.** The other 123 are unreferenced *(2026-08-15,
+`grep -rla "/Game/Characters" Content --include=*.uasset`)*, which makes it a per-asset trim rather
+than a folder deletion.
+
 **A retarget-first variant, for future packs.** The `CompatibleSkeletons` fix above works because
 both skeletons are the same UE5 Manny at two paths. A pack built on a genuinely different
 skeleton cannot be fixed that way: retarget it **inside the library project** and migrate the

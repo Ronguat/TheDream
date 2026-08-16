@@ -494,6 +494,13 @@ and the founding irritant discharged — `ReleaseStartSeconds` and `WindupSectio
 panel ignores struct-member categories inside arrays, so grouping *inside* `Branches` still
 rests on the property comments.
 
+**Candidate raised 2026-08-15: trimming `/Game/Characters`.** 128 assets, **five referenced** — the
+jump/fall/land clips, `CR_Mannequin_FootIK` and `SK_Mannequin`. The rest (a Pistol set, a Death set,
+others) is dead weight. **It is a per-asset trim, never a folder deletion** — the details and the
+deliberate two-skeleton arrangement are in `Docs/Animation-Library.md`. Whether the template's six
+`MM_Death_*` clips are worth keeping is **Death-full's call**, not this trim's: `SwordSwordAnimV3`
+already has four directional `Death_<DIR>` clips authored for an armed character.
+
 **Deliberately not done, and why:** splitting `ATDCombatCharacter` — moving a UPROPERTY orphans
 every Blueprint CDO override of it, so reorganising before the systems settle would be paid for
 twice; jump-as-ability, which rides **Knockdown & Oki** per the guard-break trap; and the decision
