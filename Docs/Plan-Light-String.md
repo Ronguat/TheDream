@@ -6,7 +6,7 @@ Delete this file when the slice ships** — its durable content lives in `Docs/C
 build-true. The reasoning behind every design choice here is in that dated entry; this file is the
 *how*, and it is disposable by design.
 
-**One question is still open at greenlight and is marked § Open below.** Everything else is agreed.
+**No questions remain open** — the interrupt fork below was answered at the session's close.
 
 ---
 
@@ -35,14 +35,16 @@ chain eligibility is authored per branch, so enabling one later is data).
 4. **The clip roster is an authored trial.** The build scaffolds on all-`Attack4` 4-hit
    (S1 → S2 → S3 → S4, all `_Complete_IP`, all already migrated); the trial step swaps and trims.
 
-## § Open at greenlight — hitstun's interrupt semantics
+## § Decided at the session's close — hitstun cancels everything
 
-Does hitstun **cancel the victim's active abilities** on entry (recommended: yes — a hit through
-your swing beats your swing, which is the DKO trading model and what makes the light an interrupt
-to a coiling heavy), or refuse activation only (armor-like: a mid-swing victim finishes their
-swing, and simultaneous lights trade to completion)? The recommendation is *cancel all, including
-committed attacks* — commitment governs what the victim may cancel voluntarily, not what being hit
-does to them. Blockstun is untouched either way: it cancels nothing and never did.
+**Hitstun cancels the victim's active abilities on entry, committed or not** (the user,
+2026-08-16, choosing over refuse-activation-only and a cancel-windup-only middle ground). A hit
+through your swing beats your swing: the DKO trading model, making the light the interrupt to a
+coiling heavy — commitment governs what a victim may cancel *voluntarily*, not what being hit
+does to them. Blockstun is untouched: it cancels nothing and never did. Mechanically this is
+`EnterHitstun` cancelling abilities the way death's path does, minus everything else death does —
+and it is one more thing the ordinary `EndAbility` funnel must survive, which it already does.
+**The build's dated entry records this ruling**; the plan-session entry deliberately left it open.
 
 ---
 
