@@ -269,6 +269,23 @@ permanent half-walk at full speed, with no error anywhere.
 are authored for. The `_RM` variants encode the authored displacement, so this stays measurable
 rather than a matter of taste.
 
+**Observed 2026-08-15, and the coupling turns out to have never been correct** — this trap warned
+against *breaking* the link, and the link was mis-set from the start. The V3 run clips are not
+authored for 500, so at full speed the character outran its own stride: the user's *"airport moving
+sidewalk"*. Note the direction is the **opposite** of the half-walk this trap predicted, because
+nobody changed `MaxWalkSpeed`; the sample value was simply never the clips' true speed.
+
+**Compensated rather than solved**, by eye: `rateScale` **1.3** on the run row and **1.15** on walk,
+the latter keeping the rate curve linear from idle's 1.0 rather than kinking at the midpoint.
+**The clips' authored speed is still unmeasured** — the honest number comes from the `_RM` variants'
+root motion, via a scratch blendspace and *Analyse All*.
+
+**And the structural fact that decides which knob works, which cost an hour to find:** at
+`MaxWalkSpeed` you are pinned at **100% of the top sample**, so moving samples cannot add foot
+motion there — only `rateScale` or travelling slower can. Sample position is the dial at *partial*
+weight, which is why it fixed the guard blendspace at 125 and could not fix this. It is also why
+`axisToScaleAnimation` did nothing and was reverted.
+
 **Before tuning blockstun, or the charged's stamina damage — *the charged's `BlockstunSeconds` is
 dead as the ladder is currently tuned.*** Filed 2026-08-14 with blockstun. Its stamina damage is 100
 against a 100 bar, so it empties *any* guard rather than merely a full one; a guard that empties
