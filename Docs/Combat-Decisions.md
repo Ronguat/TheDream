@@ -1004,6 +1004,18 @@ blockstun ever being worth much — if the state is felt rather than read, direc
 buys little — and whoever picks that up at Interplay should weigh it against the case for building
 it.
 
+**Blockstun carries no root motion, and should not** *(the user's question, 2026-08-15; both agreed
+independently on an authored pushback instead)*. It currently contributes none for two independent
+reasons — the clip has `bEnableRootMotion = false` despite its `_RM` name, and the ABP is set to
+**Root Motion from Montages Only**, so a state machine pose could not contribute any regardless.
+**Keep it that way.** Root motion would fight the player, since blockstun deliberately leaves
+movement free; it would break the rule that every displacement in this game is an authored distance
+in centimetres, which is exactly what the Lunge slice established and why the `_IP` clips exist; and
+it walks into the filed trap that **knockback and the next attack's travel are one budget**. If
+blocked hits should push the defender — a defensible feel argument — that is an authored pushback on
+the attack's branch, tuned beside the lunge, not a property of whichever clip was picked. The `_RM`
+suffix invites this question, which is why the answer is written down.
+
 **Known limitation, accepted rather than missed: the legs freeze if you are moving.** Blockstun
 deliberately leaves movement free, so a full-body state holds a hit-reaction pose for 0.4–0.6 s
 while the character may be strafing. The fix is a montage into an **upper-body-masked slot**, which
