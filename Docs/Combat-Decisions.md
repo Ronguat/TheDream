@@ -104,6 +104,7 @@ and not the order anyone reads in. Keep it sorted when adding.)*
 | 2026-08-14 — Aim assist reach is derived | the margin is 200, "signed off but unfelt" | **Played the same day and settled at 100**, giving reaches of 550/650/750. No entry supersedes it — the derivation and the margin's meaning are unchanged, only the number. `GA_Attack`'s CDO is authoritative; treat the 200 in that entry as a dated measurement. |
 | 2026-08-14 — The homing wedge follows the ladder | the three authored numbers are live placeholders to be authored by feel, and reaches must be kept non-decreasing by hand | 2026-08-14 — Aim assist reach is derived (same day: reach stopped being authored, so there is nothing to feel out per branch and monotonicity became unrepresentable. Only the margin is a feel number now) |
 | 2026-08-14 — Block survives contact with play | `REFUSED` "now names the offending tags", offered as a fixed instrument | 2026-08-14 — The refusal trace lied about the tag doing the refusing (it named tags it merely *matched a parent of*, so it accused `State.Blocking.Committed` on every refusal thrown during any block — the feature was real, the tag set it printed was not. Fixed the same day by reversing the `Filter` direction; **the fix is unexercised in play**) |
+| 2026-08-14 — Blockstun is the guard break's counterpart | blockstun "refuses offense and parry while leaving movement, dodging and the guard itself alone" | 2026-08-15 — Blockstun disables offense and never defense (the user's rule: **blockstun and parry never know about each other**. The parry clause was wrong from the spec's beginning and the code never implemented it — `GA_Attack` is and always was the only carrier of `State.Blockstun`. Everything else in that entry stands) |
 
 ---
 
@@ -302,18 +303,19 @@ happen to suspect.** Eighteen were diffed against the CDO beforehand and the deb
 five were not; they turned out to live on the Blueprint rather than as overrides, so nothing was
 lost, but that was luck. A placed actor's overrides are exactly the thing nobody has a list of.
 
-**Before Parry — *blockstun disables offense and nothing else, because parry does not exist yet.***
-Filed 2026-08-15. `State.Blockstun` appears in exactly one `ActivationBlockedTags` — `GA_Attack`'s.
-`GA_Dodge` and `GA_Block` omit it deliberately (dodge is the escape; the defender keeps the guard
-that worked), but the spec has always said blockstun disables **offense *and parry***, so the parry
-half is **unimplemented rather than declined — there is no ability yet to carry the tag.** When
-Parry ships it must add `State.Blockstun`, or a defender parries out of blockstun forever and the
-state stops meaning what the design says.
+**~~Before Parry — blockstun must learn to refuse it.~~ Withdrawn hours after filing, 2026-08-15,
+as mistaken.** It read the spec's *"disables offense + parry"* as an unimplemented requirement and
+concluded Parry must add `State.Blockstun`. **The user's rule is the opposite: blockstun disables
+offense but never defense, so blockstun and parry never know about each other.** The spec line was
+wrong, not the code — `GA_Attack` has always been the only carrier, and `GA_Dodge`/`GA_Block` omit
+the tag for exactly the reason the rule now states.
 
-**Two related things belong to that same slice** and are deliberately not solved now (the user,
-2026-08-15): **you cannot parry out of a block**, and **a guard has a minimum duration** — so the
-parry-instead-of-block read must be made *before* committing to the guard. That is intended, and it
-is what makes blockstun the consequence of a choice rather than a random punishment.
+**Kept because withdrawing a trap silently is unreviewable, and because the near-miss is the
+lesson.** A trap was filed against a documented requirement without asking whether the requirement
+was right, on a mechanic whose designer was in the conversation. **The implementation disagreeing
+with the spec is evidence about the spec**, not only about the code — and here the code was the
+half that had it right the whole time. What survives, restated by the user: **you cannot input a
+parry while actively blocking**, which is a property of the guard and not of blockstun.
 
 **Before duplicating any montage — *the copy inherits notifies you cannot see.*** Filed 2026-08-15,
 and it is the sharper half of what `AM_Blockstun` taught. Cloning `AM_Attack` carried its **Release
