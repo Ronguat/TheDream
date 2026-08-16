@@ -960,6 +960,10 @@ window still delivers the dodge that was aimed. That is a deliberate divergence 
 aim at activation rather than at press — the `FACING LOCK` trap records that as an open question for
 attacks and this settles it only for the dodge.
 
+**Play-verified 2026-08-16**, all three cases: directional cancels out of windup, a buffered dodge
+keeping its press-time heading after the key is released, and a neutral press still resolving `Bw`.
+That last one is the fix's own risk and the reason it was tested explicitly.
+
 **One consequence worth stating because it nearly became a second bug:** `MoveAction` was bound to
 `Triggered` only, so nothing wrote a zero when the keys came up. A recorded heading would have
 outlived its press forever and a neutral dodge would have inherited the last direction walked —
