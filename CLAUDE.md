@@ -192,7 +192,7 @@ Five standing files carry knowledge the code cannot (a work-in-flight plan file 
 
 **Durable knowledge belongs in these files, not in an assistant's per-machine memory.** Anything a future contributor would need — combat reasoning, tooling behaviour, rules and current facts — goes in the repo, where it can be reviewed and corrected. Memory keeps only what is genuinely session- or machine-scoped, and *points* at the repo rather than restating it: `Docs/Working-In-Unreal.md` exists precisely because those notes were once memory-only and therefore invisible.
 
-**This file's budget is ~520 lines, enforced when you add rather than when you audit** (2026-08-14 at 420, raised three times 2026-08-15 — see below). Past that, compress or relocate something first — the person adding a line is the one who knows what it replaces. Stated as a number because the vaguer form did not hold: it once went 486 → 466 → **514** within one session, caught by a manual re-read rather than by anything structural. **The two mechanisms that keep it there are the Done eviction rule and this budget**; if it drifts anyway, the question is which kind of content is growing, not which lines look longest. **The number is a tripwire, not a cap** (2026-08-15, the user's call): compress or route what grew, and when what grew is genuinely rule material with no other home, raise the budget with a dated note — deleting a live rule to hit a number is the one wrong answer. **Raised 420 → ~445 on 2026-08-15**, the first use of that hatch, and it set two standards for the next one. **Compress first and mean it** — two passes came before the raise and each found real duplication, so what remained was new standing rule rather than retelling. And **raise with headroom, never to the current count**: a budget set at where the file already sits trips on the next line anyone adds, which teaches people to ignore it. **Raised again ~445 → ~470 later the same day**, when the roster gained its endgame (the Stun split, Netcode, Interplay) in one adoption; the additions were compressed first, and the bulge is Remaining-shaped, which shrinks back as items ship. **Raised a third time ~470 → ~520 on 2026-08-15**, for standing *working rules* rather than roster bulk — the startup wind-down check, design questions in service of a HOW, and the vague-or-conflicting anti-trap. Compression ran first and took the anti-trap's own anecdote out to the decision log, which is the correct home for rationale; what stayed is rule. **This kind of growth does not shrink back the way Remaining-shaped growth does**, so the next raise should look harder at whether a Working Rules section that keeps growing wants its own triggered file. **The criterion is earned-ness, not size** (2026-08-15, the user: this file must stay optimally useful to its reader with every line earned — there is no hypothetical length ceiling worth fearing). Raises need no apology when the content is earned; routing per-item detail into a work-in-flight plan file stays preferred only where detail serves a single slice, which is a usefulness call rather than a size one.
+**This file's budget is ~520 lines, enforced when you add rather than when you audit** (420 on 2026-08-14, raised three times on 2026-08-15). Past it, compress or relocate first — the person adding a line knows what it replaces. Stated as a number because the vaguer form did not hold: it once went 486 → 466 → **514** in one session, caught by a manual re-read rather than by anything structural. **The number is a tripwire, not a cap** (the user's call): compress or route what grew, and raise it with a dated note when the growth is genuinely rule material with no other home — deleting a live rule to hit a number is the one wrong answer. Three standards came out of the raises so far. **Compress first and mean it.** **Raise with headroom, never to the current count**, or it trips on the next line anyone adds and teaches people to ignore it. And **the criterion is earned-ness, not size** (the user: every line earned, no hypothetical ceiling worth fearing). **Working-rule growth does not shrink back the way Remaining-shaped growth does** — the next raise should ask whether a Working Rules section this size wants its own triggered file.
 
 **Length is a context cost, and the budget applies to what loads *every* session** (the user,
 2026-08-15). The always-read files are internalised before any work starts, so verbosity there is
@@ -287,7 +287,9 @@ So ask early and ask cheaply: the question is the intended input, never a tax on
   plan time rather than ship time** — which of the two is part of what gets agreed, so it cannot be
   settled by whoever is tired at the end. Why it matters is in `Docs/Debug-Instruments.md`: a loop
   that lags the combat surface still prints green. Binds pending slices as well as future ones —
-  Block's remainders, Light String, Parry, Stun and Settings each owe the choice when picked up.
+  Light String, Parry, Knockdown & Oki, Death-full and Settings each owe the choice when picked up.
+  **Block took the deferral branch twice** on 2026-08-16, both filed as dated traps: animation work
+  adds no assertable mechanic, and directional dodge-cancels are invisible to `s3`.
 - **Do not declare a task finished on your own.** The loop closes where it opened: greenlight is the
   WHAT gate going in, and *"is this done"* is the WHAT gate coming out. Report what was built, what
   was verified versus merely written, and **what was done beyond what was agreed, or that nothing
@@ -334,14 +336,15 @@ counted 2026-08-14) and is never rewritten; `Docs/Combat-Decisions.md` carries t
 
 Execution order, the only line that changes when the order does:
 
-> **~~Attack Ladder~~ → ~~Dodge~~ → ~~Sword & Shield~~ → ~~Input Buffer~~ → ~~Death~~ → ~~Dodge Distance~~ → ~~Attack Swap~~ → ~~[hover bug]~~ → ~~[facing pass]~~ → ~~Recovery~~ + ~~Lunge~~ → ~~Target Lock~~ → Block → Light String → Parry → Knockdown & Oki → Death-full → Settings → Netcode → Tuning Rig → Interplay**
+> **~~Attack Ladder~~ → ~~Dodge~~ → ~~Sword & Shield~~ → ~~Input Buffer~~ → ~~Death~~ → ~~Dodge Distance~~ → ~~Attack Swap~~ → ~~[hover bug]~~ → ~~[facing pass]~~ → ~~Recovery~~ + ~~Lunge~~ → ~~Target Lock~~ → ~~Block~~ → Light String → Parry → Knockdown & Oki → Death-full → Settings → Netcode → Tuning Rig → Interplay**
 
 **Structure Audit is deliberately absent from that line** — its structural half ran 2026-08-15,
 and what remains keeps a trigger rather than a position; see its entry at the end.
 
-**Pick up at the blocking stance's state machine** — the last of Block's remainders, and it needs a
-human in the editor. Blockstun's animation is the only other thing outstanding under Block, and it
-needs a human for the same reason. Both are listed under Block in Remaining.
+**Pick up at Light String's plan session.** Block shipped 2026-08-16 and the roster's next item owes
+two things *at plan time*: the **string-guarantee fork** — hitstun pulled forward from the old Stun
+family, or string-internal cadence, without which "any hit guarantees the rest" is not true of the
+build — and its **loop-coverage choice**, scenarios or a dated trap.
 
 *(The 2026-08-14 audit's five open checks are all discharged; what still matters moved to where it
 is used — the shadowed-value rule above, plus tables in `Docs/Combat-Decisions.md`.)*
@@ -379,14 +382,21 @@ covered seven items.
 of one slice is not a rule and goes to the decision log. Otherwise Core Combat Rules becomes the
 new dumping ground and the problem has merely moved.
 
-- **Lunge + Recovery** — authored attack displacement, and the punish window it is tuned against.
-  **Both done 2026-08-12**, play-verified. Recovery is `RecoverySeconds` per branch, honoured within
-  8 ms. Lunge is two authored distances — a shared base from the press to the light's boundary, and
-  a per-branch one from commit to the end of release — measured within 2.5% at every tier.
-   - **The base lunge follows facing, and that is load-bearing rather than cosmetic.** Rotation
-     during that window *is* the aim guarantee, so a world-fixed lunge cannot be made safe by
-     freezing rotation. Built on `FTDRootMotionSource_FacingForce`, a first-class `FRootMotionSource`
-     subclass — predicted and replicated like the stock ones, explicitly not hand-rolled movement.
+- **Block** — the full defensive half. Mechanics shipped and played 2026-08-14; the animation
+  remainders shipped **2026-08-16**, play-verified, with `s2-light` green on all seven assertions
+  after a `--self-test` proved the checker can fail. The rules are in Core Combat Rules above.
+   - **The guard is a `Blocking` state with the guard pose layered onto the upper body**, not a
+     whole-body pose. `Mesh Space Rotation Blend` is what makes it work; left at its local-space
+     default the chest inherits the pelvis and the shield still swings. **That is a correctness fix,
+     not polish** — block covers 180° in the *defender's frame*, which is camera-locked, so a shield
+     that turned with movement showed coverage the mechanic does not have.
+   - **Blockstun is a state too, entered only from `Blocking`**, and exits on
+     `NOT IsInBlockstun || NOT IsBlocking` — the pose depicts a guard, so it ends when the guard
+     does. **Blockstun is felt more than seen**, which is also the standing argument against
+     directional blockstun ever paying for itself.
+   - **The Selects that swapped the blendspace had to go**, not as cleanup: the EventGraph runs
+     before the AnimGraph, so the swap landed on the same frame the transition began and the machine
+     blended the block pose to itself. They did not duplicate the state machine, they cancelled it.
 - **Target Lock** — attacks reach the target you aimed at. **Done 2026-08-13**, both halves
   play-verified, finished 2026-08-14. The governing rule: it **may correct where you are pointed,
   never whether you were in range**, so it cannot rescue a spacing miss and whiff punish is
@@ -432,11 +442,8 @@ dependency, the rest is judgement and may be revisited.
 
 ### Remaining
 
-In execution order, and all sequential. **Target Lock shipped 2026-08-13**, and Lunge + Recovery on 2026-08-12; see Done.
+In execution order, and all sequential. **Block shipped 2026-08-16** and Target Lock on 2026-08-13; see Done.
 
-- **Block** — **mechanics shipped and played 2026-08-14**; the rules are in Core Combat Rules above. Two things remain, neither blocking the other:
-   - **The blocking stance.** `BS_SwordShield_Block` exists (V1 locomotion, 27 samples) and is driven from `IsBlocking()` through the ABP's `LocomotionBlendSpace` / `IdleSequence`. **The agreed end state is a separate state in the `Locomotion` state machine**, which gives the blend-in for free and is the correct architecture — the happy accident that V1's whole locomotion set reads as a guard will not repeat for other weapons, and that is accepted. **Fully human, re-confirmed 2026-08-15**: the state, its transitions *and* its contents are all unreachable, any graph whose outer is a node being closed to `create_node`. `IsBlocking` is on the ABP for the transition rules.
-   - **Blockstun's animation.** Mechanics shipped 2026-08-14 and are in Core Combat Rules above; what is missing is that it does not *read*. **It is a `Blockstun` state in the same state machine, not a montage** (2026-08-15) — so it ships in the sitting above and needs **no C++**, `IsInBlockstun()` being `BlueprintPure` already. It **enters** on `IsInBlockstun()` — both getters are true at once, the guard surviving a block that worked — and **exits on `!IsInBlockstun() || !IsBlocking()`**, since the clip depicts a *guard* absorbing a hit and holding that pose unguarded shows something that is not happening. **Blockstun is felt more than seen** (the user, 2026-08-15), which is also a standing argument against directional ever being worth much. Accepted for now: a full-body state freezes the legs if you move. Directional is **parked for Interplay**; the design and what it would cost are in `Docs/Combat-Decisions.md`.
 - **Light String** — the 2–4 hit light string. **It cannot fully finish before Knockdown & Oki**, since its last hit knocks down; expect to ship the string and leave its terminator behind. **The string's guarantee needs a mechanism decided at plan time** (flagged 2026-08-15): hitstun pulled forward from the old Stun family, or string-internal cadence — without one, "any hit guarantees the rest" is not true of the build. **Measured 2026-08-11:** no family in either pack offers 3+ uniformly short stages, so the string must be assembled from short stages **across** families, or accept uneven lengths. The one exception is **V3 `Attack4`**, the only four-stage family (0.600 / 1.167 / 0.667 / 2.333), which carries two short stages inside one authored chain. V3's families are deeper than V1's generally — a real argument for V3 that pulls against V1's short two-stage openers being better for **Attack Swap**'s single light.
 - **Parry.** **Re-searched 2026-08-11** by enumerating every distinct `SwordShield` move rather than grepping for parry words, and the earlier picture was too thin. Beyond `Block1_Parry` there are `Block1` and `Block2` — discrete block actions with their own `_Idle` and `_Hit` — so there are **three candidate shapes plus failure states**, not one clip, and all are already migrated. The two packs split by **idiom**: V1 does held guard (Block's), V3 does discrete actions (a parry's). The `SwordShield` archetype holds three differently-named packs (`SwordAndShieldAnimV1`, `SwordShieldAnimV2`, `SwordSwordAnimV3`) and dual-sword content is all `DualSwordAnimation*` in its own archetype — so `SwordSword` is a vendor naming quirk, not a stance. What is still open needs a preview, not a search: whether V3's guard pose reads consistently beside V1's. Details in `Docs/Animation-Library.md`. **Re-derive the spec's numbers against the current ladder before building** — the 400 ms window / 500 ms reward / 1000 ms whiff lockout predate the light's move to 200 ms (flagged 2026-08-15).
 - **Knockdown & Oki** *(from Stun's 2026-08-15 split — shared plumbing justified adjacency, not a mono-slice)* — knockdown, the 1.5 s default get-up, the three early get-up options and the get-up attack, plus the guard break's full-lockout state the trap defers here and **jump-as-ability**, which rides it. **`SwordShield` has no get-up content whatsoever** — unfiltered search for `Rise|GetUp|StandUp|Recover|Wake|Prone|Ground|KnockDown|Knock|Fallen|Down` returned zero for the archetype (2026-08-10). It exists only in `DaggerCombatAnimationV1` (18: `Rise1`–`Rise9`, two variants each) and `Unarmed` (8, including the bundle's only explicit `KnockDown`). Knockdown recovery therefore needs a **cross-archetype migration** — raise it before the slice starts.

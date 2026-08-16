@@ -7,39 +7,27 @@ that never happened, a log that lies about absence. It is kept short enough for 
 reasonable: **anything that can be compressed to its rule has been**, and the incidents live in git
 and `Docs/Combat-Decisions.md`.
 
-**The budget is ~400 lines, enforced when you add, not when you audit.** If a new line would take
-this past about 420, compress something first — the person adding it knows what it replaces. Stated
-as a number because the vaguer version drifted **47 lines in a single day** after the 2026-08-13 cut
-from 820, without anyone noticing; step 3 of `Docs/Closing-Down.md` is the backstop, not the mechanism.
+**The budget is ~500 lines, enforced when you add, not when you audit.** Past it, compress first —
+the person adding a line knows what it replaces. Stated as a number because the vaguer version
+drifted **47 lines in a day** after the 2026-08-13 cut from 820 without anyone noticing.
 
-**The number is a tripwire, not a cap** (2026-08-15, the user's call). It exists to make growth
-visible, and its correct responses are: compress, relocate to a triggered doc — how
-`Docs/Debug-Instruments.md` was born — or, when the growth is genuinely rule material that must be
-read every session, raise the budget with a dated note. Deleting a live rule to satisfy the number
-is the one wrong answer.
+**It is a tripwire, not a cap** (2026-08-15, the user's call). Correct responses: compress, relocate
+to a triggered doc — how `Docs/Debug-Instruments.md` was born — or raise it with a dated note when
+the growth is genuinely rule material read every session. Deleting a live rule to hit the number is
+the one wrong answer. *Raised 400 → 500 on 2026-08-15; relocation was declined because toolset
+capability fails silently and so must be in your head before you touch the editor.*
 
-**Raised ~400 → ~500 on 2026-08-15**, the first use of that hatch here, for a capability-recon pass
-that found a whole untried toolset. Compression ran first and found **no fat that was not a live
-rule** after the 820→400 cut, so the saving came from rewriting the state-graph paragraph to carry a
-general rule in the space its special case held, then tightening the new prose itself — 481 → 473.
-Relocation was **declined on purpose**: toolset capability fails silently, so it has to be in your
-head *before* you touch the editor, and a trigger would defeat why this file is read at all.
-
-**Growth that is genuinely this file's belongs here; growth that is the project's does not.** Those
-47 lines were our own debug instrumentation, which grows once per combat feature forever and now
-lives in `Docs/Debug-Instruments.md`. What is left grows only when Unreal or its toolset surprises us.
+**Growth that is this file's belongs here; the project's does not.** Those 47 lines were our own
+debug instrumentation — one line per combat feature, forever — and now live in
+`Docs/Debug-Instruments.md`.
 
 **Confidence marks.** *(confirmed)* was observed directly; *(reported once)* comes from a single
-unreproduced incident — work around it, but re-test rather than treat as settled if it blocks you.
-Never promote a mark without re-observing the behaviour.
+unreproduced incident. Never promote a mark without re-observing the behaviour.
 
-**Re-test any limit that blocks you, whatever its mark or lack of one, and record the result.**
-Seven walls in this file fell in one evening on 2026-08-15 — montage creation, the editor console,
-menu navigation, transition-rule reading, node creation in the EventGraph, blendspace position
-writes — and every one was written as flat assertion and never re-poked since. **A limit is a
-measurement with a date, not a property of the engine.** Re-testing costs a call or two; believing a
-stale one costs the work, and routing a human around a wall that is not there costs *their* evening.
-Then write what happened: a fresh date if it held, a correction if it did not.
+**Re-test any limit that blocks you, whatever its mark, and record the result** — a fresh date if it
+held, a correction if it did not. Seven walls here fell in one evening on 2026-08-15, every one
+written as flat assertion and never re-poked since. **A limit is a measurement with a date, not a
+property of the engine**, and routing a human around one that is not there costs their evening.
 
 ---
 
@@ -56,13 +44,9 @@ The distinction is **registration versus connection**: schemas are picked up onc
 the connection can drop and re-establish. So closing the editor for a rebuild is safe; starting
 without one is not. If asset writes are needed, confirm the tools respond before promising any.
 
-**Diff the toolset registry against `Docs/Toolset-Snapshot.tsv`.** One `list_toolsets` call. A new
-row means the surface grew and this file's limits deserve re-reading; a missing one means claims
-resting on it are suspect. It exists because capabilities repeatedly appeared to *spawn* mid-project
-and there was no baseline to tell growth from something that had simply never been enumerated —
-on 2026-08-15 every wall that fell turned out to be pre-existing, but that could only be asserted.
-**Toolset-level only**: it will not catch a new tool inside an existing toolset, which is the price
-of it being cheap enough to keep current.
+**Diff the registry against `Docs/Toolset-Snapshot.tsv`** — one `list_toolsets` call. A new row
+means the surface grew and this file's limits deserve re-reading. **Toolset-level only**: it cannot
+see a new tool inside an existing toolset, which is the price of staying cheap enough to maintain.
 
 ---
 
@@ -106,38 +90,28 @@ the `UEDPIE_0_` world's actors — right for inspecting live state, wrong for au
 
 ### Driving the editor's UI, and the console
 
-**`SlateInspectorToolset` is a Playwright-style automation surface over the editor's own widget
-tree** — `Windows`, `Observe`, `Snapshot`, `Click`, `Type`, `PressKey`, `Drag`, `Screenshot`.
-*(Found 2026-08-15; it had never been tried, so every "needs a human" claim predating that was
-written without it. Re-test a wall before trusting one.)*
+**`SlateInspectorToolset` is a Playwright-style surface over the editor's own widget tree** —
+`Windows`, `Observe`, `Snapshot`, `Click`, `Type`, `PressKey`, `Drag`, `Screenshot`. *(Found
+2026-08-15, never previously tried, so every "needs a human" claim predating it was written
+without it.)*
 
-**The editor console is drivable, and that is the useful half.** `Observe` the main window,
-`Snapshot` for the status-bar textbox beside the **"Cmd"** combobox, `Type` with `submit: true`.
-Verified by toggling `TD.DebugMeleeTrace` 0 → 1 → 0 and reading back via
-`EditorAppToolset.SearchCVars` — a different path from the one that wrote it. **This is the only
-console-command route there is**: `EditorAppToolset` searches cvars and cannot set one.
+**The editor console is drivable, and it is the only console route there is** — `EditorAppToolset`
+searches cvars and cannot set one. `Observe` the main window, `Snapshot` for the status-bar textbox
+beside the **"Cmd"** combobox, `Type` with `submit: true` *(verified 2026-08-15 by toggling a cvar
+and reading it back through a different path)*.
 
-**Menus can be navigated, which answers "where is this in the editor" without guessing**
-*(2026-08-15)*. `Click` a toolbar dropdown, `Click` an entry to open its submenu, read it, then
-`PressKey Escape` to leave no state behind. Three practicalities: **menus are separate Slate
-windows**, so `Windows action=list` shows them appear; **`Hover` does not open a submenu** and
-`Click` does; and a full `Snapshot` of this editor is enormous, so **`WaitFor` is the cheap probe** —
-it substring-matches the whole tree and answers "is this item present" for one call.
+**Menus navigate, which answers "where is this in the editor" without guessing** *(2026-08-15)*.
+`Click` a dropdown, `Click` an entry for its submenu, `PressKey Escape` to leave no state behind.
+Menus are separate Slate windows; **`Hover` does not open a submenu and `Click` does**; a full
+`Snapshot` here is enormous, so **`WaitFor` is the cheap presence probe**. **Use it before describing
+a UI location from memory** — a confident guess at where Blend Profiles live was wrong in a
+plausible-sounding way. **Keep it read-only** unless a change was asked for; it is their live editor.
 
-**Use it before describing a UI location from memory.** Asked where Blend Profiles live, the guess
-was "the gear icon in the Skeleton Tree options"; it is actually an *unlabelled two-icon dropdown*
-right of the search box whose **first** section is `BLEND PROFILES`, above `OPTIONS`. Close enough
-to sound right, wrong enough to waste the user's time. **Keep it read-only** — open, read, Escape —
-unless a change was asked for, because this is driving their live editor.
-
-**It does not reach the game** *(confirmed 2026-08-15, not assumed)*. `PressKey` delivers to the
-focused **accessible** widget and the PIE viewport is absent from the accessibility tree — true both
-in-viewport and for a floating window fronted with `Windows action=select`. Both confounds were
-killed first: the log demonstrably prints `INPUT` for a real press, and `IMC_Combat` confirmed the
-key was bound. **There is no synthetic gameplay input**; anything needing a player to act needs a
-human, or a debug driver on the pawn. No exec route either — `OnAbilityInputPressed` and
-`DebugAutoAttackPress` carry no `UFUNCTION`, and **a timer-driven function is not evidence of
-reflection** (`SetTimer`'s function-pointer overload needs none).
+**It does not reach the game** *(confirmed 2026-08-15, both confounds killed first)*. `PressKey`
+delivers to the focused **accessible** widget and the PIE viewport is absent from the accessibility
+tree, in-viewport and floating alike. **There is no synthetic gameplay input**: anything needing a
+player to act needs a human, or a debug driver on the pawn. No exec route either — the input entry
+points carry no `UFUNCTION`, and **a timer-driven function is not evidence of reflection**.
 
 **A PIE transform is not a placed transform** *(confirmed 2026-08-13)*: it is where an actor *ended
 up* — settled under gravity, pushed if anything could push it — and one PIE reading was written up
@@ -326,32 +300,23 @@ Needs a human in the editor:
   placement can only be verified at runtime
 - A montage's **`compositeSections`** — neither readable nor writable, and `sequenceLength` is
   read-only and does not recompute after a reflection write
+- **`UCurveFloat`'s keys** *(confirmed 2026-08-13)* — `FloatCurve` is a bare `UPROPERTY()` the
+  reflection layer cannot see. Creating the asset by duplication works, so the split is **script the
+  asset, have a human author the keys**; only measured travel can confirm a curve's mean.
 
-**A montage is the exception and is ~90% scriptable** *(2026-08-15, replacing "creating
-AnimMontages" above)*. `AssetTools.duplicate` clones one with its skeleton intact, and the segment
-repoints by writing **`slotAnimTracks` whole** — `animReference`, `animStartTime`, `animEndTime`,
-`cachedPlayLength`. That write is **live, not a round-trip**: two montages sharing a parent rendered
-visibly different poses through `CaptureAssetImage`, a path the reflection layer never touches.
-
-**What stops it is the derived state, exactly as the two bullets above predict.** `sequenceLength`
-keeps the *source* montage's value — a clip swapped 0.967 → 0.867 s left it still reporting 0.967 —
-and `compositeSections` cannot be read to see what the default section spans. **Opening the montage
-recomputes the length by itself** *(confirmed 2026-08-15: it read 0.867 on open, no edit needed)*,
-so the human step is open-and-save and nothing more. Same family as the BlendSpace.
+**A montage is the exception and is ~90% scriptable** *(2026-08-15)*. `AssetTools.duplicate` clones
+one with its skeleton intact, and the segment repoints by writing **`slotAnimTracks` whole**. That
+write is **live, not a round-trip** — two montages sharing a parent rendered visibly different poses
+through `CaptureAssetImage`. What stops it is derived state: `sequenceLength` keeps the *source's*
+value, and **opening the montage recomputes it unaided**, so the human step is open-and-save.
 **Multi-section montages are fully out**, a design constraint rather than a chore: four directional
 clips must be four montages.
 
-**Duplication also carries the source's notifies, and `notifies` is unreadable — so you cannot see
-what you copied** *(2026-08-15, found by the user in the editor after the toolset reported the
-montage healthy)*. Cloning `AM_Attack` dragged its **Release Window** into a blockstun montage
-invisibly. That is not cosmetic: `UAnimNotifyState_MeleeWindow` emits `RELEASE BEGIN`/`END`, which
-`s1-*` asserts press→release timing against, so a stray one poisons the regression checker while
-reading as a timing bug. **Duplicate from a montage whose notifies you want**, or expect a human to
-strip them — and never clone an attack montage to make a non-attack one.
-- **`UCurveFloat`'s keys** *(confirmed 2026-08-13)* — `FloatCurve` is a bare `UPROPERTY()` the
-  reflection layer cannot see. Creating the asset by duplication works, so the split is **script the
-  asset, have a human author the keys.** A curve's mean therefore cannot be verified through the
-  toolset; only measured travel confirms it.
+**Duplication carries the source's notifies, and `notifies` is unreadable — so you cannot see what
+you copied** *(2026-08-15, caught by the user by eye after the toolset called the montage healthy)*.
+Cloning `AM_Attack` dragged its **Release Window** across, and `UAnimNotifyState_MeleeWindow` emits
+`RELEASE BEGIN`/`END`, which `s1-*` asserts timing against — so a stray one poisons the checker
+while reading as a timing bug. **Never clone an attack montage to make a non-attack one.**
 
 **But creation is per-toolset, not a blanket limitation** *(confirmed 2026-08-12)*. `MaterialTools`
 and `MaterialInstanceTools` create and build whole graphs end to end. Check the toolset that owns the
@@ -360,21 +325,17 @@ asset type before concluding a thing cannot be made.
 **Renaming an AnimNotify class is expensive** — placed notifies serialize against the class path.
 
 **Writing to any graph whose outer is a *node* fails; reading depends on which graph** *(refined
-twice on 2026-08-15 — the first generalisation was too broad)*. `create_node` and `find_node_types`
-resolve the Blueprint through the outer and fail with *"Cannot cast type 'X' to 'Blueprint'"* for
-all three: **`AnimStateNode`** (a state's interior), **`AnimGraphNode_StateMachine`** (the state
-machine itself) and **`AnimStateTransitionNode`** (a transition's rule). So **the whole state
-machine is a human job** — creating states, wiring transitions, authoring rules. The 2026-08-14 note
-that placing a node inside a state was "the one AnimBP job needing a human" was true of that job
-only.
+twice on 2026-08-15)*. `create_node` and `find_node_types` resolve the Blueprint through the outer
+and fail with *"Cannot cast type 'X' to 'Blueprint'"* for all three: **`AnimStateNode`** (a state's
+interior), **`AnimGraphNode_StateMachine`** (the machine itself) and **`AnimStateTransitionNode`**
+(a transition's rule). So **the whole state machine is a human job** — states, transitions, rules.
 
-**Reading splits, and that split is worth exploiting.** A **transition rule graph reads perfectly**:
-`find_nodes` lists its `TransitionResult` and variable gets, `get_node_infos` gives full pin detail
-— so **every rule a human authors can be verified afterwards**, which makes "they build, we check" a
-real division rather than a hopeful one. A **state's interior returns `[]`** — no error, just
-emptiness. And `get_node_infos` on an `AnimStateTransitionNode` itself fails differently
-(`no attribute 'get_node_title'`), so **a transition's *direction* is unreadable by any route** —
-verify that against a picture.
+**Reading splits, and that split is worth exploiting.** A **transition rule graph reads perfectly**
+(`find_nodes`, `get_node_infos` with full pin detail), so **every rule a human authors can be
+verified afterwards** — "they build, we check" is a real division rather than a hopeful one. A
+**state's interior returns `[]`**, no error. And `get_node_infos` on an `AnimStateTransitionNode`
+fails differently (`no attribute 'get_node_title'`), so **transition *direction* is unreadable by
+any route** — check it against a picture.
 
 `list_graphs` enumerates states and transitions regardless, so the tree is visible even where its
 graphs are not. **Prove the instrument before believing an empty `find_nodes`** — it returns 8 nodes
@@ -405,27 +366,22 @@ runs — which reads exactly like the write having failed.
 
 ### The user can send images, and it beats most of the limits above
 
-**New as of 2026-08-15**, not possible under the old PowerShell-only setup, and it matters more here
-than most places: this toolset's hard limits are overwhelmingly **visual** — a state graph's
-interior, a montage's notify track, a BlendSpace grid, a details panel. All are listed above as
-unreadable and a screenshot settles each instantly. **So ask.** Cases already met: which of four
-directional clips is which, whether a duplicated montage carried an inherited notify, and what a
-state contains so a new one can mirror it.
+**New as of 2026-08-15**, and it matters more here than most places: this toolset's hard limits are
+overwhelmingly **visual** — a state graph's interior, a montage's notify track, a BlendSpace grid, a
+details panel. All are listed above as unreadable and a screenshot settles each instantly. **So
+ask.** Cases already met: which of four directional clips is which, whether a duplicated montage
+carried an inherited notify, and what a state contains so a new one can mirror it.
 
 **Calibration — images for what no tool can reach; tools for what is readable.** A screenshot of
-something `get_node_infos` can report is both slower *and* worse: reading the blocking Selects gave
-exact asset paths and pin indices that no picture would have carried.
+something `get_node_infos` can report is slower *and* worse: reading the blocking Selects gave exact
+asset paths and pin indices no picture would have carried. **And check the limit is real before
+asking** — an image request resting on a stale assumption spends the user's time working around a
+wall that may not exist, and re-certifies the claim as fact.
 
-**And check the limit is real before asking, which is the half that bites.** Nearly every wall in
-this file was re-tested on 2026-08-15 and several were wrong — montages, the console, `add_variable`.
-An image request resting on an untested assumption spends the user's time working around a limit
-that may not exist, and quietly re-certifies the stale claim as fact. **Verify, then ask.**
-
-**Our own capture tools reach less than a human screenshot does** — `CaptureViewport`,
-`CaptureAssetImage` and the Slate `Screenshot`/`CaptureEditorImage` cover the 3D viewport, one
-asset's thumbnail, and windows respectively, but **nothing can navigate to a state graph's
-interior**, graph nodes being absent from the accessibility tree. *Untested hybrid: have the user
-open the graph, then `CaptureEditorImage`.*
+**Our own capture tools reach less than a human screenshot** — `CaptureViewport`,
+`CaptureAssetImage` and the Slate `Screenshot`/`CaptureEditorImage` cover the viewport, one asset's
+thumbnail, and windows, but **nothing can navigate to a state graph's interior**. *Untested hybrid:
+have the user open the graph, then `CaptureEditorImage`.*
 
 ---
 
