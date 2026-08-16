@@ -341,9 +341,12 @@ Execution order, the only line that changes when the order does:
 **Structure Audit is deliberately absent from that line** — its structural half ran 2026-08-15,
 and what remains keeps a trigger rather than a position; see its entry at the end.
 
-**Pick up at Light String's build, sitting 1.** The 2026-08-16 plan session settled both plan-time
-debts — hitstun is the guarantee's mechanism, coverage takes the scenarios branch — and absorbed
-the knockback dispensation. `Docs/Plan-Light-String.md` is the work-in-flight plan.
+**Pick up at Light String's sitting 2 — values and montages.** Sitting 1 landed the whole C++
+core **inert** on 2026-08-16 (per-swing data, chain-out, hitstun, the spacing knockback, the
+string-taps fixture) with all seven scenarios green against unchanged values — the string has
+therefore **never run**; green proves the refactor invisible, nothing more. Sitting 2 authors the
+CDO values (the recovery retune moves the `s1/s2-light` bands with it), builds the three montages
+— **the Release Window drag is the human step** — and `Docs/Plan-Light-String.md` carries the loop.
 
 *(The 2026-08-14 audit's five open checks are all discharged; what still matters moved to where it
 is used — the shadowed-value rule above, plus tables in `Docs/Combat-Decisions.md`.)*
