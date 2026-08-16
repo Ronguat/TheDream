@@ -39,6 +39,8 @@ void UTDChargedAttackAbility::ActivateAbility(const FGameplayAbilitySpecHandle H
 	bAttackCommitted = false;
 	bInputHeld = true;
 	bCoiling = false;
+	bInRecovery = false;
+	RecoveryStartedAt = 0.0f;
 	AppliedAttackTag = FGameplayTag();
 
 	UWorld* World = GetWorld();
@@ -49,6 +51,16 @@ void UTDChargedAttackAbility::ActivateAbility(const FGameplayAbilitySpecHandle H
 	}
 
 	ActivationWorldTime = World->GetTimeSeconds();
+
+	// Which swing of the string this is, asked of the character because the string outlives any
+	// one activation. Resolved before anything reads a montage or derives a rate -- every number
+	// below depends on it. With no StringSwings authored this is always 0 and the whole mechanism
+	// is inert by construction.
+	CurrentSwingIndex = 0;
+	if (ATDCombatCharacter* CombatCharacter = Cast<ATDCombatCharacter>(GetAvatarActorFromActorInfo()))
+	{
+		CurrentSwingIndex = CombatCharacter->ResolveStringSwingIndexForActivation(GetSwingCount());
+	}
 
 	// The shared windup runs at whatever rate the *fastest* branch needs. Slower branches
 	// are made slower by the coil holding them back, not by this being slow.
@@ -65,9 +77,9 @@ void UTDChargedAttackAbility::ActivateAbility(const FGameplayAbilitySpecHandle H
 
 	// applied should match wanted. If it reads 1.000 the montage task did not honour the
 	// rate it was given, and the whole windup is running at the wrong speed.
-	TD_TIMING_LOG(TEXT("[%.3f] ACTIVATE   pos=%.4f windupRate wanted=%.3f applied=%.3f"),
-		World->GetTimeSeconds(), GetMontagePosition(), WindupRate,
-		ActualMontageRate(GetCurrentActorInfo(), AttackMontage));
+	TD_TIMING_LOG(TEXT("[%.3f] ACTIVATE   swing=%d pos=%.4f windupRate wanted=%.3f applied=%.3f"),
+		World->GetTimeSeconds(), CurrentSwingIndex, GetMontagePosition(), WindupRate,
+		ActualMontageRate(GetCurrentActorInfo(), GetActiveAttackMontage()));
 
 	// The base lunge, shared by every tier and identical in wall-clock length whichever branch
 	// this turns out to be -- it ends at the first branch's boundary, which is the last instant
@@ -209,7 +221,7 @@ void UTDChargedAttackAbility::EnterCoil()
 	// rate from the assumed position compounds that error across the whole coil until it
 	// overruns the release window.
 	const float CurrentPosition = GetMontagePosition();
-	const float CoilDistance = CoilEndSeconds - CurrentPosition;
+	const float CoilDistance = GetSwingCoilEndSeconds(CurrentSwingIndex) - CurrentPosition;
 	const float CoilDuration = Branches.Last().HoldUntilSeconds - GetElapsedSeconds();
 
 	if (CurrentPosition < 0.0f || CoilDistance <= 0.0f || CoilDuration <= 0.0f)
@@ -244,6 +256,19 @@ void UTDChargedAttackAbility::CommitAttack()
 	}
 
 	const FTDAttackBranch& Branch = Branches[SelectedBranchIndex];
+
+	// A heavy or charged commit ends the string, then and there -- heavy never chains into light,
+	// and per the runway's silence this weapon's heavies do not chain at all. At the commit rather
+	// than the ability's end so a dodge-cancel of the *following* windup cannot resurrect a string
+	// the escalation already closed. Data-driven: a branch that authors bChainsIntoString keeps
+	// the string alive instead, which is the New World flip.
+	if (!Branch.bChainsIntoString)
+	{
+		if (ATDCombatCharacter* CombatCharacter = Cast<ATDCombatCharacter>(GetAvatarActorFromActorInfo()))
+		{
+			CombatCharacter->ResetString(TEXT("non-chaining commit"));
+		}
+	}
 
 	// First of the two slide samples. Taken before facing is frozen below, so it records where the
 	// target was when the attacker still had authority over its own aim -- the release sample then
@@ -332,7 +357,7 @@ void UTDChargedAttackAbility::CommitAttack()
 	// this branch's ReleaseAtSeconds. For the fastest branch this works out to the windup
 	// rate it was already running, so the light never changes pace at all.
 	const float CurrentPosition = GetMontagePosition();
-	const float Distance = ReleaseStartSeconds - CurrentPosition;
+	const float Distance = GetSwingReleaseStartSeconds(CurrentSwingIndex) - CurrentPosition;
 	const float Remaining = Branch.ReleaseAtSeconds - GetElapsedSeconds();
 	const float CommitRate = (Distance > 0.0f && Remaining > 0.0f)
 		? FMath::Max(Distance / Remaining, TDMinPlayRate)
@@ -358,13 +383,16 @@ bool UTDChargedAttackAbility::IsWindowForThisAttack(const FGameplayEventData& Pa
 	// exactly one montage carries the notify; silently wrong the moment a second does, which
 	// is what Attack Swap's content pass creates. UAbilityTask_MeleeTrace guards the same way.
 	//
-	// Null AttackMontage means accept any, which is the behaviour before this guard existed.
-	if (!AttackMontage)
+	// Null means accept any, which is the behaviour before this guard existed. The comparison is
+	// against the *active* montage: with per-swing montages, filtering on the authored first-hit
+	// field would reject every window swing 2 onward fires -- silently, and as no damage.
+	const UAnimMontage* ActiveMontage = GetActiveAttackMontage();
+	if (!ActiveMontage)
 	{
 		return true;
 	}
 
-	if (Payload.OptionalObject == AttackMontage)
+	if (Payload.OptionalObject == ActiveMontage)
 	{
 		return true;
 	}
@@ -374,7 +402,7 @@ bool UTDChargedAttackAbility::IsWindowForThisAttack(const FGameplayEventData& Pa
 	UE_LOG(LogTDCombatTiming, Warning,
 		TEXT("Release Window from '%s' ignored; this attack is playing '%s'."),
 		Payload.OptionalObject ? *Payload.OptionalObject->GetName() : TEXT("<none>"),
-		*AttackMontage->GetName());
+		*ActiveMontage->GetName());
 
 	return false;
 }
@@ -391,12 +419,22 @@ void UTDChargedAttackAbility::HandleReleaseWindowEnded(FGameplayEventData Payloa
 	// at 3.28x and -- above about 2.8x -- left less montage-time remaining than the blend-out
 	// needed, so the montage terminated itself the instant the rate was applied.
 	//
-	// The rate is derived from the branch's authored RecoverySeconds rather than authored
-	// directly, so what a designer sets is the punish window itself.
+	// The rate is derived from the authored RecoverySeconds rather than authored directly, so
+	// what a designer sets is the punish window itself. A string position beyond the first
+	// authors its own on the swing; heavy and charged keep the branch's wherever they convert.
 	const float RecoveryFrom = GetMontagePosition();
-	const float TargetSeconds = Branches.IsValidIndex(SelectedBranchIndex)
+	float TargetSeconds = Branches.IsValidIndex(SelectedBranchIndex)
 		? Branches[SelectedBranchIndex].RecoverySeconds
 		: 0.0f;
+	if (SelectedBranchIndex == 0 && StringSwings.IsValidIndex(CurrentSwingIndex - 1))
+	{
+		TargetSeconds = StringSwings[CurrentSwingIndex - 1].RecoverySeconds;
+	}
+
+	// Recovery is the span the chain-out may open inside; note it before deriving anything, so a
+	// chain press already waiting in the buffer can leave on the very next buffer tick.
+	bInRecovery = true;
+	RecoveryStartedAt = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
 
 	const float RecoveryRate = ComputeRecoveryPlayRate(RecoveryFrom, TargetSeconds);
 	if (RecoveryRate > 0.0f)
@@ -462,14 +500,16 @@ void UTDChargedAttackAbility::HandleReleaseWindowBegan(FGameplayEventData Payloa
 	}
 
 	// ReleaseStartSeconds is hand-copied from the notify's placement, so it can silently
-	// drift if the montage is re-authored. This is the only moment the truth is available.
-	if (ActualStart >= 0.0f && FMath::Abs(ActualStart - ReleaseStartSeconds) > TDReleaseStartTolerance)
+	// drift if the montage is re-authored. This is the only moment the truth is available --
+	// checked against the *swing's* value, since each swing's montage authors its own.
+	const float ExpectedStart = GetSwingReleaseStartSeconds(CurrentSwingIndex);
+	if (ActualStart >= 0.0f && FMath::Abs(ActualStart - ExpectedStart) > TDReleaseStartTolerance)
 	{
 		// Ungated: this is hand-copied data having silently drifted, and every rate the
 		// ability derives is computed from it.
 		UE_LOG(LogTDCombatTiming, Warning,
-			TEXT("Release Window opened at %.4f but ReleaseStartSeconds is %.4f. Update it to match the notify."),
-			ActualStart, ReleaseStartSeconds);
+			TEXT("Release Window opened at %.4f but swing %d's ReleaseStartSeconds is %.4f. Update it to match the notify."),
+			ActualStart, CurrentSwingIndex, ExpectedStart);
 	}
 
 	// The notify reports its own length, so the window can be stretched to the authored
@@ -489,23 +529,25 @@ void UTDChargedAttackAbility::HandleReleaseWindowBegan(FGameplayEventData Payloa
 
 float UTDChargedAttackAbility::ComputeWindupPlayRate() const
 {
-	if (Branches.Num() == 0 || Branches[0].ReleaseAtSeconds <= 0.0f || ReleaseStartSeconds <= 0.0f)
+	const float SwingReleaseStart = GetSwingReleaseStartSeconds(CurrentSwingIndex);
+	if (Branches.Num() == 0 || Branches[0].ReleaseAtSeconds <= 0.0f || SwingReleaseStart <= 0.0f)
 	{
 		return 1.0f;
 	}
 
-	return FMath::Max(ReleaseStartSeconds / Branches[0].ReleaseAtSeconds, TDMinPlayRate);
+	return FMath::Max(SwingReleaseStart / Branches[0].ReleaseAtSeconds, TDMinPlayRate);
 }
 
 float UTDChargedAttackAbility::GetBlendOutStartSeconds(float PlayRate) const
 {
-	if (!AttackMontage)
+	const UAnimMontage* ActiveMontage = GetActiveAttackMontage();
+	if (!ActiveMontage)
 	{
 		return -1.0f;
 	}
 
-	const float Length = AttackMontage->GetPlayLength();
-	const float TriggerTime = AttackMontage->BlendOutTriggerTime;
+	const float Length = ActiveMontage->GetPlayLength();
+	const float TriggerTime = ActiveMontage->BlendOutTriggerTime;
 
 	// A trigger time is an authored montage position, measured back from the end, and it does
 	// not care how fast the montage is playing.
@@ -525,24 +567,25 @@ float UTDChargedAttackAbility::GetBlendOutStartSeconds(float PlayRate) const
 	// the rates a first test happens to produce: at 0.94 recovery ran 6% long and looked like
 	// jitter; at 0.50, authored for a charged, it ran 49% long -- 0.744s against an authored
 	// 0.500s.
-	return Length - AttackMontage->BlendOut.GetBlendTime() * FMath::Max(PlayRate, TDMinPlayRate);
+	return Length - ActiveMontage->BlendOut.GetBlendTime() * FMath::Max(PlayRate, TDMinPlayRate);
 }
 
 float UTDChargedAttackAbility::ComputeRecoveryPlayRate(float FromPosition, float TargetSeconds) const
 {
-	if (!AttackMontage || FromPosition < 0.0f || TargetSeconds <= 0.0f)
+	const UAnimMontage* ActiveMontage = GetActiveAttackMontage();
+	if (!ActiveMontage || FromPosition < 0.0f || TargetSeconds <= 0.0f)
 	{
 		return -1.0f;
 	}
 
-	const float Length = AttackMontage->GetPlayLength();
+	const float Length = ActiveMontage->GetPlayLength();
 	const float Remaining = Length - FromPosition;
 	if (Remaining <= KINDA_SMALL_NUMBER)
 	{
 		return -1.0f;
 	}
 
-	const float TriggerTime = AttackMontage->BlendOutTriggerTime;
+	const float TriggerTime = ActiveMontage->BlendOutTriggerTime;
 	if (TriggerTime >= 0.0f)
 	{
 		// Fixed boundary: cover the montage up to it in the authored time.
@@ -561,7 +604,7 @@ float UTDChargedAttackAbility::ComputeRecoveryPlayRate(float FromPosition, float
 	//
 	// The blend cancels out of the position but not out of the time, which is exactly why the
 	// naive form is wrong and why it is wrong by more the slower the recovery is authored.
-	const float BlendTime = AttackMontage->BlendOut.GetBlendTime();
+	const float BlendTime = ActiveMontage->BlendOut.GetBlendTime();
 	return FMath::Max(Remaining / (TargetSeconds + BlendTime), TDMinPlayRate);
 }
 
@@ -575,21 +618,30 @@ float UTDChargedAttackAbility::GetMontagePosition() const
 {
 	const FGameplayAbilityActorInfo* ActorInfo = GetCurrentActorInfo();
 	UAnimInstance* AnimInstance = ActorInfo ? ActorInfo->GetAnimInstance() : nullptr;
-	return (AnimInstance && AttackMontage) ? AnimInstance->Montage_GetPosition(AttackMontage) : -1.0f;
+	UAnimMontage* ActiveMontage = GetActiveAttackMontage();
+	return (AnimInstance && ActiveMontage) ? AnimInstance->Montage_GetPosition(ActiveMontage) : -1.0f;
 }
 
 void UTDChargedAttackAbility::SetMontagePlayRate(float PlayRate) const
 {
 	const FGameplayAbilityActorInfo* ActorInfo = GetCurrentActorInfo();
 	UAnimInstance* AnimInstance = ActorInfo ? ActorInfo->GetAnimInstance() : nullptr;
-	if (AnimInstance && AttackMontage && AnimInstance->Montage_IsPlaying(AttackMontage))
+	UAnimMontage* ActiveMontage = GetActiveAttackMontage();
+	if (AnimInstance && ActiveMontage && AnimInstance->Montage_IsPlaying(ActiveMontage))
 	{
-		AnimInstance->Montage_SetPlayRate(AttackMontage, FMath::Max(PlayRate, TDMinPlayRate));
+		AnimInstance->Montage_SetPlayRate(ActiveMontage, FMath::Max(PlayRate, TDMinPlayRate));
 	}
 }
 
 float UTDChargedAttackAbility::GetAttackDamage() const
 {
+	// A string position beyond the first authors branch 0's values on its swing; heavy and
+	// charged keep the branch's own wherever in the string they convert, because the tier is
+	// what they are and the swing is merely the clip they coiled out of.
+	if (SelectedBranchIndex == 0 && StringSwings.IsValidIndex(CurrentSwingIndex - 1))
+	{
+		return StringSwings[CurrentSwingIndex - 1].Damage;
+	}
 	return Branches.IsValidIndex(SelectedBranchIndex) ? Branches[SelectedBranchIndex].Damage : Damage;
 }
 
@@ -599,6 +651,10 @@ float UTDChargedAttackAbility::GetAttackStaminaDamage() const
 	// asymmetry with hitboxes, which fall back on an *empty array* as well: a stamina damage of
 	// zero is a legitimate authored value meaning "this can never break a guard", so it must not
 	// be treated as unset.
+	if (SelectedBranchIndex == 0 && StringSwings.IsValidIndex(CurrentSwingIndex - 1))
+	{
+		return StringSwings[CurrentSwingIndex - 1].StaminaDamage;
+	}
 	return Branches.IsValidIndex(SelectedBranchIndex) ? Branches[SelectedBranchIndex].StaminaDamage : StaminaDamage;
 }
 
@@ -606,7 +662,107 @@ float UTDChargedAttackAbility::GetAttackBlockstunSeconds() const
 {
 	// Falls back on an invalid index like the two above, and zero is likewise a legitimate authored
 	// value -- "blocking this costs nothing but stamina" -- rather than a signal that it is unset.
+	if (SelectedBranchIndex == 0 && StringSwings.IsValidIndex(CurrentSwingIndex - 1))
+	{
+		return StringSwings[CurrentSwingIndex - 1].BlockstunSeconds;
+	}
 	return Branches.IsValidIndex(SelectedBranchIndex) ? Branches[SelectedBranchIndex].BlockstunSeconds : BlockstunSeconds;
+}
+
+float UTDChargedAttackAbility::GetAttackHitstunSeconds() const
+{
+	// Same resolution as the three above: swing value for a mid-string light, branch value for
+	// the tiers, ability fallback on an invalid index. Zero everywhere means no hitstun.
+	if (SelectedBranchIndex == 0 && StringSwings.IsValidIndex(CurrentSwingIndex - 1))
+	{
+		return StringSwings[CurrentSwingIndex - 1].HitstunSeconds;
+	}
+	return Branches.IsValidIndex(SelectedBranchIndex) ? Branches[SelectedBranchIndex].HitstunSeconds : HitstunSeconds;
+}
+
+float UTDChargedAttackAbility::GetKnockbackSpacingCm(bool bBlocked) const
+{
+	// The spacing reset belongs to non-final string lights alone: the ender, the heavies and the
+	// charged knock *down* instead, and until Knockdown & Oki builds that they displace nothing --
+	// the same deferral the terminator already carries. The values themselves stay the shared
+	// authored pair on the ability.
+	if (!IsNonFinalStringLight())
+	{
+		return 0.0f;
+	}
+	return Super::GetKnockbackSpacingCm(bBlocked);
+}
+
+bool UTDChargedAttackAbility::IsNonFinalStringLight() const
+{
+	return Branches.IsValidIndex(SelectedBranchIndex)
+		&& SelectedBranchIndex == 0
+		&& Branches[SelectedBranchIndex].bChainsIntoString
+		&& HasSuccessorSwing(CurrentSwingIndex);
+}
+
+float UTDChargedAttackAbility::GetSwingReleaseStartSeconds(int32 SwingIndex) const
+{
+	return StringSwings.IsValidIndex(SwingIndex - 1)
+		? StringSwings[SwingIndex - 1].ReleaseStartSeconds
+		: ReleaseStartSeconds;
+}
+
+float UTDChargedAttackAbility::GetSwingCoilEndSeconds(int32 SwingIndex) const
+{
+	return StringSwings.IsValidIndex(SwingIndex - 1)
+		? StringSwings[SwingIndex - 1].CoilEndSeconds
+		: CoilEndSeconds;
+}
+
+UAnimMontage* UTDChargedAttackAbility::GetActiveAttackMontage() const
+{
+	// A swing whose montage was left unset falls back to the first hit's rather than to nothing --
+	// the same reasoning as the hitbox fallback: a silently unplayable swing is the failure this
+	// project keeps a trap list for, and the warning below is the tell rather than a crash.
+	if (StringSwings.IsValidIndex(CurrentSwingIndex - 1))
+	{
+		if (UAnimMontage* SwingMontage = StringSwings[CurrentSwingIndex - 1].Montage)
+		{
+			return SwingMontage;
+		}
+
+		UE_LOG(LogTDCombatTiming, Warning,
+			TEXT("String swing %d has no montage; falling back to the first hit's. Its timings will be wrong."),
+			CurrentSwingIndex);
+	}
+	return AttackMontage;
+}
+
+bool UTDChargedAttackAbility::IsChainOutOpen() const
+{
+	if (!bInRecovery || !IsNonFinalStringLight())
+	{
+		return false;
+	}
+
+	const UWorld* World = GetWorld();
+	return World && World->GetTimeSeconds() >= RecoveryStartedAt + ChainOpenAfterRecoverySeconds;
+}
+
+bool UTDChargedAttackAbility::TryChainOutForBufferedPress()
+{
+	if (!IsChainOutOpen())
+	{
+		return false;
+	}
+
+	// Chaining *skips the rest of recovery* -- that is the entire mechanism behind "lights have a
+	// quite long recovery, but can be chained which skips it". The early end runs the ordinary
+	// EndAbility funnel, so facing, tags, homing and the lunge clean up exactly as on a natural
+	// end, and EndAbility itself opens the link window for the activation the buffer fires next.
+	TD_TIMING_LOG(TEXT("[%.3f] STRING     chain out of swing %d, %.0fms into recovery"),
+		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f,
+		CurrentSwingIndex,
+		GetWorld() ? (GetWorld()->GetTimeSeconds() - RecoveryStartedAt) * 1000.0f : 0.0f);
+
+	EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, false);
+	return true;
 }
 
 const TArray<FTDAttackHitbox>& UTDChargedAttackAbility::GetAttackHitboxes() const
@@ -677,6 +833,23 @@ void UTDChargedAttackAbility::EndAbility(const FGameplayAbilitySpecHandle Handle
 		GetMontagePosition(),
 		GetElapsedSeconds(),
 		bWasCancelled ? TEXT(" (cancelled)") : TEXT(""));
+
+	// The string's fate at this swing's end, decided where every exit converges. A cancelled
+	// swing -- a defensive cancel of the windup, death, a montage interrupt -- kills the string
+	// outright. A *completed* non-final string light opens the link window instead, whether the
+	// end was natural recovery or the chain-out's early exit; the buffer's next activation then
+	// resolves into the following swing. Heavy and charged already reset at their commit.
+	if (ATDCombatCharacter* CombatCharacter = Cast<ATDCombatCharacter>(GetAvatarActorFromActorInfo()))
+	{
+		if (bWasCancelled)
+		{
+			CombatCharacter->ResetString(TEXT("swing cancelled"));
+		}
+		else if (bAttackCommitted && IsNonFinalStringLight())
+		{
+			CombatCharacter->OpenStringLinkWindow(StringLinkWindowSeconds);
+		}
+	}
 
 	// A cancelled attack would otherwise leave the montage crawling at the coil rate.
 	SetMontagePlayRate(1.0f);

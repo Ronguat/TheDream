@@ -12,6 +12,7 @@
 #include "TDCombatCharacter.generated.h"
 
 class UAbilitySystemComponent;
+class UCurveFloat;
 class UGameplayAbility;
 class UGameplayEffect;
 class UInputAction;
@@ -238,6 +239,49 @@ public:
 	 *  than a light does, and only the attack knows which it was.
 	 */
 	void EnterBlockstun(float DurationSeconds);
+
+	/** True while cleanly-hit stun is running. Refuses everything -- see State_Hitstun. */
+	UFUNCTION(BlueprintPure, Category="Combat|Stun")
+	bool IsInHitstun() const { return bInHitstun; }
+
+	/**
+	 *  Starts hitstun, or extends one already running to the later end time -- blockstun's shape
+	 *  exactly, with one deliberate addition: **entry cancels everything the victim was doing,
+	 *  committed or not** (the designer, 2026-08-16). A hit through your swing beats your swing;
+	 *  commitment governs what you may cancel voluntarily, not what being hit does to you. That is
+	 *  the death path's cancel minus everything else death does, and it is also what resets the
+	 *  victim's own string. Server decides; the state pair applies the tag everywhere. 0 no-ops.
+	 */
+	void EnterHitstun(float DurationSeconds);
+
+	/**
+	 *  The knockback's receiving half: carry this character to a fixed world destination over a
+	 *  duration, on the root-motion-source channel -- the sanctioned displacement path, chosen for
+	 *  the reason StartLunge's header gives. The attacking ability computed the destination (and
+	 *  owns the never-inward clamp); this only runs the translation. A re-hit mid-slide replaces
+	 *  the running translation, last hit wins. Server only; no-ops on the dead.
+	 */
+	void ReceiveKnockback(const FVector& DestinationWorld, float DurationSeconds, UCurveFloat* TimeMappingCurve);
+
+	/**
+	 *  The string's per-activation gate: which swing an attack activating *now* should be.
+	 *
+	 *  Advances the index while the link window is open and a successor exists; resets to the
+	 *  first swing otherwise. Consumes the window either way -- it reopens when the new swing
+	 *  ends, if that swing is itself chainable. Lives here rather than on the ability because the
+	 *  string outlives any one activation, and the ability instance is per actor but its state is
+	 *  per activation by convention.
+	 */
+	int32 ResolveStringSwingIndexForActivation(int32 SwingCount);
+
+	/** Opens the link window: a fresh attack press within it continues the string. */
+	void OpenStringLinkWindow(float WindowSeconds);
+
+	/** Kills the string and its window. The reason is for the trace alone. */
+	void ResetString(const TCHAR* Reason);
+
+	/** True while a chain press should outlive its ordinary buffer window; see TickInputBuffer. */
+	bool HasStringLinkWindowOpen() const;
 
 	/**
 	 *  Starts the guard's minimum-duration commitment. Called by the block ability on activation.
@@ -711,6 +755,24 @@ protected:
 	float DebugAutoAttackResetDelaySeconds = 0.35f;
 
 	/**
+	 *  How many attack taps one auto-attack cycle throws, at string cadence. Debug only.
+	 *
+	 *  1 -- the default -- is the pre-string behaviour exactly, which is what keeps every s1/s2/s3
+	 *  scenario's fixture untouched. Above 1, each subsequent tap lands during the previous swing,
+	 *  so the buffer extension and the chain-out are exercised the way a mashing human exercises
+	 *  them -- which is the point. The home-position reset waits for the burst to finish; a
+	 *  teleport mid-string would sever the very spacing chain s4 measures.
+	 *
+	 *  The whole burst must fit inside DebugAutoAttackInterval, exactly as the single attack must.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat|Debug", meta=(ClampMin="1"))
+	int32 DebugAutoAttackStringTaps = 1;
+
+	/** Seconds between the burst's taps. 0.25 lands each press mid-previous-swing. Debug only. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat|Debug", meta=(ClampMin="0.05"))
+	float DebugAutoAttackStringTapIntervalSeconds = 0.25f;
+
+	/**
 	 *  Whether this auto-attacker turns to face its target, and when. Debug only.
 	 *
 	 *  **The turn itself needs nothing but a focus.** A possessed pawn with no focus has
@@ -945,6 +1007,16 @@ private:
 	void TickInputBuffer();
 
 	/**
+	 *  Whether the buffered press should outlive its ordinary window: an ability answering it that
+	 *  opted into extension is either running now, or its string link window is still open. The
+	 *  policy is the ability's -- see UTDGameplayAbility::ShouldExtendBufferWhileActive.
+	 */
+	bool ShouldExtendBufferedPress(const FGameplayTag& InputTag) const;
+
+	/** Offers the active ability answering this input the chain-out; true if it ended for it. */
+	bool TryChainOutActiveAbility(const FGameplayTag& InputTag);
+
+	/**
 	 *  Replays a buffered release, HoldSeconds after the buffered press finally activated.
 	 *
 	 *  Cancelled the moment real input for that tag arrives, because a live edge always beats
@@ -1065,6 +1137,15 @@ private:
 	void ApplyBlockstunState();
 	void ClearBlockstunState();
 
+	/**
+	 *  Ends hitstun. Driven from Tick against HitstunEndsAt, as its two siblings are. The Apply
+	 *  half carries no cancel -- EnterHitstun cancels on the server once; a client's OnRep must
+	 *  not cancel predicted copies out from under a correction, the death path's exact reasoning.
+	 */
+	void EndHitstun();
+	void ApplyHitstunState();
+	void ClearHitstunState();
+
 	UFUNCTION()
 	void OnRep_Dead();
 
@@ -1076,6 +1157,9 @@ private:
 
 	UFUNCTION()
 	void OnRep_Blockstun();
+
+	UFUNCTION()
+	void OnRep_Hitstun();
 
 	/**
 	 *  Applies State.Dead, cancels everything running, and stops the character moving.
@@ -1159,6 +1243,34 @@ private:
 	UPROPERTY(ReplicatedUsing = OnRep_Blockstun)
 	bool bInBlockstun = false;
 
+	/** The fifth of the family, same contract. Blockstun's sibling for hits that were not blocked. */
+	UPROPERTY(ReplicatedUsing = OnRep_Hitstun)
+	bool bInHitstun = false;
+
+	/** When hitstun expires, in world seconds. A Tick-checked timestamp like its two siblings. */
+	float HitstunEndsAt = 0.0f;
+
+	/**
+	 *  Which hit of the light string the *next* chained attack continues from. 0 is a fresh
+	 *  string's first swing. Replicated so remote machines can agree which swing an activation
+	 *  means; the owning client's prediction of it is named for Netcode's pass, like the chain-out
+	 *  itself. See ResolveStringSwingIndexForActivation.
+	 */
+	UPROPERTY(Replicated)
+	uint8 StringIndex = 0;
+
+	/**
+	 *  When the string's link window closes, in world seconds. Local like BlockstunEndsAt --
+	 *  the replicated index is the wire truth, this is only its deadline.
+	 */
+	float StringWindowEndsAt = 0.0f;
+
+	/** The running knockback translation's root motion source ID, so a re-hit can replace it. */
+	uint16 KnockbackRootMotionSourceID = 0;
+
+	/** Taps left in the current auto-attack burst. Guards the home reset; see the taps knob. */
+	int32 DebugStringTapsRemaining = 0;
+
 	/**
 	 *  When the blockstun lockout expires, in world seconds. Server-authoritative.
 	 *
@@ -1228,6 +1340,7 @@ private:
 	FTimerHandle DebugAutoAttackTimerHandle;
 	FTimerHandle DebugAutoAttackReleaseTimerHandle;
 	FTimerHandle DebugAutoAttackResetTimerHandle;
+	FTimerHandle DebugAutoAttackStringTimerHandle;
 
 	FTimerHandle DebugAutoDodgeTimerHandle;
 	FTimerHandle DebugAutoDodgeReleaseTimerHandle;

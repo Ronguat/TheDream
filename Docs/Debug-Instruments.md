@@ -30,6 +30,21 @@ boundary, so it never escalates and never coils — do not expect `ESCALATE`, `C
 `CoilTurnRateDegrees` effect from it. 0.3 buys a heavy and 0.8 a charged, and changing it changes
 the fixture every prior measurement was taken against.
 
+**`DebugAutoAttackStringTaps` makes each cycle a burst** *(2026-08-16, inert at its default 1)*.
+Above 1, the dummy re-presses every `DebugAutoAttackStringTapIntervalSeconds` (0.25) so each tap
+lands mid-previous-swing — the buffer extension and chain-out exercised as a masher exercises
+them. **The home reset waits for the burst**: taps remaining or an open link window suppress it,
+or a teleport would sever the spacing chain s4 measures. The whole burst must fit inside
+`DebugAutoAttackInterval`, exactly as the single attack must.
+
+**Spawn the player pawn out of the exchange — `startTransform` (0, 800, 100), not the old
+(0, 0, 100)** *(2026-08-16)*. The attacker re-focuses on the **nearest living pawn**, so during a
+dead defender's revive window it turns on the player; at the old spawn (200 cm out, inside a
+heavy's 400 travel + 150 reach) it *farmed* the player — whose `DAMAGED`/`REVIVE` lines then
+poisoned the defender's ledgers. Two checker assertions failed exactly this way before the spawn
+moved and the ledgers went per-target. At 800+ cm the focus still glances over, the swing whiffs,
+and the log stays single-exchange.
+
 **`DebugAutoAttackFacingMode` decides whether it aims at you** (`Never` / `WhileAttacking` /
 `Always`, set to `WhileAttacking` 2026-08-14). On `Never` the dummy holds its placed yaw no matter
 where you stand, which is a *useful control* and an easy thing to mistake for broken hit detection.
@@ -98,8 +113,10 @@ enumerated from the source 2026-08-14 rather than remembered — `ACTIVATE`, `CO
 `ESCALATE`, `RELEASE` / `RELEASE OFF`, `RELEASE BEGIN` / `END` (from the notify), `ABILITY END`,
 `MONTAGE` (seven variants, including the delegate outcomes), `FACING LOCK`, `DODGE`, `DODGE END`,
 `BUFFER`, `REFUSED`, `DEATH`, `REVIVE`, `TARGET`, `AIM ASSIST`, `AIM WEDGE` and `LUNGE STOP`;
-`DAMAGED` and `ASC RESOLVE` joined 2026-08-15. Turn it off with `TD.DebugCombatTiming 0` when
-combat is not under test.
+`DAMAGED` and `ASC RESOLVE` joined 2026-08-15; **`HITSTUN`/`HITSTUN END`, `STRING` and
+`KNOCKBACK` joined 2026-08-16** — all three silent until Light String's sitting 2 authors the
+values that arm them (hitstun and spacing default 0, no swings, chainable false). Turn it off
+with `TD.DebugCombatTiming 0` when combat is not under test.
 
 **Block adds several** *(2026-08-14)*: `BLOCK up` / `BLOCK down` for the guard's edges, `BLOCK cost`
 when a guard charges its initial stamina, `BLOCKED` when a hit lands on one — carrying the stamina

@@ -119,6 +119,27 @@ bool UTDGameplayAbility::CanActivateAbility(const FGameplayAbilitySpecHandle Han
 		return false;
 	}
 
+	// Hitstun refuses everything, from the shared base like death and the guard break, and for the
+	// same reason: a stun any one ability could be granted without is a stun that will eventually
+	// be missed by one. Refusing *defense* here is not a side effect -- it is the entire mechanism
+	// behind "any hit in the string guarantees the rest".
+	//
+	// Unlike those two it deliberately DOES buffer (no ShouldBufferFailedInput exemption): hitstun
+	// is brief, and a press made during it is the defender's punish attempt -- the exact input the
+	// string's delay-and-bait game exists to read. While the chain stays tight the re-press is
+	// refused again before it can matter; the moment the attacker delays, it fires. That gap being
+	// escapable by a prompt press is the design, not a leak.
+	if (ActorInfo && ActorInfo->AbilitySystemComponent.IsValid()
+		&& ActorInfo->AbilitySystemComponent->HasMatchingGameplayTag(TDTags::State_Hitstun))
+	{
+		TD_TIMING_LOG(TEXT("[%.3f] REFUSED    %s on %s: hitstun"),
+			ActorInfo->AvatarActor.IsValid() && ActorInfo->AvatarActor->GetWorld()
+				? ActorInfo->AvatarActor->GetWorld()->GetTimeSeconds() : 0.0f,
+			*GetName(),
+			*GetNameSafe(ActorInfo->AvatarActor.Get()));
+		return false;
+	}
+
 	if (bBlockedWhileAirborne)
 	{
 		const ACharacter* Character = ActorInfo ? Cast<ACharacter>(ActorInfo->AvatarActor.Get()) : nullptr;

@@ -70,6 +70,22 @@ namespace TDTags
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Blockstun);
 
 	/**
+	 *  Cleanly hit. Refuses **every** ability -- defense included -- for a duration the attack
+	 *  authored, and cancels whatever the victim was doing when it landed.
+	 *
+	 *  The deliberate contrast is with State_Blockstun, which refuses offense only: blockstun is
+	 *  the price of a *successful* defence, so the guard and the dodge stay available, while
+	 *  hitstun is the price of failing to defend at all -- and refusing defense during it is the
+	 *  entire mechanism behind "any hit in the string guarantees the rest". A defender who could
+	 *  dodge between string hits would make that rule a lie.
+	 *
+	 *  Native for the reason its three siblings are: C++ applies it in EnterHitstun, refuses on it
+	 *  in CanActivateAbility, and hand-checks it in Jump(); an EditDefaultsOnly equivalent can be
+	 *  silently stale on a placed actor.
+	 */
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Hitstun);
+
+	/**
 	 *  A guard is inside its minimum duration and cannot be acted out of.
 	 *
 	 *  **Deliberately named to parallel State.Attacking.Committed**, because it is the same idea

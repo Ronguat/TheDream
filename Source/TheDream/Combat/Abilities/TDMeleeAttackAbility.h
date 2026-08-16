@@ -107,6 +107,50 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Hitbox")
 	bool bDrawDebugTrace = false;
 
+	/**
+	 *  Hitstun imposed on a cleanly hit target. Fallback for the branch value, like the two above.
+	 *
+	 *  **Zero -- the default -- means no hitstun at all**, and unlike StaminaDamage the default is
+	 *  deliberately inert rather than carrying the light's value: hitstun refuses every ability
+	 *  including defense, so it must never arrive by omission. The CDO authors the real ladder.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Damage", meta=(ClampMin="0.0"))
+	float HitstunSeconds = 0.0f;
+
+	/**
+	 *  The spacing reset: where a clean non-final string hit parks its target, in centimetres from
+	 *  the attacker along facing. **0 disables knockback entirely, and is the C++ default.**
+	 *
+	 *  See GetKnockbackSpacingCm for the fixed-destination model. The proposed authored value is
+	 *  150 -- `MaxReachCm`, the sword's edge -- and it lives on the CDO, not here.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Knockback", meta=(ClampMin="0.0"))
+	float HitSpacingCm = 0.0f;
+
+	/**
+	 *  The blocked variant of the reset: same mechanism, same full lateral centring, notably less
+	 *  ground conceded ("moves them laterally but pushback is reduced notably", the designer,
+	 *  2026-08-16). 0 disables, and is the default for the reason above.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Knockback", meta=(ClampMin="0.0"))
+	float BlockedSpacingCm = 0.0f;
+
+	/**
+	 *  How long the knockback translation takes. Must sit inside the hitstun that accompanies it,
+	 *  or the target regains control mid-slide -- 0.20 against hitstun's 0.40 is the proposed pair.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Knockback", meta=(ClampMin="0.01"))
+	float KnockbackDurationSeconds = 0.2f;
+
+	/**
+	 *  Optional pacing for the translation. **A time-mapping curve, not a strength curve**: it maps
+	 *  normalised time to normalised progress and must run monotonically 0 to 1 -- a different
+	 *  contract from the lunges' mean-1.0 strength curves, worth stating because they sit one
+	 *  category apart in the details panel. Null is linear.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Knockback")
+	TObjectPtr<UCurveFloat> KnockbackTimeMappingCurve = nullptr;
+
 	// Facing has no tuning knobs by design: an attack freezes it at commit and returns it in
 	// EndAbility, both instantly. The fades that briefly lived here (2026-08-12) are in the
 	// decision log's retired names -- any value below full authority disabled the snap outright.
@@ -262,6 +306,32 @@ protected:
 	/** Blockstun for the swing currently being thrown, imposed when it is blocked. */
 	virtual float GetAttackBlockstunSeconds() const { return BlockstunSeconds; }
 
+	/** Hitstun for the swing currently being thrown, imposed on a clean hit. Zero means none. */
+	virtual float GetAttackHitstunSeconds() const { return HitstunSeconds; }
+
+	/**
+	 *  How far from the attacker this swing parks a target it touches, or 0 for no knockback.
+	 *
+	 *  **Fixed destination, not an impulse** (2026-08-16): the target is carried to
+	 *  `attacker + facing x spacing` -- the same spot every time, every hit -- so the magnitude
+	 *  varies with where the hit caught them and the *result* never does. A blocked contact uses
+	 *  the smaller spacing: same full lateral centring, notably less ground conceded. The
+	 *  never-inward clamp lives at the call site in ATDCombatCharacter::ReceiveKnockback.
+	 *
+	 *  Zero disables, per the project idiom -- and the C++ default is zero so the mechanism ships
+	 *  structurally complete and behaviourally inert until the CDO authors real spacings.
+	 */
+	virtual float GetKnockbackSpacingCm(bool bBlocked) const { return bBlocked ? BlockedSpacingCm : HitSpacingCm; }
+
+	/**
+	 *  The montage this activation is actually playing.
+	 *
+	 *  The authored AttackMontage until a subclass says otherwise -- UTDChargedAttackAbility
+	 *  returns the current string swing's montage, which is what lets every rate derivation,
+	 *  window guard and delegate log in this class serve all swings without knowing strings exist.
+	 */
+	virtual UAnimMontage* GetActiveAttackMontage() const { return AttackMontage; }
+
 	/** Hitboxes for the swing currently being thrown. Overridden when a swing has variants. */
 	virtual const TArray<FTDAttackHitbox>& GetAttackHitboxes() const { return Hitboxes; }
 
@@ -336,6 +406,14 @@ protected:
 
 	UFUNCTION()
 	void HandleTraceHit(const FHitResult& Hit);
+
+	/**
+	 *  Computes the fixed destination for this swing's knockback and hands it to the target.
+	 *
+	 *  Authority-implied: only ever called from HandleTraceHit past its authority gate. The
+	 *  never-inward clamp lives here, beside the destination it guards.
+	 */
+	void ApplyKnockbackToTarget(class ATDCombatCharacter* Target, bool bBlocked);
 
 	UFUNCTION()
 	void HandleMontageFinished();

@@ -212,6 +212,29 @@ struct FTDAttackBranch
 	TObjectPtr<UCurveFloat> LungeStrengthCurve = nullptr;
 
 	/**
+	 *  Hitstun imposed on a target this branch cleanly hits. **0 -- the default -- means none.**
+	 *
+	 *  For the light it is the string guarantee's whole mechanism: it must cover the gap to the
+	 *  next chained contact (350 ms at the shipped cadence) or "any hit guarantees the rest" is a
+	 *  lie -- 0.40 carries the same 50 ms margin blockstun does. Authored per branch beside
+	 *  BlockstunSeconds because the ladder's asymmetries belong where the ladder is authored.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Attack", meta=(ClampMin="0.0"))
+	float HitstunSeconds = 0.0f;
+
+	/**
+	 *  Whether committing this branch keeps the string alive. **The DKO/New World flip in data.**
+	 *
+	 *  True on the light alone expresses the current model: lights chain and a heavy or charged
+	 *  commit ends the string (heavy never chains into light). Setting it on a heavy is how the
+	 *  New World-shaped alternative arrives -- a details-panel change, deliberately never
+	 *  structure, per the 2026-08-16 plan-session entry. False by default so deserialised branches
+	 *  are inert until the CDO chooses.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Attack")
+	bool bChainsIntoString = false;
+
+	/**
 	 *  Target Lock, rotational half: who this branch is willing to be steered onto.
 	 *
 	 *  **Shape only -- reach is derived**, see FTDAimAssistWedge and
@@ -232,6 +255,65 @@ struct FTDAttackBranch
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Attack")
 	FTDAimAssistWedge AimAssistWedge;
+};
+
+/**
+ *  One hit of the light string beyond the first: its clip, that clip's authored positions, and
+ *  the branch-0 values that vary by position.
+ *
+ *  **Hit 1 is deliberately absent from this struct's world.** The first swing stays the ability's
+ *  original authored surface -- AttackMontage, the ability-level ReleaseStartSeconds and
+ *  CoilEndSeconds, and Branches[0]'s values -- because moving those UPROPERTYs would orphan every
+ *  play-verified CDO override. StringSwings[k] therefore describes hit k+2, and the accessors
+ *  resolve index 0 to the legacy fields. The asymmetry is load-bearing, not an accident.
+ *
+ *  Heavy and charged are reachable from any swing (hold-to-convert is per swing) and keep their
+ *  Branches values; only the montage-position numbers here apply to them, since those are
+ *  properties of the clip rather than of the tier.
+ */
+USTRUCT(BlueprintType)
+struct FTDStringSwing
+{
+	GENERATED_BODY()
+
+	/** This swing's montage. Must play an in-place clip, like AM_Attack, or the lunge dies. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Swing")
+	TObjectPtr<UAnimMontage> Montage = nullptr;
+
+	/**
+	 *  Where this montage's Release Window notify opens, hand-copied from its placement exactly as
+	 *  the ability-level field is for hit 1 -- and checked against the notify at runtime by the
+	 *  same drift warning. Read the real value off the MONTAGE trace's `notify trigger=` line.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Swing", meta=(ClampMin="0.0"))
+	float ReleaseStartSeconds = 0.3f;
+
+	/** Where this montage's coil creeps to. Must stay below its ReleaseStartSeconds. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Swing", meta=(ClampMin="0.0"))
+	float CoilEndSeconds = 0.28f;
+
+	/** Branch-0 values for this position -- damage on hit. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Swing", meta=(ClampMin="0.0"))
+	float Damage = 15.0f;
+
+	/** Stamina damage this position deals to a guard. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Swing", meta=(ClampMin="0.0"))
+	float StaminaDamage = 5.0f;
+
+	/** Blockstun this position imposes when blocked. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Swing", meta=(ClampMin="0.0"))
+	float BlockstunSeconds = 0.4f;
+
+	/** Hitstun this position imposes on a clean hit. 0 means none; see FTDAttackBranch's field. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Swing", meta=(ClampMin="0.0"))
+	float HitstunSeconds = 0.0f;
+
+	/**
+	 *  This position's recovery -- commitment and punish window both, exactly as on the branch.
+	 *  The string's ender authors the spec's "heavy endlag" here.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Swing", meta=(ClampMin="0.01"))
+	float RecoverySeconds = 0.4f;
 };
 
 /**
@@ -329,10 +411,50 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Timing")
 	TArray<FTDAttackBranch> Branches;
 
+	/**
+	 *  The light string's hits beyond the first, in order. **Empty means no string** -- the
+	 *  pre-2026-08-16 single-swing behaviour, and the C++ default, so the machinery ships inert.
+	 *
+	 *  String length is this array's size plus one, which is what makes 2-, 3- and 4-hit strings
+	 *  details-panel variants and the clip roster an authored trial. Hit 1 deliberately lives in
+	 *  the legacy fields instead of element 0; see FTDStringSwing.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|String")
+	TArray<FTDStringSwing> StringSwings;
+
+	/**
+	 *  How long after a chainable swing ends a fresh press still continues the string, fighting-
+	 *  game link style, before the string resets to hit 1. Also how long a buffered chain press
+	 *  outlives the swing that refused it -- the two are one window on purpose.
+	 *
+	 *  0.40 is the proposed first probe, deliberately generous in the MinimumBlockSeconds
+	 *  tradition. The delay-and-bait game's ceiling: chain any time from recovery start to this
+	 *  window's close.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|String", meta=(ClampMin="0.0"))
+	float StringLinkWindowSeconds = 0.4f;
+
+	/**
+	 *  Extra delay after recovery starts before a chain may leave the swing. 0 -- the default and
+	 *  the proposal -- chains at recovery start, which is the release window's close. The cadence
+	 *  knob beyond hitstun: raising it slows every string without touching any clip.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|String", meta=(ClampMin="0.0"))
+	float ChainOpenAfterRecoverySeconds = 0.0f;
+
 	virtual float GetAttackDamage() const override;
 	virtual float GetAttackStaminaDamage() const override;
 	virtual float GetAttackBlockstunSeconds() const override;
+	virtual float GetAttackHitstunSeconds() const override;
+	virtual float GetKnockbackSpacingCm(bool bBlocked) const override;
 	virtual const TArray<FTDAttackHitbox>& GetAttackHitboxes() const override;
+	virtual UAnimMontage* GetActiveAttackMontage() const override;
+
+	/** Chain presses survive a running attack; see the base's contract. */
+	virtual bool ShouldExtendBufferWhileActive() const override { return true; }
+
+	/** Ends this swing early for a waiting chain press, if the chain-out span is open. */
+	virtual bool TryChainOutForBufferedPress() override;
 
 	/**
 	 *  The aim assist wedge actually tested for a branch: its authored shape at its derived reach.
@@ -428,12 +550,45 @@ private:
 	/** Sets the montage's play rate, if one is playing. Never called with 0. */
 	void SetMontagePlayRate(float PlayRate) const;
 
+	/** Total swings: the legacy first hit plus the StringSwings array. Never below 1. */
+	int32 GetSwingCount() const { return 1 + StringSwings.Num(); }
+
+	/** Whether a swing at this index has a string successor to chain into. */
+	bool HasSuccessorSwing(int32 SwingIndex) const { return SwingIndex + 1 < GetSwingCount(); }
+
+	/** This swing's ReleaseStartSeconds: the legacy field for index 0, the swing's otherwise. */
+	float GetSwingReleaseStartSeconds(int32 SwingIndex) const;
+
+	/** This swing's CoilEndSeconds, resolved the same way. */
+	float GetSwingCoilEndSeconds(int32 SwingIndex) const;
+
+	/**
+	 *  Whether the selected branch at the current swing is a non-final string light -- the gate
+	 *  for both knockback and the chain-out. A heavy, a charged, the string's ender and a
+	 *  non-chaining branch 0 all fail it, which is exactly the set that must not reset spacing.
+	 */
+	bool IsNonFinalStringLight() const;
+
+	/** True inside the chain-out span: committed, chainable, recovery running past the delay. */
+	bool IsChainOutOpen() const;
 
 	int32 SelectedBranchIndex = 0;
 	bool bAttackCommitted = false;
 	bool bInputHeld = true;
 	bool bCoiling = false;
 	float ActivationWorldTime = 0.0f;
+
+	/**
+	 *  Which swing of the string this activation is, resolved from the character at activation
+	 *  and stable for the activation's whole life. 0 is the legacy first hit.
+	 */
+	int32 CurrentSwingIndex = 0;
+
+	/** True from RELEASE OFF to the ability's end -- the span the chain-out may open inside. */
+	bool bInRecovery = false;
+
+	/** World time recovery began, for ChainOpenAfterRecoverySeconds. */
+	float RecoveryStartedAt = 0.0f;
 
 	FTimerHandle CheckpointTimerHandle;
 	FGameplayTag AppliedAttackTag;

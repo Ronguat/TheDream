@@ -177,14 +177,15 @@ ATheDreamCharacter* UTDMeleeAttackAbility::GetFacingCharacter() const
 
 UAbilityTask_MeleeTrace* UTDMeleeAttackAbility::StartMeleeTrace(const TArray<FTDAttackHitbox>& InHitboxes)
 {
-	// AttackMontage is passed so the hitboxes only go live on *this* attack's Release Window. The
-	// events reach the whole ASC and carry no ownership, so without it a second montage carrying
-	// the notify would open every listening trace.
+	// The active montage is passed so the hitboxes only go live on *this* attack's Release Window.
+	// The events reach the whole ASC and carry no ownership, so without it a second montage
+	// carrying the notify would open every listening trace -- and with per-swing montages that is
+	// no longer hypothetical, so the filter must follow the swing rather than the authored field.
 	UAbilityTask_MeleeTrace* TraceTask = UAbilityTask_MeleeTrace::MeleeTrace(
 		this,
 		InHitboxes,
 		bDrawDebugTrace,
-		AttackMontage);
+		GetActiveAttackMontage());
 	TraceTask->OnHit.AddDynamic(this, &UTDMeleeAttackAbility::HandleTraceHit);
 	TraceTask->ReadyForActivation();
 
@@ -193,7 +194,10 @@ UAbilityTask_MeleeTrace* UTDMeleeAttackAbility::StartMeleeTrace(const TArray<FTD
 
 bool UTDMeleeAttackAbility::StartAttackMontage(FName StartSection, float PlayRate)
 {
-	if (!AttackMontage)
+	// Resolved once for the whole function: which montage this activation plays is the swing's
+	// business (see GetActiveAttackMontage), and every log, guard and task below must agree on it.
+	UAnimMontage* ActiveMontage = GetActiveAttackMontage();
+	if (!ActiveMontage)
 	{
 		return false;
 	}
@@ -203,16 +207,17 @@ bool UTDMeleeAttackAbility::StartAttackMontage(FName StartSection, float PlayRat
 	// section that ends before the montage does, with nothing chained after it, ends the
 	// montage there -- naturally, so the task reports OnBlendOut rather than OnInterrupted,
 	// which is indistinguishable from a normal finish without this.
-	if (TDShouldTraceCombatTiming() && AttackMontage)
+	if (TDShouldTraceCombatTiming() && ActiveMontage)
 	{
-		TD_TIMING_LOG(TEXT("[%.3f] MONTAGE    sections=%d  length=%.4f"),
+		TD_TIMING_LOG(TEXT("[%.3f] MONTAGE    '%s' sections=%d  length=%.4f"),
 			GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f,
-			AttackMontage->CompositeSections.Num(),
-			AttackMontage->GetPlayLength());
+			*ActiveMontage->GetName(),
+			ActiveMontage->CompositeSections.Num(),
+			ActiveMontage->GetPlayLength());
 
-		for (int32 Index = 0; Index < AttackMontage->CompositeSections.Num(); ++Index)
+		for (int32 Index = 0; Index < ActiveMontage->CompositeSections.Num(); ++Index)
 		{
-			const FCompositeSection& Composite = AttackMontage->CompositeSections[Index];
+			const FCompositeSection& Composite = ActiveMontage->CompositeSections[Index];
 			TD_TIMING_LOG(TEXT("[%.3f] MONTAGE      [%d] '%s' start=%.4f nextSection='%s'"),
 				GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f,
 				Index,
@@ -226,9 +231,9 @@ bool UTDMeleeAttackAbility::StartAttackMontage(FName StartSection, float PlayRat
 		// fired at -- a round trip per marker adjustment. It is plain C++ here. This is also the
 		// authored truth that ReleaseStartSeconds duplicates by hand, so a drift between them is
 		// visible on the same screen rather than needing the warning to catch it.
-		for (int32 Index = 0; Index < AttackMontage->Notifies.Num(); ++Index)
+		for (int32 Index = 0; Index < ActiveMontage->Notifies.Num(); ++Index)
 		{
-			const FAnimNotifyEvent& Event = AttackMontage->Notifies[Index];
+			const FAnimNotifyEvent& Event = ActiveMontage->Notifies[Index];
 			TD_TIMING_LOG(TEXT("[%.3f] MONTAGE      notify '%s' trigger=%.4f duration=%.4f"),
 				GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f,
 				*Event.NotifyName.ToString(),
@@ -252,16 +257,16 @@ bool UTDMeleeAttackAbility::StartAttackMontage(FName StartSection, float PlayRat
 	// So the clip carries no root motion (AM_Attack plays the library's _IP variant, not _RM) and
 	// nothing here scales anything. The warning below is the enforcement, because the dependency
 	// is content-side and a repointed segment would otherwise break every lunge in silence.
-	if (AttackMontage->HasRootMotion() && LungeDistanceCm > 0.0f)
+	if (ActiveMontage->HasRootMotion() && LungeDistanceCm > 0.0f)
 	{
 		UE_LOG(LogTDCombatTiming, Warning,
 			TEXT("'%s' has root motion, so it will suppress every authored lunge on this attack. ")
 			TEXT("Point its segment at an in-place (_IP) clip."),
-			*AttackMontage->GetName());
+			*ActiveMontage->GetName());
 	}
 
 	UAbilityTask_PlayMontageAndWait* MontageTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(
-		this, NAME_None, AttackMontage, PlayRate, StartSection,
+		this, NAME_None, ActiveMontage, PlayRate, StartSection,
 		/*bStopWhenAbilityEnds=*/true, /*AnimRootMotionTranslationScale=*/1.0f);
 	// Bound to four separate wrappers rather than two shared handlers, so the trace can say
 	// which delegate ended the attack. They have different causes and different fixes.
@@ -348,6 +353,11 @@ void UTDMeleeAttackAbility::HandleTraceHit(const FHitResult& Hit)
 			{
 				Defender->EnterBlockstun(GetAttackBlockstunSeconds());
 			}
+
+			// The blocked spacing reset: same full centring as a clean hit, notably less ground
+			// conceded. Applied whether or not this hit broke the guard -- the contact was blocked
+			// either way, and one rule beats a special case nobody asked for. Zero spacing is none.
+			ApplyKnockbackToTarget(Defender, /*bBlocked=*/true);
 			return;
 		}
 	}
@@ -393,6 +403,62 @@ void UTDMeleeAttackAbility::HandleTraceHit(const FHitResult& Hit)
 			GetAttackDamage(),
 			TargetASC->GetNumericAttribute(UTDAttributeSet::GetHealthAttribute()));
 	}
+
+	// The hit's effect on the victim beyond the bar: hitstun, then the spacing reset. After the
+	// damage deliberately, so a killing blow resolves death first -- both calls no-op on the dead,
+	// whose ragdoll is under physics no root motion source could move anyway. Both are inert at
+	// their C++ defaults (0 hitstun, 0 spacing); the CDO is what arms them.
+	if (ATDCombatCharacter* Victim = Cast<ATDCombatCharacter>(HitActor))
+	{
+		Victim->EnterHitstun(GetAttackHitstunSeconds());
+		ApplyKnockbackToTarget(Victim, /*bBlocked=*/false);
+	}
+}
+
+void UTDMeleeAttackAbility::ApplyKnockbackToTarget(ATDCombatCharacter* Target, bool bBlocked)
+{
+	const float SpacingCm = GetKnockbackSpacingCm(bBlocked);
+	AActor* Avatar = GetAvatarActorFromActorInfo();
+	if (!Target || !Avatar || SpacingCm <= 0.0f)
+	{
+		return;
+	}
+
+	// The attacker's frame is stable here by prior design: hits resolve only inside the release
+	// window, facing froze at commit, and the lunge stopped on this very hit -- so the axis the
+	// destination sits on is planted, which is what makes "the same spot every time" a truth
+	// rather than an aspiration.
+	const FVector AttackerLoc = Avatar->GetActorLocation();
+	FVector Facing = Avatar->GetActorForwardVector();
+	Facing.Z = 0.0f;
+	if (!Facing.Normalize())
+	{
+		return;
+	}
+
+	const FVector ToTarget = Target->GetActorLocation() - AttackerLoc;
+	const float CurrentAlongCm = FVector::DotProduct(ToTarget, Facing);
+	const float LateralCm = FVector::DotProduct(ToTarget, FVector::CrossProduct(FVector::UpVector, Facing));
+
+	// **Never inward.** A contact beyond the authored spacing keeps its distance and is only
+	// centred -- vacuum blocks are a known artifact class, and pulling a defender toward the sword
+	// is not something either spacing means. Deleting this max() is the whole change if a pull-in
+	// is ever wanted.
+	const float FinalSpacingCm = FMath::Max(SpacingCm, CurrentAlongCm);
+
+	FVector Destination = AttackerLoc + Facing * FinalSpacingCm;
+	Destination.Z = Target->GetActorLocation().Z;
+
+	TD_TIMING_LOG(TEXT("[%.3f] KNOCKBACK  %s by %s  spacing=%.0f (authored %.0f)  centred=%.1fcm%s"),
+		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f,
+		*Target->GetName(),
+		*GetNameSafe(Avatar),
+		FinalSpacingCm,
+		SpacingCm,
+		LateralCm,
+		bBlocked ? TEXT(" (blocked)") : TEXT(""));
+
+	Target->ReceiveKnockback(Destination, KnockbackDurationSeconds, KnockbackTimeMappingCurve);
 }
 
 void UTDMeleeAttackAbility::HandleMontageCompleted()
@@ -409,17 +475,18 @@ void UTDMeleeAttackAbility::HandleMontageBlendedOut()
 	// section -- and the section name is the only thing that can say what.
 	const FGameplayAbilityActorInfo* ActorInfo = GetCurrentActorInfo();
 	UAnimInstance* AnimInstance = ActorInfo ? ActorInfo->GetAnimInstance() : nullptr;
+	UAnimMontage* ActiveMontage = GetActiveAttackMontage();
 
-	const float Position = (AnimInstance && AttackMontage) ? AnimInstance->Montage_GetPosition(AttackMontage) : -1.0f;
-	const FName Section = (AnimInstance && AttackMontage) ? AnimInstance->Montage_GetCurrentSection(AttackMontage) : NAME_None;
-	const bool bPlaying = (AnimInstance && AttackMontage) ? AnimInstance->Montage_IsPlaying(AttackMontage) : false;
+	const float Position = (AnimInstance && ActiveMontage) ? AnimInstance->Montage_GetPosition(ActiveMontage) : -1.0f;
+	const FName Section = (AnimInstance && ActiveMontage) ? AnimInstance->Montage_GetCurrentSection(ActiveMontage) : NAME_None;
+	const bool bPlaying = (AnimInstance && ActiveMontage) ? AnimInstance->Montage_IsPlaying(ActiveMontage) : false;
 
 	TD_TIMING_LOG(TEXT("[%.3f] MONTAGE    OnBlendOut  pos=%.4f section=%s playing=%d montageLen=%.4f"),
 		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f,
 		Position,
 		*Section.ToString(),
 		bPlaying ? 1 : 0,
-		AttackMontage ? AttackMontage->GetPlayLength() : -1.0f);
+		ActiveMontage ? ActiveMontage->GetPlayLength() : -1.0f);
 
 	HandleMontageFinished();
 }

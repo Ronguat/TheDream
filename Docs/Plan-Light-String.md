@@ -271,9 +271,11 @@ comments per convention.
 ## Sequencing
 
 1. **C++ core** (editor closed, one rebuild): per-swing data + accessors, string state, chain-out,
-   buffer extension, hitstun + `Jump()` check, **the knockback translation (both variants)**,
-   traces. Verify `s1/s2/s3` green single-tap — `s1/s2-light`'s elapsed bands move with the
-   recovery retune, updated in this same sitting with their source comments.
+   buffer extension, hitstun + `Jump()` check, **the knockback translation (both variants)**, the
+   string-taps fixture (inert at 1), traces. **Every new mechanism defaults inert** (0 hitstun, 0
+   spacing, no swings, chainable false), so `s1/s2/s3` re-run against today's values and bands —
+   green here proves the refactor invisible. The recovery retune and its band moves are sitting
+   2's, where the values land.
 2. **Assets**: three montages via the loop above (human notify step), values onto the CDO,
    restart, instance-vs-CDO checks per the staleness rules.
 3. **Checker**: fixture mode, three `s4-*` scenarios, self-test, deliberate failures.

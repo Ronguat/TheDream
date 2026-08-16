@@ -17,7 +17,9 @@
 #include "Components/StaticMeshComponent.h"
 #include "EnhancedInputComponent.h"
 #include "PhysicsEngine/PhysicsAsset.h"
+#include "Curves/CurveFloat.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "GameFramework/RootMotionSource.h"
 #include "GameplayEffect.h"
 #include "Net/UnrealNetwork.h"
 #include "TimerManager.h"
@@ -94,6 +96,18 @@ void ATDCombatCharacter::Tick(float DeltaSeconds)
 			if (World && World->GetTimeSeconds() >= BlockstunEndsAt)
 			{
 				EndBlockstun();
+			}
+		}
+
+		// The third of the family. Hitstun and blockstun cannot start from the same hit -- the
+		// melee ability's blocked/unblocked fork picks exactly one -- but they can overlap across
+		// two hits, and each runs to its own deadline.
+		if (bInHitstun)
+		{
+			const UWorld* World = GetWorld();
+			if (World && World->GetTimeSeconds() >= HitstunEndsAt)
+			{
+				EndHitstun();
 			}
 		}
 	}
@@ -751,6 +765,187 @@ void ATDCombatCharacter::OnRep_Blockstun()
 	}
 }
 
+void ATDCombatCharacter::EnterHitstun(float DurationSeconds)
+{
+	UWorld* World = GetWorld();
+	if (!World || !HasAuthority() || DurationSeconds <= 0.0f || bDead)
+	{
+		return;
+	}
+
+	// Max-extended like blockstun, and re-entrant like the guard break, for the same reason both
+	// give: a second hit landing inside a running stun must lengthen the sentence, never shorten
+	// it or be ignored -- that re-extension is the string guarantee's whole arithmetic, each chained
+	// contact refreshing the stun before the last one expires.
+	HitstunEndsAt = FMath::Max(HitstunEndsAt, World->GetTimeSeconds() + DurationSeconds);
+
+	// **Being hit cancels everything, committed or not** -- the designer's ruling, 2026-08-16.
+	// Server-only and outside the Apply half, exactly as death's cancel is: a client's OnRep must
+	// not cancel predicted copies out from under a correction. Cancelling runs each ability's
+	// EndAbility, which is what clears State.Attacking, restores facing, tears down the lunge, and
+	// resets the victim's own string through the cancelled path -- nothing here does those twice.
+	if (AbilitySystem)
+	{
+		AbilitySystem->CancelAllAbilities();
+	}
+
+	// The explicit reset covers the victim who was *not* mid-ability: a stale link window from an
+	// earlier swing must not survive being cleanly hit. Idempotent beside the cancel path's.
+	ResetString(TEXT("cleanly hit"));
+
+	if (!bInHitstun)
+	{
+		bInHitstun = true;
+		ApplyHitstunState();
+	}
+}
+
+void ATDCombatCharacter::EndHitstun()
+{
+	if (!bInHitstun)
+	{
+		return;
+	}
+
+	bInHitstun = false;
+	ClearHitstunState();
+}
+
+void ATDCombatCharacter::ApplyHitstunState()
+{
+	if (AbilitySystem)
+	{
+		// The tag alone from here on: the cancel happened once, on the server, in EnterHitstun.
+		// This half only makes the state true on this machine, which for a client is the
+		// difference between predicting an action the server already refused and knowing better.
+		AbilitySystem->AddLooseGameplayTag(TDTags::State_Hitstun);
+	}
+
+	TD_TIMING_LOG(TEXT("[%.3f] HITSTUN    %s  until=%.3f"),
+		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f,
+		*GetName(),
+		HitstunEndsAt);
+}
+
+void ATDCombatCharacter::ClearHitstunState()
+{
+	if (AbilitySystem)
+	{
+		AbilitySystem->RemoveLooseGameplayTag(TDTags::State_Hitstun);
+	}
+
+	TD_TIMING_LOG(TEXT("[%.3f] HITSTUN END  %s"),
+		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f,
+		*GetName());
+}
+
+void ATDCombatCharacter::OnRep_Hitstun()
+{
+	if (bInHitstun)
+	{
+		ApplyHitstunState();
+	}
+	else
+	{
+		ClearHitstunState();
+	}
+}
+
+void ATDCombatCharacter::ReceiveKnockback(const FVector& DestinationWorld, float DurationSeconds, UCurveFloat* TimeMappingCurve)
+{
+	UCharacterMovementComponent* Movement = GetCharacterMovement();
+	if (!Movement || !HasAuthority() || bDead || DurationSeconds <= 0.0f)
+	{
+		return;
+	}
+
+	// A re-hit mid-slide replaces the running translation outright -- last hit wins, and the new
+	// destination is computed from the new contact, so two overlapping sources never fight.
+	if (KnockbackRootMotionSourceID != 0)
+	{
+		Movement->RemoveRootMotionSourceByID(KnockbackRootMotionSourceID);
+		KnockbackRootMotionSourceID = 0;
+	}
+
+	// The engine's own fixed-destination source -- variable magnitude, exact endpoint, which is
+	// the entire design ("the target ends up in the exact same relative location, every time").
+	// The *dynamic* variant, with a static target: only it carries TimeMappingCurve, and the
+	// static MoveToForce does not. Same channel, same priority and same accumulate mode as the
+	// lunge, because this is the lunge's target-side twin and must interact with the movement
+	// stack the same way.
+	TSharedPtr<FRootMotionSource_MoveToDynamicForce> MoveTo = MakeShared<FRootMotionSource_MoveToDynamicForce>();
+	MoveTo->InstanceName = FName("TDKnockback");
+	MoveTo->AccumulateMode = ERootMotionAccumulateMode::Override;
+	MoveTo->Priority = 5;
+	MoveTo->StartLocation = GetActorLocation();
+	MoveTo->InitialTargetLocation = DestinationWorld;
+	MoveTo->TargetLocation = DestinationWorld;
+	MoveTo->Duration = DurationSeconds;
+	MoveTo->bRestrictSpeedToExpected = false;
+	MoveTo->TimeMappingCurve = TimeMappingCurve;
+	MoveTo->FinishVelocityParams.Mode = ERootMotionFinishVelocityMode::ClampVelocity;
+	MoveTo->FinishVelocityParams.ClampVelocity = 0.0f;
+
+	KnockbackRootMotionSourceID = Movement->ApplyRootMotionSource(MoveTo);
+}
+
+int32 ATDCombatCharacter::ResolveStringSwingIndexForActivation(int32 SwingCount)
+{
+	const UWorld* World = GetWorld();
+	const float Now = World ? World->GetTimeSeconds() : 0.0f;
+
+	if (Now <= StringWindowEndsAt && StringIndex + 1 < SwingCount)
+	{
+		++StringIndex;
+	}
+	else
+	{
+		StringIndex = 0;
+	}
+
+	// Consumed either way: the window answered this activation's question, and it reopens -- or
+	// does not -- when this swing ends. Leaving it standing would let one window admit two swings.
+	StringWindowEndsAt = 0.0f;
+
+	return StringIndex;
+}
+
+void ATDCombatCharacter::OpenStringLinkWindow(float WindowSeconds)
+{
+	const UWorld* World = GetWorld();
+	if (!World || WindowSeconds <= 0.0f)
+	{
+		return;
+	}
+
+	StringWindowEndsAt = World->GetTimeSeconds() + WindowSeconds;
+
+	TD_TIMING_LOG(TEXT("[%.3f] STRING     link window open on %s until %.3f (after swing %d)"),
+		World->GetTimeSeconds(), *GetName(), StringWindowEndsAt, StringIndex);
+}
+
+void ATDCombatCharacter::ResetString(const TCHAR* Reason)
+{
+	// Silent when there is nothing to reset: this is called defensively from several paths, and a
+	// STRING line per idle no-op would bury the ones that mean something.
+	if (StringIndex == 0 && StringWindowEndsAt <= 0.0f)
+	{
+		return;
+	}
+
+	TD_TIMING_LOG(TEXT("[%.3f] STRING     reset on %s (%s)"),
+		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f, *GetName(), Reason);
+
+	StringIndex = 0;
+	StringWindowEndsAt = 0.0f;
+}
+
+bool ATDCombatCharacter::HasStringLinkWindowOpen() const
+{
+	const UWorld* World = GetWorld();
+	return World && World->GetTimeSeconds() <= StringWindowEndsAt;
+}
+
 bool ATDCombatCharacter::IsIdle() const
 {
 	if (!Super::IsIdle())
@@ -840,6 +1035,8 @@ void ATDCombatCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& O
 	DOREPLIFETIME(ATDCombatCharacter, bExhausted);
 	DOREPLIFETIME(ATDCombatCharacter, bGuardBroken);
 	DOREPLIFETIME(ATDCombatCharacter, bInBlockstun);
+	DOREPLIFETIME(ATDCombatCharacter, bInHitstun);
+	DOREPLIFETIME(ATDCombatCharacter, StringIndex);
 }
 
 void ATDCombatCharacter::EnterDeath()
@@ -863,6 +1060,11 @@ void ATDCombatCharacter::EnterDeath()
 		// the tags that would forbid every future defensive action on revive.
 		AbilitySystem->CancelAllAbilities();
 	}
+
+	// Neither does the string: a chain half-thrown by the deceased must not greet the revive.
+	// The cancel above already resets it when death interrupted a swing; this covers dying with
+	// a link window open between swings.
+	ResetString(TEXT("died"));
 
 	// A buffered press must not survive death: it would fire on revive, an action asked for
 	// in a situation that no longer exists. Local input state, so it is meaningless on any
@@ -1137,16 +1339,20 @@ void ATDCombatCharacter::Jump()
 	// GameplayAbility, so the dead check in UTDGameplayAbility does not cover it and has
 	// to be repeated here -- the one place that rule is not centralised.
 	//
-	// The movement lock and the guard's minimum duration are the third and fourth rules this
-	// function has had to copy. That is the standing argument for jump eventually becoming an
-	// ability -- every lockout the abilities get for free has to be restated here, and this is
-	// the only place that can be forgotten. The 2026-08-15 structure audit left that call with
-	// Stun, which owns the full-lockout treatment the guard-break gap below already waits on.
+	// The movement lock, the guard's minimum duration and hitstun are the third, fourth and
+	// *fifth* rules this function has had to copy. Each strengthens the standing argument for
+	// jump eventually becoming an ability -- every lockout the abilities get for free has to be
+	// restated here, and this is the only place that can be forgotten. That call rides
+	// Knockdown & Oki, which owns the full-lockout treatment the guard-break gap below waits on.
+	//
+	// Hitstun *is* checked, unlike the broken guard, because the string guarantee depends on it:
+	// a jump out of hitstun is an escape between chained hits exactly as a dodge would be, and
+	// refusing the dodge while permitting the jump would move the leak rather than close it.
 	//
 	// A broken guard is deliberately *not* checked here, and that is a known gap rather than an
 	// oversight: full loss of control during a guard break belongs to Stun, which owns the
 	// hit-reaction plumbing it needs.
-	if (bExhausted || bDead || IsMovementLocked() || IsBlockCommitted())
+	if (bExhausted || bDead || bInHitstun || IsMovementLocked() || IsBlockCommitted())
 	{
 		return;
 	}
@@ -1527,6 +1733,14 @@ void ATDCombatCharacter::UpdateDebugFacingFocus(bool bAttacking)
 
 void ATDCombatCharacter::HandleDebugAutoAttackEnded(const FAbilityEndedData& EndedData)
 {
+	// A mid-burst swing's end is not the burst's end: taps are still owed, or the link window the
+	// ending swing just opened says the next one is coming. Resetting home here would teleport
+	// the attacker out of its own string -- the focus stays too, for the same reason.
+	if (DebugStringTapsRemaining > 0 || HasStringLinkWindowOpen())
+	{
+		return;
+	}
+
 	// Before the reset, not after: the reset restores the placed yaw, and holding the focus
 	// through it would have the controller immediately turn back out of what it just restored.
 	UpdateDebugFacingFocus(/*bAttacking=*/false);
@@ -1558,23 +1772,49 @@ void ATDCombatCharacter::HandleDebugAutoAttackEnded(const FAbilityEndedData& End
 
 void ATDCombatCharacter::DebugAutoAttackPress()
 {
-	// A pending delayed reset must not survive into the next swing, or it would snap the
-	// attacker home mid-attack. The reset below covers the same ground immediately.
-	GetWorldTimerManager().ClearTimer(DebugAutoAttackResetTimerHandle);
+	// A burst's first press does the housekeeping; the taps inside one deliberately do not. A
+	// home-teleport mid-string would sever the spacing chain s4 measures, and the focus survives
+	// the whole burst on its own. Taps=1 makes every press a first press, which is the
+	// pre-string behaviour exactly.
+	const bool bStartingBurst = DebugStringTapsRemaining <= 0;
+	if (bStartingBurst)
+	{
+		DebugStringTapsRemaining = FMath::Max(1, DebugAutoAttackStringTaps);
 
-	// Belt and braces. The post-attack reset normally leaves nothing to do here, but an ability
-	// that is cancelled or interrupted may never end cleanly, and this preserves the guarantee
-	// that every swing starts from an identical transform.
-	ReturnToDebugAutoAttackHome();
+		// A pending delayed reset must not survive into the next swing, or it would snap the
+		// attacker home mid-attack. The reset below covers the same ground immediately.
+		GetWorldTimerManager().ClearTimer(DebugAutoAttackResetTimerHandle);
 
-	// After the reset, so the turn starts from the placed yaw the reset just restored, and
-	// before the press, so the windup is already closing the angle rather than starting a frame
-	// late. In Always mode this is also what establishes the focus in the first place -- a
-	// placed dummy is possessed before the player pawn exists, so there is nothing to aim at
-	// until the first swing comes round.
-	UpdateDebugFacingFocus(/*bAttacking=*/true);
+		// Belt and braces. The post-attack reset normally leaves nothing to do here, but an ability
+		// that is cancelled or interrupted may never end cleanly, and this preserves the guarantee
+		// that every swing starts from an identical transform.
+		ReturnToDebugAutoAttackHome();
+
+		// After the reset, so the turn starts from the placed yaw the reset just restored, and
+		// before the press, so the windup is already closing the angle rather than starting a frame
+		// late. In Always mode this is also what establishes the focus in the first place -- a
+		// placed dummy is possessed before the player pawn exists, so there is nothing to aim at
+		// until the first swing comes round.
+		UpdateDebugFacingFocus(/*bAttacking=*/true);
+	}
 
 	OnAbilityInputPressed(DebugAutoAttackInputTag);
+
+	// The burst's next tap, at string cadence -- it lands during the running swing, is refused,
+	// buffered, and chains out exactly as a mashing human's would. Re-enters this function with
+	// taps remaining, which is what skips the housekeeping above.
+	--DebugStringTapsRemaining;
+	if (DebugStringTapsRemaining > 0)
+	{
+		// Its own handle, never DebugAutoAttackTimerHandle -- that one carries the looping
+		// interval, and a one-shot written over it would end the fixture after one burst.
+		GetWorldTimerManager().SetTimer(
+			DebugAutoAttackStringTimerHandle,
+			this,
+			&ATDCombatCharacter::DebugAutoAttackPress,
+			DebugAutoAttackStringTapIntervalSeconds,
+			false);
+	}
 
 	if (DebugAutoAttackHoldSeconds <= 0.0f)
 	{
@@ -1887,6 +2127,69 @@ void ATDCombatCharacter::ReplayBufferedRelease(FGameplayTag InputTag)
 		GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f, *InputTag.ToString());
 }
 
+bool ATDCombatCharacter::ShouldExtendBufferedPress(const FGameplayTag& InputTag) const
+{
+	if (!AbilitySystem)
+	{
+		return false;
+	}
+
+	TArray<FGameplayAbilitySpecHandle> Handles;
+	GatherAbilitiesForInput(InputTag, Handles);
+
+	for (const FGameplayAbilitySpecHandle& Handle : Handles)
+	{
+		const FGameplayAbilitySpec* Spec = AbilitySystem->FindAbilitySpecFromHandle(Handle);
+		const UTDGameplayAbility* Ability = Spec ? Cast<UTDGameplayAbility>(Spec->Ability) : nullptr;
+		if (!Ability || !Ability->ShouldExtendBufferWhileActive())
+		{
+			continue;
+		}
+
+		// Two spans, one rule: while the opted-in ability runs, and through the string's link
+		// window after it ends -- a chain press is live intent across both, and expiring it at
+		// the seam between them would drop exactly the delayed chains the design wants readable.
+		if (Spec->IsActive() || HasStringLinkWindowOpen())
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool ATDCombatCharacter::TryChainOutActiveAbility(const FGameplayTag& InputTag)
+{
+	if (!AbilitySystem)
+	{
+		return false;
+	}
+
+	TArray<FGameplayAbilitySpecHandle> Handles;
+	GatherAbilitiesForInput(InputTag, Handles);
+
+	for (const FGameplayAbilitySpecHandle& Handle : Handles)
+	{
+		FGameplayAbilitySpec* Spec = AbilitySystem->FindAbilitySpecFromHandle(Handle);
+		if (!Spec || !Spec->IsActive())
+		{
+			continue;
+		}
+
+		// The primary instance, not Spec->Ability: policy questions read fine off a CDO, but
+		// ending an activation needs the object that is actually running it.
+		if (UTDGameplayAbility* Instance = Cast<UTDGameplayAbility>(Spec->GetPrimaryInstance()))
+		{
+			if (Instance->TryChainOutForBufferedPress())
+			{
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
 void ATDCombatCharacter::CaptureMoveDirectionForPress()
 {
 	// LastRequestedMoveInput rather than the movement component's vector, deliberately: the
@@ -1938,6 +2241,16 @@ void ATDCombatCharacter::TickInputBuffer()
 		BufferedInput.ExpiryWorldTime = FMath::Max(BufferedInput.ExpiryWorldTime, Now + InputBufferSeconds);
 	}
 
+	// A chain press outlives the swing that refused it (2026-08-16). A tap made early in a swing
+	// would otherwise expire before the chain could open -- 200 ms of grace against a 350 ms
+	// boundary, dropping exactly the mash cadence the string invites. The extension is the
+	// *ability's* choice, is bounded by the swing plus its link window, and rolls the same
+	// deadline the held-button rule above rolls -- so the two idioms cannot disagree.
+	else if (ShouldExtendBufferedPress(BufferedInput.InputTag))
+	{
+		BufferedInput.ExpiryWorldTime = FMath::Max(BufferedInput.ExpiryWorldTime, Now + InputBufferSeconds);
+	}
+
 	if (Now >= BufferedInput.ExpiryWorldTime)
 	{
 		TD_TIMING_LOG(TEXT("[%.3f] BUFFER     %s: expired, %.0fms after press"),
@@ -1945,6 +2258,13 @@ void ATDCombatCharacter::TickInputBuffer()
 		BufferedInput.Clear();
 		return;
 	}
+
+	// The chain-out: a swing in its chain-open span ends for the waiting press, here and not on
+	// its own clock -- the *press* is what a chain is, so a swing with no press waiting runs its
+	// full recovery and the delay-and-bait game lives in exactly that difference. Ending is
+	// synchronous, so the retry below activates the next swing in this same tick; the buffer's
+	// ordinary machinery does everything else.
+	TryChainOutActiveAbility(BufferedInput.InputTag);
 
 	// Restored before the retry, not after: an ability reads GetPressMoveDirection() during
 	// activation, so the heading has to be the buffered one by the time activation runs. This is

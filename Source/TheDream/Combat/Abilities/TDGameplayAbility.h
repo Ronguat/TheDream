@@ -59,6 +59,31 @@ public:
 	 */
 	virtual bool ShouldBufferFailedInput(const FGameplayAbilityActorInfo* ActorInfo) const;
 
+	/**
+	 *  Whether a buffered press for this ability's input should survive while an instance of it
+	 *  is *already running* -- and for the string's link window after it ends.
+	 *
+	 *  The default buffer window is grace on taps, sized against short lockouts; an attack's own
+	 *  duration is longer than any such window, so a chain tap made early in a swing would expire
+	 *  before the chain could open. An ability returning true here says "a press made while I run
+	 *  is a request to follow me, hold it until I can answer" -- which is bounded by the swing plus
+	 *  the link window, well under the four-second lockouts that killed widening the window itself.
+	 *
+	 *  Asked of the ability rather than keyed on a tag name, because the character deliberately
+	 *  does not know which tag means attack.
+	 */
+	virtual bool ShouldExtendBufferWhileActive() const { return false; }
+
+	/**
+	 *  Offer a running ability the chance to end itself in favour of the buffered press.
+	 *
+	 *  The chain-out seam: the buffer tick calls this on the active instance answering the same
+	 *  input, and an attack in its chain-open span ends early through the ordinary EndAbility
+	 *  funnel -- facing, tags, homing and the lunge all clean up exactly as on a natural end --
+	 *  letting the same tick's retry activate the next swing. Returns true if it ended.
+	 */
+	virtual bool TryChainOutForBufferedPress() { return false; }
+
 protected:
 
 	/**
