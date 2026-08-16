@@ -257,22 +257,53 @@ a fifth strengthens the case for jump becoming an ability rather than weakening 
 structure audit's call. And `bLocksMovement` already exists on the shared base as the seam for
 exactly this.
 
-**Before Light String and before Stun** — *knockback and the next attack's travel are one budget,
-and nothing connects them.* A displacement pushing a target further than the following attack can
-cover makes a chain structurally unable to link, and it will read as the combo being broken rather
-than as knockback being too strong. Filed before knockback exists, since this is exactly the value
-that gets tuned in isolation for impact feel.
+**~~Before Light String and before Stun — knockback and the next attack's travel are one
+budget.~~ Discharged 2026-08-16 by the build landing and being measured.** The fear was that a
+displacement pushing a target beyond the next attack's reach would make a chain structurally unable
+to link, reading as a broken combo rather than as knockback being too strong.
 
-Less urgent than it sounds: the per-tick gate handles a retreating target natively, so linking
-survives being pushed. The constraint binds *finishers and heavies*, lights being intended to have
-low knockback — **recorded as illustration, not commitment.**
+**What discharged it:** the fixed-destination design collapsed the two numbers into one authored
+`HitSpacingCm`, and the connect condition is now a single inequality — the spacing must sit inside
+the chain hit's covered range. Measured live: **150 against 410** (base lunge 100 + branch lunge
+200 + reach 150 − standoff 40), and all three hits of a three-hit string connected in sequence with
+`KNOCKBACK … spacing=150 centred=0.0` on every non-final hit.
 
-**Resolution designed 2026-08-16, discharges when Light String's build lands.** The knockback
-dispensation makes displacement a *fixed destination* — an authored post-hit spacing — so the two
-numbers this trap feared become one, and the connect condition is a single stated inequality:
-the spacing stays inside the chain hit's covered range. The lights-low-knockback illustration is
-dead in the process: lights author the **full** reset, and it is heavies and charged that knock
-down instead. See the dated entry.
+**Kept, because two things it established are still true.** The clamp direction is load-bearing —
+knockback never pulls a defender *inward* when contact happened beyond the destination, so
+`spacing=191` and `184` against an authored 150 are the guard working rather than a fault. And
+**the inequality must be re-checked whenever reach or travel move**, which the pending clip
+re-author may well do: it is one comparison, but nothing enforces it in code.
+
+The lights-low-knockback illustration died in the process, as the resolution predicted — lights
+author the **full** reset, and heavies and charged knock down instead.
+
+**Before authoring any new attack montage — *a wide Release Window can end the attack the instant
+it opens.*** Filed 2026-08-16, having cost two wrong fixes and several PIE cycles to find; the
+symptom in play was only *"light 2's release feels short"*.
+
+UE begins a montage's automatic blend-out when the remaining position falls below
+`BlendOutTriggerTime × PlayRate`. The release phase sets play rate to `windowLen ÷ ReleaseSeconds`,
+so a **wide authored window forces a high rate, which inflates the blend-out trigger until it
+swallows the rest of the clip** — the ability then ends on `OnBlendOut` a frame or two into its own
+release window, skipping the rest of the release *and all of its recovery*. `AM_Attack_S2`'s 0.871 s
+window gave a 5.808× rate, a 1.452-unit trigger reach against 1.478 remaining, and it fired one
+frame later. The swing ran 214 ms instead of 950 and was completely unpunishable.
+
+**The condition to check per montage:** `BlendOutTriggerTime × (windowLen ÷ ReleaseSeconds)` must
+stay comfortably under `length − windowStart − windowLen`. The other three montages clear it by
+2.6–3.1×; S2 cleared by 1.02×, which is to say not at all.
+
+**Two things that make it nastier than it sounds.** `BlendOutTriggerTime = -1` does **not** mean
+"no trigger" — it means *default to `BlendOut.GetBlendTime()`*, so setting it explicitly to the
+same value writes what was already there and reads exactly like a write that did not land. And the
+orphaned `RELEASE END` fires against a dead montage, logging `pos=-1.0000 rate=-1.000`, which is
+the sentinel to recognise. Fixed on S2 with `BlendOutTriggerTime = 0.05`; **that value is specific
+to that clip and means nothing for another.**
+
+**Still owed: an ungated warning** on `LogTDCombatTiming` when the product approaches the remaining
+clip. Offered three times this session and never written — it is squarely in that family's remit
+("authored data that has silently stopped fitting the clip"), and it is the thing that would have
+named this in one PIE run instead of several.
 
 **Whenever an ability's root motion carries a character off a ledge** — *the ground→air handoff was
 never diagnosed, only removed from the dodge.* Filed 2026-08-14, graduated out of `CLAUDE.md`'s Done
