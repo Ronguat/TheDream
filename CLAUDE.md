@@ -342,20 +342,17 @@ Execution order, the only line that changes when the order does:
 and what remains keeps a trigger rather than a position; see its entry at the end.
 
 **Pick up at Light String's clip roster — the mechanism is done, the animation is not.** Sitting 2
-ran 2026-08-16: the string is **three hits**, all values authored, and it **runs** — three swings
-chaining at a measured 489/494 ms, damage stepping exactly 15, hitstun covering every gap, and the
-spacing reset landing at 150 cm centred on every non-final hit. Seven scenarios green throughout.
+shipped the string at **three hits**, values authored and measured working: swings chain at 489/494
+ms, damage steps exactly 15, hitstun covers every gap, the spacing reset lands centred at 150. Seven
+scenarios green. **Cadence is the project's first felt number measured off a human** and blockstun
+is derived from it; both are in the felt table.
 
-**Cadence is the project's first felt number measured off a human** — the designer tapped it, 28
-samples, mean 501.5 ms ±5.3; authored and verified back at 502.1. Blockstun 0.35 is derived from it.
-
-**What is blocked is animation, and only animation.** Lights 2 and 3, heavy and charged all need
-new clips (the designer re-verified after the blend-out fix; heavy and charged have never had their
-own). The next step is **triage of V1 and V2, which are unreviewed** — 31 candidates, and V2's
-`Attack5` is a four-stage family with all stages 1.03–1.30 s, the uniformly-short shape the
-2026-08-11 survey concluded did not exist because V2 was wrongly recorded as unmigrated. **Only the
-designer can judge them**: strike timing and sword-versus-shield are not readable through any tool.
-`Docs/Plan-Light-String.md` carries the loop; the s4 scenarios and the play pass are still owed.
+**Animation is the only blocker.** Lights 2 and 3, heavy and charged all need new clips — the
+designer re-verified after the blend-out fix, and heavy and charged have never had their own. Next
+is **triage of V1 and V2, both unreviewed** (31 candidates; V2's `Attack5` is four stages at
+1.03–1.30 s). **Only the designer can judge them** — strike timing and sword-versus-shield are
+unreadable through every tool, confirmed by probe. `Docs/Plan-Light-String.md` carries the loop; the
+s4 scenarios and the play pass are still owed.
 
 *(The 2026-08-14 audit's five open checks are all discharged; what still matters moved to where it
 is used — the shadowed-value rule above, plus tables in `Docs/Combat-Decisions.md`.)*
