@@ -192,7 +192,7 @@ Five standing files carry knowledge the code cannot (a work-in-flight plan file 
 
 **Durable knowledge belongs in these files, not in an assistant's per-machine memory.** Anything a future contributor would need — combat reasoning, tooling behaviour, rules and current facts — goes in the repo, where it can be reviewed and corrected. Memory keeps only what is genuinely session- or machine-scoped, and *points* at the repo rather than restating it: `Docs/Working-In-Unreal.md` exists precisely because those notes were once memory-only and therefore invisible.
 
-**This file's budget is ~520 lines, enforced when you add rather than when you audit** (420 on 2026-08-14, raised three times on 2026-08-15). Past it, compress or relocate first — the person adding a line knows what it replaces. Stated as a number because the vaguer form did not hold: it once went 486 → 466 → **514** in one session, caught by a manual re-read rather than by anything structural. **The number is a tripwire, not a cap** (the user's call): compress or route what grew, and raise it with a dated note when the growth is genuinely rule material with no other home — deleting a live rule to hit a number is the one wrong answer. Three standards came out of the raises so far. **Compress first and mean it.** **Raise with headroom, never to the current count**, or it trips on the next line anyone adds and teaches people to ignore it. And **the criterion is earned-ness, not size** (the user: every line earned, no hypothetical ceiling worth fearing). **Working-rule growth does not shrink back the way Remaining-shaped growth does** — the next raise should ask whether a Working Rules section this size wants its own triggered file.
+**This file's budget is ~540 lines, enforced when you add rather than when you audit** (420 on 2026-08-14, raised three times on 2026-08-15; **520 → 540 on 2026-08-16**, the knockback/safety dispensation landing as core-rule material after in-place compression). Past it, compress or relocate first — the person adding a line knows what it replaces. Stated as a number because the vaguer form did not hold: it once went 486 → 466 → **514** in one session, caught by a manual re-read rather than by anything structural. **The number is a tripwire, not a cap** (the user's call): compress or route what grew, and raise it with a dated note when the growth is genuinely rule material with no other home — deleting a live rule to hit a number is the one wrong answer. Three standards came out of the raises so far. **Compress first and mean it.** **Raise with headroom, never to the current count**, or it trips on the next line anyone adds and teaches people to ignore it. And **the criterion is earned-ness, not size** (the user: every line earned, no hypothetical ceiling worth fearing). **Working-rule growth does not shrink back the way Remaining-shaped growth does** — the next raise should ask whether a Working Rules section this size wants its own triggered file.
 
 **Length is a context cost, and the budget applies to what loads *every* session** (the user,
 2026-08-15). The always-read files are internalised before any work starts, so verbosity there is
@@ -341,10 +341,9 @@ Execution order, the only line that changes when the order does:
 **Structure Audit is deliberately absent from that line** — its structural half ran 2026-08-15,
 and what remains keeps a trigger rather than a position; see its entry at the end.
 
-**Pick up at Light String's build, sitting 1.** The plan session ran 2026-08-16 and settled both
-plan-time debts — **hitstun is the guarantee's mechanism**, **coverage takes the scenarios branch** —
-and the same night's knockback dispensation folded in: spacing-reset on light hits, long recoveries,
-no light truly safe. `Docs/Plan-Light-String.md` is the work-in-flight plan.
+**Pick up at Light String's build, sitting 1.** The 2026-08-16 plan session settled both plan-time
+debts — hitstun is the guarantee's mechanism, coverage takes the scenarios branch — and absorbed
+the knockback dispensation. `Docs/Plan-Light-String.md` is the work-in-flight plan.
 
 *(The 2026-08-14 audit's five open checks are all discharged; what still matters moved to where it
 is used — the shadowed-value rule above, plus tables in `Docs/Combat-Decisions.md`.)*
