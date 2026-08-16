@@ -188,34 +188,30 @@ void UTDDodgeAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, c
 ETDDodgeDirection UTDDodgeAbility::ResolveDodgeDirection() const
 {
 	const FGameplayAbilityActorInfo* ActorInfo = GetCurrentActorInfo();
-	const ACharacter* Character = ActorInfo ? Cast<ACharacter>(ActorInfo->AvatarActor.Get()) : nullptr;
-	const UCharacterMovementComponent* Movement = Character ? Character->GetCharacterMovement() : nullptr;
-	if (!Movement)
+	const ATDCombatCharacter* Character = ActorInfo ? Cast<ATDCombatCharacter>(ActorInfo->AvatarActor.Get()) : nullptr;
+	if (!Character)
 	{
 		return ETDDodgeDirection::Bw;
 	}
 
-	// The frame's input, not the current velocity: velocity still carries the previous
-	// direction for a moment after the stick is released, which would send a dodge the way
-	// the player has just stopped going.
-	FVector Input = Movement->GetLastInputVector();
-	Input.Z = 0.0f;
-
-	if (Input.IsNearlyZero())
+	// **The heading captured when the button went down, not the movement component's vector.**
+	// That vector is empty for the whole of any ability that locks movement, so reading it made
+	// every dodge cancelling an attack resolve to the standing-still default -- seven of the eight
+	// directions unreachable from windup between 2026-08-12 and 2026-08-16.
+	//
+	// Press-time also settles the buffered case the way the player means it: release the key
+	// inside the buffer window and the dodge still goes where you aimed it, because the heading
+	// was one half of a composite input rather than something looked up later.
+	float AngleDegrees = 0.0f;
+	if (!Character->GetPressMoveDirection(AngleDegrees))
 	{
 		// Standing still dodges backward. A neutral dodge that goes nowhere reads as a
 		// flinch, and backward is the direction that buys spacing.
 		return ETDDodgeDirection::Bw;
 	}
 
-	Input.Normalize();
-
-	const FRotator Facing(0.0f, Character->GetActorRotation().Yaw, 0.0f);
-	const float ForwardDot = FVector::DotProduct(Input, Facing.Vector());
-	const float RightDot = FVector::DotProduct(Input, FRotationMatrix(Facing).GetUnitAxis(EAxis::Y));
-
 	// Signed angle from facing: 0 is forward, +90 right, -90 left, 180 back.
-	return DirectionForAngle(FMath::RadiansToDegrees(FMath::Atan2(RightDot, ForwardDot)));
+	return DirectionForAngle(AngleDegrees);
 }
 
 void UTDDodgeAbility::EndIFrames()

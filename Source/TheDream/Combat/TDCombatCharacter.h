@@ -57,6 +57,21 @@ struct FTDBufferedInput
 	/** True once the button came up, whether or not the buffer has fired. */
 	bool bReleased = false;
 
+	/**
+	 *  Signed degrees from facing the player was holding when the button went down -- 0 forward,
+	 *  +90 right, 180 back. Valid only while bHadMoveInput.
+	 *
+	 *  **A directional dodge is one composite input, not two.** The direction therefore buffers
+	 *  with the press rather than being looked up when the press finally surfaces, so releasing
+	 *  the key inside the buffer window still gives you the dodge you asked for. Resolved at press
+	 *  rather than stored raw because resolution needs the *facing* of that moment too, and the
+	 *  camera can turn in the 200 ms a buffered input may wait.
+	 */
+	float MoveAngleDegrees = 0.0f;
+
+	/** False when the press was made standing still, which is what a neutral dodge reads. */
+	bool bHadMoveInput = false;
+
 	bool IsSet() const { return InputTag.IsValid(); }
 	void Clear() { *this = FTDBufferedInput(); }
 };
@@ -199,6 +214,21 @@ public:
 	 */
 	UFUNCTION(BlueprintPure, Category="Combat|Block")
 	bool IsInBlockstun() const { return bInBlockstun; }
+
+	/**
+	 *  The heading the player was holding when the press that activated this ability landed,
+	 *  in signed degrees from facing. Returns false when that press was neutral.
+	 *
+	 *  **Read this rather than the movement component.** `GetLastInputVector()` is empty for the
+	 *  whole of any ability that locks movement, so an ability asking it which way the player is
+	 *  holding always hears "nowhere" -- which is exactly how dodge-cancels lost seven of their
+	 *  eight directions for three days.
+	 */
+	bool GetPressMoveDirection(float& OutAngleDegrees) const
+	{
+		OutAngleDegrees = PressMoveAngleDegrees;
+		return bPressHadMoveInput;
+	}
 
 	/**
 	 *  Starts the blockstun lockout, or extends one already running to the later end time.
@@ -1071,6 +1101,20 @@ private:
 
 	/** The one press waiting for something to answer it. Single slot: last press wins. */
 	FTDBufferedInput BufferedInput;
+
+	/**
+	 *  The same direction pair for the press an ability is activating from *right now*.
+	 *
+	 *  Written for every ability press rather than only for the dodge, because the character has
+	 *  no business knowing which tag means dodge, and a future directional ability gets it free.
+	 *  A buffered press restores these from the buffer immediately before it retries activation,
+	 *  so an ability reads one field whether it fired live or late.
+	 */
+	float PressMoveAngleDegrees = 0.0f;
+	bool bPressHadMoveInput = false;
+
+	/** Fills the pair above from LastRequestedMoveInput and the current facing. */
+	void CaptureMoveDirectionForPress();
 
 	/** Pending replayed release. Live input for the same tag cancels it. */
 	FTimerHandle BufferedReleaseTimerHandle;

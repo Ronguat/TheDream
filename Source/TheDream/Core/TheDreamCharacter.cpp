@@ -292,6 +292,13 @@ void ATheDreamCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputC
 
 		// Moving
 		EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Triggered, this, &ATheDreamCharacter::Move);
+
+		// **Completed matters, and only because of LastRequestedMoveInput.** Triggered stops firing
+		// the instant the keys come up, so without this edge nothing would ever write a zero and the
+		// recorded direction would outlive the press forever -- a dodge from standing still would
+		// inherit whichever way you last walked. Harmless for movement itself: it arrives as
+		// AddMovementInput with a zero magnitude.
+		EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Completed, this, &ATheDreamCharacter::Move);
 		EnhancedInputComponent->BindAction(MouseLookAction, ETriggerEvent::Triggered, this, &ATheDreamCharacter::Look);
 
 		// Looking
@@ -328,15 +335,18 @@ void ATheDreamCharacter::DoMove(float Right, float Forward)
 	// move: an attack's lunge, a dodge's dash and any future knockback all run through CMC, and
 	// DisableMovement would stop those too.
 	//
-	// Returning before AddMovementInput also leaves GetLastInputVector() empty, which is what
-	// IsIdle() reads -- harmless, because ATDCombatCharacter::IsIdle() already returns false
-	// while any ability is active, so a swinging character can never pick up the idle turn rate.
-	// Verified rather than assumed, 2026-08-12.
-	if (IsMovementLocked())
-	{
-		return;
-	}
-
+	// Returning before AddMovementInput leaves GetLastInputVector() empty, and **that emptiness has
+	// two readers, not one**. IsIdle() was checked in 2026-08-12 and is genuinely unaffected --
+	// ATDCombatCharacter::IsIdle() already returns false while any ability is active. The second
+	// reader was missed: UTDDodgeAbility::ResolveDodgeDirection() read the same vector and saw
+	// nothing, so every dodge cancelling an attack resolved to the standing-still default and went
+	// backward. Found in play 2026-08-16, three days after the note claiming this was harmless.
+	//
+	// **The lesson worth more than the fix: "harmless" was verified against one consumer and
+	// written as though it were a property of the vector.** Grep for the other callers.
+	//
+	// So the input is now recorded before the gate, and only *applying* it is gated. LastRequested-
+	// MoveInput is what anything asking "which way is the player holding" should read.
 	if (GetController() != nullptr)
 	{
 		// find out which way is forward
@@ -346,10 +356,19 @@ void ATheDreamCharacter::DoMove(float Right, float Forward)
 		// get forward vector
 		const FVector ForwardDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::X);
 
-		// get right vector 
+		// get right vector
 		const FVector RightDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y);
 
-		// add movement 
+		// Recorded whether or not an ability is letting it through. Not normalised: magnitude is
+		// the analogue stick's, and callers that only want a heading normalise it themselves.
+		LastRequestedMoveInput = ForwardDirection * Forward + RightDirection * Right;
+
+		if (IsMovementLocked())
+		{
+			return;
+		}
+
+		// add movement
 		AddMovementInput(ForwardDirection, Forward);
 		AddMovementInput(RightDirection, Right);
 	}

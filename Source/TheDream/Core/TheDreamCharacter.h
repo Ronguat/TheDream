@@ -200,10 +200,33 @@ protected:
 	 */
 	bool bAbilityMovementLocked = false;
 
+	/**
+	 *  World-space movement the player is *asking* for, recorded even while an ability locks it.
+	 *
+	 *  `GetLastInputVector()` cannot serve this. `DoMove` returns before `AddMovementInput` while
+	 *  locked, so the movement component's vector is empty exactly when something needs to know
+	 *  which way you were holding -- which is how a dodge cancelling an attack resolved backward
+	 *  every time between 2026-08-12 and 2026-08-16, the lock and the dodge having been written
+	 *  against different assumptions about the same vector.
+	 *
+	 *  Local-only and deliberately unreplicated: input is one of the three things the networking
+	 *  model names as knowable only on the machine that produced it.
+	 */
+	FVector LastRequestedMoveInput = FVector::ZeroVector;
+
 public:
 
 	/** Constructor */
 	ATheDreamCharacter();
+
+	/**
+	 *  What the player is asking for this frame, whether or not an ability is letting them have it.
+	 *
+	 *  Cleared by the release edge rather than decaying, so it is only ever this frame's answer --
+	 *  which is why `MoveAction` binds `Completed` as well as `Triggered`. Without that binding
+	 *  this would hold the last direction walked forever and a neutral dodge would inherit it.
+	 */
+	FVector GetLastRequestedMoveInput() const { return LastRequestedMoveInput; }
 
 	/**
 	 *  Takes facing away for the duration of an ability, or gives it straight back.

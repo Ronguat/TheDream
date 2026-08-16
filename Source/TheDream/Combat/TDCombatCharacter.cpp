@@ -1770,6 +1770,11 @@ void ATDCombatCharacter::OnAbilityInputPressed(FGameplayTag InputTag)
 		*InputTag.ToString(),
 		*GetName());
 
+	// Captured before anything can activate, because activation is what consumes it. A directional
+	// dodge is one composite input -- the button and the heading -- so both halves are recorded at
+	// the same instant, from the same frame's facing.
+	CaptureMoveDirectionForPress();
+
 	// A live edge always beats a recorded one. Without this, a replay still scheduled from an
 	// earlier buffered press would land on whatever ability is running by the time it fires --
 	// releasing a hold the player is in the middle of.
@@ -1822,7 +1827,14 @@ void ATDCombatCharacter::OnAbilityInputPressed(FGameplayTag InputTag)
 	BufferedInput.PressWorldTime = Now;
 	BufferedInput.ExpiryWorldTime = Now + InputBufferSeconds;
 
-	TD_TIMING_LOG(TEXT("[%.3f] BUFFER     %s: stored"), Now, *InputTag.ToString());
+	// The heading rides with the press. Looking it up when the buffer fires would read whatever
+	// the player happens to be holding then -- often nothing, since the lock that caused the
+	// buffering is usually still up.
+	BufferedInput.MoveAngleDegrees = PressMoveAngleDegrees;
+	BufferedInput.bHadMoveInput = bPressHadMoveInput;
+
+	TD_TIMING_LOG(TEXT("[%.3f] BUFFER     %s: stored%s"), Now, *InputTag.ToString(),
+		bPressHadMoveInput ? *FString::Printf(TEXT(", heading %.0f deg"), PressMoveAngleDegrees) : TEXT(", neutral"));
 }
 
 void ATDCombatCharacter::OnAbilityInputReleased(FGameplayTag InputTag)
@@ -1875,6 +1887,33 @@ void ATDCombatCharacter::ReplayBufferedRelease(FGameplayTag InputTag)
 		GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f, *InputTag.ToString());
 }
 
+void ATDCombatCharacter::CaptureMoveDirectionForPress()
+{
+	// LastRequestedMoveInput rather than the movement component's vector, deliberately: the
+	// component's is empty for the whole of any ability that locks movement, which is precisely
+	// when a cancel-into-dodge needs an answer.
+	FVector Input = GetLastRequestedMoveInput();
+	Input.Z = 0.0f;
+
+	if (Input.IsNearlyZero())
+	{
+		PressMoveAngleDegrees = 0.0f;
+		bPressHadMoveInput = false;
+		return;
+	}
+
+	Input.Normalize();
+
+	// Signed angle from *facing*, not from the camera: an ability asking "which way did they ask
+	// to go" wants it relative to the body it is going to move.
+	const FRotator Facing(0.0f, GetActorRotation().Yaw, 0.0f);
+	const float ForwardDot = FVector::DotProduct(Input, Facing.Vector());
+	const float RightDot = FVector::DotProduct(Input, FRotationMatrix(Facing).GetUnitAxis(EAxis::Y));
+
+	PressMoveAngleDegrees = FMath::RadiansToDegrees(FMath::Atan2(RightDot, ForwardDot));
+	bPressHadMoveInput = true;
+}
+
 void ATDCombatCharacter::TickInputBuffer()
 {
 	if (!BufferedInput.IsSet())
@@ -1906,6 +1945,12 @@ void ATDCombatCharacter::TickInputBuffer()
 		BufferedInput.Clear();
 		return;
 	}
+
+	// Restored before the retry, not after: an ability reads GetPressMoveDirection() during
+	// activation, so the heading has to be the buffered one by the time activation runs. This is
+	// what makes a late dodge go where it was aimed rather than where the stick is now.
+	PressMoveAngleDegrees = BufferedInput.MoveAngleDegrees;
+	bPressHadMoveInput = BufferedInput.bHadMoveInput;
 
 	// Retried every frame rather than woken by an event. Every reason an activation can be
 	// refused -- a blocking tag, a live instance, an ability ending, the airborne check --
