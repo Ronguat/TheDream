@@ -941,6 +941,16 @@ long.
 
 ---
 
+## 2026-08-16 — The blocked reading, corrected by the veto it asked for
+
+The flag in the entry below resolved a third way: **a blocked hit re-centres at full strength —
+the lateral pull identical to a clean hit's — and only the backward component shrinks.** Both
+readings the entry offered were wrong: no per-swing deflection, no surviving offset. It is **one
+mechanism with two authored spacings** — `HitSpacingCm` and a notably smaller `BlockedSpacingCm`
+— which is tighter than either guess. One HOW guard added without asking: the blocked destination
+never pulls a defender *inward* when contact happened beyond it — vacuum blocks are a known
+artifact class, and the clamp is one `max()` to remove if the pull-in is ever wanted.
+
 ## 2026-08-16 — Knockback is a spacing reset, no light is safe, and both land in Light String
 
 The knockback dispensation arrived hours after the plan session, answering "where does knockback

@@ -6,9 +6,9 @@ Delete this file when the slice ships** — its durable content lives in `Docs/C
 build-true. The reasoning behind every design choice here is in that dated entry; this file is the
 *how*, and it is disposable by design.
 
-**No questions remain open** — the interrupt fork was answered at the session's close, and the
-same night's **knockback dispensation is folded in** (§ Knockback). One interpretation there is
-**flagged for veto**: the blocked-hit deflection's shape.
+**No questions remain open** — the interrupt fork was answered at the session's close, the same
+night's **knockback dispensation is folded in** (§ Knockback), and the blocked-hit reading was
+settled by the designer: same centring as a clean hit, notably less ground conceded.
 
 ---
 
@@ -46,8 +46,9 @@ chain eligibility is authored per branch, so enabling one later is data).
 6. **No light is truly safe — "psychological everywhere."** Recovery is authored long (superseding
    the felt 0.40, knowingly) and only chaining skips it, so safety on whiff and block alike is the
    defender's hesitation against the next hit. Supersedes the spec's "first hit safe on block".
-7. **Blocked hits deflect laterally with notably reduced pushback and no re-centring** — the
-   interpretation flagged for veto in § Knockback.
+7. **A blocked hit is the same reset at a shorter authored distance** (the designer's correction
+   of a flagged reading): full lateral centring, notably reduced pushback — one mechanism, two
+   spacings.
 
 ## § Decided at the session's close — hitstun cancels everything
 
@@ -161,12 +162,12 @@ by prior design.
 - **The clean hit re-centres**: the destination sits on the attacker's facing axis, so lateral
   error zeroes — that is part of "exact same relative location", and it is what makes every chain
   hit's approach a constant problem.
-- **A blocked hit deflects instead** — *"moves them laterally but specifically pushback is reduced
-  notably."* Written as an **active lateral deflection**: a signed per-swing sideways distance
-  following the swing's arc direction, a much smaller backward push, and **no re-centring** —
-  no free alignment through a guard, the same philosophy that keeps aim assist off position.
-  **⚑ Flagged for veto**: if the intent was instead *no deliberate sideways component* (the
-  defender's lateral offset merely surviving a small straight push), that is one field's change.
+- **A blocked hit is the same mechanism at a shorter distance** (the designer's ruling, settling a
+  flagged reading): destination `attacker location + facing × BlockedSpacingCm` — **lateral
+  centring at full strength, identical to a clean hit; only the backward component shrinks.** One
+  mechanism, two authored spacings. One HOW guard: the destination **never pulls a defender
+  inward** when contact happened beyond it — vacuum blocks are a known artifact class; the clamp
+  is one `max()` to remove if the pull-in is ever wanted.
 - **A dodged hit touches nothing** — no contact, no knockback, unchanged.
 - **The ender, heavies and charged displace nothing this slice** — their knockdowns (the charged's
   now *hard*) are Knockdown & Oki's, the same deferral the terminator already carries.
@@ -192,7 +193,7 @@ the two coupled numbers, and the connect condition is the single inequality
 | HitstunSeconds L/H/C | 0.40 / 0.50 / 0.60 | Covers the 350 ms gap +50 ms; ladder mirrors blockstun |
 | `HitSpacingCm` | 150 | = `MaxReachCm`: the reset parks the target at the sword's edge; the trial tunes it |
 | `KnockbackDurationSeconds` | 0.20 | Inside hitstun's 0.40 — the target never acts mid-slide |
-| `BlockedDeflectionCm` / `BlockedPushbackCm` | 60 / 40 | "Notably reduced" against the 150 reset; deflection signed per swing by arc direction |
+| `BlockedSpacingCm` | 100 | "Notably less" than the 150 reset — a guard concedes a third of the ground a hit does; clamped never-inward |
 | `StringLinkWindowSeconds` | 0.40 | Deliberately generous first probe, `MinimumBlockSeconds`-style |
 | `ChainOpenAfterRecoverySeconds` | 0.0 | Chain at recovery start; the knob exists for the trial |
 
@@ -231,8 +232,8 @@ scenario is untouched); N > 1 re-presses at chain-open. Then:
   `State.Hitstun` between contacts, and **zero** `DODGE` lines inside the string span — the
   guarantee, observable.
 - **`s4-block`** (taps 3, defender `HoldBlock`): `BLOCKED` staminaDamage=5 per hit; `BLOCKSTUN`
-  spans 0.400 flat; the blocked displacement reading **deflection ≈ `BlockedDeflectionCm` lateral,
-  pushback ≈ `BlockedPushbackCm`** — notably under the clean reset; no `GUARD BREAK`.
+  spans 0.400 flat; post-block spacing reads **`BlockedSpacingCm` ± tolerance, never inward** —
+  the same determinism band as the clean reset, at the guard's shorter distance; no `GUARD BREAK`.
 - `s1-*`/`s2-*`/`s3` re-run green (single-tap path untouched by construction), `--self-test`
   extended, and **each new band made to fail once on purpose** before it is trusted.
 
