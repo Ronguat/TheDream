@@ -322,22 +322,27 @@ asset type before concluding a thing cannot be made.
 
 **Renaming an AnimNotify class is expensive** — placed notifies serialize against the class path.
 
-**Any graph whose outer is a *node* rather than the Blueprint is unreachable** *(generalised
-2026-08-15 from the 2026-08-14 special case)*. These tools resolve the Blueprint through the graph's
-outer and fail with *"Cannot cast type 'X' to 'Blueprint'"*. Two X's are known and they are two
-different levels: **`AnimStateNode`** — a state's inner graph — and **`AnimGraphNode_StateMachine`**
-— the state machine graph itself. It is not only `create_node`: `find_node_types` fails the same
-way, and **`find_nodes` returns an empty array rather than an error**, which is the dangerous one.
+**Writing to any graph whose outer is a *node* fails; reading depends on which graph** *(refined
+twice on 2026-08-15 — the first generalisation was too broad)*. `create_node` and `find_node_types`
+resolve the Blueprint through the outer and fail with *"Cannot cast type 'X' to 'Blueprint'"* for
+all three: **`AnimStateNode`** (a state's interior), **`AnimGraphNode_StateMachine`** (the state
+machine itself) and **`AnimStateTransitionNode`** (a transition's rule). So **the whole state
+machine is a human job** — creating states, wiring transitions, authoring rules. The 2026-08-14 note
+that placing a node inside a state was "the one AnimBP job needing a human" was true of that job
+only.
 
-So **the whole of a state machine is a human job**: creating a state, wiring its transitions, and
-placing nodes inside a state. The 2026-08-14 note that "placing a node inside a state is the one
-AnimBP job needing a human" was true of that job and is **wrong as a general claim** — it was
-written when the work was two nodes in an existing state.
+**Reading splits, and that split is worth exploiting.** A **transition rule graph reads perfectly**:
+`find_nodes` lists its `TransitionResult` and variable gets, `get_node_infos` gives full pin detail
+— so **every rule a human authors can be verified afterwards**, which makes "they build, we check" a
+real division rather than a hopeful one. A **state's interior returns `[]`** — no error, just
+emptiness. And `get_node_infos` on an `AnimStateTransitionNode` itself fails differently
+(`no attribute 'get_node_title'`), so **a transition's *direction* is unreadable by any route** —
+verify that against a picture.
 
-`list_graphs` still enumerates all of it, states and transitions included, so the tree is readable
-even where the graphs are not. **Prove the instrument before believing an empty `find_nodes`** —
-it returns 8 nodes on `ABP_Combat:AnimGraph` and `[]` on `Locomotion`, which is how you tell a real
-emptiness from a silent refusal. And **a creation `type_id` is not the one a node reports** —
+`list_graphs` enumerates states and transitions regardless, so the tree is visible even where its
+graphs are not. **Prove the instrument before believing an empty `find_nodes`** — it returns 8 nodes
+on `ABP_Combat:AnimGraph` and `[]` on `Locomotion`, which is how you tell real emptiness from a
+silent refusal. And **a creation `type_id` is not the one a node reports** —
 `get_node_infos` gives `|GetGroundSpeed` where `create_node` wants `Variables|Default|GetGroundSpeed`;
 guessing fails with *"does not exist"*, which reads like a wall. Use `find_node_types`, filtered
 tightly, and only on a graph that is actually reachable.
