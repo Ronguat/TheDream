@@ -207,6 +207,10 @@ the principle every rule below is an instance of. Once what to build and why has
 the how through to completion is not merely acceptable, it is **preferred** — do not hand steps back
 one at a time. But if a genuine question about *what* or *why* emerges mid-run, stop and raise it.
 
+**A design question asked in service of a HOW is welcome, not an interruption** (the user,
+2026-08-15). What this rule guards against is handing *decisions* back, not asking what a thing is
+for — and combat work does throw up moments where the intuition is the missing input. Ask.
+
 - **The test for which one you are looking at is reversibility.** A HOW decision is one you can undo
   alone; a WHAT decision needs the user to undo it. **Irreversibility therefore converts a HOW into a
   WHAT** — deleting an asset looks like a how ("how do I clean this up") and is not, because only
