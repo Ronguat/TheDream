@@ -205,7 +205,15 @@ several distinct ways:
 - **Binary presence proves a write landed, not that anything derived from it rebuilt** *(2026-08-11)*.
   A BlendSpace's `SampleData` wrote, read back, grew the `.uasset` and displayed on the grid — and
   produced no pose, the derived interpolation grid never having rebuilt. Suspect **any asset type
-  with a build step**; fix with a real edit in the editor, then save. Only play confirms those.
+  with a build step**. Only play confirms those.
+- **For BlendSpaces specifically, the split is position versus count** *(2026-08-15, the harder half
+  learned by crashing the editor)*. **Moving** a sample keeps the array length, so the cached
+  triangulation's indices stay valid — that write works, and **merely opening the asset finishes the
+  rebuild**, no edit or save needed. **Removing** a sample does not: the triangulation still indexes
+  the old length and the engine dies on evaluation with
+  `Array index out of bounds: 16 into an array of size 16`. **Never change a BlendSpace's sample
+  count by reflection write — sample removal is a human job**, because the editor rebuilds the
+  triangulation as part of the operation and a property write does not.
 - **CDO writes are property-dependent and the CDO cannot tell you** *(2026-08-13)*. Two writes to
   `GA_Attack` seconds apart: a direct object reference did **not** reach the live instance, object
   references inside a struct array did, and both read correctly off the CDO throughout.

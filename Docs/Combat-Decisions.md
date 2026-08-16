@@ -978,6 +978,28 @@ a naive player's reads decide and a designer's cannot.
 **Not covered by the loop, and worth knowing:** `s2-*` is single-attacker throughout, so every
 multi-attacker claim above is reasoned rather than measured.
 
+### The guard's blendspace polish stops at good enough, and the remainder goes to Interplay
+
+**The user's call, 2026-08-15, after the correctness problem was solved.** The shield no longer
+rotates with movement, which was the one thing that made the animation contradict the 180° arc the
+mechanic actually covers. What remains is **the pelvis wiggling more than looks natural**, and that
+is cosmetic on vendor assets. *"A little butt wiggling is the furthest thing from blocking"* — and
+chasing it had already delayed the locomotion work it was blocking.
+
+**The likely fix is recorded so it is not re-derived.** A **Blend Mask** blend profile on the
+GDHBundle `SK_Mannequin`, assigned to the `Layered blend per bone` node with `Blend Mode` switched
+from `Branch Filter` to `Blend Mask`: `pelvis` ≈ 0.4 as the dial, `spine_01`/`spine_02` ramping to
+`spine_03` at 1.0, and **`thigh_l`/`thigh_r` explicitly 0** — mask weights propagate to children, so
+without those two the legs inherit the pelvis weight and the footwork dies. A branch filter cannot
+express this: `pelvis` takes its leg descendants with it, which is why testing `pelvis` at full
+weight produced feet rotating past anatomical range rather than a stiff pose.
+
+**And it is flagged for Interplay rather than merely shelved.** The open question is not whether the
+wiggle is ideal — it is not — but **whether vendor artistic limitations are jarring enough to cost
+gameplay**, which is a naive player's judgement and not the designer's. Two candidates go to that
+pass together: this, and the body-turn on pure lateral movement that the missing strafe content
+makes unfixable. If playtesters do not notice either, both stay as they are permanently.
+
 ### Blockstun's animation is a state, not a montage, and directional is parked
 
 **The user's call, 2026-08-15.** Blockstun is a *state* — `bInBlockstun` is a replicated bool
