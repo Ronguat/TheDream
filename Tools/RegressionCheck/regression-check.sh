@@ -28,7 +28,11 @@ BAND_RELEASE_TOL=30
 
 # S1 -- ABILITY END elapsed against the authored total, seconds.
 # Frame quantisation only, and it does not accumulate: measured +15..+31 ms.
-BAND_ELAPSED_LIGHT=0.750; BAND_ELAPSED_HEAVY=1.150; BAND_ELAPSED_CHARGED=1.500
+# Light 0.750 -> 0.950 on 2026-08-16 with Light String's long-recovery redesign: branch 0's
+# RecoverySeconds went 0.40 -> 0.60, so the authored total is 0.20 + 0.15 + 0.60. Authored truth
+# moved and the band followed it -- this is not a band patched to green. Heavy and charged are
+# untouched; only the light chains, so only the light's recovery was retuned.
+BAND_ELAPSED_LIGHT=0.950; BAND_ELAPSED_HEAVY=1.150; BAND_ELAPSED_CHARGED=1.500
 # Floor 0.010 -> 0.005 on 2026-08-16: a completed heavy measured +9 ms (press->release in-band,
 # every sibling +10..+35). The overhead is frame quantisation, and one frame landing tight is
 # jitter at the sampler, not a combat change -- the floor now admits it.
