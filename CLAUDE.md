@@ -487,6 +487,9 @@ In execution order, and all sequential. **Block shipped 2026-08-16** and Target 
   the reach/travel/spacing re-author, the lunge strength curves, the heavy's reactability retune,
   blockstun and commitment tuning — and **re-derives the checker's bands once, against final
   numbers, never patching them to green**. The naive player's reads outweigh the designer's.
+  **Owns the input-forgiveness subslice** (2026-08-16): whether the buffer extension over-forgives
+  mashing in a game built on deliberate precision, and whether the chain windows are too vast.
+  Kept on probation rather than settled, because none of it is felt yet; see the decision log.
   **Verified-good is called here; Combat AI follows it, never precedes it** — the reasoning,
   including why Netcode needs no AI, is in `Docs/Combat-Decisions.md`, 2026-08-15.
 

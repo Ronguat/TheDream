@@ -198,6 +198,24 @@ three-light chain in 1vX — target A, target B 180° away, back to A — where 
 press and commit is maximal *and* deliberate. Two defensible behaviours and only one has been felt:
 aim at activation (current) or aim latched at press.
 
+**Before Interplay's buffer subslice — *the buffer extension lets you queue an attack ahead
+through a heavy or charged, and nobody chose that.*** Filed 2026-08-16 during the extension's
+review. `ShouldExtendBufferWhileActive()` is a property of the **ability**, not of the branch, and
+`UTDChargedAttackAbility` returns true — so it holds a press through *any* active `GA_Attack`,
+including a 1.15 s heavy or a 1.50 s charged, not only a chain-eligible light.
+
+**The consequence is a second commitment stacked on an unresolved first one.** Press attack 200 ms
+into your heavy and the next swing is locked in a second before it happens, decided on
+second-old information. The heavy's whole design is a commitment you can be punished for. Being
+*hit* is safe — hitstun cancels and the press then expires — but **blocked and dodged heavies both
+leave the queued swing live**, which are precisely the outcomes a punish follows.
+
+**Emergent rather than designed**: the plan's wording was "a press made while I run is a request to
+follow me", written with string chaining in mind, and the heavy case rides along for free. Narrowing
+the predicate to chain-eligible attacks is the third of the subslice's three one-line options. **Not
+a defect and not yet felt** — recorded so the subslice inherits it as a known property rather than
+rediscovering it.
+
 **Whenever an ability's input binding is changed** — *`IA_Attack` carries an `InputTriggerDown`,
 which holds the action Triggered every frame the button is down.* Nothing spams today only because
 the C++ binds `Started` and `Completed`. Rebinding to `ETriggerEvent::Triggered` — an
@@ -600,6 +618,10 @@ kept in their own notes. What belongs here is only what to move once a verdict a
 | Exhaustion is invisible until you press something | `ExhaustedMaxWalkSpeed` — a body that moves worse announces the state before a bar does | `ExhaustedStaminaRegenPerSecond`, which changes how *long* exhaustion lasts rather than whether the player can tell they are in it. Different complaint. |
 | The exhausted guard drops too abruptly | Nothing, or `MinimumBlockSeconds` — the drop is at the commitment's expiry **by derivation**: you cannot block while exhausted, and all blocks are created equal | Exempting the exhausted guard from the commitment, or letting it persist while held. The first re-opens the bimodal-duration bug; the second contradicts the exhaustion lockout outright. |
 
+| Mashed attacks feel over-forgiven, or land on the wrong target in 1vX | `ShouldExtendBufferWhileActive()` — three one-line options: keep, return false to drop it, or narrow it to chain-eligible attacks so it stops queueing through heavies. Interplay's buffer subslice owns the call | `InputBufferSeconds`. That is the global tap grace and shortening it to curb mashing also breaks buffering a heavy, which is what it exists for. And **not** the aim: a swing's direction is read at commit, so what feels like bad aim is press timing, not the wedge. |
+| Chain links drop when mashing fast | Nothing — check the `BUFFER` trace first. Pressing early buys **no** cadence: chain-out fires when recovery opens, not when the press arrived | Widening `InputBufferSeconds`, or `StringLinkWindowSeconds`. A dropped chain tap means the press was *completed* inside the swing's first ~165 ms, which the extension already rescues; if it still drops, the extension is off or the ability stopped opting in. |
+| The window to chain feels too generous | `StringLinkWindowSeconds` for the post-recovery half, `ChainOpenAfterRecoverySeconds` for when the in-swing half opens | The buffer. The chain-out span is the whole of recovery by construction — it is gated on `bInRecovery` — so tightening the *input* window is not what shortens it; `RecoverySeconds` is, and that is the punish window. |
+
 Add a row whenever an entry below establishes that a fix belongs in one place rather than
 another. That is the reusable part of an entry; the argument around it is not.
 
@@ -942,6 +964,56 @@ long.
 | `gEComponents` | 08-10, 08-11 |
 
 ---
+
+## 2026-08-16 — The string is three hits, and the buffer extension is kept on probation
+
+Two decisions from sitting 2, both the user's, and the second is the interesting one.
+
+**The string ships at three hits, not four.** `StringSwings` therefore carries two entries —
+`AM_Attack_S2` and `AM_Attack_S3` — and `AM_Attack_S4` stays authored on disk, out of the array.
+Re-adding it is a details-panel edit, which is exactly the property the plan wanted from making
+string length the array size. `AM_Attack_S3` inherits the ender's longer `RecoverySeconds` as a
+consequence: the ender is whichever swing is last, not a particular clip.
+
+A side effect worth having: **shorter strings cut aim staleness**, because buffered chain presses
+accumulate lateness link by link. Measured press→commit across a four-hit burst was
+**152 / 278 / 395 / 515 ms**; dropping the fourth link removes the worst row.
+
+### The buffer extension, questioned properly and kept
+
+Sitting 1 shipped `ShouldExtendBufferWhileActive()` — an attack press made during your own attack
+survives until that attack's link window closes, instead of expiring at `InputBufferSeconds`. The
+user questioned whether it over-forgives input in a game built on deliberate precision. The
+examination is worth recording because **two of the assistant's framings were wrong and the
+user's instinct was right both times**.
+
+**First correction: the staleness is opt-in, not systemic.** There is always an unbuffered path —
+when a chain-eligible swing ends, the link window opens for `StringLinkWindowSeconds` and a press
+inside it with no attack running activates immediately, at hit 1's ~152 ms press→commit. Nothing
+forces a press into the buffer; it goes there only if you pressed while your own swing still ran.
+
+**Second correction, and the one that settles it: pressing early buys no speed whatsoever.**
+`IsChainOutOpen()` gates on `bInRecovery` plus `RecoveryStartedAt + ChainOpenAfterRecoverySeconds`,
+so chain-out fires when *recovery* opens regardless of how early the press arrived. The masher and
+the player pressing on the beat get the identical cadence; the masher simply pays ~120 ms of extra
+aim staleness per link for not timing it. An earlier assistant table framing this as a
+speed-versus-precision trade was wrong — it compared mashing against pressing *too late* (after
+natural end, which forfeits chain-out entirely and costs ~590 ms) and missed the optimum between
+them. **The buffer here is insurance, not technique**, and skilled play pays no premium.
+
+**So what the extension actually rescues is narrow**: a tap *completed* within the first ~165 ms
+of your own swing, which is input at 2–3× the rate the chain accepts. On the beat it is never
+touched; held presses never expire anyway; dodge and block do not opt in.
+
+**Kept, explicitly on probation** (the user): *"I don't want to start overbuffering inputs and
+enabling false positives when the idea of this game is to emphasize and reward deliberate
+precision… I will trust the vision for now, but it should be revisited once the game is more
+mature."* It becomes an **Interplay subslice**. Three options are all one line — keep, drop, or
+narrow to chain-eligible attacks only — which is what makes deferring it cheap rather than lazy.
+
+**Also noted and deliberately not acted on:** the user's read that the per-attack input window may
+be *"a bit vast"* — the chain-out span is the whole 600 ms recovery and the link window a further
+400. Same disposition: Interplay, under their own rule about not tuning before it is felt.
 
 ## 2026-08-16 — The blocked reading, corrected by the veto it asked for
 

@@ -66,7 +66,14 @@ struct FTDBufferedInput
 	 *  with the press rather than being looked up when the press finally surfaces, so releasing
 	 *  the key inside the buffer window still gives you the dodge you asked for. Resolved at press
 	 *  rather than stored raw because resolution needs the *facing* of that moment too, and the
-	 *  camera can turn in the 200 ms a buffered input may wait.
+	 *  camera can turn while a buffered input waits.
+	 *
+	 *  **The dodge is the only input that latches its direction this way, and the asymmetry is
+	 *  live rather than settled** (2026-08-16). An attack's direction is read at *commit* instead,
+	 *  so a buffered attack goes where the camera is when it fires -- measured at 152 / 278 / 395
+	 *  ms after the press across a chain's links, against the flat ~200 ms this comment used to
+	 *  assume for every input. Which policy an attack should use is the buffered-aim trap's open
+	 *  question and Interplay's to settle; the dodge already answers it one way.
 	 */
 	float MoveAngleDegrees = 0.0f;
 

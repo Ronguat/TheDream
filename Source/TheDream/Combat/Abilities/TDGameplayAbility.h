@@ -71,6 +71,17 @@ public:
 	 *
 	 *  Asked of the ability rather than keyed on a tag name, because the character deliberately
 	 *  does not know which tag means attack.
+	 *
+	 *  **What it actually rescues is narrower than it looks, and it is on probation** (2026-08-16).
+	 *  Chain-out fires when *recovery* opens, not when the press arrived, so pressing early buys no
+	 *  cadence at all -- the only input this saves is a tap *completed* inside the swing's first
+	 *  ~165 ms, i.e. mashing at 2-3x the rate the chain accepts, paid for in aim staleness. It is
+	 *  insurance, not technique.
+	 *
+	 *  **It is per ability, not per branch**, so returning true here holds a press through a heavy
+	 *  or charged too, letting a second commitment be queued while the first is unresolved. That is
+	 *  emergent rather than chosen -- see the trap. Interplay's input-forgiveness subslice owns all
+	 *  three options: keep, return false, or narrow it to chain-eligible attacks.
 	 */
 	virtual bool ShouldExtendBufferWhileActive() const { return false; }
 
