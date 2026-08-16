@@ -334,6 +334,22 @@ with the spec is evidence about the spec**, not only about the code — and here
 half that had it right the whole time. What survives, restated by the user: **you cannot input a
 parry while actively blocking**, which is a property of the guard and not of blockstun.
 
+**Whenever dodge direction or the input buffer changes — *the loop cannot see a directional
+dodge at all.*** Filed 2026-08-16 with the dodge-cancel fix, as the deferral half of the
+loop-coverage rule; the user tests this one by hand.
+
+`s3` is the only dodge scenario and its dodger is a **stationary** dummy on `PeriodicDodge`, so
+every sample it produces is legitimately `Bw`. **A regression that pinned dodges to backward would
+pass `s3` with full marks** — which is exactly the bug that shipped on 2026-08-12 and lived three
+days. Nothing in the matrix presses a direction, nothing cancels an attack into a dodge, and
+nothing exercises the buffer's heading at all.
+
+**What is therefore untested:** that held input reaches a dodge cancelling an attack; that a
+buffered dodge uses its press-time heading rather than whatever is held when it surfaces; and that
+a neutral press still resolves `Bw` now that the heading is recorded rather than read live. That
+last one is the regression risk of the fix itself — `MoveAction`'s `Completed` binding is the only
+thing writing the zero that clears a stale heading.
+
 **Before duplicating any montage — *the copy inherits notifies you cannot see.*** Filed 2026-08-15,
 and it is the sharper half of what `AM_Blockstun` taught. Cloning `AM_Attack` carried its **Release
 Window** across; `notifies` is unreadable through the toolset, so nothing available to an assistant
@@ -917,6 +933,38 @@ long.
 | `gEComponents` | 08-10, 08-11 |
 
 ---
+
+## 2026-08-16 — A dodge cancel could only go backward, and "harmless" was checked once
+
+**Found in play by the user**, three days after it shipped: dodging out of an attack's windup gave
+only the backward default instead of all eight directions.
+
+**The cause is a comment that predicted its own failure.** `DoMove` returns before
+`AddMovementInput` while an ability locks movement, leaving `GetLastInputVector()` empty. The
+2026-08-12 note called that *"harmless, because `IsIdle()` already returns false while any ability
+is active"* — which is true, and was verified. **It was verified against one consumer and written as
+though it were a property of the vector.** `ResolveDodgeDirection()` read the same emptiness and
+fell through to standing-still. Same shape as the assumed-control trap in `Working-In-Unreal.md`:
+a real check, generalised past what it covered.
+
+**The fix records intent before the gate**, and gates only the applying. `LastRequestedMoveInput`
+is now what anything asking *which way is the player holding* should read; the movement component's
+vector answers a different question and is empty exactly when it matters.
+
+**Two design calls, both the user's.** A dodge out of an attack uses the direction held *during*
+the attack, even though movement was suppressed and the player got no feedback that holding it did
+anything — the input is what they asked for and the suppression is the attack's business, not the
+dodge's. And a buffered dodge uses its **press-time** heading, on the user's framing that a
+directional dodge is *one composite input rather than two*, so releasing the key inside the buffer
+window still delivers the dodge that was aimed. That is a deliberate divergence from attacks, which
+aim at activation rather than at press — the `FACING LOCK` trap records that as an open question for
+attacks and this settles it only for the dodge.
+
+**One consequence worth stating because it nearly became a second bug:** `MoveAction` was bound to
+`Triggered` only, so nothing wrote a zero when the keys came up. A recorded heading would have
+outlived its press forever and a neutral dodge would have inherited the last direction walked —
+passing every obvious test and failing only the standing-still case. `Completed` is now bound for
+that reason alone.
 
 ## 2026-08-15 — The chore sitting re-tests its own walls, and two of four fall
 
