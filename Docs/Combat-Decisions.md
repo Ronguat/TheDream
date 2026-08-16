@@ -247,6 +247,13 @@ Less urgent than it sounds: the per-tick gate handles a retreating target native
 survives being pushed. The constraint binds *finishers and heavies*, lights being intended to have
 low knockback — **recorded as illustration, not commitment.**
 
+**Resolution designed 2026-08-16, discharges when Light String's build lands.** The knockback
+dispensation makes displacement a *fixed destination* — an authored post-hit spacing — so the two
+numbers this trap feared become one, and the connect condition is a single stated inequality:
+the spacing stays inside the chain hit's covered range. The lights-low-knockback illustration is
+dead in the process: lights author the **full** reset, and it is heavies and charged that knock
+down instead. See the dated entry.
+
 **Whenever an ability's root motion carries a character off a ledge** — *the ground→air handoff was
 never diagnosed, only removed from the dodge.* Filed 2026-08-14, graduated out of `CLAUDE.md`'s Done
 section by the eviction rule. Dodging off the ramp once gave *"a different behavior every single
@@ -933,6 +940,55 @@ long.
 | `gEComponents` | 08-10, 08-11 |
 
 ---
+
+## 2026-08-16 — Knockback is a spacing reset, no light is safe, and both land in Light String
+
+The knockback dispensation arrived hours after the plan session, answering "where does knockback
+live" — and re-cut the plan it followed. Four rulings and one flagged interpretation;
+`Docs/Plan-Light-String.md` § Knockback carries the how.
+
+**Knockback is a fixed destination, not an impulse.** A non-final light hit carries the target to
+**one authored position relative to the attacker — the same spot every time, every hit.** The
+designer's own instinct distrusted the impulse and it is recorded as rejected: an impulse is
+fixed-magnitude/variable-destination, the exact opposite of the determinism wanted. Mechanically
+this is `StartLunge`'s target-side twin — a variable-magnitude canned translation over a curve on
+the root-motion-source channel, server-decided at hit resolution. Two prior decisions turn out
+load-bearing: **the lunge stops on a hit** (2026-08-14), so the reference frame is planted at
+contact; and that channel was built netcode-shaped on purpose.
+
+**It ships with Light String, not Knockdown & Oki.** Three reasons, strength order: the clip
+trial's verdicts would otherwise describe a rhythm that stops existing one slice later; the fixed
+destination **discharges the knockback-budget trap by design** — the two numbers it feared collapse
+into one authored spacing and the connect condition becomes a single inequality (annotated on the
+trap; it discharges when the build lands); and hitstun and knockback are one victim-moment resolved
+in the same authority-gated path. **Knockdown in every grade stays at Knockdown & Oki**, which
+gains a new distinction from the same dispensation: **the charged's knockdown is hard, with fewer
+get-up options.**
+
+**No light is truly safe, superseding the spec's "first hit safe on block; subsequent hits are
+not."** Recovery is authored long — superseding the felt 0.40, knowingly; the redesign is the
+designer's intent, not an assistant retune — and only chaining skips it. A lone light, whiffed
+**or blocked** ("psychological everywhere", the user's choice), is technically punishable; the
+cover is the defender hesitating against the next hit, and the delay-and-bait layer above it is
+the design: *"maybe you delay the next light… then they predict you were gonna do this so they
+wait even longer."* **This is the repair of the chain-on-whiff tension the plan-session entry
+accepted** — the whiff window is not shrunk, it is converted into yomi. Hitstun guarding only the
+fast rhythm is what keeps a *delayed* chain a catch rather than a guarantee. The `s1/s2-light`
+bands move with the retune in the same package: authored truth moving, not a checker patched green.
+
+**Blocked hits displace differently, and the reading carries a flag.** The ruling, verbatim:
+*"moves them laterally but specifically pushback is reduced notably."* Written into the plan as an
+**active lateral deflection** — a signed per-swing sideways distance following the swing's arc,
+with a much smaller backward push, and **no re-centring through a guard** (the same philosophy
+that keeps aim assist off position). The alternative reading — no deliberate sideways component,
+merely the defender's lateral offset surviving a small straight push — is a data-shape change of
+one field and is **flagged in the plan for veto**. A dodged hit touches nothing, as ever.
+
+Accepted rather than solved: walls compress the reset, so determinism holds in open space and
+**corner-carry emerges at the edges** — read as a feature until play says otherwise. And the
+final light, the heavies and the charged displace nothing at all this slice: their knockdowns are
+Knockdown & Oki's, and shipping them as plain damage-plus-hitstun until then is the same deferral
+the string's terminator already carries.
 
 ## 2026-08-16 — Light String's plan session: DKO stands as a bet, whiffs chain, and hitstun arrives early
 
