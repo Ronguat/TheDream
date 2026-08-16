@@ -351,10 +351,32 @@ the pin at it, PIE, `CaptureViewport`, point it back.
 **AnimGraph *editing* is scriptable** *(confirmed 2026-08-11)*; only creation is not. `BlueprintTools`
 has `list_graphs`, `find_nodes`, `get_node_infos`, `create_node`, `connect_pins`, `set_pin_value`,
 `retarget_node_class`, `compile_blueprint` and `delete_node`. There is no disconnect function;
-deleting a node breaks its links. `read_graph_dsl` returned empty for `ABP_Combat:AnimGraph` — use
-`find_nodes` with `title: ""` plus `get_node_infos`, which reports pin connections both ways. Change
-a node by a **partial** write to its `Node` struct; a full write clobbers pin-backed fields.
-`describe_toolset` on it is too large to return — grep a saved dump.
+deleting a node breaks its links. **Reconnecting an exec output replaces its existing link**, which
+is how a node is spliced into a running chain without one. `read_graph_dsl` returned empty for
+`ABP_Combat:AnimGraph` — use `find_nodes` with `title: ""` plus `get_node_infos`, which reports pin
+connections both ways. Change a node by a **partial** write to its `Node` struct; a full write
+clobbers pin-backed fields. `describe_toolset` on it is too large to return — grep a saved dump.
+
+**`add_variable` does not make a variable live; compiling does** *(confirmed 2026-08-15)*. It
+returns null either way, and the new property is unreadable on the CDO until `compile_blueprint`
+runs — which reads exactly like the write having failed.
+
+### The user can send images, and it beats most of the limits above
+
+**New as of 2026-08-15** and not possible under the old PowerShell-only setup. It matters more here
+than it would on most projects, because this toolset's hard limits are overwhelmingly **visual** —
+the interior of a state graph, a montage's notify track, a BlendSpace's grid, a details panel. Every
+one of those is listed above as unreadable, and a screenshot settles each instantly.
+
+**So ask for one.** Guessing at something a picture would answer is now a choice, not a constraint.
+Cases already met: which of four directional clips is which, whether a duplicated montage carries an
+inherited notify, and what an existing state contains so a new one can mirror it.
+
+**Our own capture tools reach less than a human screenshot does.** `CaptureViewport` sees the 3D
+viewport, `CaptureAssetImage` renders one asset's thumbnail, and `SlateInspectorToolset.Screenshot`
+and `CaptureEditorImage` capture windows — but **nothing can navigate to a state graph's interior**,
+because graph nodes are absent from the accessibility tree. *Untested hybrid worth trying: have the
+user open the graph, then `CaptureEditorImage`.*
 
 ---
 
