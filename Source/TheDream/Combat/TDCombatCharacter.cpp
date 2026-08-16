@@ -1654,6 +1654,17 @@ void ATDCombatCharacter::ReturnToDebugAutoAttackHome()
 		return;
 	}
 
+	// **The reset had no observability at all until 2026-08-16**, which is why "it fires mid-attack
+	// and the numbers still look plausible" was a documented hazard nobody could check. The
+	// timestamp is what identifies the path: the delayed timer lands ResetDelay after the last
+	// swing's ABILITY END, while the burst's belt-and-braces call shares a timestamp with the
+	// ACTIVATE that follows it. Distance moved separates a real reset from a no-op.
+	const FVector PreviousLocation = GetActorLocation();
+	TD_TIMING_LOG(TEXT("[%.3f] HOME RESET %s  moved=%.1fcm"),
+		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f,
+		*GetName(),
+		FVector::Dist2D(PreviousLocation, DebugAutoAttackHomeTransform.GetLocation()));
+
 	// Teleported rather than swept: a swept move would be blocked by whatever the attacker has
 	// walked into, which is exactly the state being undone.
 	SetActorTransform(DebugAutoAttackHomeTransform, false, nullptr, ETeleportType::TeleportPhysics);
@@ -1733,10 +1744,9 @@ void ATDCombatCharacter::UpdateDebugFacingFocus(bool bAttacking)
 
 void ATDCombatCharacter::HandleDebugAutoAttackEnded(const FAbilityEndedData& EndedData)
 {
-	// A mid-burst swing's end is not the burst's end: taps are still owed, or the link window the
-	// ending swing just opened says the next one is coming. Resetting home here would teleport
-	// the attacker out of its own string -- the focus stays too, for the same reason.
-	if (DebugStringTapsRemaining > 0 || HasStringLinkWindowOpen())
+	// Taps still owed means the burst is mid-flight, and returning is safe because the *next*
+	// swing's end runs this handler again. There is always a second chance.
+	if (DebugStringTapsRemaining > 0)
 	{
 		return;
 	}
@@ -1756,7 +1766,24 @@ void ATDCombatCharacter::HandleDebugAutoAttackEnded(const FAbilityEndedData& End
 		return;
 	}
 
-	if (DebugAutoAttackResetDelaySeconds <= 0.0f)
+	// **An open link window defers the reset; it must never drop it** (fixed 2026-08-16, found in
+	// play by the user). The window says another swing *may* follow, so resetting now would
+	// teleport the attacker out of a string still in progress. But returning outright loses the
+	// reset entirely when no press arrives: nothing re-runs this handler, so the attacker idled
+	// displaced for the rest of the cycle and snapped home on the next burst's belt-and-braces
+	// call, one frame before it attacked. Waiting the window out and then applying the ordinary
+	// delay is what gives the reset its second chance.
+	//
+	// It only became reachable when the light became chain-eligible: before that no window ever
+	// opened after a light, so every reset ran on its timer. Any press cancels this timer, so a
+	// swing that does arrive during the window is not undercut by it.
+	float ResetDelay = DebugAutoAttackResetDelaySeconds;
+	if (const UWorld* World = GetWorld())
+	{
+		ResetDelay += FMath::Max(0.0f, StringWindowEndsAt - World->GetTimeSeconds());
+	}
+
+	if (ResetDelay <= 0.0f)
 	{
 		ReturnToDebugAutoAttackHome();
 		return;
@@ -1766,7 +1793,7 @@ void ATDCombatCharacter::HandleDebugAutoAttackEnded(const FAbilityEndedData& End
 		DebugAutoAttackResetTimerHandle,
 		this,
 		&ATDCombatCharacter::ReturnToDebugAutoAttackHome,
-		DebugAutoAttackResetDelaySeconds,
+		ResetDelay,
 		false);
 }
 
@@ -1776,14 +1803,16 @@ void ATDCombatCharacter::DebugAutoAttackPress()
 	// home-teleport mid-string would sever the spacing chain s4 measures, and the focus survives
 	// the whole burst on its own. Taps=1 makes every press a first press, which is the
 	// pre-string behaviour exactly.
+	// A pending delayed reset must not survive into *any* swing, or it would snap the attacker
+	// home mid-attack. Cleared on every press rather than only on a burst's first, because the
+	// reset can now be deferred past the link window -- so a chain press arriving inside that
+	// window has a live timer to cancel, which a burst-only clear would have missed.
+	GetWorldTimerManager().ClearTimer(DebugAutoAttackResetTimerHandle);
+
 	const bool bStartingBurst = DebugStringTapsRemaining <= 0;
 	if (bStartingBurst)
 	{
 		DebugStringTapsRemaining = FMath::Max(1, DebugAutoAttackStringTaps);
-
-		// A pending delayed reset must not survive into the next swing, or it would snap the
-		// attacker home mid-attack. The reset below covers the same ground immediately.
-		GetWorldTimerManager().ClearTimer(DebugAutoAttackResetTimerHandle);
 
 		// Belt and braces. The post-attack reset normally leaves nothing to do here, but an ability
 		// that is cancelled or interrupted may never end cleanly, and this preserves the guarantee
