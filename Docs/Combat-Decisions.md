@@ -987,9 +987,22 @@ rather than in a montage. That is the cheap shape *and* the correct one: it need
 montage limit found today — sections, inherited notifies, length recompute, all irrelevant.
 
 **Both getters are true at once**, which is the wiring detail that is easy to get wrong: blockstun
-is the penalty for a block that *worked*, so the guard is still up throughout. The transitions are
-therefore `Blocking → Blockstun` on `IsInBlockstun()` and back on its negation, not anything keyed
-to the guard going down.
+is the penalty for a block that *worked*, so the guard is up at the moment it starts. Entry is
+therefore always `Blocking → Blockstun`, on `IsInBlockstun()`.
+
+**Exit is the interesting half, and the user chose the non-obvious answer: `!IsInBlockstun() ||
+!IsBlocking()`.** Because blockstun does not prevent unblocking, a defender can release the guard
+mid-stun and stand there unguarded while the lockout runs. The free wiring — leave only when the
+stun ends — would keep the hit-reaction pose playing through that, which is *truthful about the
+lockout* and was the case for it. **The user's reasoning overrules that and is the more useful
+principle: the clip depicts a guard absorbing a hit, so it communicates *blocking*, not blockstun —
+and blockstun will be felt more than seen.** Holding a guard pose with no guard up shows something
+that is not happening; the lockout announces itself through inputs not coming out.
+
+**That principle reaches further than this transition.** It is a live argument against directional
+blockstun ever being worth much — if the state is felt rather than read, directional *visual* detail
+buys little — and whoever picks that up at Interplay should weigh it against the case for building
+it.
 
 **Known limitation, accepted rather than missed: the legs freeze if you are moving.** Blockstun
 deliberately leaves movement free, so a full-body state holds a hit-reaction pose for 0.4–0.6 s
