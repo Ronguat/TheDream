@@ -1,0 +1,77 @@
+# Snapshot of the MCP toolset registry, taken 2026-08-15.
+#
+# WHY: capabilities kept appearing to "spawn" mid-project, and nobody could tell
+# whether the surface was actually growing or had simply never been enumerated.
+# Every wall that fell on 2026-08-15 turned out to be pre-existing and untested,
+# but with no baseline that could only be asserted, not shown.
+#
+# HOW TO USE: at session start, run list_toolsets and diff against this file.
+#   A new row  = the surface grew; re-read Working-In-Unreal.md's limits.
+#   A gone row = something was removed; claims depending on it are now suspect.
+# Regenerate and commit whenever it legitimately changes, with a dated note.
+#
+# SCOPE, deliberately: toolset-level only, not per-tool. A full per-tool index
+# would be ~500 rows and several describe_toolset calls are too large to return
+# at all. This catches "a toolset appeared"; it does NOT catch "a tool appeared
+# inside an existing toolset". That limitation is the price of it staying cheap
+# enough to actually maintain.
+#
+# NOT read wholesale — grep it. Same discipline as Animation-Library-Index.tsv.
+#
+toolset	note
+ToolsetRegistry.AgentSkillToolset	list/read/create skills
+AutomationTestToolset.AutomationTestToolset	UE automation test discovery and runs; never used here
+ChaosClothAssetToolset.ChaosClothAssetToolset	cloth assets
+ConfigSettingsToolset.ConfigSettingsToolset	read/edit config sections
+DataflowAgent.DataflowAgentToolset	dataflow graphs
+DataRegistryToolset.DataRegistryTools	data registry queries
+EditorToolset.EditorAppToolset	PIE control, cvar search, viewport/asset capture. NO set-cvar, NO exec command
+EditorToolset.LogsToolset	output log reads; pass category:"" and maxEntries:0
+GameFeaturesToolset.GameFeaturesToolset	game feature plugins
+GameplayTagsToolset.GameplayTagsToolset	gameplay tag manager
+GASToolsets.GameplayCueToolset	gameplay cues
+GASToolsets.AttributeSetToolset	AttributeSet class discovery
+GASToolsets.AbilitySystemInspectorToolset	runtime ASC inspection during PIE
+LiveCodingToolset.LiveCodingToolset	Live Coding compile; see the reflection caveat
+MVVMToolset.MVVMToolset	MVVM
+PCGToolset.PCGToolset	PCG graphs
+PCGToolset.PCGSpatialToolset	PCG spatial
+PhysicsToolsets.PhysicsAssetToolset	physics assets
+NiagaraToolsets.NiagaraToolset_Info	Niagara enums and guidance
+NiagaraToolsets.NiagaraToolset_Component	Niagara components
+NiagaraToolsets.NiagaraToolset_Blueprint	Niagara/Blueprint bridging
+NiagaraToolsets.NiagaraToolset_System	Niagara systems
+NiagaraToolsets.NiagaraToolset_Assets	Niagara script discovery
+PluginToolset.PluginToolset	plugin create/enable/query
+SemanticSearchToolset.SemanticSearchToolset	hybrid vector + BM25 asset search
+SlateInspectorToolset.SlateInspectorToolset	Playwright-style editor UI automation. Drives the console and menus; does NOT reach the game
+WorldConditionsToolset.WorldConditionTools	WorldCondition structs
+UMGToolSet.UMGToolSet	UMG widget trees
+state_tree_toolset.toolsets.state_tree.StateTreeTools	StateTree assets; StateTree was dropped from this project 2026-08-15
+sequencer_animmixer_toolset.toolsets.mixer.SequencerAnimMixerTools	Sequencer anim mixer
+editor_toolset.toolsets.actor.ActorTools	actor transforms, labels, components
+editor_toolset.toolsets.asset.AssetTools	find/load/save/duplicate/move/delete; path-string fns false-negative, use load_asset
+editor_toolset.toolsets.blueprint.BlueprintTools	graphs, nodes, pins, variables, compile. describe_toolset too large to return
+editor_toolset.toolsets.curve_table.CurveTableTools	CurveTables
+editor_toolset.toolsets.data_asset.DataAssetTools	Data Assets
+editor_toolset.toolsets.data_table.DataTableTools	DataTables
+editor_toolset.toolsets.material.MaterialTools	materials; creates whole graphs end to end
+editor_toolset.toolsets.material_instance.MaterialInstanceTools	material instances
+editor_toolset.toolsets.object.ObjectTools	list/get/set properties on any UObject or CDO; set_properties takes values as a JSON string
+editor_toolset.toolsets.primitive.PrimitiveTools	primitive components
+editor_toolset.toolsets.scene.SceneTools	level actors, placement, traces, camera
+editor_toolset.toolsets.skeletal_mesh.SkeletalMeshTools	skeletal meshes, bones, sockets; get_bone_names needs the MESH not the skeleton
+editor_toolset.toolsets.static_mesh.StaticMeshTools	static meshes
+editor_toolset.toolsets.string_table.StringTableTools	StringTables
+editor_toolset.toolsets.programmatic.ProgrammaticToolset	batches other tools through a sandboxed Python script
+editor_toolset.toolsets.texture.TextureTools	textures
+conversation_toolset.toolsets.conversation.ConversationTools	conversation graphs
+animation_toolset.toolsets.controlrig.ControlRigTools	Control Rig assets and graphs
+animation_toolset.toolsets.sequencer.SequencerTools	Level Sequences
+animation_toolset.toolsets.keyframing.SequencerKeyframingTools	Sequencer keyframing
+animation_toolset.toolsets.controlrig_sequencer.SequencerControlRigTools	Control Rig in Sequencer
+animation_toolset.toolsets.outliner.SequencerOutlinerTools	Sequencer outliner
+animation_toolset.toolsets.conditions.SequencerConditionTools	Sequencer runtime conditions
+animation_toolset.toolsets.custom_bindings.SequencerCustomBindingTools	Sequencer binding types
+animation_toolset.toolsets.import_export.SequencerImportExportTools	Sequencer FBX/AnimSequence import-export
+aimodule_toolset.toolsets.behavior_tree.BehaviorTreeTools	BehaviorTree assets

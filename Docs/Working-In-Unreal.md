@@ -33,6 +33,14 @@ lives in `Docs/Debug-Instruments.md`. What is left grows only when Unreal or its
 unreproduced incident — work around it, but re-test rather than treat as settled if it blocks you.
 Never promote a mark without re-observing the behaviour.
 
+**Re-test any limit that blocks you, whatever its mark or lack of one, and record the result.**
+Seven walls in this file fell in one evening on 2026-08-15 — montage creation, the editor console,
+menu navigation, transition-rule reading, node creation in the EventGraph, blendspace position
+writes — and every one was written as flat assertion and never re-poked since. **A limit is a
+measurement with a date, not a property of the engine.** Re-testing costs a call or two; believing a
+stale one costs the work, and routing a human around a wall that is not there costs *their* evening.
+Then write what happened: a fresh date if it held, a correction if it did not.
+
 ---
 
 ## Before you start
@@ -47,6 +55,14 @@ in-editor plugin (`127.0.0.1:8000`, see `.mcp.json`).
 The distinction is **registration versus connection**: schemas are picked up once at session start,
 the connection can drop and re-establish. So closing the editor for a rebuild is safe; starting
 without one is not. If asset writes are needed, confirm the tools respond before promising any.
+
+**Diff the toolset registry against `Docs/Toolset-Snapshot.tsv`.** One `list_toolsets` call. A new
+row means the surface grew and this file's limits deserve re-reading; a missing one means claims
+resting on it are suspect. It exists because capabilities repeatedly appeared to *spawn* mid-project
+and there was no baseline to tell growth from something that had simply never been enumerated —
+on 2026-08-15 every wall that fell turned out to be pre-existing, but that could only be asserted.
+**Toolset-level only**: it will not catch a new tool inside an existing toolset, which is the price
+of it being cheap enough to keep current.
 
 ---
 
