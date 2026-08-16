@@ -363,20 +363,27 @@ runs — which reads exactly like the write having failed.
 
 ### The user can send images, and it beats most of the limits above
 
-**New as of 2026-08-15** and not possible under the old PowerShell-only setup. It matters more here
-than it would on most projects, because this toolset's hard limits are overwhelmingly **visual** —
-the interior of a state graph, a montage's notify track, a BlendSpace's grid, a details panel. Every
-one of those is listed above as unreadable, and a screenshot settles each instantly.
+**New as of 2026-08-15**, not possible under the old PowerShell-only setup, and it matters more here
+than most places: this toolset's hard limits are overwhelmingly **visual** — a state graph's
+interior, a montage's notify track, a BlendSpace grid, a details panel. All are listed above as
+unreadable and a screenshot settles each instantly. **So ask.** Cases already met: which of four
+directional clips is which, whether a duplicated montage carried an inherited notify, and what a
+state contains so a new one can mirror it.
 
-**So ask for one.** Guessing at something a picture would answer is now a choice, not a constraint.
-Cases already met: which of four directional clips is which, whether a duplicated montage carries an
-inherited notify, and what an existing state contains so a new one can mirror it.
+**Calibration — images for what no tool can reach; tools for what is readable.** A screenshot of
+something `get_node_infos` can report is both slower *and* worse: reading the blocking Selects gave
+exact asset paths and pin indices that no picture would have carried.
 
-**Our own capture tools reach less than a human screenshot does.** `CaptureViewport` sees the 3D
-viewport, `CaptureAssetImage` renders one asset's thumbnail, and `SlateInspectorToolset.Screenshot`
-and `CaptureEditorImage` capture windows — but **nothing can navigate to a state graph's interior**,
-because graph nodes are absent from the accessibility tree. *Untested hybrid worth trying: have the
-user open the graph, then `CaptureEditorImage`.*
+**And check the limit is real before asking, which is the half that bites.** Nearly every wall in
+this file was re-tested on 2026-08-15 and several were wrong — montages, the console, `add_variable`.
+An image request resting on an untested assumption spends the user's time working around a limit
+that may not exist, and quietly re-certifies the stale claim as fact. **Verify, then ask.**
+
+**Our own capture tools reach less than a human screenshot does** — `CaptureViewport`,
+`CaptureAssetImage` and the Slate `Screenshot`/`CaptureEditorImage` cover the 3D viewport, one
+asset's thumbnail, and windows respectively, but **nothing can navigate to a state graph's
+interior**, graph nodes being absent from the accessibility tree. *Untested hybrid: have the user
+open the graph, then `CaptureEditorImage`.*
 
 ---
 
