@@ -52,7 +52,11 @@ BAND_HEALTHDMG_LIGHT=15; BAND_HEALTHDMG_HEAVY=25; BAND_HEALTHDMG_CHARGED=40
 # S2 -- blockstun span equals the tier's authored RecoverySeconds.
 # The charged has none reachable: its stamina damage empties any bar, so it
 # always breaks instead. That is a filed trap, asserted here as a standing fact.
-BAND_BLOCKSTUN_LIGHT=0.400; BAND_BLOCKSTUN_HEAVY=0.500
+# Light 0.400 -> 0.350 on 2026-08-16, derived rather than felt: after blocking, the defender must
+# be able to *start* an attack before the next chained hit lands, but never land first. At a 500 ms
+# chain cadence the hit arrives at T+200 and the next at T+700, so blockstun B must satisfy
+# 400 + B > 700 (never first) -- B > 300. 350 is that floor plus the 50 ms margin used elsewhere.
+BAND_BLOCKSTUN_LIGHT=0.350; BAND_BLOCKSTUN_HEAVY=0.500
 BAND_BLOCKSTUN_TOL=0.020
 
 # S2 -- GuardBreakStunSeconds, break to GUARD END. Measured 1.004..1.007.

@@ -735,7 +735,8 @@ reactable", "Y is too safe" — requires a felt number behind it.
 | `CoilTurnRateDegrees` | **Unfelt, and unexercised** | 600 on both characters' CDOs as of 2026-08-14 — the user's chosen value, verified by construction only. The dispute with the C++ 300 is closed; both Blueprints override it. **Nothing has ever reached this rate**: the player would have to hold an attack past 150 ms while turning, and the dummy's `DebugAutoAttackHoldSeconds` is 0.1 so it never coils at all. |
 | `TurnRateDegrees` | **Derived, not felt — and must stay that way** | 180° ÷ the light's `HoldUntilSeconds`. It is not a candidate for this table's treatment; tuning it by feel is what the tuning map forbids. |
 | `BlockDrainPerSecond` 10, `StaminaDamage` 5/50/100, `GuardBreakStunSeconds` 1.0 | **Felt** 2026-08-14 | The user's numbers, played the same day across several sessions and left alone. Ten seconds of guard from full before it is breakable at all; two heavies or one charged to break a full one. The charged's 100 against a 100 bar is what makes "charged heavy breaks block" true with no flag in code, and **it repeals itself silently if either number moves.** |
-| `BlockstunSeconds` 0.4 / 0.5 / 0.6 | **Unfelt, but derived rather than guessed** | Each tier's value equals its own `RecoverySeconds`, which puts it 50 ms the safe side of neutral — neutral being `recovery − 0.05`, from the attacker being free 0.15 + recovery after the hit and the defender's fastest counter being a 200 ms light. That satisfies the spec's "safe on block" at the margin, so it is a *reference point* to tune from rather than a preference. **The charged's has never fired and cannot**; see the trap. |
+| `BlockstunSeconds` **0.35** / 0.5 / 0.6 | **Unfelt, but derived rather than guessed** | *Heavy and charged unchanged; the light's moved 0.40 → 0.35 on 2026-08-16 and its derivation changed with it.* The old basis was the tier's own `RecoverySeconds`, 50 ms the safe side of neutral. The light is now derived against the **chain cadence** instead, which is the real threat: a blocked hit lands at T+200 and the next chained hit at T+700, so blockstun must let the defender *start* a counter before T+700 while never landing one first — `400 + B > 700`, i.e. B > 300. 0.35 is that floor plus the same 50 ms margin. **The charged's has never fired and cannot**; see the trap. |
+| String cadence **500 ms** (`ChainOpenAfterRecoverySeconds` 0.133) | **Felt** 2026-08-16 | The first number in the project measured from a human rather than chosen. The designer tapped the rhythm they wanted with no timer and, by their own account, without watching the screen — pure transfer from genre muscle memory. 28 within-string samples: mean 501.5 ms, median 503.5, stdev 28.2, drift +8.6 ms between halves, so the mean is pinned to ±5.3 ms. Authored to 0.133 and measured back at 502.1 ms combined. **The method is reusable and cost four minutes** — the trace already timestamps every input edge, so any rhythm a player produces can be measured rather than guessed. |
 | `ExhaustedMaxWalkSpeed` 400 | **Unfelt** | The user's number, 20% below the 500 `MaxWalkSpeed`. Verified by construction only — nothing in the build reaches exhaustion without a human on the dodge key. Combines with `BlockingMaxWalkSpeed` by taking the slower, so an exhausted guard walks at 125 rather than 400. |
 | `MinimumBlockSeconds` 0.25 | **Felt** 2026-08-14, and signed off as untuned | Chosen deliberately long as a first probe, on the reasoning that a clearly-too-long value answers *"is feathering dead"* better than a borderline one. The user reserved tuning it. Its cost is visible: attacking repeatedly out of a held guard pays it between swings, because a resume is a new guard. |
 | `BlockInitialStaminaCost` 10 | **Felt** 2026-08-14 | The C++ default is 0 so the mechanism ships inert; **`BP_PlayerCharacter`'s CDO is authoritative and the user set 10 in play**, having been offered 25 as a probe and chosen otherwise. Ten guards from full, against a drain that also costs 10 per second. The behaviour it was testing passed: a guard raised below the cost still cancels what it would have cancelled, then exhausts you, with no break and no stun. |
@@ -964,6 +965,48 @@ long.
 | `gEComponents` | 08-10, 08-11 |
 
 ---
+
+## 2026-08-16 — The cadence is measured off a human, and blockstun is derived from it
+
+**The first felt number in the project taken from a person rather than chosen by one.** Asked how
+to convey the right chain cadence, the designer proposed tapping it — *"do my best to demonstrate
+what feels right maybe 10 times, and then you pull the logs and derive the averages."* It worked
+because the trace already timestamps every input edge, and because chain-out fires **on the press**
+once the window is open, so a tapped rhythm becomes the contact rhythm directly and the feedback
+being judged is honest.
+
+28 within-string samples: **mean 501.5 ms, median 503.5, stdev 28.2, drift +8.6 ms** between halves
+— the mean pinned to ±5.3 ms, and no convergence during the test, so they arrived with the answer
+rather than finding it. Crucially the designer reported afterwards that they were running on genre
+muscle memory and **not watching the screen**, which retired the obvious objection: a defective
+light 2 was on screen throughout and could not have biased a sample nobody was looking at.
+
+**Authored as `ChainOpenAfterRecoverySeconds` 0.133**, from `cadence = 0.200 + 0.150 + ChainOpen +
+one frame`. The 16.7 ms is real and not a fudge — chain-out waits for the buffer tick to notice the
+window opened. An earlier 0.125 came from a baseline contaminated by the blend-out bug and measured
+490; with that fixed the latency resolves to exactly one frame. Verified back at **502.1 ms**.
+
+**What it changes is the floor, not the cadence.** The player already controlled anything above it;
+this removes the faster-than-ideal mashing option. `HitstunSeconds` 0.40 → 0.55 is forced along
+with it, since hitstun must outlast the gap or the string's guarantee silently stops being true.
+
+### Blockstun follows the cadence, not recovery
+
+**The light's `BlockstunSeconds` 0.40 → 0.35, and the basis changed with the number.** The
+designer's rule: after blocking you must be able to *start* an attack before the next one lands,
+but never land first. At a 500 ms cadence the blocked hit is at T+200 and the next at T+700, and
+the defender's fastest counter needs 200 ms, so `400 + B > 700` gives **B > 300**; 0.35 is that
+floor plus the 50 ms margin used elsewhere. The old basis — the tier's own `RecoverySeconds` — was
+measuring against the wrong threat now that a chain exists.
+
+The punish on a *non-chaining* attacker survives and improves: they run to T+950, the defender
+lands at T+750. **Heavy and charged are untouched** and keep the recovery-based derivation, which
+is correct for tiers that do not chain.
+
+**One consequence, emergent rather than chosen:** the 150 ms of freedom this grants mid-string is a
+trap, because attacking cancels the guard and the next chained hit then lands unblocked. It is only
+safely usable after the attacker's final swing — which extends "any hit guarantees the rest" onto
+the block side. Recorded rather than designed; Interplay judges whether it is wanted.
 
 ## 2026-08-16 — The string is three hits, and the buffer extension is kept on probation
 
