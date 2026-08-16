@@ -1003,10 +1003,47 @@ The punish on a *non-chaining* attacker survives and improves: they run to T+950
 lands at T+750. **Heavy and charged are untouched** and keep the recovery-based derivation, which
 is correct for tiers that do not chain.
 
-**One consequence, emergent rather than chosen:** the 150 ms of freedom this grants mid-string is a
-trap, because attacking cancels the guard and the next chained hit then lands unblocked. It is only
-safely usable after the attacker's final swing — which extends "any hit guarantees the rest" onto
-the block side. Recorded rather than designed; Interplay judges whether it is wanted.
+### The blocked string is a mind game, and that is the point of the window
+
+*(The designer, correcting an assistant note that had filed the mid-string window as an emergent
+trap. It is the intended mechanic, and the correction matters because the "trap" framing would have
+invited someone to fix a system that works.)*
+
+**Blocking a string does not resolve the exchange, it opens a guessing game.** The defender's
+freedom mid-string is real and so is its cost, and neither side has a dominant line. Verified
+against the authored values:
+
+| Situation | Outcome |
+|---|---|
+| Attacker finishes the string, all blocked | Defender punishes light 3's recovery **by 350 ms** |
+| Attacker stops after light 2 | Still punishable **by 200 ms** — *if the defender acts* |
+| Defender punishes at the first opportunity, attacker chains immediately | **Attacker hits first by 50 ms** |
+
+So: finishing is punishable, which pushes the attacker to **end early** — but ending early is *also*
+punishable, and only beats a defender who sits waiting for a hit that never comes. And a defender
+who punishes eagerly loses to an immediate chain, by exactly the 50 ms margin blockstun is derived
+to guarantee. **The attacker's dial is continuous** — chain-out is open across the whole of recovery
+and the link window after it, roughly 480–1350 ms — so the defender is guessing at a position on a
+line, not picking between two options. Delaying a light to catch a premature punish is the natural
+counter to a defender who has learned to punish early, and so on up.
+
+**A clean hit collapses the game entirely.** Hitstun (0.55) outlasts the cadence (0.50), so once any
+light actually lands, the rest are guaranteed and the attacker simply finishes. The mind game is
+therefore *the blocked branch specifically* — which is what makes blocking a decision rather than a
+resource.
+
+**Dodge and parry are the other half.** Blockstun disables offense and nothing else, so a defender in
+blockstun may still move, dodge, keep the guard, and — when it exists — parry. Chain-timing
+manipulation baits those the same way it baits a punish, which is a second reason the attacker's
+dial wants to stay continuous.
+
+**One thing the numbers do not yet support, and it is the terminator's absence rather than a tuning
+miss:** on a *clean* string the ender still leaves the attacker at **350 ms disadvantage** — hitstun
+frees the victim 550 ms after the last contact while the attacker's 0.75 recovery runs to 900. So
+"the attacker can safely finish" is true of the string but not yet of its last hit. **Knockdown &
+Oki resolves this by construction**: a knocked-down victim is not punishing anybody. Do not tune the
+ender's recovery against today's number — it is measuring a slice with its terminator deliberately
+missing.
 
 ## 2026-08-16 — The string is three hits, and the buffer extension is kept on probation
 
