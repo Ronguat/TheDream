@@ -934,6 +934,64 @@ long.
 
 ---
 
+## 2026-08-16 — Light String's plan session: DKO stands as a bet, whiffs chain, and hitstun arrives early
+
+Four decisions pulled off the runway at the plan session, plus one raised and deliberately left
+for the greenlight. The *how* they bind is `Docs/Plan-Light-String.md`, work-in-flight and deleted
+on delivery; this entry is the record that outlives it.
+
+**The DKO model stands — and the user's framing is the entry's real content: *"this prototype's
+very existence is built upon the desire to answer this question. There's a non-zero chance that
+whichever is chosen may later be discarded in favor of the other."*** So DKO (lights guarantee
+follow-ups, heavy→light banned) is a **working bet, not a ruling** — the 2026-08-11 chain-rules
+entry remains the fork's record and is *not* superseded. What this binds the build to: New World
+must stay reachable as a retune rather than a rebuild, so chain eligibility is authored per branch
+(`bChainsIntoString`), the guarantee lives in authored hitstun durations, and nothing about the
+ban is structural. Discarding the model later should cost a details-panel session, not a slice.
+
+**Hitstun ships with the string, mechanics only — the Stun-split fork resolves.** The 2026-08-15
+split left hitstun's home to this plan; cadence alone only beats walking (a chasing lunge covers
+175 cm of walk-out with a 300 cm ceiling), while a dodge between 350 ms contacts escapes anything
+but a real lockout. So the guarantee's mechanism is hitstun ≥ the contact gap: blockstun's
+replicated pattern exactly (`bInHitstun`/`OnRep`/server `EndsAt`), `State.Hitstun` refusing **all**
+abilities from the shared base — defense included, which is the guarantee, and the deliberate
+contrast with blockstun's offense-only — plus the fifth hand-restated check in `Jump()`. No
+reaction animation (Death-full's), no movement lock (Knockdown & Oki's, deferred in parallel with
+the guard break's lockout, same shape). Felt-not-seen, exactly as blockstun shipped.
+
+**Strings chain on whiff, and the cost to whiff punish is accepted with eyes open.** The DKO norm,
+chosen over a contact gate. Named at the decision: a whiff-cancellable light shrinks its effective
+whiff-punish window from ~0.75 s to ~0.55 s, directly against feel goal #1 — the defender's punish
+moves from "react to recovery" toward "read the string's end". **Interplay judges it**; if whiff
+punish reads gutted against a human, the contact gate is the recorded alternative and is one
+condition at the chain-out site.
+
+**The clip roster and string length are an authored trial, not a plan output.** The build
+scaffolds on all-`Attack4` (S1→S2→S3→S4 `_Complete_IP`, all migrated, vendor-authored as one
+chain so fragment continuity is free), and the machinery makes a candidate swap a documented
+three-edit loop — the designer chooses the string in PIE, per the maximally-designer-authored
+rule. String length is the array's size; 2–4 are details-panel variants.
+
+**Raised rather than decided, asked at greenlight: hitstun's interrupt semantics.** Whether being
+hit **cancels the victim's active abilities** (DKO trading — the light becomes an interrupt to a
+coiling heavy, and a mid-windup victim loses the swing) or only refuses new activations
+(armor-like: trades run to completion, which quietly weakens the light's role). Recommended:
+cancel, commitment governing what a victim may cancel voluntarily rather than what being hit does
+to them. Blockstun cancels nothing either way, as it never did.
+
+**Also found at measure time, folded into the plan:** a chain tap inside hit N's first 150 ms
+expires before the 350 ms chain boundary — the exact mash pattern the string invites, and the
+`InputBufferSeconds` watch already names this slice as its trigger. The plan's fix (an attack
+press held by the buffer does not expire while the presser's own chainable attack runs) is
+bounded under ~1.2 s, so the four-second exhaustion argument that killed global widening does not
+apply — but it changes a felt system and ships only with the same greenlight.
+
+**Loop coverage: the scenarios branch, chosen at plan time as the rule requires** — `s4-string`
+(cadence, ledger, hitstun spans), `s4-guarantee` (a dodging defender's presses `REFUSED` naming
+`State.Hitstun` mid-string — the guarantee observable in a log), `s4-block` (per-hit blockstun
+values and stamina damage), on a `DebugAutoAttackStringTaps` fixture mode defaulting to today's
+behaviour. No deferral trap is owed.
+
 ## 2026-08-16 — A dodge cancel could only go backward, and "harmless" was checked once
 
 **Found in play by the user**, three days after it shipped: dodging out of an attack's windup gave
