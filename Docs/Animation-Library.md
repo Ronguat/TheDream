@@ -69,15 +69,26 @@ subset has actually been brought into this repository.
 | | Assets | Where |
 |---|---:|---|
 | Library (available to migrate) | 6,576 | `AnimLibrary`, not in this repo |
-| **Migrated into this project** | **715** | `/Game/GDHBundle/` |
+| **Migrated into this project** | **1,045** | `/Game/GDHBundle/` |
 
-Migrated so far, as of 2026-08-10 — `SwordShield` only:
+Migrated — `SwordShield` only. **Counted with `find`, not remembered**; regenerate rather than
+trust the numbers:
 
-- `SwordShieldAnimV1/Animation/RM` (152) and `IP` (135)
-- `SwordShieldAnimV3/Animation/RM` (189) and `IP` (166)
-- `DEMO/` dependencies (~70): the Manny skeleton and mesh, materials, textures, and the
+```bash
+find Content/GDHBundle -name '*.uasset' | wc -l
+```
+
+- `SwordShieldAnimV1` **288**, `SwordShieldAnimV2` **330**, `SwordShieldAnimV3` **357**
+- `DEMO/` dependencies (**70**): the Manny skeleton and mesh, materials, textures, and the
   `SM_Sword` and `Shield_Heater` props
-- **Not migrated:** `SwordShieldAnimV2`, and every other archetype
+- **Not migrated:** every archetype other than `SwordShield`
+
+***This table said 715 and "`SwordShieldAnimV2` not migrated" until 2026-08-16.** The claim was
+surveyed 2026-08-10 and was true that day; V2 arrived at `7dfbe74` on **2026-08-11** and the note
+was never revisited, so it read as fact for five days and would have sent anyone shopping for V2
+clips off to migrate 330 assets that were already here. Textbook case of the rule this file states
+elsewhere — **absence claims rot faster than any other kind** — which is why the count is now a
+command you can re-run instead of a number somebody has to remember to update.*
 
 So: if a clip appears in the index but not under `/Game/GDHBundle/` in this project, it
 exists and needs migrating — it is not missing. Check with

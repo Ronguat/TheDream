@@ -966,6 +966,23 @@ long.
 
 ---
 
+## 2026-08-16 — The aim wedge is a learnable constant, not a per-attack value
+
+**The aim assist wedge's arc stays static across the ladder and across string swings** (the user).
+It is meant to be *learned* — a player builds an intuition for how much aim error the game forgives,
+and that intuition is only worth having if the answer does not change per attack. So the arc is
+deliberately not going per-swing, even though damage and timing values are.
+
+**Its reach scaling with the driving attack's lunge is a consistency, not an exception** — the
+user's framing, and it settles a question the derivation had left implicit. Reach is
+`base lunge + branch lunge + branch damage reach + AimAssistMarginCm`, so a charged assists from
+further out than a light. From the player's side that reads as one rule — *the wedge covers where
+this attack can actually reach* — rather than as three different wedges.
+
+**What this closes:** per-swing `AimAssistWedge` is not wanted and should not be added to
+`FTDStringSwing`. Per-swing *hitboxes* remain open and are a different question — a narrow finisher
+volume is about what the attack hits, not about how much aim error is forgiven.
+
 ## 2026-08-16 — The cadence is measured off a human, and blockstun is derived from it
 
 **The first felt number in the project taken from a person rather than chosen by one.** Asked how
