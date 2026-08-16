@@ -101,6 +101,19 @@ Verified by toggling `TD.DebugMeleeTrace` 0 → 1 → 0 and reading back via
 `EditorAppToolset.SearchCVars` — a different path from the one that wrote it. **This is the only
 console-command route there is**: `EditorAppToolset` searches cvars and cannot set one.
 
+**Menus can be navigated, which answers "where is this in the editor" without guessing**
+*(2026-08-15)*. `Click` a toolbar dropdown, `Click` an entry to open its submenu, read it, then
+`PressKey Escape` to leave no state behind. Three practicalities: **menus are separate Slate
+windows**, so `Windows action=list` shows them appear; **`Hover` does not open a submenu** and
+`Click` does; and a full `Snapshot` of this editor is enormous, so **`WaitFor` is the cheap probe** —
+it substring-matches the whole tree and answers "is this item present" for one call.
+
+**Use it before describing a UI location from memory.** Asked where Blend Profiles live, the guess
+was "the gear icon in the Skeleton Tree options"; it is actually an *unlabelled two-icon dropdown*
+right of the search box whose **first** section is `BLEND PROFILES`, above `OPTIONS`. Close enough
+to sound right, wrong enough to waste the user's time. **Keep it read-only** — open, read, Escape —
+unless a change was asked for, because this is driving their live editor.
+
 **It does not reach the game** *(confirmed 2026-08-15, not assumed)*. `PressKey` delivers to the
 focused **accessible** widget and the PIE viewport is absent from the accessibility tree — true both
 in-viewport and for a floating window fronted with `Windows action=select`. Both confounds were
