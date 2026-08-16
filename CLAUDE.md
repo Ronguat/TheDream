@@ -218,6 +218,19 @@ takes a decision that was never yours — including when it looks obvious and tu
 **An implementation disagreeing with its spec is a question to ask, not a discrepancy to fix**;
 settling one silently that day filed a trap against code that was correct.
 
+**The design runway lives outside the repo, and that is deliberate.** The user maintains living
+design documentation that runs well ahead of the build — as far out as ability sets for weapons that
+may not survive to exist — and dispenses from it as each thing becomes relevant, so building is
+never blocked waiting on design. **Silence in the spec is therefore not a gap and not missing
+design**; it almost always means we have not reached that thing yet. Do not invent to fill it, and
+**do not try to write the runway down** — a large inert specification would age into a liability
+faster than it could be read, which is exactly why it is not in here.
+
+**This is what the ask-every-time rule is *for*, and why it is not merely an error check** (the
+user, 2026-08-15). **A question is the cue that now is the moment to commit a design direction and
+solidify it** — it pulls a decision out of the runway into the record at the point it becomes real.
+So ask early and ask cheaply: the question is the intended input, never a tax on one.
+
 - **The test for which one you are looking at is reversibility.** A HOW decision is one you can undo
   alone; a WHAT decision needs the user to undo it. **Irreversibility therefore converts a HOW into a
   WHAT** — deleting an asset looks like a how ("how do I clean this up") and is not, because only
@@ -427,7 +440,10 @@ In execution order, and all sequential. **Target Lock shipped 2026-08-13**, and 
 - **Netcode** — the behavioural pass the 2026-08-15 recon mapped: the two `SetTimer` sites and
   i-frame lag compensation (one problem twice), prediction windows, client stamina prediction, the
   loose-tag aim-assist asymmetry, and a shareable direct-connect build — lobbies and matchmaking
-  stay out of scope. **The kill-question comes first**: `PktLag` 40/80/120 emulation, one human as
+  stay out of scope. **It opens with the three checks V2 could not run** (2026-08-15, reclassified
+  from chores: client attack → server damage, the client-tag re-measure now `DEATH`/`EXHAUSTED` are
+  sited in `Apply*`, and `OnRep_PlayerState` via the `ASC RESOLVE` line, which is confirmed working
+  in standalone). None is input-blocked any more — `Net PktLag` runs from the editor console. **The kill-question comes first**: `PktLag` 40/80/120 emulation, one human as
   client versus the fixtures, measuring whether the reactability budget survives a round trip
   *before* any prediction machinery exists. The single-player checker never reads a two-player
   log; **a netcheck sibling — bands, assertions and a self-test over both logs, grown from the
