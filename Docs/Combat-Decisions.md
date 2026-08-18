@@ -1150,9 +1150,7 @@ the bundle ever changes.
 
 ### Scope, and what it will cost
 
-**Its own slice, not Light String's** (the designer), with only the recon pulled forward so it is
-prepped when the slice arrives. **Its position in the execution order is undecided** and it is
-deliberately absent from that line until it is.
+**Its own slice, not Light String's** (the designer), with only the recon pulled forward so it is prepped when it arrives. **Folded into Knockdown & Oki later the same day** — the fit is "a little unclean" by the designer's own account, but heavy and charged inflict knockdowns too, and it must precede Interplay or the feel verdict is taken with both tiers still playing the light's clip.
 
 The cost is real and worth stating before anyone assumes this is configuration: a windup blend
 path **does not exist** — `FTDAttackBranch::MontageSection` is a *release* hook, fires inside
