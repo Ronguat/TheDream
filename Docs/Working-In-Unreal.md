@@ -71,6 +71,9 @@ scripts define `run()` returning a dict and pass **full dotted names** to `execu
 **Stop PIE before compiling a Blueprint or saving an asset.** While PIE runs, actor lookups return
 the `UEDPIE_0_` world's actors — right for inspecting live state, wrong for authoring.
 
+**Never duplicate a World Partition level to make a new map** — the external actor packages do not
+re-path and actors silently go missing. Use File → New Level → Empty.
+
 ### Driving the editor's UI, and the console
 
 **`SlateInspectorToolset` is a Playwright-style surface over the editor's own widget tree** —

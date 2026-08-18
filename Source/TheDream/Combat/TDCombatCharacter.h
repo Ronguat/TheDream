@@ -1032,6 +1032,11 @@ private:
 	 *  what InitAbilityActorInfo is given as the *owner*, which is not the avatar: GAS wants the
 	 *  PlayerState as owner and the pawn as avatar, so that ability state survives a pawn while
 	 *  traces, sockets and montages still resolve against the body.
+	 *
+	 *  **Never reach past `AbilitySystem` to the owned fallback.** Players keep their ASC on
+	 *  `ATDPlayerState`; the training dummy has no PlayerState at all, so which one is correct is
+	 *  a question only this function may answer. Reading the component directly silently gives the
+	 *  wrong one for every player-controlled character.
 	 */
 	UAbilitySystemComponent* ResolveAbilitySystem(AActor*& OutOwner) const;
 

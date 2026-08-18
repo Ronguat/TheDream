@@ -3,7 +3,7 @@
 ## Project Intent
 Build a high-precision **PvP** combat prototype in Unreal Engine that prioritizes spacing, reactability windows, stamina as a real resource, and clear punish opportunities.
 
-**PvP is the destination, and it is a requirement rather than a later phase.** A combat prototype that cannot be played against another person does not answer the question it exists to ask — every feel goal below is about what two players do to each other. That does not mean networking each slice as it is built; it means no slice may be built in a way that has to be torn up to network it. See **Building for the network**, below.
+**PvP is the destination, not a later phase.** A prototype that cannot be played against another person does not answer the question it exists to ask — every feel goal below is about what two players do to each other.
 
 Feel goals (in priority order):
 - Precise spacing and whiff punish
@@ -13,14 +13,7 @@ Feel goals (in priority order):
 - Strong melee identity first; ranged and hybrid come later
 
 ## Current Prototype Scope
-**In scope right now**
-- Single melee weapon archetype with the full 3-point offense (Light / Heavy / Charged Heavy)
-- 3-point defense (Block, Dodge, Parry)
-- Stamina (100 max, costs, regen rules, exhaustion)
-- Basic hitstun, blockstun, and knockdown + get-up options
-- One player character + one simple AI or dummy enemy for testing
-
-**Explicitly out of scope for now**
+**In scope** is the execution order below. **Explicitly out of scope:**
 - Multiple weapons / weapon swapping
 - Ranged and Hybrid archetypes
 - Armor classes
@@ -45,14 +38,8 @@ prediction**, the one GAS is designed around. Three rules bind all new work:
   the game is the **light's 200 ms**. When a timing is chosen, say what it looks like with a round
   trip in it.
 
-**The ASC lives on `ATDPlayerState` for players.** The training dummy has **no PlayerState**, so
-`ATDCombatCharacter` *resolves* which ASC it uses rather than assuming one — never reach past
-`AbilitySystem` to the owned fallback.
-
-**Networked play is a prerequisite for the feel verdict, not a stretch goal**: with one local human
-the second player is remote by definition, so **Netcode precedes Interplay**. Netcode difficulty is
-never a reason to compromise combat feel. Status and what is still outstanding are in Netcode's
-brief.
+**Netcode difficulty is never a reason to compromise combat feel.** Status and what is outstanding
+are in Netcode's brief.
 
 ## Combat Vocabulary
 
@@ -78,12 +65,9 @@ Note that "release" also names the button coming up, via GAS's `InputReleased`. 
 - **The shipping title lives only in `ProjectName` (`Config/DefaultGame.ini`) and localized strings** — never in code, asset names, folder paths, or gameplay tags. That is what makes retitling a one-line change rather than a migration.
 - **Ownership rule:** everything authored for this project lives under `/Game/TheDream/`. Anything at `/Game/` root is Epic template or third-party content. Combat content therefore lives under `/Game/TheDream/Combat/` (`Abilities/`, `Effects/`, `Animations/`, `Input/`, `Characters/`, `Data/`).
 - C++ mirrors this: `Source/TheDream/Core/` (game mode, player controller, base character) and `Source/TheDream/Combat/` (`Abilities/`, `Attributes/`, `Tasks/`, `Notifies/`). Includes are written relative to the module root, e.g. `#include "Combat/Attributes/TDAttributeSet.h"`.
-- Never duplicate a World Partition level to make a new map — the external actor packages don't re-path and actors silently go missing. Use File → New Level → Empty.
 - Name assets clearly: `GA_Attack`, `GE_StaminaCost_Dodge`, `ABP_Combat`, etc.
 - Use data-driven values (curves, data assets, or simple constants) for timings, stamina costs, and windows so they can be tuned without code changes.
 - Every new system should be playable in PIE with a debug enemy or training dummy as soon as possible.
-  **The dummy mirrors the player's combat values; divergence is a design decision needing an
-  argument** — a fixture reproduces the conditions under test, so parity is the default.
 
 ## Project Documentation
 
