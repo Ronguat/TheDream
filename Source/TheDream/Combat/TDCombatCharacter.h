@@ -205,6 +205,10 @@ public:
 	UFUNCTION(BlueprintPure, Category="Combat|Health")
 	bool IsDead() const { return bDead; }
 
+	/** Fixture-only: this character starts no lunges at all. See bDebugSuppressLunge. */
+	UFUNCTION(BlueprintPure, Category="Combat|Debug")
+	bool IsDebugLungeSuppressed() const { return bDebugSuppressLunge; }
+
 	/** True while BlockingTag is present, i.e. a guard is up. */
 	UFUNCTION(BlueprintPure, Category="Combat|Block")
 	bool IsBlocking() const;
@@ -837,6 +841,20 @@ protected:
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat|Debug")
 	bool bDebugAutoAttackHomeBetweenAttacks = false;
+
+	/**
+	 *  Suppress **every** lunge this character would start — base, per-attack, and the dodge's.
+	 *  Fixture-only, defaulted off, and checked in `UTDGameplayAbility::StartLunge` because that is
+	 *  the single function they all route through. Logs `LUNGE SKIP` so it is never silently on.
+	 *
+	 *  This is what a *stationary* attacker actually requires, and `bDebugAutoAttackHomeBetweenAttacks`
+	 *  is not a substitute: the lunge and the release window both happen **inside one attack**, so
+	 *  re-homing afterwards leaves the hitbox having already gone live wherever the travel ended.
+	 *  Learned the expensive way on 2026-08-18 — an attacker whiffing into open space has an open
+	 *  standoff gate and simply leaves, firing its release far from the scenario.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat|Debug")
+	bool bDebugSuppressLunge = false;
 
 	/**
 	 *  Debug only: defend on a loop, so the defensive economy can be watched without a human.

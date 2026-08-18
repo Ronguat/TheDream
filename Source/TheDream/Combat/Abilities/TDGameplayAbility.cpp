@@ -2,6 +2,7 @@
 
 #include "Combat/Abilities/TDGameplayAbility.h"
 #include "Combat/TDCombatDebug.h"
+#include "Combat/TDCombatCharacter.h"
 #include "Combat/Tasks/AbilityTask_FacingLunge.h"
 #include "Combat/TDGameplayTags.h"
 #include "Core/TheDreamCharacter.h"
@@ -286,6 +287,25 @@ void UTDGameplayAbility::StartLunge(
 	if (!Avatar || DistanceCm <= 0.0f || DurationSeconds <= 0.0f)
 	{
 		return;
+	}
+
+	// Fixture-only, and it belongs here rather than in any caller because **every** lunge routes
+	// through this one function -- the base lunge, each attack's, and the dodge's.
+	//
+	// Suppressing after the fact is not equivalent, which cost a wrong build on 2026-08-18: the
+	// lunge and the release window both happen *inside* one attack, so re-homing between attacks
+	// leaves the hitbox having already gone live wherever the travel ended. A stationary attacker
+	// has to be stationary during the attack, not restored after it.
+	if (const ATDCombatCharacter* Combatant = Cast<ATDCombatCharacter>(Avatar))
+	{
+		if (Combatant->IsDebugLungeSuppressed())
+		{
+			TD_TIMING_LOG(TEXT("[%.3f] LUNGE SKIP %s suppressed %.0fcm (fixture)"),
+				GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f,
+				*GetNameSafe(Avatar),
+				DistanceCm);
+			return;
+		}
 	}
 
 	// Target Lock's standoff goes to the source rather than being applied to the distance here.

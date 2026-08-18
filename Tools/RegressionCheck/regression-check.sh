@@ -11,7 +11,7 @@
 #   ./regression-check.sh --self-test        # prove the instrument can fail
 #
 # Scenarios: s1-light s1-heavy s1-charged s2-light s2-heavy s2-charged s3
-#            s4-string s4-guarantee s4-block   (all need StringTaps 3)
+#            s4-string s4-guarantee s4-block s4-360   (all need StringTaps 3)
 # Exit 0 = all assertions passed, 1 = at least one failed, 2 = usage/no data.
 
 set -uo pipefail
@@ -268,6 +268,24 @@ dodges_inside_hitstun() { # DODGE lines falling between a HITSTUN and its HITSTU
 }
 
 
+first_burst_targets_per_window() { # "<attack index> <distinct targets damaged in that window>"
+	# **First burst only, and that is the assertion's whole shape.** The finisher's 360 hits both
+	# bodies and then knocks them to the attacker's facing axis, so from the second burst onward
+	# they sit inside the 60-degree wedge and the earlier attacks hit them too -- the discrimination
+	# is gone. The ender's displacement is Knockdown & Oki's to replace; when it does, widen this.
+	# Do not "fix" a failure here by taking more bursts: that samples contaminated geometry.
+	awk '
+		/^\[[0-9.]+\] ACTIVATE/ {
+			for (i=1;i<=NF;i++) if ($i ~ /^swing=/) { split($i,a,"="); sw=a[2] }
+			if (sw+0 == 0) { bursts++ }
+			if (bursts > 1) { exit }
+			next
+		}
+		/^\[[0-9.]+\] RELEASE BEGIN/ { inwin=1; delete seen; n=0; next }
+		/^\[[0-9.]+\] RELEASE END/   { if (inwin) print sw " " n; inwin=0; next }
+		inwin && /^\[[0-9.]+\] DAMAGED/ { if (!($3 in seen)) { seen[$3]=1; n++ } }' "$SLICE"
+}
+
 guardstun_spans() { # GUARD BREAK to the next GUARD END
 	awk '
 		/^\[[0-9.]+\] GUARD BREAK/ { t=$1; gsub(/[\[\]]/,"",t); b=t+0; have=1; next }
@@ -487,6 +505,32 @@ run_s4_guarantee() {
 		"$(awk -v v="$BAND_HITSTUN_LIGHT" -v t="$BAND_HITSTUN_TOL" 'BEGIN{printf "%.3f", v+t}')" "s"
 }
 
+run_s4_360() {
+	# Light 3's 360-degree volume, asserted as a count rather than an angle. The attacker holds its
+	# placed yaw (FacingMode Never) with a target 90 degrees to either side, so the shared
+	# 60-degree wedge -- even widened by the ~24 degrees a capsule subtends at this range -- cannot
+	# reach either. The finisher has no bearing test at all, so it reaches both.
+	#
+	# Requires bDebugAutoAttackHomeBetweenAttacks: an attacker whiffing into open space has an open
+	# standoff gate and runs its full authored lunge, which would carry it away from both.
+	local rows early late
+	rows=$(first_burst_targets_per_window)
+	if [ -z "$rows" ]; then
+		check "first burst observed" 1 "no release windows in the first burst"
+		return
+	fi
+
+	early=$(printf '%s\n' "$rows" | awk '$1 < 2 {print $2}' | sort -u | tr '\n' ' ')
+	late=$(printf '%s\n' "$rows" | awk '$1 == 2 {print $2}' | sort -u | tr '\n' ' ')
+
+	check "60-degree attacks reach neither" \
+		"$([ "$(echo $early)" = "0" ] && echo 0 || echo 1)" \
+		"attacks 1-2 damaged: ${early:-none} distinct targets"
+	check "the 360 finisher reaches both" \
+		"$([ "$(echo $late)" = "2" ] && echo 0 || echo 1)" \
+		"attack 3 damaged: ${late:-none} distinct targets"
+}
+
 run_s4_block() {
 	assert_burst_shape
 	assert_all_equal "BLOCKED staminaDamage" "stamina_damage_values" "$BAND_STAMDMG_LIGHT"
@@ -605,6 +649,7 @@ case "$SCENARIO" in
 	s4-string)    run_s4_string ;;
 	s4-guarantee) run_s4_guarantee ;;
 	s4-block)     run_s4_block ;;
+	s4-360)       run_s4_360 ;;
 	*) echo "regression-check: unknown scenario '$SCENARIO'" >&2; usage ;;
 esac
 

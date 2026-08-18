@@ -279,14 +279,26 @@ re-author may well do: it is one comparison, but nothing enforces it in code.
 The lights-low-knockback illustration died in the process, as the resolution predicted — lights
 author the **full** reset, and heavies and charged knock down instead.
 
-**Before the next fixture work, and at Interplay at the latest — *light 3's 360° wedge ships with
-no assertion behind it.*** Filed 2026-08-18 after five failed attempts to stage it, and the
-diagnosis is the valuable part.
+**~~Before the next fixture work — light 3's 360° wedge ships with no assertion behind it.~~
+DISCHARGED 2026-08-18, hours after being filed**, by `s4-360` — first burst only, attacks 1–2
+damaging zero targets and attack 3 damaging two, made to fail on purpose before being trusted. What
+discharged it was **`bDebugSuppressLunge`**: the attacker had to be stationary *during* an attack,
+and `bDebugAutoAttackHomeBetweenAttacks` could not do that because the lunge and the release both
+happen inside one attack, so re-homing afterwards left the hitbox having already gone live wherever
+the travel ended. Kept below because the diagnosis outlived the trap and two parts of it are
+standing hazards rather than history.
 
-**The mechanic is verified, by eye:** the designer watched swing 2 damage two bodies in one release
-window. What does not exist is a check that fails if the arc is ever changed back — `s4-string`,
-`s4-guarantee` and `s4-block` are green and asserting the string's other mechanics, and none of
-them would notice.
+**Still true, and the reason this entry stays:**
+
+- **The assertion covers the first burst only.** The finisher knocks both bodies onto the
+  attacker's facing axis, so later bursts have them inside the 60° wedge. **Knockdown & Oki lifts
+  that** when it replaces the ender's displacement with a knockdown — second in the order, behind
+  Parry.
+- **The ender's displacement is a known divergence, left alone deliberately.**
+  `ApplyKnockbackToTarget` runs on every unblocked hit with no final gate, while the slice was
+  specified as *"the ender, heavies and charged displace nothing"*. Knockdown & Oki owns replacing
+  it, and *"it is impossible for it not to come up, since an entire slice is dedicated explicitly
+  and specifically to it."*
 
 **Why the automated attempts failed, so nobody repeats them.** Two findings, both instrumented:
 
@@ -301,23 +313,7 @@ them would notice.
   ~24° subtended widening. **The aim-assist selection is an independent system.** That is a
   standing hazard for **Combat AI**, which will want to steer attacks and will meet it.
 
-**The test that should work, untried:** one target placed *behind* a non-turning attacker.
-Swings 0–1 at 60° cannot reach it, swing 2 at 360° can, and no second body or simultaneity is
-needed. It requires only that the attacker hold position — `ReturnToDebugAutoAttackHome` already
-exists and is deliberately suppressed mid-burst so a teleport cannot sever the spacing chain
-`s4-string` measures, so the knob is a between-attacks variant of something already written.
-
-**The trigger is Knockdown & Oki, and the blocker and the slice are the same thing** (the user,
-2026-08-18). What stales the test is the **ender's knockback**: swing 2 hits both bodies and shoves
-them onto the attacker's facing axis, so the next burst's 60° wedge catches them and the
-discrimination collapses. Knockdown & Oki is the slice that replaces what the ender does to its
-victim with a knockdown — so the thing blocking the test is exactly what that slice changes, and it
-is the *next* slice rather than a distant one.
-
-**The ender's displacement is placeholder, and the divergence is known.** `ApplyKnockbackToTarget`
-runs on every unblocked hit with no final-swing gate, while the slice was specified as *"the ender, heavies and charged displace nothing"*. Left alone deliberately: the ender's real
-treatment is knockdown, Knockdown & Oki owns it, and *"it is impossible for it not to come up, since
-an entire slice is dedicated explicitly and specifically to it."* Do not silently gate it here.
+**What worked in the end** was the designer's design, not that one: two targets either side of an attacker that aims between them and does not move. Both sit ~90° off-axis, so the 60° attacks reach neither and the 360 reaches both — a sharper discrimination than one-versus-two.
 
 **Also needed, and useful beyond this test:** a **between-bursts position reset for all
 combatants**. `bDebugAutoAttackHomeBetweenAttacks` (2026-08-18) holds the *attacker* still; the

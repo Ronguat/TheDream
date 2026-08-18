@@ -372,10 +372,26 @@ proposals were stale by the time they were built — cadence 350 → **500 ms** 
 the designer, hitstun 0.400 → **0.550** forced up to outlast it, blockstun 0.400 → **0.350**
 re-derived against it. Read the CDO when adding a band; do not copy a plan.
 
-**`s4-360` does not exist, deliberately.** Light 3's 360° wedge is verified by eye and has no
-assertion. See the trap in `Docs/Combat-Decisions.md` for why five attempts failed and what the
-trigger is — the short version is that a 360° wedge short-circuits before any bearing test, so
-facing was never the variable.
+| `s4-360` | 0.1, **taps 3**, `FacingMode` **Never**, **`bDebugSuppressLunge`** | `Off`, plus the player spawned at (200, 150) opposite the defender | **first burst only**: attacks 1–2 damage **zero** distinct targets, attack 3 damages **two** |
+
+**`s4-360` asserts the first burst and nothing after it, and that is the design rather than a
+shortcut.** The finisher hits both bodies and then knocks them onto the attacker's facing axis, so
+from the second burst they sit inside the 60° wedge and the earlier attacks reach them too. **Do not
+"fix" a failure by widening the sample** — that measures contaminated geometry. The exclusion lifts
+when Knockdown & Oki replaces the ender's displacement with a knockdown.
+
+**Its fixture is unlike every other scenario's and all three parts are load-bearing.** `FacingMode`
+**Never** holds the placed yaw so both targets sit ~90° off-axis, outside the 60° wedge even with
+the ~24° a capsule subtends at that range. **`bDebugSuppressLunge`** is what makes the attacker
+stationary: a whiff into open space has an open standoff gate and runs the full authored lunge, so
+the hitbox goes live far from the scenario. `bDebugAutoAttackHomeBetweenAttacks` is **not** a
+substitute — the lunge and the release both happen *inside* one attack, so re-homing afterwards is
+too late. And the player is the second target, via `startTransform`, so no level change is needed.
+
+**Made to fail on purpose 2026-08-18**: with `FacingMode` back on `WhileAttacking` the attacker
+turns toward one body, attacks 1–2 reach it, and the first assertion fails — while the second still
+passes, because a 360° volume short-circuits before any bearing test and genuinely does not care
+where the attacker is looking.
 
 **`s2-charged`'s blockstun assertion is a filed trap promoted to a standing check.** The charged's
 stamina damage equals the whole bar, so it always breaks and can never blockstun. **If that
