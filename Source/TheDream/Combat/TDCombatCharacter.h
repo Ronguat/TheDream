@@ -823,6 +823,22 @@ protected:
 	bool bDebugAutoAttackRotateTargets = false;
 
 	/**
+	 *  Teleport home after **every** attack rather than only at a burst's end.
+	 *
+	 *  Default false, and the default is load-bearing: `s4-string` measures the spacing chain a
+	 *  connecting string produces, and a teleport between attacks would sever it. That is exactly
+	 *  why the burst guard exists, so this knob deliberately opts *out* of it rather than moving it.
+	 *
+	 *  What it buys is a **stationary attacker**, which is the whole requirement for testing a
+	 *  360-degree volume: the wedge short-circuits before any bearing test, so facing never
+	 *  mattered -- only whether the bodies stayed in reach. An attacker whiffing into empty space
+	 *  has an open standoff gate and travels its full authored lunge, so without this it leaves
+	 *  both targets behind after one attack.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat|Debug")
+	bool bDebugAutoAttackHomeBetweenAttacks = false;
+
+	/**
 	 *  Debug only: defend on a loop, so the defensive economy can be watched without a human.
 	 *
 	 *  The mirror of bDebugAutoAttack, and pairing it with one is deliberately *two actors' job*.

@@ -88,6 +88,8 @@ Attack phases, used consistently in code, comments and discussion:
 
 Note that "release" also names the button coming up, via GAS's `InputReleased`. Bare "release" always means the damaging phase; the button edge is always written as *input release*.
 
+**Attack and swing mean the same thing** (the user, 2026-08-18). A chained light is **three attacks**, not one attack in three parts — `FTDStringSwing` and the trace's `swing=N` are that index. A **string** is the chain they form. A **burst** is the debug fixture's firing cycle, which produces a string when `DebugAutoAttackStringTaps` > 1 and a single attack at its default 1.
+
 ### Offense (Melee)
 **An attack is defined by when it hits, not by how it plays.** Each tier authors the moment its hitbox goes live and the input boundary you must release before to get it. Every play rate is derived from those at runtime. Two numbers per tier:
 
@@ -107,6 +109,12 @@ Note that "release" also names the button coming up, via GAS's `InputReleased`. 
 
 Both only ever subtract, so the authored distance stays a hard ceiling and neither is homing.
 
+**Aim assist may correct where you are pointed, never whether you were in range** (graduated from Target Lock 2026-08-13). It cannot rescue a spacing miss, so whiff punish is untouched, and **it aims the *lunge*, not the swing** — the damage wedge already carries ±36–50° of tolerance while travel is a line, so a 25° error puts you 84 cm to the side. The user's framing: *a margin of error for aiming the lunge, not for aiming the mouse.*
+- **The wedge's arc is the knob and means how wrong your aim may be; its reach is derived** — base lunge + branch lunge + damage reach + `AimAssistMarginCm`, the one authored number. **The wedge must reach past hit range, and that gap is the design rather than slack**, or lock-on becomes a rangefinder. `bEnabled` turns a branch off; an arc of 0 does not. **The arc is a learnable constant** and stays static across the ladder *and* across string swings (2026-08-16) — an intuition for how much error is forgiven is only worth building if the answer does not change per attack.
+- **Homing follows the ladder, runs through the base lunge, and stops at commit**, so it never leaks a tier the defender has not been told about, and stopping at commit is where the reaction window opens.
+- **Evaluated in the camera's frame** while damage stays actor-framed — defenders must be able to trust what the body does. **The player's authority is selection, not facing**, and two rules writing one yaw would deadlock. **No hysteresis yet**, so expect selection flicker as the wedge grows.
+- **AI focus does not drive an attack's target** (measured 2026-08-18): the aim-assist selection is an independent system, and setting an AI's focus does not steer its swing. Load-bearing for **Combat AI**; see the trap.
+
 **An attack owns your movement and your feet** (2026-08-12, from play — this was assumed for months and written down nowhere):
 - **Movement input is suppressed for the whole ability** — windup, release *and* recovery. WASD and jump do nothing; the attack's own lunge still moves you. You cannot walk out of your own commitment. Implemented as `UTDGameplayAbility::bLocksMovement`, a checkbox on the shared base, so block, parry or a future crouch adopt it the same way.
 - **Attacks cannot start while airborne**, via the existing `bBlockedWhileAirborne`. It gates *activation*, not continuation — an attack that starts grounded keeps running if its lunge carries you off a ledge, which is deliberate. **The refusal is not buffered**: an attack pressed in the air is dropped, not replayed on landing.
@@ -125,7 +133,7 @@ Two rules the model depends on:
 - **Windup length is preset.** Releasing early inside a band changes nothing — the attack still takes its full time to arrive. The cost is real dead time, and it is what stops a fractionally-held heavy from dominating light.
 - **Reactability is measured from the tell, not from the press.** All tiers share one windup, so the defender's window is coil → damaging. Lengthening a windup does not by itself make an attack more reactable; moving the coil earlier does.
 
-- **Light**: released before 150 ms, hits at 200 ms. 2–4 hit string (weapon dependent) — *not yet built; currently a single hit*. **No light is truly safe** (2026-08-16, superseding *"first hit safe on block; subsequent hits are not"*): recovery is authored long and only chaining skips it, so on whiff **and** on block the real cover is the defender hesitating against the next hit — the delay-and-bait layer above that is the design, **specified 2026-08-16 and verified against the authored values** (finishing is punishable by 350 ms, stopping early by 200, and an immediate chain beats an eager punish by 50): see `Docs/Combat-Decisions.md`. **Every non-final hit carries the target to one authored spacing** in front of the attacker, identical every time; a blocked hit is centred exactly the same but concedes notably less ground. Any hit in the string guarantees the rest — **coupled to the ban on heavy→light; they are one decision, see `Docs/Combat-Decisions.md`**. Last hit knocks down but has heavy endlag. Minimal stamina damage. It never *coils*, so it carries no tell that distinguishes it from a heavy — but **it is not unreactable**, which this file claimed until 2026-08-11: the montage starts on the press, so the windup is a tell from frame one. **250 ms was reactable and the light moved to 200 ms because of it** (2026-08-12); the 150 ms boundary is the measured floor for trivially consistent inputs, not a guess. Whether 200 ms is far enough is itself unverified — it has never been played against a human.
+- **Light**: released before 150 ms, hits at 200 ms. 2–4 hit string (weapon dependent) — **shipped at three hits 2026-08-18**; the knockdown terminator is Knockdown & Oki's. **No light is truly safe** (2026-08-16, superseding *"first hit safe on block; subsequent hits are not"*): recovery is authored long and only chaining skips it, so on whiff **and** on block the real cover is the defender hesitating against the next hit — the delay-and-bait layer above that is the design, **specified 2026-08-16 and verified against the authored values** (finishing is punishable by 350 ms, stopping early by 200, and an immediate chain beats an eager punish by 50): see `Docs/Combat-Decisions.md`. **Every non-final hit carries the target to one authored spacing** in front of the attacker, identical every time; a blocked hit is centred exactly the same but concedes notably less ground. Any hit in the string guarantees the rest — **coupled to the ban on heavy→light; they are one decision, see `Docs/Combat-Decisions.md`**. Last hit knocks down but has heavy endlag. Minimal stamina damage. It never *coils*, so it carries no tell that distinguishes it from a heavy — but **it is not unreactable**, which this file claimed until 2026-08-11: the montage starts on the press, so the windup is a tell from frame one. **250 ms was reactable and the light moved to 200 ms because of it** (2026-08-12); the 150 ms boundary is the measured floor for trivially consistent inputs, not a guess. Whether 200 ms is far enough is itself unverified — it has never been played against a human.
 - **Heavy**: held past 150 ms, hits at 500 ms. Single hit. Safe on block, punishable on whiff. Knocks down. Higher range, moderate stamina damage. *Currently **350 ms** coil → damaging, more reactable than intended; deferred until the ladder is tuned as a whole. **It got worse when the light got faster**, and that coupling is easy to miss: the coil begins where the light stops being available, so moving that boundary 200 → 150 ms widened the heavy's tell window by the same 50 ms. Any future change to the light's boundary moves the heavy's reactability with it.*
 - **Charged Heavy**: held past 450 ms, hits at 750 ms. Single hit. Breaks block, heavy endlag, knocks down. Highest range. Very reactable.
 - Any light in a chain can be held to convert into a heavy.
@@ -147,8 +155,8 @@ Timings land within about a frame, biased late. `GA_Attack`'s `Branches` array i
 - **Parry** (MB4 or LAlt+RMB): 400 ms active window, 360° coverage. Success = no stamina drain, no blockstun, and (vs melee) 500 ms offensive lock on attacker. Success vs ranged redirects to crosshair. Whiff = 1000 ms defensive lockout. Successful parries can retrigger without impeding other actions.
 
 ### Stun & Knockdown
-- Blockstun: **Disables offense and nothing else**, for a duration the *attack* authors (`BlockstunSeconds` per branch on `GA_Attack`). **Defense is deliberately untouched** — movement, dodging, the guard itself and, when it exists, **parry**, which means **blockstun and parry never know about each other** *(the user, 2026-08-15, correcting a line that read "offense + parry" from this file's beginning; the implementation never matched it, `GA_Attack` being the only ability that carries `State.Blockstun`)*. Taking a defender's guard for blocking correctly would invert the mechanic. **A guard break supersedes it rather than stacking**: a broken guard is not a successful block. Shipped 2026-08-14 at each tier's own `RecoverySeconds`, 50 ms the safe side of neutral, and **unfelt**. **The charged's can never fire** — its stamina damage empties any bar, so it always breaks instead; filed as a trap.
-- Hitstun: Brief, enables combos.
+- Blockstun: **Disables offense and nothing else**, for a duration the *attack* authors (`BlockstunSeconds` per branch on `GA_Attack`). **Defense is deliberately untouched** — movement, dodging, the guard itself and, when it exists, **parry**, which means **blockstun and parry never know about each other** *(the user, 2026-08-15, correcting a line that read "offense + parry" from this file's beginning; the implementation never matched it, `GA_Attack` being the only ability that carries `State.Blockstun`)*. Taking a defender's guard for blocking correctly would invert the mechanic. **A guard break supersedes it rather than stacking**: a broken guard is not a successful block. Shipped 2026-08-14 at each tier's own `RecoverySeconds`, 50 ms the safe side of neutral. **The light's stopped being derived that way on 2026-08-16**: once a chain existed, its own recovery was measuring against the wrong threat, so its 0.35 is derived against the **chain cadence** instead — heavy and charged keep the recovery basis. Both derivations are tuning-map rows, and the light's is not free. **The charged's can never fire** — its stamina damage empties any bar, so it always breaks instead; filed as a trap.
+- Hitstun: authored per attack (`HitstunSeconds` on `GA_Attack`'s branches and swings; the light's is **0.55**), and it **refuses every ability, defense included** — *that refusal is what makes "any hit guarantees the rest" true*, and it is why hitstun is a Light String mechanic rather than a Knockdown one. **It must outlast the chain gap or the guarantee silently stops holding**, which is why the cadence and this move together. Movement stays free; the lock is Knockdown & Oki's, deferred beside the guard break's.
 - Knockdown: 1.5 s default get-up. Early get-up via Dodge, Block, or Attack. Get-up attack knocks back, short recovery, very punishable on block/whiff. **A charged's knockdown is hard — fewer get-up options** (2026-08-16); the grades are Knockdown & Oki's to build.
 
 ### Stamina
@@ -184,7 +192,7 @@ Timings land within about a frame, biased late. `GA_Attack`'s `Branches` array i
 ## Project Documentation
 Five standing files carry knowledge the code cannot (a work-in-flight plan file may sit beside them, and says so in its own header). Read them before working in their area; keep them true in the same commit that makes them wrong. **Each has a trigger rather than being read at large** — that is why they are not in this file, which is loaded in full every session.
 - **`Docs/Closing-Down.md`** — the eight-step procedure for ending a session. Trigger: the user says to wind down, and nothing else.
-- **`Docs/Debug-Instruments.md`** — this project's own instrumentation: every trace tag, the cvars, the ungated warnings, the attacker and defender fixtures with the configurations that silently invalidate them, the test level's measurable geometry, and the regression checker's scenario matrix. Trigger: you are about to measure something in combat. Split from `Working-In-Unreal.md` 2026-08-14 because it was the only part of it that grew — one line per combat feature, forever, which is the correct shape for a doc read by whoever is measuring and the wrong shape for one read every session.- **`Docs/Working-In-Unreal.md`** — how to drive the editor and its MCP toolset without losing work: which writes silently do nothing, when Live Coding is safe versus needing a full editor-closed rebuild, what is not scriptable at all, and the standing regression checks for combat changes.
+- **`Docs/Debug-Instruments.md`** — this project's own instrumentation: every trace tag, the cvars, the ungated warnings, the attacker and defender fixtures with the configurations that silently invalidate them, the test level's measurable geometry, the regression checker's scenario matrix, and the post-change verification checklist (moved here from `Working-In-Unreal.md` 2026-08-18). Trigger: you are about to measure something in combat. Split from `Working-In-Unreal.md` 2026-08-14 because it was the only part of it that grew — one line per combat feature, forever, which is the correct shape for a doc read by whoever is measuring and the wrong shape for one read every session.- **`Docs/Working-In-Unreal.md`** — how to drive the editor and its MCP toolset without losing work: which writes silently do nothing, when Live Coding is safe versus needing a full editor-closed rebuild, what is not scriptable at all, and the standing regression checks for combat changes.
 
   **Read it front to back at the start of every session** (2026-08-13, the user's instruction). It is not a reference to reach for when something breaks — nearly everything in it **fails silently**, so it only helps if it is already in your head before you touch the editor. It was cut from 820 lines to ~400 on 2026-08-13 to make that reasonable, and **keeping it readable is now a closedown step**: anything compressible to its rule gets compressed, and the incidents behind them live in git and `Docs/Combat-Decisions.md`. *(Re-trimmed by the 2026-08-15 structure audit after a day parked at its 420 tripwire. Two successive notes here stating a live count both went stale within hours, so this line no longer carries one — `wc -l` is the authority.)*
 - **`Docs/Combat-Decisions.md`** — dated log of combat decisions and the reasoning behind them, plus the working sections at the top. **Known traps** are latent defects filed against the slice that trips them; the **tuning map** says which knob to move when a verdict comes back, which obvious-looking knob is wrong, and which values are **derived rather than free** and must be re-derived instead of tuned; the **symbol index** answers *"what was decided about this thing"* for any symbol in the codebase; and the bridge tables cover anything superseded or renamed, **including the item numbers this file stopped using on 2026-08-12**. Append an entry whenever a gameplay choice is made that a future reader could reasonably second-guess; never rewrite an entry to match new code, supersede it with a new one.
@@ -336,24 +344,20 @@ counted 2026-08-14) and is never rewritten; `Docs/Combat-Decisions.md` carries t
 
 Execution order, the only line that changes when the order does:
 
-> **~~Attack Ladder~~ → ~~Dodge~~ → ~~Sword & Shield~~ → ~~Input Buffer~~ → ~~Death~~ → ~~Dodge Distance~~ → ~~Attack Swap~~ → ~~[hover bug]~~ → ~~[facing pass]~~ → ~~Recovery~~ + ~~Lunge~~ → ~~Target Lock~~ → ~~Block~~ → Light String → Parry → Knockdown & Oki → Death-full → Settings → Netcode → Tuning Rig → Interplay**
+> **~~Attack Ladder~~ → ~~Dodge~~ → ~~Sword & Shield~~ → ~~Input Buffer~~ → ~~Death~~ → ~~Dodge Distance~~ → ~~Attack Swap~~ → ~~[hover bug]~~ → ~~[facing pass]~~ → ~~Recovery~~ + ~~Lunge~~ → ~~Target Lock~~ → ~~Block~~ → ~~Light String~~ → Parry → Knockdown & Oki → Death-full → Settings → Netcode → Tuning Rig → Interplay**
 
 **Structure Audit is deliberately absent from that line** — its structural half ran 2026-08-15,
 and what remains keeps a trigger rather than a position; see its entry at the end.
 
-**Pick up at Light String's clip roster — the mechanism is done, the animation is not.** Sitting 2
-shipped the string at **three hits**, values authored and measured working: swings chain at 489/494
-ms, damage steps exactly 15, hitstun covers every gap, the spacing reset lands centred at 150. Seven
-scenarios green. **Cadence is the project's first felt number measured off a human** and blockstun
-is derived from it — both are tuning-map rows, and both are derived rather than free.
+**Pick up at Parry.** Light String shipped 2026-08-18 and its roster is settled; see Done. Nothing
+is blocked. **Read Parry's entry in Remaining before starting** — its 400 ms / 500 ms / 1000 ms
+numbers predate the light's move to 200 ms and must be re-derived against the current ladder, and
+its remaining clip question needs a preview rather than a search.
 
-**Animation is the only blocker.** The designer's audit runs from
-`Docs/Candidates-Attack-Clips.md`, pruned when it ends. **Lights 2 and 3 have provisional picks
-2026-08-18**: V3 `Attack8_Stage2_Complete`, and `Attack2_Stage2_Complete` which also first-tests a
-360° attack. **Only the designer can judge a clip** — strike timing and sword-versus-shield are
-unreadable through every tool, confirmed by probe. `Docs/Plan-Light-String.md` carries the montage
-loop; s4 scenarios and the play pass are owed. **Heavy and charged left this slice 2026-08-18** for
-the bespoke windup pass, unplaced in the order; see the decision log.
+**Two things Light String left owed and unowned.** Its **play pass** belongs to Interplay by nature
+and is listed under Done. And **heavy and charged still have no clips of their own** — shopping was
+deferred for time on 2026-08-18, and the **bespoke windup pass** that wants them is a named slice
+with **no position in the execution order**; placing it is an open decision.
 
 *(The 2026-08-14 audit's five open checks are all discharged; what still matters moved to where it
 is used — the shadowed-value rule above, plus tables in `Docs/Combat-Decisions.md`.)*
@@ -391,6 +395,22 @@ covered seven items.
 of one slice is not a rule and goes to the decision log. Otherwise Core Combat Rules becomes the
 new dumping ground and the problem has merely moved.
 
+- **Light String** — the chained light. **Shipped at three attacks 2026-08-18**: mechanism played
+  and measured, clips authored, and `s4-string` / `s4-guarantee` / `s4-block` green alongside the
+  existing suite. Its rules are in Core Combat Rules above. **The knockdown terminator is Knockdown
+  & Oki's** — the ender currently *displaces* its victim instead, which that slice replaces.
+   - **The roster is V3 `Attack4_Stage1` → `Attack8_Stage2` → `Attack2_Stage2`**, the last also the
+     project's first 360° attack, given a 360° damaging volume and a release authored to its own
+     notify width so it plays at true speed. Heavy and charged clip shopping was **deferred for
+     time and is unowned** — the bespoke windup pass wants them anyway.
+   - **`_Complete` for every attack, mid-string included**: the player may stop after any hit, so
+     each must resolve on its own. The consequence nobody argued for is that `_Complete` clips end
+     in a settled pose — which is why light 2's ending blends into light 3's 360 better than either
+     was chosen for. **That pairing is emergent and nothing protects it**; no assertion can see it,
+     so swapping either clip spends it silently.
+   - **The play pass is owed and belongs to Interplay by nature** — cadence and mash feel,
+     hold-to-heavy mid-string, the blocked-string mind game, corner-carry, and the buffered-aim
+     1vX test its trap prescribes.
 - **Block** — the full defensive half. Mechanics shipped and played 2026-08-14; the animation
   remainders shipped **2026-08-16**, play-verified, with `s2-light` green on all seven assertions
   after a `--self-test` proved the checker can fail. The rules are in Core Combat Rules above.
@@ -406,36 +426,8 @@ new dumping ground and the problem has merely moved.
    - **The Selects that swapped the blendspace had to go**, not as cleanup: the EventGraph runs
      before the AnimGraph, so the swap landed on the same frame the transition began and the machine
      blended the block pose to itself. They did not duplicate the state machine, they cancelled it.
-- **Target Lock** — attacks reach the target you aimed at. **Done 2026-08-13**, both halves
-  play-verified, finished 2026-08-14. The governing rule: it **may correct where you are pointed,
-  never whether you were in range**, so it cannot rescue a spacing miss and whiff punish is
-  untouched. **It aims the *lunge*, not the swing** — the damage wedge already carries ±36–50° of
-  tolerance while travel is a line, so a 25° error puts you 84 cm to the side. The user's framing:
-  *a margin of error for aiming the lunge, not for aiming the mouse.*
-   - **The gate is geometric and asked every movement tick**, contributing nothing while a body sits
-     within `LungeStandoffCm` ahead, so it can only ever *subtract* travel and is not homing. **It
-     shipped once as a pre-computed shorter distance and that was wrong** — pre-shortening bakes in
-     a prediction, so a retreating target became unreachable, which is worse than no system at all.
-   - **The aim wedge is the contract.** Its **arc** is the knob and means *how wrong your aim may
-     be*; **reach is derived** from travel plus damage reach plus `AimAssistMarginCm`, the one
-     authored number. **The wedge must reach past hit range — that gap is the design, not slack**,
-     or lock-on becomes a rangefinder and assist starts answering whether you were in range.
-     `bEnabled` turns a branch off; an arc of 0 does not.
-   - **Homing follows the ladder, runs through the base lunge, and stops at commit.** Widening only
-     happens at an escalation, the same instant the coil fires, so it never leaks a tier the
-     defender has not been told about — and stopping at commit is where the reaction window opens,
-     which is what leaves whiff punish intact.
-   - **Evaluated in the camera's frame**, not the body's: assist aids the attacker's input while
-     damage stays actor-framed, because defenders must be able to trust what the body does. Load
-     bearing rather than tidy — **the player's authority is selection, not facing**, and two rules
-     writing one yaw would deadlock. **No hysteresis yet**, so expect selection flicker as the wedge
-     grows.
-   - **Two ideas recorded, not decided:** dodge intangibility, worth trying only once the clamp has
-     been felt; and the **lunge strength curves**, which exist wired to nothing and are parked for
-     **Interplay**. Measuring a curve means moving the dummy past ~800 cm first, since
-     the gate truncates both lunges at the placed spacing.
 
-**Evicted 2026-08-14 and fully routed:** Attack Ladder, Dodge, Sword & Shield, Death, Dodge
+**Evicted:** Target Lock on 2026-08-18, its aim-assist rules graduated into Core Combat Rules above. **Evicted 2026-08-14 and fully routed:** Attack Ladder, Dodge, Sword & Shield, Death, Dodge
 Distance, Attack Swap and Input Buffer, plus the three things that were never items — the netcode
 groundwork **Slices A and B**, the **hover bug** and the **facing pass**. Their rules are in Core
 Combat Rules, their open questions in the slices that answer them, their latent defects in the traps
@@ -451,11 +443,10 @@ dependency, the rest is judgement and may be revisited.
 
 ### Remaining
 
-In execution order, and all sequential. **Block shipped 2026-08-16** and Target Lock on 2026-08-13; see Done.
+In execution order, and all sequential. **Light String shipped 2026-08-18** and Block on 2026-08-16; see Done.
 
-- **Light String** — the 2–4 hit light string. **It cannot fully finish before Knockdown & Oki**, since its last hit knocks down; expect to ship the string and leave its terminator behind. **Planned 2026-08-16, `Docs/Plan-Light-String.md`**: hitstun pulled forward as the guarantee's mechanism, and the knockback dispensation ships here as the spacing reset — knockdown alone stays behind. **Only the clip roster remains**, and `Docs/Candidates-Attack-Clips.md` carries the candidates, the criteria and what is already ruled out. *(A 2026-08-11 survey stood here until 2026-08-18 calling V3 `Attack4` the only four-stage family and the string unassemblable from one family: it was scoped to V1 and V3, and V2 — migrated that same day — holds a four-stage and a five-stage family. The audit file carries the recount command.)*
 - **Parry.** **Re-searched 2026-08-11** by enumerating every distinct `SwordShield` move rather than grepping for parry words, and the earlier picture was too thin. Beyond `Block1_Parry` there are `Block1` and `Block2` — discrete block actions with their own `_Idle` and `_Hit` — so there are **three candidate shapes plus failure states**, not one clip, and all are already migrated. The two packs split by **idiom**: V1 does held guard (Block's), V3 does discrete actions (a parry's). The `SwordShield` archetype holds three differently-named packs (`SwordAndShieldAnimV1`, `SwordShieldAnimV2`, `SwordSwordAnimV3`) and dual-sword content is all `DualSwordAnimation*` in its own archetype — so `SwordSword` is a vendor naming quirk, not a stance. What is still open needs a preview, not a search: whether V3's guard pose reads consistently beside V1's. Details in `Docs/Animation-Library.md`. **Re-derive the spec's numbers against the current ladder before building** — the 400 ms window / 500 ms reward / 1000 ms whiff lockout predate the light's move to 200 ms (flagged 2026-08-15).
-- **Knockdown & Oki** *(from Stun's 2026-08-15 split — shared plumbing justified adjacency, not a mono-slice)* — knockdown, the 1.5 s default get-up, the three early get-up options and the get-up attack, plus the guard break's full-lockout state the trap defers here and **jump-as-ability**, which rides it. **Gained 2026-08-16:** the charged's **hard knockdown** grade, hitstun's movement lock (deferred beside the guard break's), and the get-up attack consuming the knockback mechanism Light String builds. **`SwordShield` has no get-up content whatsoever** — unfiltered search for `Rise|GetUp|StandUp|Recover|Wake|Prone|Ground|KnockDown|Knock|Fallen|Down` returned zero for the archetype (2026-08-10). It exists only in `DaggerCombatAnimationV1` (18: `Rise1`–`Rise9`, two variants each) and `Unarmed` (8, including the bundle's only explicit `KnockDown`). Knockdown recovery therefore needs a **cross-archetype migration** — raise it before the slice starts.
+- **Knockdown & Oki** *(from Stun's 2026-08-15 split — shared plumbing justified adjacency, not a mono-slice)* — knockdown, the 1.5 s default get-up, the three early get-up options and the get-up attack, plus the guard break's full-lockout state the trap defers here and **jump-as-ability**, which rides it. **Gained 2026-08-16:** the charged's **hard knockdown** grade, hitstun's movement lock (deferred beside the guard break's), and the get-up attack consuming the knockback mechanism Light String builds. **Gained 2026-08-18, and this slice is now the string's terminator:** the light string's **ender knocks down**, and today it *displaces* instead — `ApplyKnockbackToTarget` runs on every unblocked hit with no final gate, deliberately left alone because this slice replaces what the ender does to its victim wholesale. That also makes it **`s4-360`'s trigger**: the ender's displacement is precisely what stales that test, so the blocker and this slice are the same thing. See the trap. **`SwordShield` has no get-up content whatsoever** — unfiltered search for `Rise|GetUp|StandUp|Recover|Wake|Prone|Ground|KnockDown|Knock|Fallen|Down` returned zero for the archetype (2026-08-10). It exists only in `DaggerCombatAnimationV1` (18: `Rise1`–`Rise9`, two variants each) and `Unarmed` (8, including the bundle's only explicit `KnockDown`). Knockdown recovery therefore needs a **cross-archetype migration** — raise it before the slice starts.
 - **Death-full** *(from the same split)* — death's real treatment replacing the debug ragdoll, hit-reaction animation, and the questions **Death** deferred. `SwordSwordAnimV3` has **four directional** `Hit_<DIR>` and **four directional** `Death_<DIR>` clips, not single standalone ones (verified 2026-08-10). **Hitstun ships with Light String** (settled 2026-08-16); what this slice owes it is the reaction *animation*.
 - **Settings menu.** Raised 2026-08-12. Mouse sensitivity is the immediate want, and it should own
   **`TurnRateDegrees`** too — that number stopped being cosmetic the moment attacks began pointing

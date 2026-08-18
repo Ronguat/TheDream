@@ -1811,6 +1811,15 @@ void ATDCombatCharacter::HandleDebugAutoAttackEnded(const FAbilityEndedData& End
 		UpdateDebugFacingFocus(/*bAttacking=*/true);
 	}
 
+	// Opted into per attack, and only ahead of the guard below for that reason. A stationary
+	// attacker is what a 360-degree volume needs tested -- one whiffing into open space has an
+	// open standoff gate and runs its whole authored lunge, so it would otherwise leave its
+	// targets behind after a single attack.
+	if (bDebugAutoAttackHomeBetweenAttacks)
+	{
+		ReturnToDebugAutoAttackHome();
+	}
+
 	// Taps still owed means the burst is mid-flight, and returning is safe because the *next*
 	// swing's end runs this handler again. There is always a second chance.
 	if (DebugStringTapsRemaining > 0)

@@ -37,6 +37,28 @@ them. **The home reset waits for the burst**: taps remaining or an open link win
 or a teleport would sever the spacing chain s4 measures. The whole burst must fit inside
 `DebugAutoAttackInterval`, exactly as the single attack must.
 
+**Set the fixture with PIE stopped, and check the world in the returned path** *(2026-08-18)*.
+While PIE runs, `find_actors` returns the **`UEDPIE_0_`** world's actors, so a fixture write lands
+on the throwaway copy and the editor actor is untouched — the next session then runs the *old*
+configuration. It fails loudly at least: `s1-light` reported elapsed values of
+`0.493 / 0.491 / 1.182` repeating, which is a three-attack string, because `StringTaps` was still 3.
+Assert on the path having no `UEDPIE` in it before writing.
+
+**Two knobs added 2026-08-18, both defaulted off so every existing scenario is untouched.**
+`bDebugAutoAttackRotateTargets` takes the next target each attack instead of the nearest, excluding
+whatever the last attack went to, and prints a `ROTATE` line; it advances in
+`HandleDebugAutoAttackEnded` because that is the one event happening exactly once per attack — the
+press path ticks twice as fast and lands back where it started. **It does not steer the attack**:
+AI focus and the aim-assist target are independent systems, measured with `ROTATE` choosing one body
+while `TARGET commit` picked another at −89.3°. `bDebugAutoAttackHomeBetweenAttacks` re-homes after
+every attack rather than at burst end, which is how a **stationary** attacker is obtained; an
+attacker whiffing into open space has an open standoff gate and runs its full authored lunge.
+
+**The attacker sometimes wedges against the ramp and goes stationary mid-attack** *(the designer,
+2026-08-18)*. Nothing warns about it, and it silently corrupts anything measuring attacker travel —
+lunge distance, spacing, knockback. If a travel figure looks impossibly small, check where it was
+standing before believing it.
+
 **Spawn the player pawn out of the exchange — `startTransform` (0, 800, 100), not the old
 (0, 0, 100)** *(2026-08-16)*. The attacker re-focuses on the **nearest living pawn**, so during a
 dead defender's revive window it turns on the player; at the old spawn (200 cm out, inside a
@@ -114,9 +136,10 @@ enumerated from the source 2026-08-14 rather than remembered — `ACTIVATE`, `CO
 `MONTAGE` (seven variants, including the delegate outcomes), `FACING LOCK`, `DODGE`, `DODGE END`,
 `BUFFER`, `REFUSED`, `DEATH`, `REVIVE`, `TARGET`, `AIM ASSIST`, `AIM WEDGE` and `LUNGE STOP`;
 `DAMAGED` and `ASC RESOLVE` joined 2026-08-15; **`HITSTUN`/`HITSTUN END`, `STRING` and
-`KNOCKBACK` joined 2026-08-16** — all three silent until Light String's sitting 2 authors the
-values that arm them (hitstun and spacing default 0, no swings, chainable false). Turn it off
-with `TD.DebugCombatTiming 0` when combat is not under test.
+`KNOCKBACK` joined 2026-08-16**, and all three went live when sitting 2 authored the values that
+arm them — they are no longer silent. **`ROTATE` joined 2026-08-18** and fires only while
+`bDebugAutoAttackRotateTargets` is set. Turn the trace off with `TD.DebugCombatTiming 0` when
+combat is not under test.
 
 **Block adds several** *(2026-08-14)*: `BLOCK up` / `BLOCK down` for the guard's edges, `BLOCK cost`
 when a guard charges its initial stamina, `BLOCKED` when a hit lands on one — carrying the stamina
@@ -340,6 +363,19 @@ looks ignored.
 | `s2-heavy` | 0.3 | `HoldBlock` | as above with damage 50, `BLOCKSTUN` span 0.500, `DAMAGED` 25 |
 | `s2-charged` | 0.8 | `HoldBlock` | as above with damage 100, `DAMAGED` 40, and **`BLOCKSTUN` never fires at all** |
 | `s3` | 0.1 | `PeriodicDodge` | `DODGE`/`DODGE END` paired; clean travel 400–420 cm; dodge from full leaves exactly 50; `EXHAUSTED`/`EXHAUSTION END` paired, entering at 0 and clearing at 100 |
+| `s4-string` | 0.1, **taps 3** | `Off` | three swing indices in equal counts; chain gap 0.500 ±45 ms and chain latency 125–175 ms; `DAMAGED` exactly 15 with the ledger stepping; `HITSTUN` spans 0.550 ±20 ms; **`KNOCKBACK` spacing never below the authored value it prints, and n=0 fails** |
+| `s4-guarantee` | 0.1, **taps 3** | `PeriodicDodge` | `REFUSED` lines attributed to `State.Hitstun`; **zero `DODGE` between `HITSTUN` and `HITSTUN END`** — the string's guarantee, observable; `HITSTUN` spans as above |
+| `s4-block` | 0.1, **taps 3** | `HoldBlock` | `BLOCKED` staminaDamage exactly 5; `BLOCKSTUN` spans 0.350 ±20 ms; knockback never inward |
+
+**The `s4-*` bands come from `GA_Attack`'s CDO, not from the plan session.** Three of the plan's
+proposals were stale by the time they were built — cadence 350 → **500 ms** once it was measured off
+the designer, hitstun 0.400 → **0.550** forced up to outlast it, blockstun 0.400 → **0.350**
+re-derived against it. Read the CDO when adding a band; do not copy a plan.
+
+**`s4-360` does not exist, deliberately.** Light 3's 360° wedge is verified by eye and has no
+assertion. See the trap in `Docs/Combat-Decisions.md` for why five attempts failed and what the
+trigger is — the short version is that a 360° wedge short-circuits before any bearing test, so
+facing was never the variable.
 
 **`s2-charged`'s blockstun assertion is a filed trap promoted to a standing check.** The charged's
 stamina damage equals the whole bar, so it always breaks and can never blockstun. **If that
@@ -359,3 +395,46 @@ band to admit them** — that is fitting the band to contamination. **A duration
 it** *(2026-08-15)*: the final dodge before `StopPIE` ends mid-travel with *zero* drift — measured
 141 cm at 0.14 s — so only dodges running at least `BAND_DODGE_MIN_DURATION` (DodgeSeconds minus a
 frame) count as travel samples at all.
+
+## The post-change verification checklist
+
+**Moved here from `Docs/Working-In-Unreal.md` on 2026-08-18**, by that file's own rule that its
+growth belongs to it and the project's does not — this list grows one line per combat feature,
+forever, which is the shape of a doc read by whoever is measuring rather than one read every
+session. The general rule stays there; the combat specifics are here.
+
+
+- Damage lands in **exact expected multiples**, not "a bar moved"
+- Abilities still grant, and end cleanly (`bIsActive: false` at rest)
+- **No stuck state tags.** `State.Attacking` is activation-blocking, so a leak disables all future
+  attacks; a leaked `State.Attacking.Committed` forbids every future *defensive* action, and a leaked
+  `State.Dodging` leaves the character permanently invulnerable
+- Locomotion and jump, whenever input or movement code was touched
+- **The attack still plays its montage**, whenever meshes, skeletons or animation assets were
+  touched. The tell that it is *not* is the absence of `RELEASE BEGIN`/`END` — those come from a
+  notify, so they only fire if the montage really ran, while everything else looks healthy either
+  way. **An attack that silently deals no damage is the failure mode.**
+- `LogAbilitySystem` free of new warnings
+- **Death and revive leave nothing stranded.** Die *in mid-air* specifically: `DisableMovement` stops
+  the fall so `Landed()` never fires, and anything keyed to landing stays set past the revive
+
+With the stamina economy involved, add:
+
+- **Exact values, regen resumption and the exhaustion pair are all asserted by `s2-*`/`s3`** — a
+  dodge from full reading exactly 50, regen resuming at action end plus `StaminaRegenPauseSeconds`,
+  and exhaustion entering at 0 and clearing at Max rather than on a timer. `CLAUDE.md`'s Stamina
+  section is the rule; the checker is the check
+- **Stamina can now be drained unattended** *(2026-08-15, replacing "nothing in the build can drain
+  stamina without a human at the keyboard")* — `ETDDebugDefendMode` on the training dummy holds a
+  guard or dodges on a timer. **The attribute set still cannot be written through the toolset** —
+  `SpawnedAttributes` is not reflection-readable — so *setting* a bar to an arbitrary value remains
+  impossible; you drive it by spending, not by assignment
+- **Attribute *base* values are clamped, not just current.** A base drifted above Max is invisible on
+  the bar and makes every cost read wrong
+- **Costs never gate.** Dodging below the cost must still work and empty the bar
+
+Most of this is checkable without UI via `AbilitySystemInspectorToolset` against the `UEDPIE_0_`
+actors while PIE runs. **Those calls are separate round-trips, so a snapshot can straddle a state
+change** — an ability reading `bIsActive: false` beside a live `State.Attacking` is usually sampling
+skew. Take several samples before believing one.
+

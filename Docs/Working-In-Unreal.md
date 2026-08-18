@@ -462,39 +462,10 @@ below is now automated** — `Tools/RegressionCheck/regression-check.sh` asserts
 and guard invariants against a PIE log and prints that table itself; see `Docs/Debug-Instruments.md`
 for the scenario matrix, and run its `--self-test` before trusting a green result.
 
-- Damage lands in **exact expected multiples**, not "a bar moved"
-- Abilities still grant, and end cleanly (`bIsActive: false` at rest)
-- **No stuck state tags.** `State.Attacking` is activation-blocking, so a leak disables all future
-  attacks; a leaked `State.Attacking.Committed` forbids every future *defensive* action, and a leaked
-  `State.Dodging` leaves the character permanently invulnerable
-- Locomotion and jump, whenever input or movement code was touched
-- **The attack still plays its montage**, whenever meshes, skeletons or animation assets were
-  touched. The tell that it is *not* is the absence of `RELEASE BEGIN`/`END` — those come from a
-  notify, so they only fire if the montage really ran, while everything else looks healthy either
-  way. **An attack that silently deals no damage is the failure mode.**
-- `LogAbilitySystem` free of new warnings
-- **Death and revive leave nothing stranded.** Die *in mid-air* specifically: `DisableMovement` stops
-  the fall so `Landed()` never fires, and anything keyed to landing stays set past the revive
-
-With the stamina economy involved, add:
-
-- **Exact values, regen resumption and the exhaustion pair are all asserted by `s2-*`/`s3`** — a
-  dodge from full reading exactly 50, regen resuming at action end plus `StaminaRegenPauseSeconds`,
-  and exhaustion entering at 0 and clearing at Max rather than on a timer. `CLAUDE.md`'s Stamina
-  section is the rule; the checker is the check
-- **Stamina can now be drained unattended** *(2026-08-15, replacing "nothing in the build can drain
-  stamina without a human at the keyboard")* — `ETDDebugDefendMode` on the training dummy holds a
-  guard or dodges on a timer. **The attribute set still cannot be written through the toolset** —
-  `SpawnedAttributes` is not reflection-readable — so *setting* a bar to an arbitrary value remains
-  impossible; you drive it by spending, not by assignment
-- **Attribute *base* values are clamped, not just current.** A base drifted above Max is invisible on
-  the bar and makes every cost read wrong
-- **Costs never gate.** Dodging below the cost must still work and empty the bar
-
-Most of this is checkable without UI via `AbilitySystemInspectorToolset` against the `UEDPIE_0_`
-actors while PIE runs. **Those calls are separate round-trips, so a snapshot can straddle a state
-change** — an ability reading `bIsActive: false` beside a live `State.Attacking` is usually sampling
-skew. Take several samples before believing one.
+**The checklist itself moved to `Docs/Debug-Instruments.md` on 2026-08-18** — what to re-verify, the
+stamina additions, and the sampling-skew caveat. It is combat content, it grows one line per combat
+feature forever, and this file's rule is that its own growth belongs here and the project's does
+not. That relocation is what brought this file back under budget, 508 → 473.
 
 ---
 

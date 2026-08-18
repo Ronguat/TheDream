@@ -307,11 +307,32 @@ needed. It requires only that the attacker hold position — `ReturnToDebugAutoA
 exists and is deliberately suppressed mid-burst so a teleport cannot sever the spacing chain
 `s4-string` measures, so the knob is a between-attacks variant of something already written.
 
-**Triggers.** Earliest: the next time the debug attacker gains a position-hold or between-attack
-re-home knob. Backstop that cannot slip: **Interplay**, which already owes the buffered-aim 1vX
-test by the trap above and must build multi-target staging anyway. **Invalidated by** any change
-to `FindAimAssistTarget`'s selection rule or to swing 3's `arcDegrees` — either makes the
-diagnosis above stale rather than merely old.
+**The trigger is Knockdown & Oki, and the blocker and the slice are the same thing** (the user,
+2026-08-18). What stales the test is the **ender's knockback**: swing 2 hits both bodies and shoves
+them onto the attacker's facing axis, so the next burst's 60° wedge catches them and the
+discrimination collapses. Knockdown & Oki is the slice that replaces what the ender does to its
+victim with a knockdown — so the thing blocking the test is exactly what that slice changes, and it
+is the *next* slice rather than a distant one.
+
+**The ender's displacement is placeholder, and the divergence is known.** `ApplyKnockbackToTarget`
+runs on every unblocked hit with no final-swing gate, while the slice was specified as *"the ender, heavies and charged displace nothing"*. Left alone deliberately: the ender's real
+treatment is knockdown, Knockdown & Oki owns it, and *"it is impossible for it not to come up, since
+an entire slice is dedicated explicitly and specifically to it."* Do not silently gate it here.
+
+**Also needed, and useful beyond this test:** a **between-bursts position reset for all
+combatants**. `bDebugAutoAttackHomeBetweenAttacks` (2026-08-18) holds the *attacker* still; the
+targets still drift under knockback. **Positions are the safe thing to reset and health and stamina
+are not** — `s3` asserts exhaustion entering at 0 and clearing at 100, and `s2-*` asserts guard
+breaks landing exactly when the bar empties and the health ledger stepping across hits, all of
+which require depletion to accumulate. `s4-string` is the one position exception, since it measures
+the spacing chain a *connecting* string produces, which a mid-burst teleport severs.
+
+**A second contaminator worth knowing** (the designer, 2026-08-18): the attacker sometimes runs
+into the side of the ramp and goes stationary mid-attack. Nothing warns about it, and it silently
+corrupts anything measuring attacker travel — lunge distance, spacing, knockback.
+
+**Invalidated by** any change to `FindAimAssistTarget`'s selection rule or to swing 3's
+`arcDegrees` — either makes the diagnosis above stale rather than merely old.
 
 **Before authoring any new attack montage — *a wide Release Window can end the attack the instant
 it opens.*** Filed 2026-08-16, having cost two wrong fixes and several PIE cycles to find; the
@@ -1099,6 +1120,29 @@ per clip, not as policy.
 enough to cover recovery (0.500 s heavy, 0.600 s charged). **Length has stopped mattering** for
 these tiers because the front of the clip is discarded — which puts the long singles back in play
 as the likeliest charged material, having been screened out an hour earlier on length.
+
+### The candidate pool, salvaged from the audit file before it was deleted
+
+Heavy and charged clip shopping was **deferred for time on 2026-08-18** and is unowned. What the
+audit established, so it is not re-derived:
+
+**Length has stopped mattering for these two tiers** — entry is partway into the clip under a
+blend, so the front is discarded. What a candidate needs instead is a legible **anticipation apex**
+to blend into and a tail long enough to cover recovery (0.500 s heavy, 0.600 s charged).
+
+**The unreviewed pool is the eleven single moves** — clips with no `_Stage` children, which are the
+only self-contained strikes: V1 `Attack1` 5.167, `Attack2` 3.100, `Attack5` 3.667, `Attack8` 6.600,
+`Attack9` 1.500; V2 `Attack4` 2.067, `Attack9` 1.400, `Attack10` 3.233; V3 `Attack5`, `Attack9`,
+`Attack10`, all three of which the 2026-08-11 review already dismissed as canned/counter material.
+The long V1 ones are the *most* interesting under a blend, not the least.
+
+**Three V3 clips are reopened** by windup match no longer being required: `Attack8_Stage3`
+(2.233, still the standing favourite and the closest match to the chosen light), `Attack7_Stage1`
+(1.767, a top-left overhead — the exact shape the blend reading was reasoned about) and
+`Attack8_Stage2` (1.500, crosses the body, so it asks more of the blend).
+
+Durations are `sequenceLength` read off the assets 2026-08-18; regenerate rather than trust them if
+the bundle ever changes.
 
 ### Scope, and what it will cost
 
