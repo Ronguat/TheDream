@@ -59,19 +59,21 @@ audit in miniature; the rest is making sure nothing is left on the floor.
    fitness is not, so the number will crowd out the criterion unless it is explicitly demoted —
    which is exactly how `CLAUDE.md` passed six length audits while most of it was unfit.
 
-   Then **check the docs you touched, with three greps.** `grep -n "supersede" Docs/Combat-Decisions.md` —
-   every hit needs a row in the supersession table, and two were missing on 2026-08-12. Then confirm
-   any cross-reference you wrote resolves to a section that exists; three pointed at a section that
-   had been deleted. **Then, if you edited the known-traps section, confirm every trap still has its
-   bolded header** — an `Edit` that replaces a header instead of inserting before it leaves the body
-   orphaned, reading as prose belonging to whatever precedes it. That happened on 2026-08-12 and was
+   Then **run `Tools/DocsCheck/docs-check.sh`: clear every FAIL, read every WARN.** It mechanizes
+   what used to be manual greps — truncated tails, orphaned table rows, the pointer manifest,
+   index freshness, always-read duplication, trailer presence — each invariant commented with the
+   incident that earned it. Two judgments stay yours: `grep -n "supersede" Docs/Combat-Decisions.md`
+   — every hit in a dated entry needs a row in the supersession table, and two were missing on
+   2026-08-12 — and the trap-shortlist WARN needs an eye, because an orphaned trap body reads as
+   prose belonging to whatever precedes it and no grep can tell those apart. That happened on 2026-08-12 and was
    caught by luck rather than by a step; a trap that no longer announces itself is the one edit in
    that file which cannot be reviewed.
 
    **And if the session moved text between files, re-read both seams — each file's final paragraph
    especially.** One edit in `ef62b17` mangled the tails of both files it touched, and two
    closedown audits then passed them (found 2026-08-18): a content re-read checks fitness, not
-   integrity, and the line-count backstop stayed green throughout.
+   integrity, and the line-count backstop stayed green throughout. `docs-check` now fails on both
+   damage shapes; the re-read is for what it cannot see.
 4. **Discharge what you fixed.** Did this session fix anything filed as a trap? Clear it *and say
    what discharged it*, in the same commit. Did anything supersede an entry, or make an absence
    claim? Rows and dates, per the rules above.

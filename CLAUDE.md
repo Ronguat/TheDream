@@ -131,6 +131,10 @@ between a doc and a code comment. **Summaries and descriptions are where this br
 restate values nobody thinks to update, and a second copy is not reinforcement, it is something
 nobody reviews. **Prefer naming the authority over restating the value.**
 
+**`Tools/DocsCheck/docs-check.sh` is these files' integrity check** — truncated tails, orphaned
+table rows, dead cross-references, a stale symbol index — each invariant carrying the incident
+that earned it. Run it after any edit that moves text between docs; closedown runs it regardless.
+
 **Name the asset, not the C++ class — a correctness rule, not a style one.** A Blueprint CDO
 override shadows a C++ default silently, so a class is the authority only until someone touches a
 details panel. Write *"`BP_PlayerCharacter`'s CDO is authoritative, defaults in
@@ -215,7 +219,9 @@ working tree, or stranded packages in `Saved/Autosaves/PackageRestoreData.json`.
 
 **Commit freely; the push waits for the user to call the work done.** A local commit is a HOW —
 undoable, and the message is where reasoning gets recorded. Commit in coherent, verified units as
-work lands. Pending *tuning* questions do not block a push; pending *correctness* verification does.
+work lands. **A number in a commit message is a measurement, not a projection** — count first,
+then compose. Pending *tuning* questions do not block a push; pending *correctness* verification
+does.
 
 **Every commit you author gets the `Co-Authored-By` trailer** — present only sometimes, its absence
 turns ambiguous, so a commit you did not author says so in its message instead. Never via hook: a

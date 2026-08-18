@@ -198,9 +198,10 @@ a programmatic write. **The rule is about Blueprint CDOs and does not extend to 
 the last restart each write landed on, while the CDO read correct for both. **Batch CDO writes and
 restart once**, and when a setting "is not working" **read the runtime instance before touching it**.
 
-**Prove the instrument before trusting a null result.** When the evidence is *"I changed it and the
-symptom did not move"*, the restart rule makes that ambiguous between a refuted hypothesis and a
-write that never landed. Make one write whose effect is numerically measurable, confirm it, then
+**Prove the instrument before trusting a null result — or a confirming one.** An instrument that
+cannot print the unexpected proves nothing in either direction. When the evidence is *"I changed it
+and the symptom did not move"*, the restart rule makes that ambiguous between a refuted hypothesis
+and a write that never landed. Make one write whose effect is numerically measurable, confirm it, then
 trust what follows. **Where a value drives behaviour, print the value** — that is what made
 a value diagnosable where judging it by feel would not be.
 

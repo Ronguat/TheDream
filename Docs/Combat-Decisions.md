@@ -518,7 +518,6 @@ kept in their own notes. What belongs here is only what to move once a verdict a
 | A lunge travels a different distance than it is authored | Whether the montage plays an in-place (`_IP`) clip, and whether a strength curve averages 1.0 | The distance. Animation root motion suppresses root motion sources outright, so a montage with root motion produces *no* lunge at all, and a curve whose mean is not 1 scales the distance silently. Both are settings, not tuning. |
 | The character floats, sinks, or its feet do not meet the ground | The mesh component's relative Z, which must be the negative of `InitCapsuleSize`'s half-height | Anything in the animations. Clip settings, root motion, root lock and skeletons were all investigated and all innocent; the offset is static and visible in the level viewport with nothing playing. Check it there before opening a single animation. |
 | Feet look right while moving but wrong during attacks | The same mesh Z — a discrepancy that only shows inside montages is foot IK masking it everywhere else | The montage or the clip. `ABP_Combat`'s Control Rig silently absorbs a constant offset, so "only montages are wrong" means "only montages lack the correction". |
-
 | Blocking feels too cheap to hold | `BlockDrainPerSecond`. It is how fast a guard converts into risk, and raising it makes blocking more committal without ever taking the option away | The stamina damages. Those decide how many hits a guard survives, which is the attacker's side of the exchange; moving them to tax a *held* guard changes what every tier does on block to fix how long one can be held. |
 | A guard survives too many hits, or too few | That branch's `StaminaDamage` | `BlockDrainPerSecond`, and **never the charged's value alone** without re-checking it against Max stamina. The charged breaks a full guard because its damage *equals the bar*; nudging either silently repeals the spec's "charged heavy breaks block" with nothing to warn you. |
 | A guard break feels too punishing or too weak | `GuardBreakStunSeconds` — it is the stun *and* the regen suppression across it, deliberately one number | Adding a separate suppression length. Authoring them apart immediately allows the pair that makes no sense: regen resuming while you are still stunned for it. |
@@ -531,7 +530,6 @@ kept in their own notes. What belongs here is only what to move once a verdict a
 | Blocking a charged does nothing but break the guard | Nothing — the charged's blockstun is unreachable **by construction**, since its stamina damage empties any bar and a break supersedes blockstun | Raising `Branches[2].BlockstunSeconds`. It will not fire. If the charged should be blockable without breaking, that is its `StaminaDamage`, and it repeals "charged heavy breaks block" — see the trap. |
 | Exhaustion is invisible until you press something | `ExhaustedMaxWalkSpeed` — a body that moves worse announces the state before a bar does | `ExhaustedStaminaRegenPerSecond`, which changes how *long* exhaustion lasts rather than whether the player can tell they are in it. Different complaint. |
 | The exhausted guard drops too abruptly | Nothing, or `MinimumBlockSeconds` — the drop is at the commitment's expiry **by derivation**: you cannot block while exhausted, and all blocks are created equal | Exempting the exhausted guard from the commitment, or letting it persist while held. The first re-opens the bimodal-duration bug; the second contradicts the exhaustion lockout outright. |
-
 | Mashed attacks feel over-forgiven, or land on the wrong target in 1vX | `ShouldExtendBufferWhileActive()` — three one-line options: keep, return false to drop it, or narrow it to chain-eligible attacks so it stops queueing through heavies. Interplay's buffer subslice owns the call | `InputBufferSeconds`. That is the global tap grace and shortening it to curb mashing also breaks buffering a heavy, which is what it exists for. And **not** the aim: a swing's direction is read at commit, so what feels like bad aim is press timing, not the wedge. |
 | Chain links drop when mashing fast | Nothing — check the `BUFFER` trace first. Pressing early buys **no** cadence: chain-out fires when recovery opens, not when the press arrived | Widening `InputBufferSeconds`, or `StringLinkWindowSeconds`. A dropped chain tap means the press was *completed* inside the swing's first ~165 ms, which the extension already rescues; if it still drops, the extension is off or the ability stopped opting in. |
 | The window to chain feels too generous | `StringLinkWindowSeconds` for the post-recovery half, `ChainOpenAfterRecoverySeconds` for when the in-swing half opens | The buffer. The chain-out span is the whole of recovery by construction — it is gated on `bInRecovery` — so tightening the *input* window is not what shortens it; `RecoverySeconds` is, and that is the punish window. |
@@ -629,9 +627,10 @@ strength of grepping the working sections; it was recorded in full in a dated en
 reading the file front to back found it.** An index nobody has to read front to back is the fix.
 
 Generated from the archive rather than maintained by hand, so it goes stale rather than wrong —
-a missing row means the entry is newer than the index, never that the symbol is absent. Regenerate
-when it starts missing things; the rule for reading it is the standing one, that **a search finding
-nothing proves only that the filter did not match.**
+a missing row means the entry is newer than the index, never that the symbol is absent.
+Current through **2026-08-18** — update the date when regenerating, and `docs-check` turns
+staleness into a red row by comparing it against the newest entry. The rule for reading it is the standing one,
+that **a search finding nothing proves only that the filter did not match.**
 
 Regenerate by extracting every backticked identifier from the dated entries, keeping only those
 that resolve against `Source/TheDream` or a `Content/TheDream` asset
