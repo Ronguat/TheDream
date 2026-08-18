@@ -218,8 +218,6 @@ before** — whether a session concludes is theirs to decide, never yours to inf
 Execution order, the only line that changes when the order does:
 
 > **~~Attack Ladder~~ → ~~Dodge~~ → ~~Sword & Shield~~ → ~~Input Buffer~~ → ~~Death~~ → ~~Dodge Distance~~ → ~~Attack Swap~~ → ~~[hover bug]~~ → ~~[facing pass]~~ → ~~Recovery~~ + ~~Lunge~~ → ~~Target Lock~~ → ~~Block~~ → ~~Light String~~ → Parry → Knockdown → Polish → Death-full → Settings → Netcode → Tuning Rig → Interplay**
-
-
 **Pick up at Parry.** Nothing is blocked. **Read its brief in `Docs/Combat-Decisions.md`'s
 slice-briefs section before starting** — its 400 / 500 / 1000 ms numbers predate the light's move
 to 200 ms and must be re-derived against the current ladder.

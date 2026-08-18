@@ -21,6 +21,11 @@ audit in miniature; the rest is making sure nothing is left on the floor.
    — and read it.** Calling save is not the check; *seeing the files listed* is. A write that was
    never saved and a write that is saved but not yet live look identical from inside the editor.
 
+   **If the editor is reopened and offers to restore auto-saved packages, decline.** The only thing
+   ever stranded is fixture state — `DebugAutoAttackStringTaps`, a defend mode — which is
+   deliberately never persisted. **Accepting bakes it into `L_CombatTest` permanently**, and a
+   scenario then runs a configuration nobody chose. Declining loses nothing.
+
    **Closing the editor is not part of this** (2026-08-12). Winding down a session does not mean
    ending the user's, and leaving it open costs nothing now that the save is verified against
    `git status` rather than against the act of closing. Anything mid-session that *does* need the
@@ -49,7 +54,7 @@ audit in miniature; the rest is making sure nothing is left on the floor.
      cleanly and can still not belong.
 
    **A file cannot trigger its own audit** — that is why this lives here and not in either file.
-   The budgets: `CLAUDE.md` ~200 and `Docs/Working-In-Unreal.md` ~500, both **backstops rather
+   The budgets: `CLAUDE.md` ~280 and `Docs/Working-In-Unreal.md` ~500, both **backstops rather
    than gates**. The questions above are the gate. A line count is checkable in a second and
    fitness is not, so the number will crowd out the criterion unless it is explicitly demoted —
    which is exactly how `CLAUDE.md` passed six length audits while most of it was unfit.
