@@ -137,8 +137,10 @@ enumerated from the source 2026-08-14 rather than remembered — `ACTIVATE`, `CO
 `BUFFER`, `REFUSED`, `DEATH`, `REVIVE`, `TARGET`, `AIM ASSIST`, `AIM WEDGE` and `LUNGE STOP`;
 `DAMAGED` and `ASC RESOLVE` joined 2026-08-15; **`HITSTUN`/`HITSTUN END`, `STRING` and
 `KNOCKBACK` joined 2026-08-16**, and all three went live when sitting 2 authored the values that
-arm them — they are no longer silent. **`ROTATE` joined 2026-08-18** and fires only while
-`bDebugAutoAttackRotateTargets` is set. Turn the trace off with `TD.DebugCombatTiming 0` when
+arm them — they are no longer silent. **`ROTATE` joined 2026-08-18** and fires only while `bDebugAutoAttackRotateTargets` is set;
+**`LUNGE SKIP`** the same day, only under `bDebugSuppressLunge`. **`FACING LOCK` gained `camDelta`
+and `since press`** — the camera yaw moved between the press and the commit, which is what
+separates an aim bug from a flick finished late; `err` alone cannot. Turn the trace off with `TD.DebugCombatTiming 0` when
 combat is not under test.
 
 **Block adds several** *(2026-08-14)*: `BLOCK up` / `BLOCK down` for the guard's edges, `BLOCK cost`

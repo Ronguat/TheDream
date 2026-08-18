@@ -409,8 +409,9 @@ new dumping ground and the problem has merely moved.
      was chosen for. **That pairing is emergent and nothing protects it**; no assertion can see it,
      so swapping either clip spends it silently.
    - **The play pass is owed and belongs to Interplay by nature** — cadence and mash feel,
-     hold-to-heavy mid-string, the blocked-string mind game, corner-carry, and the buffered-aim
-     1vX test its trap prescribes.
+     hold-to-heavy mid-string, the blocked-string mind game and corner-carry. **The play pass was
+     run by the designer 2026-08-18 and passed**, and the buffered-aim 1vX test its trap prescribed
+     is done and the trap discharged.
 - **Block** — the full defensive half. Mechanics shipped and played 2026-08-14; the animation
   remainders shipped **2026-08-16**, play-verified, with `s2-light` green on all seven assertions
   after a `--self-test` proved the checker can fail. The rules are in Core Combat Rules above.

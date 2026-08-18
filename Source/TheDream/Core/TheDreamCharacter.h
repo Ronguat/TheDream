@@ -142,6 +142,18 @@ protected:
 	float FacingErrorAtLockDegrees = 0.0f;
 
 	/**
+	 *  Where the camera pointed when the attack was *pressed*, and when that was.
+	 *
+	 *  `FacingErrorAtLockDegrees` answers an **angle** question — is the body aligned with the
+	 *  camera at commit — and reads a clean ±0.0° even when the swing goes somewhere the player
+	 *  never aimed. The thing it cannot see is that commit can happen up to ~440 ms after the
+	 *  press, with the camera moving throughout. These two make that a *time* question that the
+	 *  trace can answer, which the buffered-aim trap named as the missing correlation.
+	 */
+	float AimPressControlYawDegrees = 0.0f;
+	float AimPressWorldTime = -1.0f;
+
+	/**
 	 *  Set while an *ability* owns the character's facing. Runtime only, never authored.
 	 *
 	 *  Named for abilities rather than attacks because the dodge uses it too, and it is the
@@ -283,6 +295,9 @@ public:
 
 	/** Debug only: yaw error sampled when facing was last taken by an ability, in degrees. */
 	float GetFacingErrorAtLockDegrees() const { return FacingErrorAtLockDegrees; }
+
+	/** Records where the camera pointed at an attack press, for the commit-time correlation. */
+	void NoteAimPress();
 
 	/**
 	 *  Re-applies the camera-probe exemption to the capsule and the mesh.

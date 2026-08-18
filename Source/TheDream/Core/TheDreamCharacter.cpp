@@ -262,9 +262,22 @@ void ATheDreamCharacter::SetAbilityFacingLocked(bool bLocked)
 			// aim consequence of TurnRateDegrees is visible at all -- which matters because that
 			// rate is derived from the light's commit time, and Lunge + Recovery moves things
 			// near it. Carries the rate so a sweep cannot be misattributed afterwards.
-			TD_TIMING_LOG(TEXT("FACING LOCK  err=%+.1f deg  rate=%.0f"),
+			// camDelta is the half this line was missing, and the reason a clean err= is not a
+			// clean bill of health: err answers "is the body aligned with the camera *now*",
+			// while camDelta answers "did the camera move since the player asked for this swing".
+			// A flick made during a buffered press shows err=+0.0 and camDelta=-170.
+			const float CameraDeltaDegrees = (AimPressWorldTime >= 0.0f)
+				? FMath::FindDeltaAngleDegrees(AimPressControlYawDegrees, FacingController->GetControlRotation().Yaw)
+				: 0.0f;
+			const float SincePressMs = (AimPressWorldTime >= 0.0f && GetWorld())
+				? (GetWorld()->GetTimeSeconds() - AimPressWorldTime) * 1000.0f
+				: -1.0f;
+
+			TD_TIMING_LOG(TEXT("FACING LOCK  err=%+.1f deg  rate=%.0f  camDelta=%+.1f since press %.0fms"),
 				FacingErrorAtLockDegrees,
-				TurnRateDegrees);
+				TurnRateDegrees,
+				CameraDeltaDegrees,
+				SincePressMs);
 		}
 	}
 
@@ -408,4 +421,17 @@ float ATheDreamCharacter::GetAimYawDegrees() const
 	}
 
 	return GetActorRotation().Yaw;
+}
+
+void ATheDreamCharacter::NoteAimPress()
+{
+	// Captured on the *press* rather than looked up when an ability activates, for the same reason
+	// the buffer stores its move heading: by activation the camera has moved, and reading it then
+	// measures the wrong instant. A press that never becomes an attack simply leaves a stale value
+	// that the next one overwrites, which costs nothing.
+	if (const AController* AimController = GetController())
+	{
+		AimPressControlYawDegrees = AimController->GetControlRotation().Yaw;
+		AimPressWorldTime = GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f;
+	}
 }

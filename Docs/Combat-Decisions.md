@@ -187,18 +187,27 @@ Lunge slice at `9e4743b`, and the import outlived the swap. **Stale residue, not
 at it**, and no readable property on the montage does either. It will drop itself the next time
 the montage is edited and saved for any reason; it is not worth a resave of its own.
 
-**Before Light String — *a buffered attack aims where the camera is when it fires, not when it was
-pressed.*** The `FACING LOCK` trace reads ±0.0° and is *correct*: the body is aligned with the
-camera at commit. What it cannot see is that commit happened up to **~440 ms after the press**, and
-the camera moved during it. **A clean `FACING LOCK` is not a clean bill of health** — it answers an
-angle question and this is a time question. `BUFFER` knows the lateness, `FACING LOCK` knows the
-angle, and nothing correlates them; logging the camera yaw delta between press and commit would.
+**~~Before Light String — a buffered attack aims where the camera is when it fires, not when it was
+pressed.~~ DISCHARGED 2026-08-18** by the 1vX test it prescribed, played by the designer.
+**Verdict: aim at activation; latching at press is rejected** — not as the weaker of two options
+but as a change that could not do anything, because **facing never consults the stored direction at
+all.** It tracks the camera continuously through windup regardless of what the press recorded.
 
-**It scales with the lunge**, which is what promotes it from a curiosity: you now go the wrong way
-rather than only swinging the wrong way. **The test to run when Light String lands** is a
-three-light chain in 1vX — target A, target B 180° away, back to A — where camera movement between
-press and commit is maximal *and* deliberate. Two defensible behaviours and only one has been felt:
-aim at activation (current) or aim latched at press.
+**What settled it** was giving `FACING LOCK` the correlation this trap said was missing: it now
+carries `camDelta`, the camera yaw moved since the press, beside `err`. Across 24 commits
+**`camDelta` predicts nothing about `err`** — a **157°** sweep produced a perfect `err=+0.0`, while
+a **0.0°** sweep produced `err=+8.0`. Were the press-time heading load-bearing, that relationship
+would exist. It does not.
+
+**The residual is a different thing and is already ruled on.** `err` still reaches ±35°, and that is
+committing *mid-flick*: 1200°/s closes a **stationary** gap inside the windup and cannot close one
+still opening. The rate was scoped exactly that way when it was derived — *"for any input where aim
+was settled before the press"*, remainder identified as continuous spinning — and the designer's
+ruling stands that finishing a flick after committing is user error, not a defect. Deliberately no
+new note; see that entry.
+
+**Kept:** `camDelta` stays in the trace. It costs nothing and it is the only thing that separates an
+aim complaint from a timing one.
 
 **Before Interplay's buffer subslice — *the buffer extension lets you queue an attack ahead
 through a heavy or charged, and nobody chose that.*** Filed 2026-08-16 during the extension's
@@ -650,8 +659,7 @@ rate 1.0; the solution is `R = (Length - Position) / (RecoverySeconds + BlendTim
 **~~Re-check `InputBufferSeconds`.~~ Now a watch rather than a re-check.** Left at **0.20**
 deliberately: the user did not feel the drops, and there is no value that is simply correct,
 because a buffer long enough never to drop a tap during a 0.75 s swing queues an attack most of a
-swing ahead. It also caps **how stale a buffered attack's aim can be** — see the buffered-aim trap,
-which wants it shorter while dropped inputs want it longer.
+swing ahead. Its aim-staleness half is closed: the buffered-aim trap discharged 2026-08-18 having measured that a buffered attack's aim is not stale at all, since facing tracks the camera through windup and never consults the stored heading. So this value trades against dropped inputs alone now.
 
 **What makes it live again**, in rough order of likelihood: recovery tuned longer, the light string
 making rapid tapping the primary input pattern, or a dropped input in normal play. **Read the
@@ -678,7 +686,7 @@ kept in their own notes. What belongs here is only what to move once a verdict a
 | An attack is too reactable, or not enough | `CoilEndSeconds`, or moving where the coil starts | The windup length. Reactability is measured from the **tell**, not the press — a longer windup with the same coil changes nothing. *(Once the bespoke windup pass lands, this row becomes "where the blend starts"; the window it moves is the same one.)* |
 | A swing's follow-through drags, or its recovery reads sluggish | That branch's or swing's `RecoverySeconds` — it sets the recovery *rate*, currently 0.588 on the light and the section furthest from true speed | The clip, and **especially not `BlendOutTriggerTime`**. Recovery only has to reach the blend-out boundary, and with a trigger of `-1` that boundary **moves with the rate** — so touching it silently retimes the punish window instead of the look. Same family as the blend-out trap. |
 | The snap-to-camera pop reads badly | **Nothing — the snap is gone.** Facing is one smooth rate in both states as of 2026-08-12 | *(This row used to forbid always-smooth on the grounds that it sends dodges sideways. That was wrong: a dodge resolves its direction relative to facing and travels relative to the same facing, so lag cancels. Disproven in play.)* |
-| Attacks do not land where the player aimed | `TurnRateDegrees`, and check the `FACING LOCK` trace for the error at commit — **but a clean trace does not exonerate**, see the buffered-aim trap | The wedge's `ArcDegrees`. Widening the arc to cover a facing that arrived late hides an aim bug behind a bigger hitbox, and does it in every direction at once. |
+| Attacks do not land where the player aimed | `TurnRateDegrees`, and read `FACING LOCK`'s **`err` beside its `camDelta`** — err alone answers only "is the body aligned with the camera *now*". A large err with a small camDelta is an aim bug; a large err on a still-moving camera is a flick finished after commit, which is user error and settled *(2026-08-18)* | The wedge's `ArcDegrees`. Widening the arc to cover a facing that arrived late hides an aim bug behind a bigger hitbox, and does it in every direction at once. |
 | `TurnRateDegrees` feels too fast or slow | Nothing, without re-deriving it. It is 180° ÷ the light's `HoldUntilSeconds`, the slowest rate that always arrives before the wedge freezes | Lowering it for feel. Below the derived value there are flicks the character cannot finish, and the attack silently points somewhere the player did not aim — which is what 500 was doing to 71% of flick-attacks. |
 | The character spins on the spot like a prop while standing around | `IdleTurnRateDegrees`, freely — it cannot affect aim, because the fast rate resumes at the press and the whole windup runs on it | `TurnRateDegrees`. The three rates exist separately so this complaint has somewhere safe to go; answering it with the derived rate trades a cosmetic problem for a hit-detection one. |
 | A held heavy or charged tracks too hard, or feels too committed, once it coils | `CoilTurnRateDegrees`, freely and at **any** value including zero — the coil is after the aim guarantee is discharged, so everything it governs is tracking rather than aiming. It is a **power** value even so: it is exactly how far a held attack may be redirected *after* the defender has been told it is coming | `TurnRateDegrees`, and not the coil's length either. The light never reaches this rate at all — it commits where the coil would start — so a complaint about the *light* turning wrong is never this row. |

@@ -2103,6 +2103,9 @@ bool ATDCombatCharacter::ShouldBufferInput(const FGameplayTag& InputTag) const
 
 void ATDCombatCharacter::OnAbilityInputPressed(FGameplayTag InputTag)
 {
+	// Recorded for every ability press, not just attacks -- the FACING LOCK correlation only
+	// fires on attacks anyway, and a filter here would be one more thing to keep in step.
+	NoteAimPress();
 	// **The physical button, which nothing else in the trace can see.** Every other input line --
 	// BUFFER, REFUSED -- describes what the system did with a press, so a *replayed* press and a
 	// real one are indistinguishable once they reach an ability. That gap is why "a charged attack
