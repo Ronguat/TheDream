@@ -3,7 +3,7 @@
 ## Project Intent
 Build a high-precision **PvP** combat prototype in Unreal Engine that prioritizes spacing, reactability windows, stamina as a real resource, and clear punish opportunities.
 
-**PvP is the destination, not a later phase.** A prototype that cannot be played against another person does not answer the question it exists to ask — every feel goal below is about what two players do to each other.
+**PvP is the destination, not a later phase** — every feel goal below is about what two players do to each other, and a prototype that cannot be played against another person does not answer the question it exists to ask.
 
 Feel goals (in priority order):
 - Precise spacing and whiff punish
@@ -24,13 +24,12 @@ Feel goals (in priority order):
 
 ## Building for the network
 
-**Networkability is a property of every slice, not a later phase.** What stays out is session UX —
-lobbies, matchmaking, reconnect handling. The model is **server-authoritative with client
-prediction**, the one GAS is designed around. Three rules bind all new work:
+The model is **server-authoritative with client prediction** — the one GAS is designed around.
+Three rules bind all new work:
 
-- **New state is a replicated property or an attribute, never a loose gameplay tag.** Loose tags do
-  not replicate. Follow `bDead` / `bExhausted` on `ATDCombatCharacter`: the server decides, the bool
-  replicates, `OnRep` applies the tag locally. **Decide on the server, apply everywhere.**
+- **New state is a replicated property or an attribute, never a loose gameplay tag** — loose tags
+  do not replicate. Follow `bDead` / `bExhausted` on `ATDCombatCharacter`: the server decides, the
+  bool replicates, `OnRep` applies the tag locally. **Decide on the server, apply everywhere.**
 - **Authority-sensitive work is explicitly gated.** Damage, attribute writes and hit detection
   belong to the server. State only the local machine can know — input, buffered presses,
   camera-relative facing — deliberately does not.
@@ -43,31 +42,52 @@ are in Netcode's brief.
 
 ## Combat Vocabulary
 
-Used consistently in code, comments and discussion. **The spec itself — timings, costs, windows, volumes — is `Docs/Combat-Spec.md`**, read before changing how combat behaves.
+Used consistently in code, comments and discussion. **The spec — timings, costs, windows, volumes,
+state transitions — is `Docs/Combat-Spec.md`.**
+
 - **Windup** — everything before the attack can deal damage.
-- **Release** — the period during which the attack deals damage. Marked on a montage by the `Release Window` notify state (`UAnimNotifyState_MeleeWindow`).
+- **Release** — the period during which the attack deals damage. Marked on a montage by the
+  `Release Window` notify state (`UAnimNotifyState_MeleeWindow`).
 - **Recovery** — from the end of the damaging phase to the end of the attack.
-- **Coil** — *not* a fourth phase. It is a sub-state of windup: the portion slowed while waiting for the commit checkpoint, and it exists as visual feedback. Its tuning values are named `Coil*` rather than after a phase.
+- **Coil** — *not* a fourth phase: the sub-state of windup slowed while waiting for the commit
+  checkpoint, existing as visual feedback. Its tuning values are named `Coil*` rather than after a
+  phase.
 
-Note that "release" also names the button coming up, via GAS's `InputReleased`. Bare "release" always means the damaging phase; the button edge is always written as *input release*.
+Note that "release" also names the button coming up, via GAS's `InputReleased`. Bare "release"
+always means the damaging phase; the button edge is always written as *input release*.
 
-**Attack and swing mean the same thing.** A chained light is **three attacks**, not one attack in three parts — `FTDStringSwing` and the trace's `swing=N` are that index. A **string** is the chain they form. A **burst** is the debug fixture's firing cycle, which produces a string when `DebugAutoAttackStringTaps` > 1 and a single attack at its default 1.
+**Attack and swing mean the same thing.** A chained light is **three attacks**, not one attack in
+three parts — `FTDStringSwing` and the trace's `swing=N` are that index. A **string** is the chain
+they form. A **burst** is the debug fixture's firing cycle: a string when
+`DebugAutoAttackStringTaps` > 1, a single attack at its default 1.
 
 ## Technical Preferences
-- Prefer **C++** for core systems, characters, AttributeSets, Ability base classes, and any non-trivial logic. Keep the architecture clean and maintainable in code.
-- Expose all important tuning values (timings, costs, magnitudes, windows, etc.) to Blueprint via UPROPERTY so the designer can adjust them without recompiling.
-- Gameplay Abilities, Gameplay Effects, and animation notify logic can live in Blueprint when that makes iteration faster, but the underlying framework and shared logic should be C++.
-- **Gameplay Ability System (GAS) is preferred** for attacks, block, dodge, parry, stamina, hitstun, blockstun, and knockdown. Keep AttributeSets and GameplayEffects clean and data-driven.
-- Favor clarity and tunability over clever architecture.
+- **C++** for core systems, characters, AttributeSets, ability base classes, and any non-trivial
+  logic; Gameplay Abilities, Gameplay Effects and notify logic can live in Blueprint where that
+  makes iteration faster.
+- **GAS is preferred** for attacks, block, dodge, parry, stamina, hitstun, blockstun, and
+  knockdown.
+- **Every important tuning value — timings, costs, magnitudes, windows — is exposed to Blueprint
+  via UPROPERTY** or lives in data (curves, data assets), so the designer adjusts without
+  recompiling.
 
 ## Implementation Conventions
-- **`TheDream` is the project codename, not the title.** It appears in exactly three places: the C++ module (`/Script/TheDream.*`), the content root `/Game/TheDream/`, and the `TD` class prefix. Treat all three as permanent and arbitrary — renaming a module breaks every Blueprint's stored class path, paid for with `ActiveClassRedirects` cruft that never goes away.
-- **The shipping title lives only in `ProjectName` (`Config/DefaultGame.ini`) and localized strings** — never in code, asset names, folder paths, or gameplay tags. That is what makes retitling a one-line change rather than a migration.
-- **Ownership rule:** everything authored for this project lives under `/Game/TheDream/`. Anything at `/Game/` root is Epic template or third-party content. Combat content therefore lives under `/Game/TheDream/Combat/` (`Abilities/`, `Effects/`, `Animations/`, `Input/`, `Characters/`, `Data/`).
-- C++ mirrors this: `Source/TheDream/Core/` (game mode, player controller, base character) and `Source/TheDream/Combat/` (`Abilities/`, `Attributes/`, `Tasks/`, `Notifies/`). Includes are written relative to the module root, e.g. `#include "Combat/Attributes/TDAttributeSet.h"`.
-- Name assets clearly: `GA_Attack`, `GE_StaminaCost_Dodge`, `ABP_Combat`, etc.
-- Use data-driven values (curves, data assets, or simple constants) for timings, stamina costs, and windows so they can be tuned without code changes.
-- Every new system should be playable in PIE with a debug enemy or training dummy as soon as possible.
+- **`TheDream` is the project codename, not the title.** It appears in exactly three places: the
+  C++ module (`/Script/TheDream.*`), the content root `/Game/TheDream/`, and the `TD` class prefix.
+  All three are permanent and arbitrary — renaming a module breaks every Blueprint's stored class
+  path, paid for with `ActiveClassRedirects` cruft that never goes away.
+- **The shipping title lives only in `ProjectName` (`Config/DefaultGame.ini`) and localized
+  strings** — never in code, asset names, folder paths, or gameplay tags. That is what makes
+  retitling a one-line change rather than a migration.
+- **Ownership rule:** everything authored for this project lives under `/Game/TheDream/`; anything
+  at `/Game/` root is Epic template or third-party content. Combat content lives under
+  `/Game/TheDream/Combat/` (`Abilities/`, `Effects/`, `Animations/`, `Input/`, `Characters/`,
+  `Data/`).
+- C++ mirrors this: `Source/TheDream/Core/` (game mode, player controller, base character) and
+  `Source/TheDream/Combat/` (`Abilities/`, `Attributes/`, `Tasks/`, `Notifies/`). Includes are
+  written relative to the module root, e.g. `#include "Combat/Attributes/TDAttributeSet.h"`.
+- Every new system should be playable in PIE with a debug enemy or training dummy as soon as
+  possible.
 
 ## Project Documentation
 
@@ -93,15 +113,16 @@ their area; keep them true in the same commit that makes them wrong.
   library does *not* contain, how to migrate without dragging a duplicate skeleton behind it.
   *Trigger: before asking for or importing any animation.*
 - **`Docs/Closing-Down.md`** — the procedure for ending a session, including the audit that keeps
-  this file honest. *Trigger: the user says to wind down, and nothing else.*
+  this file honest. *Trigger: the user says to wind down, and nothing else — whether a session
+  concludes is theirs to decide, never yours to infer.*
 
-**Durable knowledge belongs in these files, not in an assistant's per-machine memory.** Memory keeps
-only what is session- or machine-scoped, and *points* at the repo rather than restating it.
+**Durable knowledge belongs in these files, not in an assistant's per-machine memory.** Memory
+keeps only what is session- or machine-scoped, and *points* at the repo rather than restating it.
 
-**One fact, one home; everywhere else points at it.** Inside the repo too — between two items in
-this file, between a doc and a code comment. **Summaries and descriptions are where this breaks**:
-they restate values nobody thinks to update. A second copy does not reinforce a fact, it creates
-something nobody reviews. **Prefer naming the authority over restating the value.**
+**One fact, one home; everywhere else points at it** — between two items in this file as much as
+between a doc and a code comment. **Summaries and descriptions are where this breaks**: they
+restate values nobody thinks to update, and a second copy is not reinforcement, it is something
+nobody reviews. **Prefer naming the authority over restating the value.**
 
 **Name the asset, not the C++ class — a correctness rule, not a style one.** A Blueprint CDO
 override shadows a C++ default silently, so a class is the authority only until someone touches a
@@ -117,25 +138,24 @@ at the moment the code is; a doc describing a system drifts and then gets truste
 running the how through to completion is **preferred** — do not hand steps back one at a time. If a
 genuine question about *what* or *why* emerges mid-run, stop and raise it.
 
-- **The test for which one you are looking at is reversibility.** A HOW you can undo alone; a WHAT
-  needs the user to undo it. **Irreversibility converts a HOW into a WHAT** — deleting an asset
-  looks like a how and is not.
-- **The tell, in the moment, is whether you are composing a justification.** If a choice needs
-  *defending* in a commit message, it was a WHAT.
+- **The test is reversibility.** A HOW you can undo alone; a WHAT needs the user to undo it.
+  **Irreversibility converts a HOW into a WHAT** — deleting an asset looks like a how and is not.
+- **The tell, in the moment, is composing a justification.** If a choice needs *defending* in a
+  commit message, it was a WHAT.
 - **Not every WHAT interrupts.** One that blocks the work does; one merely noticed goes in the
-  report. If everything routes to an interruption, interruptions stop meaning anything.
-- **Permission prompts are not the mechanism.** A prompt only ever asks a HOW question, so it cannot
-  gate a WHAT. **Do not add a prompt to cover a rule.**
+  report.
+- **Permission prompts are not the mechanism.** A prompt only ever asks a HOW question, so it
+  cannot gate a WHAT; do not add a prompt to cover a rule.
 
 **When something is vague, or two sources disagree, ask. Every single time.** This project is
 **maximally designer-authored at every step except the HOW**, so resolving an ambiguity quietly
 takes a decision that was never yours — including when it looks obvious and turns out right. **An
-implementation disagreeing with its spec is a question to ask, not a discrepancy to fix.**
-
-**A design question asked in service of a HOW is welcome, not an interruption.** The rule guards
-against handing *decisions* back, not against asking what a thing is for. **A question is the cue
-to commit a design direction and solidify it** — it pulls a decision out of the runway into the
-record at the point it becomes real. Ask early and ask cheaply.
+implementation disagreeing with its spec is a question to ask, not a discrepancy to fix.** A design
+question asked in service of a HOW is welcome, not an interruption — **a question is the cue to
+commit a design direction and solidify it**, so ask early and ask cheaply. If a gameplay question
+has more than one defensible answer, raise it rather than picking quietly, and record the choice in
+`Docs/Combat-Decisions.md`. Unprompted initiative is welcome for debug and tooling conveniences;
+never for anything that changes how the game plays.
 
 **The design runway lives outside the repo, deliberately.** The user maintains living design
 documentation running well ahead of the build and dispenses from it as each thing becomes relevant.
@@ -147,31 +167,27 @@ thing yet. Do not invent to fill it, and do not try to write the runway down.
   known-traps section for the item in play and say what it turned up.
 - ***Measuring comes before planning*** — a plan proposed before measuring is the first hypothesis
   wearing a schedule.
-- ***The pause is real.*** Do not begin work that has not been described and agreed, however obvious.
-- ***Execution after a greenlight is unattended*** — drive the editor closes, rebuilds, asset writes
-  and verification through to the end. If something mid-execution changes what should happen, that
-  is a **new plan** needing its own greenlight. **This applies to scope as much as direction.**
+- ***The pause is real.*** Do not begin work that has not been described and agreed, however
+  obvious. A plan for an attack or defensive move includes the input binding, montage/notify
+  windows, stamina cost, and at least a basic success/failure outcome.
+- ***Execution after a greenlight is unattended*** — drive the editor closes, rebuilds, asset
+  writes and verification through to the end. If something mid-execution changes what should
+  happen — **scope as much as direction** — that is a **new plan** needing its own greenlight.
 - **Do not declare a task finished on your own.** Report what was built, what was **verified versus
-  merely written**, and **what was done beyond what was agreed, or that nothing was** — then stop.
-  This is what makes unattended execution safe.
+  merely written**, the assets touched and key values set, and **what was done beyond what was
+  agreed, or that nothing was** — then stop. This is what makes unattended execution safe.
 
 **Any package planning a new combat capability includes one of two things, and there is no third:**
 the scenarios it will add to `Tools/RegressionCheck/regression-check.sh` **in the same package**, or
 a **dated trap** naming what is now untested. **Doing neither is a process violation, and it binds
 at plan time.** A loop that lags the combat surface still prints green.
 
-**Combat and gameplay work is deliberate, not vibed.** If a gameplay question has more than one
-defensible answer, raise it rather than picking one quietly, and record the choice in
-`Docs/Combat-Decisions.md`. Unprompted initiative is welcome for debug and tooling conveniences; not
-for anything that changes how the game plays.
-
 **When play and rationale disagree, play wins.** A designed distinction that does not survive
 contact with feel gets dropped, and the entry recording it superseded. Do not treat a persuasive
 past entry as a commitment.
 
 **An animation plays in full across the mechanical duration it belongs to.** Fit the clip to the
-duration; never trim it to hit a number nobody has felt. The fix for a bad-feeling number is to
-change the number.
+duration, never the reverse — the fix for a bad-feeling number is to change the number.
 
 **Instrument before theorising.** When behaviour is wrong and the cause is not obvious, enable a
 trace before proposing an explanation, and prefer an experiment that *manipulates* the suspected
@@ -179,13 +195,13 @@ cause over one that only observes it.
 
 **Never claim something does not exist based on a filtered or derived view.** A search that finds
 nothing proves only that your filter did not match. Search the authoritative source unfiltered, try
-synonyms and known misspellings, and **quote the command you ran**. **Date every absence claim with
+synonyms and known misspellings, **quote the command you ran**, and **date every absence claim with
 what you searched** — absence claims rot faster than any other kind.
 
 **Do not delete lines you did not write without asking**: most are scar tissue from something that
 went wrong once.
 
-**At startup, check that the previous session wound down, and say so if it did not.** A dirty
+**At startup, check that the previous session wound down, and say so if it did not** — a dirty
 working tree, or stranded packages in `Saved/Autosaves/PackageRestoreData.json`.
 
 **Never delete assets or change project settings without explicit approval.**
@@ -194,41 +210,29 @@ working tree, or stranded packages in `Saved/Autosaves/PackageRestoreData.json`.
 undoable, and the message is where reasoning gets recorded. Commit in coherent, verified units as
 work lands. Pending *tuning* questions do not block a push; pending *correctness* verification does.
 
-**Every commit you author gets the `Co-Authored-By` trailer, without exception.** A trailer present
-only sometimes makes its absence ambiguous. Do not automate it with a hook — a hook cannot tell who
-wrote a change.
+**Every commit you author gets the `Co-Authored-By` trailer** — present only sometimes, its absence
+turns ambiguous, so a commit you did not author says so in its message instead. Never via hook: a
+hook cannot tell who wrote a change.
 
 **Report what was found, not who found it.** Note a contribution in a clause if it matters to the
-reasoning and move on. Do not tally credit and do not apologise for not having thought of it first.
-This does not touch correcting the record: a wrong claim still gets corrected plainly.
-
-**Work in small, verifiable vertical slices.** Propose a short plan before creating or modifying
-multiple assets; after each slice, stop and wait for feedback. When implementing an attack or
-defensive move, include the input binding, montage/notify windows, stamina cost, and at least a
-basic success/failure outcome. Afterwards, list the assets created or modified and the key values
-set.
-
-## Closing down a session
-
-**The procedure is `Docs/Closing-Down.md`. Read it when the user says to wind down, and not
-before** — whether a session concludes is theirs to decide, never yours to infer.
+reasoning and move on; do not tally credit and do not apologise. A wrong claim still gets corrected
+plainly.
 
 ## Current Focus
 
 Execution order, the only line that changes when the order does:
 
 > **~~Attack Ladder~~ → ~~Dodge~~ → ~~Sword & Shield~~ → ~~Input Buffer~~ → ~~Death~~ → ~~Dodge Distance~~ → ~~Attack Swap~~ → ~~[hover bug]~~ → ~~[facing pass]~~ → ~~Recovery~~ + ~~Lunge~~ → ~~Target Lock~~ → ~~Block~~ → ~~Light String~~ → Parry → Knockdown → Polish → Death-full → Settings → Netcode → Tuning Rig → Interplay**
-**Pick up at Parry.** Nothing is blocked. **Read its brief in `Docs/Combat-Decisions.md`'s
-slice-briefs section before starting** — its 400 / 500 / 1000 ms numbers predate the light's move
-to 200 ms and must be re-derived against the current ladder.
+
+**Pick up at Parry. Nothing is blocked. Read its brief in `Docs/Combat-Decisions.md`'s
+slice-briefs section before starting.**
 
 **Structure Audit has no roster position and keeps a trigger**; its brief is in the same section.
 
 ### When a slice ships
 
 **Route every consequence, then delete the entry.** The execution-order line above is the complete
-roster — struck through is the whole record a shipped item needs here. Nothing else about it stays
-in this file.
+roster — struck through is the whole record a shipped item needs here.
 
 | Consequence | Goes to |
 |---|---|
