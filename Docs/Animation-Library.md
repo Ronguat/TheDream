@@ -298,6 +298,15 @@ rather than resolving it. So a combo string is `Stage1` → `Stage2` → `StageN
 terminal hit resolving. That is how the pack is built, and it means a family's stage count *is*
 meaningful for a string even though it is not a count of usable standalone attacks.
 
+***Superseded 2026-08-18 for this project's string; the description of the pack stays true.***
+Every swing uses `_Complete`, mid-string ones included — **the player may stop attacking after any
+hit**, so each swing must be able to resolve on its own, and nothing guarantees it a successor to
+blend into. The fragment route was examined and set aside with it: playing the fragment and
+blending to the complete ending when the chain window lapses would swap poses roughly 400 ms
+*after* the swing is mechanically over, on a character already free to move, block or dodge.
+**The stage-count claim is untouched** — it is this paragraph's other point and still holds.
+Reasoning in `Docs/Combat-Decisions.md`, 2026-08-18.
+
 **Duration matters more than it looks.** `_Complete` clips run 0.900–3.000 s in V3; the standalone
 `AttackN` forms run 2.133–4.867 s. Since the play rate is derived from where the impact frame
 sits, a 0.9 s clip lands near the rate this project already ships, while a 2.1 s one implies
@@ -321,6 +330,12 @@ review is per-family and the durations are in the table anyway.
 family's stages played as one fluid sequence, so a single preview tells you roughly what every
 stage contains. `Attack3` and `Attack6` were dismissed wholesale that way. This turns an N-clip
 review into one clip plus follow-ups only where something looked promising.
+
+**Two families break that, measured 2026-08-18.** Across the other 17 staged families the whole
+clip is the sum of its plain stages plus one frame per boundary — but **V2 `Attack5`** runs
+2.767 s against stages summing 3.800 (a second *shorter* than its own parts, so it will not show
+you everything), and **V2 `Attack7`** runs 3.800 against 2.300 (1.5 s of motion no stage covers).
+Cause unknown and deliberately not theorised. **Watch those two families' stages directly.**
 
 | Clip | Length | What it is |
 |---|---:|---|
@@ -349,6 +364,15 @@ review into one clip plus follow-ups only where something looked promising.
 **All 23 reviewed, 2026-08-11.** Families 3 and 6 are unusable for this project outright.
 
 ### Windup compatibility is the selection criterion, not duration
+
+***Superseded 2026-08-18 for heavy and charged — and what follows is why it mattered, not a
+mistake.*** The bespoke windup pass replaces the coil with a blended transition into each tier's
+own anticipation, and **the blend performs the migration**, so a heavy on a different swing plane
+reads as a tell rather than as a glitch. Windup match is therefore no longer asked of a heavy or
+charged candidate; what replaces it is a legible **anticipation apex** to blend into.
+`Attack7_Stage1` and `Attack8_Stage2` — dismissed below on windup grounds — are candidates again.
+**The shared-windup mechanic is unchanged**: the first 150 ms still carries no information, which
+is what the argument below is really protecting. Entry: `Docs/Combat-Decisions.md`, 2026-08-18.
 
 The single most useful thing the review surfaced, and it is a *design* constraint rather than an
 art one. This project's ladder **shares one windup across light, heavy and charged** — that is

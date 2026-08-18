@@ -605,7 +605,8 @@ kept in their own notes. What belongs here is only what to move once a verdict a
 | Dodge reads fast-forwarded | `DodgeSeconds` | The clip. Trimming sections to drop the play rate makes the animator's midpoint the design, and does it before the baseline has been felt. |
 | Dodge travels too far or short | `DodgeTargetDistanceCm` — one number, every direction, as of 2026-08-13 | The play rate, and **not `AnimRootMotionTranslationScale`**, which this row named until 2026-08-14 and which now does nothing at all: the dash clips carry `bEnableRootMotion = false`, so there is no animation root motion left to scale. Rate changes *duration*, never *distance* — a faster dash covers the same ground in less time. |
 | Dodge is too safe | A recovery window in **absolute** time, i-frames derived as `DodgeSeconds - RecoverySeconds` | A *fraction* of the dodge. What makes recovery punishable is how it compares to an attack's startup, and a fraction shrinks the punish window below usable whenever the dodge is retuned faster. |
-| An attack is too reactable, or not enough | `CoilEndSeconds`, or moving where the coil starts | The windup length. Reactability is measured from the **tell**, not the press — a longer windup with the same coil changes nothing. |
+| An attack is too reactable, or not enough | `CoilEndSeconds`, or moving where the coil starts | The windup length. Reactability is measured from the **tell**, not the press — a longer windup with the same coil changes nothing. *(Once the bespoke windup pass lands, this row becomes "where the blend starts"; the window it moves is the same one.)* |
+| A swing's follow-through drags, or its recovery reads sluggish | That branch's or swing's `RecoverySeconds` — it sets the recovery *rate*, currently 0.588 on the light and the section furthest from true speed | The clip, and **especially not `BlendOutTriggerTime`**. Recovery only has to reach the blend-out boundary, and with a trigger of `-1` that boundary **moves with the rate** — so touching it silently retimes the punish window instead of the look. Same family as the blend-out trap. |
 | The snap-to-camera pop reads badly | **Nothing — the snap is gone.** Facing is one smooth rate in both states as of 2026-08-12 | *(This row used to forbid always-smooth on the grounds that it sends dodges sideways. That was wrong: a dodge resolves its direction relative to facing and travels relative to the same facing, so lag cancels. Disproven in play.)* |
 | Attacks do not land where the player aimed | `TurnRateDegrees`, and check the `FACING LOCK` trace for the error at commit — **but a clean trace does not exonerate**, see the buffered-aim trap | The wedge's `ArcDegrees`. Widening the arc to cover a facing that arrived late hides an aim bug behind a bigger hitbox, and does it in every direction at once. |
 | `TurnRateDegrees` feels too fast or slow | Nothing, without re-deriving it. It is 180° ÷ the light's `HoldUntilSeconds`, the slowest rate that always arrives before the wedge freezes | Lowering it for feel. Below the derived value there are flicks the character cannot finish, and the attack silently points somewhere the player did not aim — which is what 500 was doing to 71% of flick-attacks. |
@@ -759,7 +760,8 @@ reactable", "Y is too safe" — requires a felt number behind it.
 | `UTDMeleeAttackAbility::LungeDistanceCm` (base) | **Felt** 2026-08-12 | The user's first tuned value after the lunge became steerable. |
 | Per-branch `LungeDistanceCm` | **Partly** | Measured accurate to 2.5% and play-verified as *behaviour*; what the distances should *be* is open, and the clamp decides them at the placed spacing. See the reach/travel/spacing trap. |
 | `FTDAttackHitbox` wedges (150 / 60° / ±70) | **Unfelt** | Uniform on all three branches deliberately, pending bespoke clips. **The vertical band still has never discriminated against anybody, and the burden of authoring it is the designer's** — the test adds the target's 96 cm half-height to both ends, so ±70 excludes nothing until the centres are ±166 cm apart, needing a slope past 40.8° at hit range. `L_CombatTest`'s ramp is 15°, so it cannot produce that; a jump or a deliberately low volume can. *Measured 2026-08-14 — three hits landed and none was rejected on height.* |
-| `RecoverySeconds` (0.40 / 0.50 / 0.60) | **Felt** 2026-08-12 | Two PIE sessions; *"it all felt very good and expected"*. |
+| `RecoverySeconds` (~~0.40~~ **0.60** / 0.50 / 0.60) | Heavy and charged **felt** 2026-08-12; **the light's is unfelt** | Two PIE sessions; *"it all felt very good and expected"*. *Annotated 2026-08-18: the light's moved 0.40 → 0.60 in sitting 2's long-recovery redesign, knowingly superseding a felt value, and this row was not updated with it. Heavy and charged are untouched and still felt.* |
+| The light's section rates **1.500 / 1.000 / 0.588** | **Felt** 2026-08-18, *as a floor* | The designer: the light as configured *"feels excellent"*, and the profile is *"a floor, not a ceiling"* — distortion of this magnitude is effortlessly acceptable, and **nothing is claimed about more**. Not a target shape to match. Derived from `AM_Attack` 0.967 s against `ReleaseAtSeconds` 0.200 / `ReleaseSeconds` 0.150 / `RecoverySeconds` 0.600 with a 0.150 notify; measured over four consecutive swings, recovery varying 0.588–0.596 with where the window ended. **A clip swap moves all three at once**, which is what makes this the acceptance reference for the roster audit. |
 | `DodgeSeconds`, `DodgeTargetDistanceCm` | **Felt** | 0.4 judged before any animation existed, deliberately; 405 is Dodge Distance's play-verified V1 figure, preserved through the V3 swap. |
 | `InputBufferSeconds` | **Felt**, with a known cost | 0.20 chosen by play. One press in seven dropped under deliberately abusive tapping, not felt in normal play. |
 | `StaminaRegenPerSecond`, `ExhaustedStaminaRegenPerSecond` | **Unfelt** | 40 and 25, the user's numbers but verified by construction only — nothing in the build spends stamina without a human on the dodge key. The arithmetic to check is 0 → full in 2.5 s normally, 4.0 s exhausted. |
@@ -996,6 +998,93 @@ long.
 | `gEComponents` | 08-10, 08-11 |
 
 ---
+
+## 2026-08-18 — Every string swing resolves on its own, and the light's profile is a floor
+
+Two rulings from the clip audit's opening, both the designer's.
+
+**`_Complete` is correct for every swing, mid-string ones included.** The reasoning is one
+sentence and it settles a question `Docs/Animation-Library.md` had answered the other way: *the
+player could stop attacking after each one.* Chain-out fires only if a press arrives, so no swing
+is ever guaranteed a successor — a fragment ending mid-motion would be left hanging at exactly the
+moment the player chose to stop, which is when the animation most needs to resolve.
+
+**The fragment route was examined and set aside, not overlooked.** It would play the incomplete
+stage and blend to the complete ending once the chain window lapsed. The designer's own read was
+that it is *"likely 80% as good"* against real authoring cost, and there is a mechanical objection
+besides: the link window closes roughly 400 ms after recovery starts, so the swap would land on a
+character already free to move, block or dodge. Recorded because *"why not use the fragments"* is
+exactly what a future reader asks — the pack is built for it and we are deliberately not.
+
+### The light is a floor, and that distinction is the whole point
+
+**The light as configured feels excellent** (the designer) — a felt verdict from play rather than
+a number chosen on paper. Measured across four consecutive swings its sections run **windup 1.500
+/ release 1.000 / recovery 0.588**: a 0.967 s clip striking 31% in with a 16% contact window. The
+release is the only section at true speed, which is plausibly why it reads clean — the frames a
+player actually watches for contact are unmanipulated.
+
+**It is a floor, not a ceiling**, correcting an assistant framing that had begun treating the
+profile as a target shape to match. What it licenses is that *distortion of this magnitude* — 50%
+fast on one section while another runs 41% slow — is effortlessly acceptable. It says nothing
+about more being unacceptable, only that more is **unverified**. A candidate at 1.4× is outside
+proven territory and is not thereby disqualified.
+
+**What follows for screening.** Holding a clip's proportions, all three rates scale linearly with
+its length, so length ÷ 0.95 s is its distortion factor. But **proportions cannot be read from
+length** (the designer), so the ratio can only ever rule a clip *out*, never in — which is why the
+audit is hands-on. **No proven length dealbreaker exists:** the one clip that felt wrong was the
+blend-out bug, and its own review note reads *"too slow at 1×, wants speeding up."*
+
+## 2026-08-18 — The bespoke windup pass deprecates the coil, and eligibility widens with it
+
+**Coil was scaffolding.** The designer's framing, and it recasts a mechanic this file has argued
+over for weeks: it *"was built as a way to unblock combat work prior to animation selection work
+like this."* The bespoke heavy and charged pass replaces it with a blended transition into each
+tier's own anticipation, so the tell stops being a rate manipulation and becomes an animation.
+
+**The reactability arithmetic survives untouched**, which is what makes this a swap rather than a
+redesign. The blend occupies exactly the window the coil occupied: **350 ms** light→heavy
+(0.150 → 0.500) and **300 ms** heavy→charged (0.450 → 0.750) — noting a heavy that escalates only
+ever got 300 ms of its own. The first 150 ms still carries no information.
+
+**Expect the heavy to get more reactable, not less.** It is already recorded as more reactable
+than intended at 350 ms, and a visible repositioning is a stronger tell than a freeze. The knob is
+where the blend starts rather than which clip is chosen, and it stays with the ladder-wide tune.
+
+### Mismatched windups are a tell, not a glitch
+
+**The designer's read, and it widens the pool considerably.** A heavy that migrates to the
+opposite swing plane reads intuitively *if the blend performs the migration* — you specify the pose
+being blended into and the transition does the work. The same method applies again for charged out
+of heavy. This supersedes `Docs/Animation-Library.md`'s *"windup compatibility is the selection
+criterion"* for these two tiers, and reopens `Attack7_Stage1` and `Attack8_Stage2`, both dismissed
+by the 2026-08-11 review on windup grounds alone.
+
+**Blend versus authored frames is not the choice it appears to be.** A montage blend-in crossfades
+between two *playing* animations, so the vendor's authored motion drives the target while the
+blend hides the discontinuity. The real dial is **where in the clip you enter**: early keeps the
+arcs and needs a compatible windup, late asks more of the blend and risks foot sliding. Decided
+per clip, not as policy.
+
+**What a candidate now needs** is a legible **anticipation apex** to blend into, and a tail long
+enough to cover recovery (0.500 s heavy, 0.600 s charged). **Length has stopped mattering** for
+these tiers because the front of the clip is discarded — which puts the long singles back in play
+as the likeliest charged material, having been screened out an hour earlier on length.
+
+### Scope, and what it will cost
+
+**Its own slice, not Light String's** (the designer), with only the recon pulled forward so it is
+prepped when the slice arrives. **Its position in the execution order is undecided** and it is
+deliberately absent from that line until it is.
+
+The cost is real and worth stating before anyone assumes this is configuration: a windup blend
+path **does not exist** — `FTDAttackBranch::MontageSection` is a *release* hook, fires inside
+`CommitAttack`, and is a hard `MontageJumpToSection` rather than a blend. Montage structure is
+**not scriptable** (`compositeSections` is neither readable nor writable), so the asset half is
+entirely a human authoring job. And it owes the loop-coverage choice every new combat capability
+owes. Whether it lands as sections on one montage or a second montage blended over the first is
+open, and does not change a single clip judgement.
 
 ## 2026-08-16 — The aim wedge is a learnable constant, not a per-attack value
 
