@@ -314,6 +314,46 @@ struct FTDStringSwing
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Swing", meta=(ClampMin="0.01"))
 	float RecoverySeconds = 0.4f;
+
+	/**
+	 *  This position's damaging volumes. **Empty inherits the branch's**, which is what every
+	 *  swing did before per-swing volumes existed -- the same fallback shape as a branch's own
+	 *  empty array falling back to the ability's set, and for the same reason: a swing that
+	 *  silently deals no damage is the failure this project keeps a trap list for.
+	 *
+	 *  Per-swing because what an attack *hits* is a different question from how much aim error is
+	 *  forgiven. The aim wedge stays a learnable constant across the ladder and the string, by
+	 *  decision; a 360-degree finisher is a statement about geometry, not about forgiveness.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Swing")
+	TArray<FTDAttackHitbox> Hitboxes;
+
+	/**
+	 *  How long this position's damaging phase lasts. **0 inherits the branch's.**
+	 *
+	 *  It sets the release *play rate* as well as the window, since the rate is the notify's
+	 *  authored width divided by this. So lengthening it both widens the damaging window in wall
+	 *  clock and slows the contact motion toward true speed -- authoring it to equal the notify's
+	 *  width is what makes a swing's release play at exactly 1.0.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Swing", meta=(ClampMin="0.0"))
+	float ReleaseSeconds = 0.0f;
+
+	/**
+	 *  This position's lunge distance. **0 inherits the branch's.**
+	 *
+	 *  Mostly a *whiff* value at the string's own spacing: a connecting chain parks the target at
+	 *  HitSpacingCm and the standoff gate then clamps travel to whatever is left -- about 26 cm at
+	 *  a 150 cm reset -- so an increase here is invisible on connects until knockback grows.
+	 *  It also feeds the aim wedge's derived reach, exactly as the branch's does.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Swing", meta=(ClampMin="0.0"))
+	float LungeDistanceCm = 0.0f;
+
+	/** This position's lunge duration. **0 inherits the branch's.** Separate from distance because
+	 *  the two are tuned against different things: reach, and how long you are committed to it. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Swing", meta=(ClampMin="0.0"))
+	float LungeDurationSeconds = 0.0f;
 };
 
 /**
@@ -561,6 +601,22 @@ private:
 
 	/** This swing's CoilEndSeconds, resolved the same way. */
 	float GetSwingCoilEndSeconds(int32 SwingIndex) const;
+
+	/**
+	 *  Per-swing overrides, each resolving swing -> branch -> ability. They take the branch index
+	 *  explicitly rather than reading SelectedBranchIndex, because BuildAimAssistWedge asks about
+	 *  branches other than the one currently selected.
+	 */
+	const TArray<FTDAttackHitbox>& GetSwingHitboxes(int32 SwingIndex, int32 BranchIndex) const;
+
+	/** This swing's release duration, or the branch's when it authors none. */
+	float GetSwingReleaseSeconds(int32 SwingIndex, int32 BranchIndex) const;
+
+	/** This swing's lunge distance, or the branch's when it authors none. */
+	float GetSwingLungeDistanceCm(int32 SwingIndex, int32 BranchIndex) const;
+
+	/** This swing's lunge duration, or the branch's when it authors none. */
+	float GetSwingLungeDurationSeconds(int32 SwingIndex, int32 BranchIndex) const;
 
 	/**
 	 *  Whether the selected branch at the current swing is a non-final string light -- the gate

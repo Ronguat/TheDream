@@ -1711,8 +1711,7 @@ void ATDCombatCharacter::UpdateDebugFacingFocus(bool bAttacking)
 	// cutoff here would be a second spacing number nobody authored. Deliberately not "the player
 	// pawn" -- the auto-attacker is on the shared base, so a self-attacking player would
 	// otherwise focus on itself.
-	APawn* Nearest = nullptr;
-	float NearestDistanceSquared = TNumericLimits<float>::Max();
+	TArray<APawn*> Candidates;
 	for (TActorIterator<APawn> It(World); It; ++It)
 	{
 		APawn* Candidate = *It;
@@ -1728,22 +1727,90 @@ void ATDCombatCharacter::UpdateDebugFacingFocus(bool bAttacking)
 			continue;
 		}
 
-		const float DistanceSquared = FVector::DistSquared(Candidate->GetActorLocation(), GetActorLocation());
-		if (DistanceSquared < NearestDistanceSquared)
+		Candidates.Add(Candidate);
+	}
+
+	if (Candidates.Num() == 0)
+	{
+		return;
+	}
+
+	APawn* Chosen = nullptr;
+
+	if (bDebugAutoAttackRotateTargets)
+	{
+		// Sorted by name, so the cycle is identical run to run. Sorting by distance would
+		// reshuffle as knockback moves bodies about, which is the very coupling rotation exists
+		// to break -- the attacker would simply chase again through a different mechanism.
+		// Exclude whatever the last attack went to, then take the nearest of what remains, so the
+		// attacker ping-pongs instead of chasing. Chosen over an index cycle deliberately: an
+		// index reshuffles when a death or revive changes the candidate list, while "not that one"
+		// keeps meaning the same thing. The Num() > 1 guard is what makes a single-target level
+		// behave exactly as before rather than refusing to aim at anything.
+		APawn* const Previous = DebugLastFocusTarget.Get();
+		float NearestDistanceSquared = TNumericLimits<float>::Max();
+		for (APawn* Candidate : Candidates)
 		{
-			NearestDistanceSquared = DistanceSquared;
-			Nearest = Candidate;
+			if (Candidate == Previous && Candidates.Num() > 1)
+			{
+				continue;
+			}
+
+			const float DistanceSquared = FVector::DistSquared(Candidate->GetActorLocation(), GetActorLocation());
+			if (DistanceSquared < NearestDistanceSquared)
+			{
+				NearestDistanceSquared = DistanceSquared;
+				Chosen = Candidate;
+			}
+		}
+
+		// Ungated like the other fixture traces: rotation failing is invisible by eye until an
+		// assertion built on it reads green for the wrong reason, and it took four cycles of
+		// guessing to find that the press path was the wrong clock.
+		TD_TIMING_LOG(TEXT("[%.3f] ROTATE     excluded '%s' -> chose '%s' (%d candidates)"),
+			GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f,
+			*GetNameSafe(Previous),
+			*GetNameSafe(Chosen),
+			Candidates.Num());
+
+		DebugLastFocusTarget = Chosen;
+	}
+	else
+	{
+		float NearestDistanceSquared = TNumericLimits<float>::Max();
+		for (APawn* Candidate : Candidates)
+		{
+			const float DistanceSquared = FVector::DistSquared(Candidate->GetActorLocation(), GetActorLocation());
+			if (DistanceSquared < NearestDistanceSquared)
+			{
+				NearestDistanceSquared = DistanceSquared;
+				Chosen = Candidate;
+			}
 		}
 	}
 
-	if (Nearest)
+	if (Chosen)
 	{
-		AI->SetFocus(Nearest, EAIFocusPriority::Gameplay);
+		AI->SetFocus(Chosen, EAIFocusPriority::Gameplay);
 	}
 }
 
 void ATDCombatCharacter::HandleDebugAutoAttackEnded(const FAbilityEndedData& EndedData)
 {
+	// Target rotation advances here, and only here, because **this is the one event that happens
+	// exactly once per attack.** The press path is the wrong clock: taps arrive every
+	// DebugAutoAttackStringTapIntervalSeconds (0.25 s) while attacks activate at the chain cadence
+	// (~0.5 s), so advancing on a press ticks twice per attack and lands back on the body it
+	// started from. Measured 2026-08-18 -- focus visibly flipped on every press and every attack
+	// in the burst still committed to the same target.
+	//
+	// Ahead of the taps guard below deliberately: mid-burst is exactly when rotation must happen,
+	// and that guard exists for the home reset, which must *not*.
+	if (bDebugAutoAttackRotateTargets)
+	{
+		UpdateDebugFacingFocus(/*bAttacking=*/true);
+	}
+
 	// Taps still owed means the burst is mid-flight, and returning is safe because the *next*
 	// swing's end runs this handler again. There is always a second chance.
 	if (DebugStringTapsRemaining > 0)

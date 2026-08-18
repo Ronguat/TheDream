@@ -11,6 +11,7 @@
 #   ./regression-check.sh --self-test        # prove the instrument can fail
 #
 # Scenarios: s1-light s1-heavy s1-charged s2-light s2-heavy s2-charged s3
+#            s4-string s4-guarantee s4-block   (all need StringTaps 3)
 # Exit 0 = all assertions passed, 1 = at least one failed, 2 = usage/no data.
 
 set -uo pipefail
@@ -78,6 +79,32 @@ BAND_DODGE_REMAINING_FROM_FULL=50.0
 # the whole assertion.
 BAND_EXHAUST_ENTER=0.0; BAND_EXHAUST_EXIT=100.0
 BAND_STAMINA_TOL=0.5
+
+# S4 -- the light string. Fixture is DebugAutoAttackStringTaps 3, so each cycle is a burst of
+# three swings rather than one. Every band here is derived from GA_Attack's CDO read 2026-08-18,
+# NOT from the plan session's proposals -- three of those went stale when the cadence was
+# measured off the designer and hitstun and blockstun were re-derived against it.
+BAND_STRING_SWINGS=3
+
+# ACTIVATE to the next ACTIVATE. 0.200 release-at + 0.150 release + ChainOpenAfterRecoverySeconds
+# 0.133 + the buffer tick that notices recovery opened = ~0.500, which is the cadence the designer
+# tapped on 2026-08-16. The tolerance is the tick landing either side of a frame.
+BAND_CHAIN_GAP=0.500; BAND_CHAIN_GAP_TOL=0.045
+
+# HitstunSeconds on branch 0. It must outlast the chain gap or "any hit guarantees the rest"
+# silently stops being true -- which is what s4-guarantee observes directly.
+BAND_HITSTUN_LIGHT=0.550; BAND_HITSTUN_TOL=0.020
+
+# RELEASE OFF (recovery opens) to the chained ACTIVATE: ChainOpenAfterRecoverySeconds plus one
+# buffer tick. The plan said "<= 2 frames", written when ChainOpen was still 0.
+BAND_CHAIN_LATENCY_MIN_MS=125; BAND_CHAIN_LATENCY_MAX_MS=175
+
+# Knockback determinism deliberately has NO band. The KNOCKBACK line prints its own authored
+# target -- "spacing=150 (authored 150)" -- so the assertion compares the two fields against each
+# other and cannot go stale when HitSpacingCm or BlockedSpacingCm is retuned. The clamp is
+# one-sided by design (FinalSpacingCm = max(authored, currentAlong)), so the invariant is
+# spacing >= authored, never equality: a hit landing beyond the reset keeps its distance.
+BAND_SPACING_SLACK=0.5
 
 # ---------------------------------------------------------------------------
 
@@ -183,6 +210,63 @@ blockstun_spans() { # until= minus the timestamp it was printed at
 			for (i=1;i<=NF;i++) if ($i ~ /^until=/) { split($i,a,"="); printf "%.3f\n", a[2]-t }
 		}' "$SLICE"
 }
+
+hitstun_spans() { # until= minus the timestamp it was printed at; same shape as blockstun_spans
+	awk '
+		/^\[[0-9.]+\] HITSTUN    / {
+			t=$1; gsub(/[\[\]]/,"",t)
+			for (i=1;i<=NF;i++) if ($i ~ /^until=/) { split($i,a,"="); printf "%.3f\n", a[2]-t }
+		}' "$SLICE"
+}
+
+swing_index_counts() { # "<count> <swing index>" per index, so a burst shows equal counts
+	grep -o "ACTIVATE   swing=[0-9]*" "$SLICE" | cut -d= -f2 | sort | uniq -c
+}
+
+chain_gaps() { # seconds between an ACTIVATE and the chained ACTIVATE after it
+	# Emitted only when the *arriving* swing index is non-zero: index 0 opens a new burst, and the
+	# gap from the previous burst's ender is the fixture's 3 s interval, not a cadence sample.
+	awk '
+		/^\[[0-9.]+\] ACTIVATE/ {
+			t=$1; gsub(/[\[\]]/,"",t)
+			s=0; for (i=1;i<=NF;i++) if ($i ~ /^swing=/) { split($i,a,"="); s=a[2] }
+			if (s+0 > 0 && prev != "") printf "%.3f\n", t-prev
+			prev=t
+		}' "$SLICE"
+}
+
+chain_latency_ms() { # RELEASE OFF to the chained ACTIVATE that follows it
+	awk '
+		/^\[[0-9.]+\] RELEASE OFF/ { t=$1; gsub(/[\[\]]/,"",t); r=t+0; have=1; next }
+		have && /^\[[0-9.]+\] ACTIVATE/ {
+			s=0; for (i=1;i<=NF;i++) if ($i ~ /^swing=/) { split($i,a,"="); s=a[2] }
+			if (s+0 > 0) { t=$1; gsub(/[\[\]]/,"",t); printf "%.0f\n", (t-r)*1000 }
+			have=0
+		}' "$SLICE"
+}
+
+knockback_inward_violations() { # spacing must never fall below the authored value it prints
+	awk -v slack="$BAND_SPACING_SLACK" '
+		/^\[[0-9.]+\] KNOCKBACK/ {
+			sp=""; au=""
+			for (i=1;i<=NF;i++) {
+				if ($i ~ /^spacing=/) { split($i,a,"="); sp=a[2] }
+				if ($i == "(authored") { au=$(i+1); gsub(/\)/,"",au) }
+			}
+			if (sp != "" && au != "" && sp+0 < au+0 - slack) print sp "<authored " au
+		}' "$SLICE"
+}
+
+knockback_count() { grep -c "^\[[0-9.]*\] KNOCKBACK" "$SLICE" || true; }
+
+dodges_inside_hitstun() { # DODGE lines falling between a HITSTUN and its HITSTUN END
+	awk '
+		/^\[[0-9.]+\] HITSTUN    / { inside=1; next }
+		/^\[[0-9.]+\] HITSTUN END/ { inside=0; next }
+		inside && /^\[[0-9.]+\] DODGE      dir=/ { n++ }
+		END { print n+0 }' "$SLICE"
+}
+
 
 guardstun_spans() { # GUARD BREAK to the next GUARD END
 	awk '
@@ -330,6 +414,88 @@ run_s3() {
 		"$(awk -v v="$BAND_EXHAUST_EXIT" -v t="$BAND_STAMINA_TOL" 'BEGIN{printf "%.2f", v+t}')"
 }
 
+# --- S4: the light string ---------------------------------------------------
+# Fixture for all four: DebugAutoAttackStringTaps 3. The defender differs per scenario.
+
+assert_burst_shape() { # every swing index in the string fires the same number of times
+	local counts n_idx uneven
+	counts=$(swing_index_counts)
+	n_idx=$(printf '%s\n' "$counts" | grep -c '[0-9]')
+	if [ "$n_idx" -ne "$BAND_STRING_SWINGS" ]; then
+		check "string is $BAND_STRING_SWINGS swings" 1 "saw $n_idx distinct swing indices: $(echo $counts | tr '\n' ' ')"
+		return
+	fi
+	# A burst cut off by StopPIE leaves the earlier indices one ahead; tolerate exactly that.
+	uneven=$(printf '%s\n' "$counts" | awk '{print $1}' | sort -n | awk 'NR==1{lo=$1} {hi=$1} END{print hi-lo}')
+	if [ "$uneven" -le 1 ]; then
+		check "string is $BAND_STRING_SWINGS swings" 0 "$(echo $counts | tr '\n' ' ')"
+	else
+		check "string is $BAND_STRING_SWINGS swings" 1 "counts differ by $uneven: $(echo $counts | tr '\n' ' ')"
+	fi
+}
+
+assert_never_inward() {
+	local bad n
+	bad=$(knockback_inward_violations)
+	n=$(knockback_count)
+	# n=0 must FAIL, not pass on an empty set. A fixture with knockback switched off, or a build
+	# where it stopped firing, would otherwise report this green while asserting nothing -- the
+	# same vacuous-pass class --self-test exists to rule out.
+	if [ "$n" -eq 0 ]; then
+		check "knockback never pulls inward" 1 "no KNOCKBACK lines at all -- nothing was asserted"
+	elif [ -z "$bad" ]; then
+		check "knockback never pulls inward" 0 "n=$n, every spacing >= its authored value"
+	else
+		check "knockback never pulls inward" 1 "$(echo "$bad" | head -3 | tr '\n' ' ')"
+	fi
+}
+
+run_s4_string() {
+	assert_burst_shape
+	assert_all_in_band "chain gap (cadence)" "chain_gaps" \
+		"$(awk -v v="$BAND_CHAIN_GAP" -v t="$BAND_CHAIN_GAP_TOL" 'BEGIN{printf "%.3f", v-t}')" \
+		"$(awk -v v="$BAND_CHAIN_GAP" -v t="$BAND_CHAIN_GAP_TOL" 'BEGIN{printf "%.3f", v+t}')" "s"
+	assert_all_in_band "chain latency" "chain_latency_ms" \
+		"$BAND_CHAIN_LATENCY_MIN_MS" "$BAND_CHAIN_LATENCY_MAX_MS" "ms"
+	assert_all_equal "DAMAGED health damage" damaged_values "$BAND_HEALTHDMG_LIGHT"
+
+	local viol dcount
+	viol=$(damaged_ledger_violations | tr '\n' ';')
+	dcount=$(damaged_values | grep -c '[0-9]')
+	if [ -n "${viol//;/}" ]; then
+		check "health ledger steps by damage" 1 "$viol"
+	else
+		check "health ledger steps by damage" 0 "n=$dcount, all consecutive steps exact"
+	fi
+	assert_all_in_band "HITSTUN span" "hitstun_spans" \
+		"$(awk -v v="$BAND_HITSTUN_LIGHT" -v t="$BAND_HITSTUN_TOL" 'BEGIN{printf "%.3f", v-t}')" \
+		"$(awk -v v="$BAND_HITSTUN_LIGHT" -v t="$BAND_HITSTUN_TOL" 'BEGIN{printf "%.3f", v+t}')" "s"
+	assert_never_inward
+}
+
+run_s4_guarantee() {
+	local refused inside
+	assert_burst_shape
+	refused=$(grep -c ": hitstun" "$SLICE" || true)
+	check "REFUSED names hitstun" "$([ "$refused" -gt 0 ] && echo 0 || echo 1)" \
+		"$refused refusals attributed to State.Hitstun"
+	inside=$(dodges_inside_hitstun)
+	check "zero dodges inside hitstun" "$([ "$inside" -eq 0 ] && echo 0 || echo 1)" \
+		"$inside DODGE lines between HITSTUN and HITSTUN END"
+	assert_all_in_band "HITSTUN span" "hitstun_spans" \
+		"$(awk -v v="$BAND_HITSTUN_LIGHT" -v t="$BAND_HITSTUN_TOL" 'BEGIN{printf "%.3f", v-t}')" \
+		"$(awk -v v="$BAND_HITSTUN_LIGHT" -v t="$BAND_HITSTUN_TOL" 'BEGIN{printf "%.3f", v+t}')" "s"
+}
+
+run_s4_block() {
+	assert_burst_shape
+	assert_all_equal "BLOCKED staminaDamage" "stamina_damage_values" "$BAND_STAMDMG_LIGHT"
+	assert_all_in_band "BLOCKSTUN span" "blockstun_spans" \
+		"$(awk -v v="$BAND_BLOCKSTUN_LIGHT" -v t="$BAND_BLOCKSTUN_TOL" 'BEGIN{printf "%.3f", v-t}')" \
+		"$(awk -v v="$BAND_BLOCKSTUN_LIGHT" -v t="$BAND_BLOCKSTUN_TOL" 'BEGIN{printf "%.3f", v+t}')" "s"
+	assert_never_inward
+}
+
 clean_dodge_distances() {
 	# Full-duration, uncontaminated samples only. The lateral gate excludes collisions (the
 	# attacker shoving a mid-dodge body reads as right= drift); the duration gate excludes
@@ -435,7 +601,10 @@ case "$SCENARIO" in
 	s2-light)   run_s2 $BAND_STAMDMG_LIGHT   $BAND_BLOCKSTUN_LIGHT $BAND_HEALTHDMG_LIGHT ;;
 	s2-heavy)   run_s2 $BAND_STAMDMG_HEAVY   $BAND_BLOCKSTUN_HEAVY $BAND_HEALTHDMG_HEAVY ;;
 	s2-charged) run_s2 $BAND_STAMDMG_CHARGED none $BAND_HEALTHDMG_CHARGED ;;
-	s3)         run_s3 ;;
+	s3)           run_s3 ;;
+	s4-string)    run_s4_string ;;
+	s4-guarantee) run_s4_guarantee ;;
+	s4-block)     run_s4_block ;;
 	*) echo "regression-check: unknown scenario '$SCENARIO'" >&2; usage ;;
 esac
 

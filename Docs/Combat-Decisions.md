@@ -279,6 +279,40 @@ re-author may well do: it is one comparison, but nothing enforces it in code.
 The lights-low-knockback illustration died in the process, as the resolution predicted — lights
 author the **full** reset, and heavies and charged knock down instead.
 
+**Before the next fixture work, and at Interplay at the latest — *light 3's 360° wedge ships with
+no assertion behind it.*** Filed 2026-08-18 after five failed attempts to stage it, and the
+diagnosis is the valuable part.
+
+**The mechanic is verified, by eye:** the designer watched swing 2 damage two bodies in one release
+window. What does not exist is a check that fails if the arc is ever changed back — `s4-string`,
+`s4-guarantee` and `s4-block` are green and asserting the string's other mechanics, and none of
+them would notice.
+
+**Why the automated attempts failed, so nobody repeats them.** Two findings, both instrumented:
+
+- **A 360° wedge has no bearing test.** `FTDAttackHitbox::OverlapsCapsule` short-circuits on
+  `ArcDegrees >= 360` before computing one. So **facing is irrelevant to this test** — only reach,
+  and the attacker drifting out of it, ever mattered. Four of the five attempts were spent
+  rotating the attacker's aim, which could not have helped.
+- **AI focus does not drive an attack's target.** `bDebugAutoAttackRotateTargets` provably picks
+  correctly — the `ROTATE` trace shows it excluding the previous body and choosing the other on
+  every attack — and the attack commits elsewhere anyway: *"ROTATE chose Player → ACTIVATE swing=0
+  → TARGET commit 'Dummy' bearing=-89.3"*, a bearing far outside the ±20° wedge even with its
+  ~24° subtended widening. **The aim-assist selection is an independent system.** That is a
+  standing hazard for **Combat AI**, which will want to steer attacks and will meet it.
+
+**The test that should work, untried:** one target placed *behind* a non-turning attacker.
+Swings 0–1 at 60° cannot reach it, swing 2 at 360° can, and no second body or simultaneity is
+needed. It requires only that the attacker hold position — `ReturnToDebugAutoAttackHome` already
+exists and is deliberately suppressed mid-burst so a teleport cannot sever the spacing chain
+`s4-string` measures, so the knob is a between-attacks variant of something already written.
+
+**Triggers.** Earliest: the next time the debug attacker gains a position-hold or between-attack
+re-home knob. Backstop that cannot slip: **Interplay**, which already owes the buffered-aim 1vX
+test by the trap above and must build multi-target staging anyway. **Invalidated by** any change
+to `FindAimAssistTarget`'s selection rule or to swing 3's `arcDegrees` — either makes the
+diagnosis above stale rather than merely old.
+
 **Before authoring any new attack montage — *a wide Release Window can end the attack the instant
 it opens.*** Filed 2026-08-16, having cost two wrong fixes and several PIE cycles to find; the
 symptom in play was only *"light 2's release feels short"*.

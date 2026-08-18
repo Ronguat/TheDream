@@ -803,6 +803,26 @@ protected:
 	ETDDebugFacingMode DebugAutoAttackFacingMode = ETDDebugFacingMode::Never;
 
 	/**
+	 *  Take the *next* target each swing instead of always the nearest.
+	 *
+	 *  Default false, so every existing scenario is untouched -- the same discipline
+	 *  DebugAutoAttackStringTaps follows. Nearest-target selection makes the attacker **chase**:
+	 *  it lunges after the victim its own knockback just pushed away, so the pair travel together
+	 *  and any third body is left behind. That is harmless in a single-defender fixture and fatal
+	 *  in a multi-target one -- measured 2026-08-18 with a bystander drifting past 300 cm while
+	 *  the attacker and its victim stayed locked at ~120.
+	 *
+	 *  Rotation advances **per attack, not per burst.** A chained string is three attacks, not one
+	 *  attack in three parts -- so a fixture that re-targets only when a burst begins still chases
+	 *  one victim through all three, which is the exact failure this removes.
+	 *
+	 *  Candidates are ordered by name, so the cycle is identical across runs. Ordering by distance
+	 *  would reshuffle as knockback moves bodies about, which is the thing being escaped.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat|Debug")
+	bool bDebugAutoAttackRotateTargets = false;
+
+	/**
 	 *  Debug only: defend on a loop, so the defensive economy can be watched without a human.
 	 *
 	 *  The mirror of bDebugAutoAttack, and pairing it with one is deliberately *two actors' job*.
@@ -1277,6 +1297,11 @@ private:
 
 	/** Taps left in the current auto-attack burst. Guards the home reset; see the taps knob. */
 	int32 DebugStringTapsRemaining = 0;
+
+	/** The body the last attack aimed at, excluded from the next selection while rotating. A weak
+	 *  pointer because a target can die and be destroyed between attacks, and a stale raw pointer
+	 *  would then exclude an address rather than a pawn. */
+	TWeakObjectPtr<APawn> DebugLastFocusTarget;
 
 	/**
 	 *  When the blockstun lockout expires, in world seconds. Server-authoritative.

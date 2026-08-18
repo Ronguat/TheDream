@@ -333,7 +333,11 @@ void UTDChargedAttackAbility::CommitAttack()
 	// The duration is authored per branch as of 2026-08-13, where it used to run to the end of the
 	// release window. That derivation was elegant and wrong: it let ReleaseSeconds -- a hitbox
 	// liveness number -- set how a movement burst feels. See FTDAttackBranch::LungeDurationSeconds.
-	StartLunge(Branch.LungeDistanceCm, Branch.LungeDurationSeconds, Branch.LungeStrengthCurve, LungeStandoffCm);
+	StartLunge(
+		GetSwingLungeDistanceCm(CurrentSwingIndex, SelectedBranchIndex),
+		GetSwingLungeDurationSeconds(CurrentSwingIndex, SelectedBranchIndex),
+		Branch.LungeStrengthCurve,
+		LungeStandoffCm);
 
 	// The window's own length is only knowable once the notify fires, so the ability waits
 	// for it rather than duplicating the timeline.
@@ -515,16 +519,17 @@ void UTDChargedAttackAbility::HandleReleaseWindowBegan(FGameplayEventData Payloa
 	// The notify reports its own length, so the window can be stretched to the authored
 	// duration without anyone maintaining a copy of the timeline.
 	const float WindowLength = Payload.EventMagnitude;
-	if (WindowLength <= 0.0f || Branch.ReleaseSeconds <= 0.0f)
+	const float ReleaseSeconds = GetSwingReleaseSeconds(CurrentSwingIndex, SelectedBranchIndex);
+	if (WindowLength <= 0.0f || ReleaseSeconds <= 0.0f)
 	{
 		return;
 	}
 
-	const float ReleaseRate = FMath::Max(WindowLength / Branch.ReleaseSeconds, TDMinPlayRate);
+	const float ReleaseRate = FMath::Max(WindowLength / ReleaseSeconds, TDMinPlayRate);
 	SetMontagePlayRate(ReleaseRate);
 
 	TD_TIMING_LOG(TEXT("[%.3f] RELEASE    pos=%.4f windowLen=%.4f rate=%.3f (want %.3fs)"),
-		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f, ActualStart, WindowLength, ReleaseRate, Branch.ReleaseSeconds);
+		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f, ActualStart, WindowLength, ReleaseRate, ReleaseSeconds);
 }
 
 float UTDChargedAttackAbility::ComputeWindupPlayRate() const
@@ -715,6 +720,54 @@ float UTDChargedAttackAbility::GetSwingCoilEndSeconds(int32 SwingIndex) const
 		: CoilEndSeconds;
 }
 
+const TArray<FTDAttackHitbox>& UTDChargedAttackAbility::GetSwingHitboxes(int32 SwingIndex, int32 BranchIndex) const
+{
+	// Swing, then branch, then the ability's own set. Each rung falls through on *empty* rather
+	// than on a flag, so authoring nothing is how a swing says "same as the tier" -- and the last
+	// rung exists because a silently undamaging attack is worse than a wrong-sized one.
+	if (StringSwings.IsValidIndex(SwingIndex - 1) && StringSwings[SwingIndex - 1].Hitboxes.Num() > 0)
+	{
+		return StringSwings[SwingIndex - 1].Hitboxes;
+	}
+
+	if (Branches.IsValidIndex(BranchIndex) && Branches[BranchIndex].Hitboxes.Num() > 0)
+	{
+		return Branches[BranchIndex].Hitboxes;
+	}
+
+	return Hitboxes;
+}
+
+float UTDChargedAttackAbility::GetSwingReleaseSeconds(int32 SwingIndex, int32 BranchIndex) const
+{
+	if (StringSwings.IsValidIndex(SwingIndex - 1) && StringSwings[SwingIndex - 1].ReleaseSeconds > 0.0f)
+	{
+		return StringSwings[SwingIndex - 1].ReleaseSeconds;
+	}
+
+	return Branches.IsValidIndex(BranchIndex) ? Branches[BranchIndex].ReleaseSeconds : 0.0f;
+}
+
+float UTDChargedAttackAbility::GetSwingLungeDistanceCm(int32 SwingIndex, int32 BranchIndex) const
+{
+	if (StringSwings.IsValidIndex(SwingIndex - 1) && StringSwings[SwingIndex - 1].LungeDistanceCm > 0.0f)
+	{
+		return StringSwings[SwingIndex - 1].LungeDistanceCm;
+	}
+
+	return Branches.IsValidIndex(BranchIndex) ? Branches[BranchIndex].LungeDistanceCm : 0.0f;
+}
+
+float UTDChargedAttackAbility::GetSwingLungeDurationSeconds(int32 SwingIndex, int32 BranchIndex) const
+{
+	if (StringSwings.IsValidIndex(SwingIndex - 1) && StringSwings[SwingIndex - 1].LungeDurationSeconds > 0.0f)
+	{
+		return StringSwings[SwingIndex - 1].LungeDurationSeconds;
+	}
+
+	return Branches.IsValidIndex(BranchIndex) ? Branches[BranchIndex].LungeDurationSeconds : 0.0f;
+}
+
 UAnimMontage* UTDChargedAttackAbility::GetActiveAttackMontage() const
 {
 	// A swing whose montage was left unset falls back to the first hit's rather than to nothing --
@@ -771,12 +824,7 @@ const TArray<FTDAttackHitbox>& UTDChargedAttackAbility::GetAttackHitboxes() cons
 	// The alternative is an attack that silently deals no damage, which is the exact failure this
 	// project keeps a trap list for -- and it was reachable the moment the old per-branch
 	// TraceRadius was removed, since every existing branch deserialises with an empty array.
-	if (Branches.IsValidIndex(SelectedBranchIndex) && Branches[SelectedBranchIndex].Hitboxes.Num() > 0)
-	{
-		return Branches[SelectedBranchIndex].Hitboxes;
-	}
-
-	return Hitboxes;
+	return GetSwingHitboxes(CurrentSwingIndex, SelectedBranchIndex);
 }
 
 FTDAttackHitbox UTDChargedAttackAbility::BuildAimAssistWedge(int32 BranchIndex) const
@@ -792,8 +840,7 @@ FTDAttackHitbox UTDChargedAttackAbility::BuildAimAssistWedge(int32 BranchIndex) 
 	// authored-but-empty branch falls back to the ability's set. Taken as the *furthest* of the
 	// branch's volumes, because reach here means "how far this attack can strike", and a bash plus
 	// a sweep is one attack with one maximum.
-	const TArray<FTDAttackHitbox>& ResolvedHitboxes =
-		Branch.Hitboxes.Num() > 0 ? Branch.Hitboxes : Hitboxes;
+	const TArray<FTDAttackHitbox>& ResolvedHitboxes = GetSwingHitboxes(CurrentSwingIndex, BranchIndex);
 
 	float FurthestReachCm = 0.0f;
 	for (const FTDAttackHitbox& Hitbox : ResolvedHitboxes)
@@ -805,7 +852,8 @@ FTDAttackHitbox UTDChargedAttackAbility::BuildAimAssistWedge(int32 BranchIndex) 
 	// runs before the tiers diverge, the branch lunge from commit, and the hitbox extends further
 	// still. The margin on top is the only judgement in the sum -- see AimAssistMarginCm for why
 	// assist must reach *past* what it can hit rather than exactly as far.
-	const float ReachCm = LungeDistanceCm + Branch.LungeDistanceCm + FurthestReachCm + AimAssistMarginCm;
+	const float ReachCm = LungeDistanceCm + GetSwingLungeDistanceCm(CurrentSwingIndex, BranchIndex)
+		+ FurthestReachCm + AimAssistMarginCm;
 
 	return Branch.AimAssistWedge.ToHitbox(ReachCm);
 }
