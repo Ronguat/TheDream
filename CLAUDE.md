@@ -43,7 +43,14 @@ are in Netcode's brief.
 ## Combat Vocabulary
 
 Used consistently in code, comments and discussion. **The spec — timings, costs, windows, volumes,
-state transitions — is `Docs/Combat-Spec.md`.**
+state transitions — is `Docs/Combat-Spec.md`**, with one exception kept here: the ladder's two
+numbers per tier, needed to read a commit message or a trace line in any session.
+
+| | Release before | Hitbox live |
+|---|---|---|
+| Light | 150 ms | **200 ms** |
+| Heavy | 450 ms | **500 ms** |
+| Charged Heavy | (held past 450 ms) | **750 ms** |
 
 - **Windup** — everything before the attack can deal damage.
 - **Release** — the period during which the attack deals damage. Marked on a montage by the
