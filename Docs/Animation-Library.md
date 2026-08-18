@@ -83,12 +83,9 @@ find Content/GDHBundle -name '*.uasset' | wc -l
   `SM_Sword` and `Shield_Heater` props
 - **Not migrated:** every archetype other than `SwordShield`
 
-***This table said 715 and "`SwordShieldAnimV2` not migrated" until 2026-08-16.** The claim was
-surveyed 2026-08-10 and was true that day; V2 arrived at `7dfbe74` on **2026-08-11** and the note
-was never revisited, so it read as fact for five days and would have sent anyone shopping for V2
-clips off to migrate 330 assets that were already here. Textbook case of the rule this file states
-elsewhere — **absence claims rot faster than any other kind** — which is why the count is now a
-command you can re-run instead of a number somebody has to remember to update.*
+***This table said 715 and "V2 not migrated" until 2026-08-16*** — *a 2026-08-10 survey, true that
+day, stale from 2026-08-11 when V2 arrived at `7dfbe74`, and read as fact for five days. Absence
+claims rot, which is why the count is now a command instead of a number.*
 
 So: if a clip appears in the index but not under `/Game/GDHBundle/` in this project, it
 exists and needs migrating — it is not missing. Check with

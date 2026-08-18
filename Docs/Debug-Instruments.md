@@ -332,18 +332,12 @@ gitignored, so this is machine state and never travels with the repo. **Restore 
 
 ### The loop is a living artifact, and that is a standing rule
 
-**Combat surface and loop coverage stay coupled** (2026-08-15, the user's rule; stated in
-`CLAUDE.md`'s Working Rules, repeated here because this is where the work happens). Any package
-planning or green-lighting a new combat capability must include **either** the scenarios and band
-checks it adds to the checker **in that same package**, **or** a dated trap in
-`Docs/Combat-Decisions.md` saying coverage is deferred and naming what is now untested. **There is
-no third option, and picking neither is a process violation.**
-
-**The failure it prevents is silent.** A checker whose scenarios lag the combat surface still prints
-a full green table — it simply stops asking about the new thing. Nothing in the output distinguishes
-"seven scenarios, all passing" from "seven scenarios, and the feature you shipped last week is not
-one of them". That is why the choice is made at plan time and written down, rather than left to
-whoever notices later.
+**Combat surface and loop coverage stay coupled** (2026-08-15, the user's rule) — the binding form
+(scenarios in the same package, or a dated trap naming what is now untested; no third option) is in
+`CLAUDE.md`'s Working Rules. The failure it prevents is silent: a checker whose scenarios lag the
+combat surface still prints a full green table, and nothing in the output distinguishes "seven
+scenarios, all passing" from "seven scenarios, and last week's feature is not one of them" — which
+is why the choice binds at plan time.
 
 **Adding a scenario is three edits**: a band block at the top of the script with its source in a
 comment, a `run_*` function or a case arm, and a row in the matrix below naming the fixture it
@@ -368,13 +362,12 @@ looks ignored.
 | `s4-string` | 0.1, **taps 3** | `Off` | three swing indices in equal counts; chain gap 0.500 ±45 ms and chain latency 125–175 ms; `DAMAGED` exactly 15 with the ledger stepping; `HITSTUN` spans 0.550 ±20 ms; **`KNOCKBACK` spacing never below the authored value it prints, and n=0 fails** |
 | `s4-guarantee` | 0.1, **taps 3** | `PeriodicDodge` | `REFUSED` lines attributed to `State.Hitstun`; **zero `DODGE` between `HITSTUN` and `HITSTUN END`** — the string's guarantee, observable; `HITSTUN` spans as above |
 | `s4-block` | 0.1, **taps 3** | `HoldBlock` | `BLOCKED` staminaDamage exactly 5; `BLOCKSTUN` spans 0.350 ±20 ms; knockback never inward |
+| `s4-360` | 0.1, **taps 3**, `FacingMode` **Never**, **`bDebugSuppressLunge`** | `Off`, plus the player spawned at (200, 150) opposite the defender | **first burst only**: attacks 1–2 damage **zero** distinct targets, attack 3 damages **two** |
 
 **The `s4-*` bands come from `GA_Attack`'s CDO, not from the plan session.** Three of the plan's
 proposals were stale by the time they were built — cadence 350 → **500 ms** once it was measured off
 the designer, hitstun 0.400 → **0.550** forced up to outlast it, blockstun 0.400 → **0.350**
 re-derived against it. Read the CDO when adding a band; do not copy a plan.
-
-| `s4-360` | 0.1, **taps 3**, `FacingMode` **Never**, **`bDebugSuppressLunge`** | `Off`, plus the player spawned at (200, 150) opposite the defender | **first burst only**: attacks 1–2 damage **zero** distinct targets, attack 3 damages **two** |
 
 **`s4-360` asserts the first burst and nothing after it, and that is the design rather than a
 shortcut.** The finisher hits both bodies and then knocks them onto the attacker's facing axis, so

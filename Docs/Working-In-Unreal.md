@@ -56,9 +56,9 @@ forced kill, and **save-all covers assets only**: in-progress asset-editor state
 `Saved/Autosaves/PackageRestoreData.json` reading `Packages: []` confirms nothing was stranded;
 **`Packages` is the field that matters, not `RestoreEnabled`**, which is not a stable signal.
 
-**Announce before closing, every time — but it is an announcement, not a request.** Saying it is
-what makes it safe: the user stops working in the editor on reading it. Announce and proceed in the
-same turn; opening needs no announcement.
+**Announce before closing, every time — an announcement, not a request**: reading it is what stops
+the user working in a dying editor. Announce and proceed in the same turn; opening needs no
+announcement.
 
 **Process up is not ready.** The port can listen while the engine boots and a call in that window
 fails with `Unable to connect`; the only reliable signal is **an MCP call returning a result**.
@@ -358,9 +358,9 @@ have the user open the graph, then `CaptureEditorImage`.*
 strictly cheaper question that partitions the search harder. **A static defect is fully visible on a placed actor with no PIE and nothing
 running**, which makes the viewport the cheapest instrument here.
 
-**A sufficient explanation is not the actual one.** Prefer an experiment that *manipulates* the
-suspected cause over one that only observes it. When two hypotheses are killed by evidence, file the
-anomaly rather than inventing a third.
+**A sufficient explanation is not the actual one** — manipulate-over-observe is `CLAUDE.md`'s
+standing rule. When two hypotheses are killed by evidence, file the anomaly rather than inventing
+a third.
 
 **An assumed control is worse than no control — a comparison case only disconfirms if it was
 actually *measured*.** An unchecked comparison is a guess carrying the authority of evidence, and
