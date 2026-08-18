@@ -182,7 +182,7 @@ the two coupled numbers, and the connect condition is the single inequality
 
 ---
 
-## Numbers — all proposed, all destined for the felt table as unfelt
+## Numbers — all proposed, none played
 
 | Value | Proposal | Why this shape |
 |---|---|---|
@@ -262,7 +262,7 @@ aim-latched-at-press with felt evidence; and the designer's clip-roster trial.
 
 `CLAUDE.md` (string rules become build-true; hitstun's line; Knockdown & Oki's entry loses the
 hitstun fork and keeps movement-lock + terminator); `Docs/Combat-Decisions.md` (entries are
-written; discharge/annotate the buffered-aim trap with the 1vX result; felt-table rows for every
+written; discharge/annotate the buffered-aim trap with the 1vX result; tuning-map rows for every
 number above; tuning-map rows: cadence → `HitstunSeconds`/`ChainOpenAfterRecoverySeconds`, string
 drops → `StringLinkWindowSeconds`, safety → per-swing `BlockstunSeconds`); `Docs/Debug-Instruments.md`
 (`HITSTUN`/`STRING` trace tags, the fixture mode and its aliasing note, three matrix rows); header

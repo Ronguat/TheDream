@@ -64,6 +64,8 @@ and not the order anyone reads in. Keep it sorted when adding.)*
 | This entry | …has a claim that is now wrong | Corrected by |
 |---|---|---|
 | 2026-08-09 — Ability input is routed by gameplay tag | block and parry will share one button | 2026-08-10 — The four questions gating defense |
+| 2026-08-15 — The Tuning Rig | the felt-numbers table takes provenance from the rig's log | 2026-08-18 — The felt-numbers table is retired (the table no longer exists; the rig instead *generates* the Interplay worklist, which is what it was approximating by hand) |
+| 2026-08-15 — Netcode precedes Interplay | cites "the felt-table preamble" for why final feel waits on the megaslice | 2026-08-18 — The felt-numbers table is retired (the preamble's argument survives and is restated in that entry; only its location is gone) |
 | 2026-08-09 — One ability with three branches | `GA_LightAttack` is kept on disk as a fallback | 2026-08-10 — The `GA_LightAttack` fallback is removed |
 | 2026-08-10 — Costs are paid, not required | exhaustion lasts a flat 4 s (`ExhaustionSeconds`) | 2026-08-10 — Exhaustion ends at full |
 | 2026-08-10 — Exhaustion ends at full | recovery speed is one number, so `StaminaRegenPerSecond` *is* the exhaustion duration | 2026-08-14 — Exhaustion recovers at its own rate (the rate is split; exhaustion still ends at Max and nowhere else, so the entry's actual claim survives — what changed is which number sets how long it takes) |
@@ -662,7 +664,7 @@ kept in their own notes. What belongs here is only what to move once a verdict a
 | The guard feels sluggish to act out of | `MinimumBlockSeconds`, and check the `BUFFER` trace first — a refused attack should fire the *instant* the window ends | The buffer window, and never by exempting resumed guards. That exemption was tried: durations went bimodal, 250 ms pressed and 50–70 ms resumed, so feathering survived at a slower cadence. *A resume is an intended block, and all blocks are created equal.* |
 | Attacking out of a held guard costs too much stamina | `BlockInitialStaminaCost`, knowing it is charged per guard and a resume is a guard | Exempting the resume. Same rule as above: a cheaper guard the player did not ask for and cannot distinguish makes the cost conditional on something invisible. |
 | A guard raised too poor to pay for itself feels punishing | Nothing — that is the design. It cancels what it would have cancelled and then exhausts you | Refusing the activation. **Costs are paid, never required**, and refusing here would also silently remove the cancel, which is the half worth protecting. |
-| A blocked attack is too safe, or too punishable | That branch's `BlockstunSeconds`. Neutral is `recovery − 0.05`; the shipped values equal each tier's own `RecoverySeconds`, i.e. 50 ms on the safe side | That branch's `RecoverySeconds`. Recovery is the *whiff* punish window and is tuned against spacing; moving it to fix an on-block exchange retunes whiffing as a side effect. The two are only related through this comparison. |
+| A blocked attack is too safe, or too punishable | **Heavy and charged:** that branch's `BlockstunSeconds`, neutral being `recovery − 0.05`, so their shipped values equal each tier's own `RecoverySeconds` — 50 ms on the safe side. **The light's is derived and is not free** *(2026-08-16)*: its basis is the **chain cadence**, not its own recovery. A blocked hit lands at T+200 and the next chained hit at T+700, so blockstun must let the defender *start* a counter before T+700 while never landing one first — `400 + B > 700`, i.e. B > 300, and 0.35 is that floor plus the same 50 ms margin. **Move the cadence and this must be re-derived with it.** | That branch's `RecoverySeconds`. Recovery is the *whiff* punish window and is tuned against spacing; moving it to fix an on-block exchange retunes whiffing as a side effect. The two are only related through this comparison. And for the light specifically, **not** a free feel value — the old recovery-based basis was measuring against the wrong threat once a chain existed. |
 | Blocking a charged does nothing but break the guard | Nothing — the charged's blockstun is unreachable **by construction**, since its stamina damage empties any bar and a break supersedes blockstun | Raising `Branches[2].BlockstunSeconds`. It will not fire. If the charged should be blockable without breaking, that is its `StaminaDamage`, and it repeals "charged heavy breaks block" — see the trap. |
 | Exhaustion is invisible until you press something | `ExhaustedMaxWalkSpeed` — a body that moves worse announces the state before a bar does | `ExhaustedStaminaRegenPerSecond`, which changes how *long* exhaustion lasts rather than whether the player can tell they are in it. Different complaint. |
 | The exhausted guard drops too abruptly | Nothing, or `MinimumBlockSeconds` — the drop is at the commitment's expiry **by derivation**: you cannot block while exhausted, and all blocks are created equal | Exempting the exhausted guard from the commitment, or letting it persist while held. The first re-opens the bimodal-duration bug; the second contradicts the exhaustion lockout outright. |
@@ -670,6 +672,7 @@ kept in their own notes. What belongs here is only what to move once a verdict a
 | Mashed attacks feel over-forgiven, or land on the wrong target in 1vX | `ShouldExtendBufferWhileActive()` — three one-line options: keep, return false to drop it, or narrow it to chain-eligible attacks so it stops queueing through heavies. Interplay's buffer subslice owns the call | `InputBufferSeconds`. That is the global tap grace and shortening it to curb mashing also breaks buffering a heavy, which is what it exists for. And **not** the aim: a swing's direction is read at commit, so what feels like bad aim is press timing, not the wedge. |
 | Chain links drop when mashing fast | Nothing — check the `BUFFER` trace first. Pressing early buys **no** cadence: chain-out fires when recovery opens, not when the press arrived | Widening `InputBufferSeconds`, or `StringLinkWindowSeconds`. A dropped chain tap means the press was *completed* inside the swing's first ~165 ms, which the extension already rescues; if it still drops, the extension is off or the ability stopped opting in. |
 | The window to chain feels too generous | `StringLinkWindowSeconds` for the post-recovery half, `ChainOpenAfterRecoverySeconds` for when the in-swing half opens | The buffer. The chain-out span is the whole of recovery by construction — it is gated on `bInRecovery` — so tightening the *input* window is not what shortens it; `RecoverySeconds` is, and that is the punish window. |
+| The string's cadence feels wrong | **`ChainOpenAfterRecoverySeconds`, but it is derived and not free.** 0.133 comes from `cadence = 0.200 + 0.150 + ChainOpen + one frame` against a **500 ms cadence tapped by the designer**, the one number in the project measured off a human rather than chosen. Moving it moves the cadence away from that measurement, so re-derive rather than nudge — and `HitstunSeconds` must stay above the resulting gap or the string's guarantee silently stops being true | The montage rates or `RecoverySeconds`. Pressing earlier buys no cadence at all: chain-out fires when recovery opens, not when the press arrived. |
 
 Add a row whenever an entry below establishes that a fix belongs in one place rather than
 another. That is the reusable part of an entry; the argument around it is not.
@@ -744,57 +747,6 @@ concludes the log is wrong rather than merely old. Add a row whenever a name cha
 | `TickBlockingMoveSpeed()` | **`TickMoveSpeedClamps()`**, renamed 2026-08-14 when exhaustion became a second speed clamp. It takes the slowest applicable cap rather than the guard's alone. |
 | `bSnapFacingWhileMoving` | Never shipped. A temporary A/B switch for the facing pass, deleted with the snap branch it selected. |
 | `RecoveryPlayRate` | **`FTDAttackBranch::RecoverySeconds`**, 2026-08-12. Recovery is authored as a duration per branch and its rate is derived, as windup and release already were. A rate could only set the punish window indirectly, through however long the clip's tail happened to be. |
-
----
-
-## Which live numbers have been felt, and which are placeholders
-
-**A number in the build looks identical whether a person chose it or an assistant guessed it.**
-Nothing in the asset says which, and the distinction decides whether a verdict about feel is
-evidence or noise — tuning against a placeholder produces a conclusion about the placeholder.
-
-This section exists because the claims were scattered through dated entries, where they rot
-silently: an entry saying *"200 is signed off but unfelt"* stays in the archive after the number is
-played and settled at 100, and nothing connects the two. **Added 2026-08-14**; the supersession
-table had begun carrying value patches to cover the gap, which is not what it is for.
-
-**Update this when a number is felt, not when it is changed.** A retune by an assistant leaves a
-value in the same state it was in.
-
-**Sparse feel coverage is the plan while the combat vocabulary is incomplete, not a gap** (2026-08-15,
-the user, closing a concern three assistant assessments had raised in a row). Final feel derives from
-how the systems interplay, not from any one of them in a vacuum, so deliberate feel passes wait for
-the full "megaslice" — and the project is architected designer-tunable everywhere precisely so that
-pass is cheap when it arrives. This table is therefore **provenance for that day, not a debt ledger
-pressing for payment**: an unfelt value is not a defect, and only a verdict-shaped claim — "X is
-reactable", "Y is too safe" — requires a felt number behind it.
-
-| Number | State | Notes |
-|---|---|---|
-| `AimAssistMarginCm` | **Felt** 2026-08-14 | Authored 200, played the same day, settled at **100**. The one aim-assist number with feel behind it. |
-| Aim wedge `ArcDegrees` / `ArcCentreDegrees` / vertical band | **Unfelt** | Uniform across the ladder on the struct's C++ defaults. Live and observable since homing began following the ladder, which is new — before 2026-08-14 only branch 0's was ever in effect. |
-| `FTDAttackBranch::LungeDurationSeconds` | **Unfelt** | 0.12 on every branch, chosen by an assistant to be clearly a burst (1667 cm/s on the light) rather than judged. Restoring the old 0.20 without curves brings back the too-slow-and-too-far complaint. |
-| `UTDMeleeAttackAbility::LungeDistanceCm` (base) | **Felt** 2026-08-12 | The user's first tuned value after the lunge became steerable. |
-| Per-branch `LungeDistanceCm` | **Partly** | Measured accurate to 2.5% and play-verified as *behaviour*; what the distances should *be* is open, and the clamp decides them at the placed spacing. See the reach/travel/spacing trap. |
-| `FTDAttackHitbox` wedges (150 / 60° / ±70) | **Unfelt** | Uniform on all three branches deliberately, pending bespoke clips. **The vertical band still has never discriminated against anybody, and the burden of authoring it is the designer's** — the test adds the target's 96 cm half-height to both ends, so ±70 excludes nothing until the centres are ±166 cm apart, needing a slope past 40.8° at hit range. `L_CombatTest`'s ramp is 15°, so it cannot produce that; a jump or a deliberately low volume can. *Measured 2026-08-14 — three hits landed and none was rejected on height.* |
-| `RecoverySeconds` (~~0.40~~ **0.60** / 0.50 / 0.60) | Heavy and charged **felt** 2026-08-12; **the light's is unfelt** | Two PIE sessions; *"it all felt very good and expected"*. *Annotated 2026-08-18: the light's moved 0.40 → 0.60 in sitting 2's long-recovery redesign, knowingly superseding a felt value, and this row was not updated with it. Heavy and charged are untouched and still felt.* |
-| The light's section rates **1.500 / 1.000 / 0.588** | **Felt** 2026-08-18, *as a floor* | The designer: the light as configured *"feels excellent"*, and the profile is *"a floor, not a ceiling"* — distortion of this magnitude is effortlessly acceptable, and **nothing is claimed about more**. Not a target shape to match. Derived from `AM_Attack` 0.967 s against `ReleaseAtSeconds` 0.200 / `ReleaseSeconds` 0.150 / `RecoverySeconds` 0.600 with a 0.150 notify; measured over four consecutive swings, recovery varying 0.588–0.596 with where the window ended. **A clip swap moves all three at once**, which is what makes this the acceptance reference for the roster audit. |
-| `DodgeSeconds`, `DodgeTargetDistanceCm` | **Felt** | 0.4 judged before any animation existed, deliberately; 405 is Dodge Distance's play-verified V1 figure, preserved through the V3 swap. |
-| `InputBufferSeconds` | **Felt**, with a known cost | 0.20 chosen by play. One press in seven dropped under deliberately abusive tapping, not felt in normal play. |
-| `StaminaRegenPerSecond`, `ExhaustedStaminaRegenPerSecond` | **Unfelt** | 40 and 25, the user's numbers but verified by construction only — nothing in the build spends stamina without a human on the dodge key. The arithmetic to check is 0 → full in 2.5 s normally, 4.0 s exhausted. |
-| `CoilTurnRateDegrees` | **Unfelt, and unexercised** | 600 on both characters' CDOs as of 2026-08-14 — the user's chosen value, verified by construction only. The dispute with the C++ 300 is closed; both Blueprints override it. **Nothing has ever reached this rate**: the player would have to hold an attack past 150 ms while turning, and the dummy's `DebugAutoAttackHoldSeconds` is 0.1 so it never coils at all. |
-| `TurnRateDegrees` | **Derived, not felt — and must stay that way** | 180° ÷ the light's `HoldUntilSeconds`. It is not a candidate for this table's treatment; tuning it by feel is what the tuning map forbids. |
-| `BlockDrainPerSecond` 10, `StaminaDamage` 5/50/100, `GuardBreakStunSeconds` 1.0 | **Felt** 2026-08-14 | The user's numbers, played the same day across several sessions and left alone. Ten seconds of guard from full before it is breakable at all; two heavies or one charged to break a full one. The charged's 100 against a 100 bar is what makes "charged heavy breaks block" true with no flag in code, and **it repeals itself silently if either number moves.** |
-| `BlockstunSeconds` **0.35** / 0.5 / 0.6 | **Unfelt, but derived rather than guessed** | *Heavy and charged unchanged; the light's moved 0.40 → 0.35 on 2026-08-16 and its derivation changed with it.* The old basis was the tier's own `RecoverySeconds`, 50 ms the safe side of neutral. The light is now derived against the **chain cadence** instead, which is the real threat: a blocked hit lands at T+200 and the next chained hit at T+700, so blockstun must let the defender *start* a counter before T+700 while never landing one first — `400 + B > 700`, i.e. B > 300. 0.35 is that floor plus the same 50 ms margin. **The charged's has never fired and cannot**; see the trap. |
-| String cadence **500 ms** (`ChainOpenAfterRecoverySeconds` 0.133) | **Felt** 2026-08-16 | The first number in the project measured from a human rather than chosen. The designer tapped the rhythm they wanted with no timer and, by their own account, without watching the screen — pure transfer from genre muscle memory. 28 within-string samples: mean 501.5 ms, median 503.5, stdev 28.2, drift +8.6 ms between halves, so the mean is pinned to ±5.3 ms. Authored to 0.133 and measured back at 502.1 ms combined. **The method is reusable and cost four minutes** — the trace already timestamps every input edge, so any rhythm a player produces can be measured rather than guessed. |
-| `ExhaustedMaxWalkSpeed` 400 | **Unfelt** | The user's number, 20% below the 500 `MaxWalkSpeed`. Verified by construction only — nothing in the build reaches exhaustion without a human on the dodge key. Combines with `BlockingMaxWalkSpeed` by taking the slower, so an exhausted guard walks at 125 rather than 400. |
-| `MinimumBlockSeconds` 0.25 | **Felt** 2026-08-14, and signed off as untuned | Chosen deliberately long as a first probe, on the reasoning that a clearly-too-long value answers *"is feathering dead"* better than a borderline one. The user reserved tuning it. Its cost is visible: attacking repeatedly out of a held guard pays it between swings, because a resume is a new guard. |
-| `BlockInitialStaminaCost` 10 | **Felt** 2026-08-14 | The C++ default is 0 so the mechanism ships inert; **`BP_PlayerCharacter`'s CDO is authoritative and the user set 10 in play**, having been offered 25 as a probe and chosen otherwise. Ten guards from full, against a drain that also costs 10 per second. The behaviour it was testing passed: a guard raised below the cost still cancels what it would have cancelled, then exhausts you, with no break and no stun. |
-| `BlockingMaxWalkSpeed` 125 | **Unfelt** | 25% of the 500 the character otherwise runs at, chosen as a relationship and authored as a number. Lands halfway between the locomotion blendspace's idle and walk rows. |
-| `LungeStandoffCm` | **Felt** as a slide fix | 40. Its *second* job — the spacing of a non-connecting exchange — has never been judged. |
-| `C_Lunge_Base`, `C_Lunge_Attack` | **Inert** | Authored, wired to nothing, parked against the structure audit. A curve's mean must be 1.0 or it silently scales the authored distance. |
-
----
 
 ---
 
@@ -1015,6 +967,31 @@ long.
 | `gEComponents` | 08-10, 08-11 |
 
 ---
+
+## 2026-08-18 — The felt-numbers table is retired, and derived values keep their warnings
+
+**Killed by the designer, on an argument the table could not answer:** no pre-Interplay mark can
+exempt a value from scrutiny at Interplay, so marking one "felt" gates nothing. *"We'd never
+exclude testing even a single value in the entire game just because it was written as authored
+prior to Interplay… So they are at best performative."* Recorded because the obvious instinct on
+finding no provenance tracking is to rebuild it.
+
+Two supporting points, both correct. It was a **second copy** — every claim in it also lived in the
+dated entry that made the choice, and this file's own rule says a second copy is something nobody
+reviews. The drifted `RecoverySeconds` row found the same day proved it. And **the need is real
+only *during* Interplay**, where "what still needs evaluation" is the entire slice — but that is a
+live worklist built from the tuning surface at that moment, not an artifact hand-kept for months.
+The **Tuning Rig** already enumerates every `Combat|*` value by reflection and can generate it
+mechanically, which is strictly better than maintaining it by hand.
+
+**What was salvaged, and it is a different axis.** Not felt-versus-placeholder but
+**derived-versus-free** — numbers that are not anyone's to move independently, whatever a play pass
+says. Those live in the tuning map, phrased as *"nothing, without re-deriving it"*:
+`TurnRateDegrees` (180° ÷ the light's `HoldUntilSeconds`, already two rows), the **light's**
+`BlockstunSeconds` (derived against the chain cadence, not its own recovery — the row still carried
+the superseded basis and was corrected here), and `ChainOpenAfterRecoverySeconds` (derived from the
+500 ms cadence tapped by the designer, added here). The charged's `StaminaDamage` = `MaxStamina`
+coupling was already fenced in `CLAUDE.md` and two other places, so it needed nothing.
 
 ## 2026-08-18 — Every string swing resolves on its own, and the light's profile is a floor
 
