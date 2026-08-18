@@ -23,7 +23,7 @@ each has cost this project a session at least once.
 `DebugAutoAttackResetDelaySeconds` **plus the attack's full length** must fit inside
 `DebugAutoAttackInterval`, or the reset fires mid-attack and the numbers still look plausible. The
 shipped defaults (0.35 and 3.0) clear all three tiers with room — the charged is the binding case at
-1.45 s. Interval is read once in `BeginPlay`; only the delay is live at runtime.
+1.50 s. Interval is read once in `BeginPlay`; only the delay is live at runtime.
 
 **The dummy throws only lights.** `DebugAutoAttackHoldSeconds` is 0.1, below the light's 150 ms
 boundary, so it never escalates and never coils — do not expect `ESCALATE`, `COIL START` or any
@@ -231,8 +231,8 @@ to the millisecond confirms the whole chain at once, and one that misses tells y
 
 **Warnings on `LogTDCombatTiming` are deliberately ungated as a family** — each one describes
 authored data that has silently stopped fitting the clip, or an attack that will silently stop
-dealing damage. Eight exist as of 2026-08-15; grep `LogTDCombatTiming, Warning` in `Source/` for
-the list rather than trusting a count written here.
+dealing damage. Grep `LogTDCombatTiming, Warning` in `Source/` for
+the current list; a count written here would only rot.
 
 
 **`EXHAUSTED` / `EXHAUSTION END` bracket exhaustion** *(2026-08-15, closing the "nothing traces
@@ -440,8 +440,8 @@ With the stamina economy involved, add:
 
 - **Exact values, regen resumption and the exhaustion pair are all asserted by `s2-*`/`s3`** — a
   dodge from full reading exactly 50, regen resuming at action end plus `StaminaRegenPauseSeconds`,
-  and exhaustion entering at 0 and clearing at Max rather than on a timer. `CLAUDE.md`'s Stamina
-  section is the rule; the checker is the check
+  and exhaustion entering at 0 and clearing at Max rather than on a timer. `Docs/Combat-Spec.md`'s
+  Stamina section is the rule; the checker is the check
 - **Stamina can now be drained unattended** *(2026-08-15, replacing "nothing in the build can drain
   stamina without a human at the keyboard")* — `ETDDebugDefendMode` on the training dummy holds a
   guard or dodges on a timer. **The attribute set still cannot be written through the toolset** —

@@ -513,8 +513,8 @@ checked later and say so.
   **This paragraph claimed until 2026-08-14 that V1 "is already the pack the dodge and locomotion
   come from, so Block has no stance problem at all". That premise died on 2026-08-11** — V3 became
   the base stance, and the dodge moved to V3's `Dash_*` clips on top of it. So reaching for V1's
-  held guard *is* a pack mix, and whether that reads acceptably is the open question `CLAUDE.md`
-  files under Block as an idea *not decided*. The mix is very likely still the right call, for the
+  held guard *is* a pack mix, and whether that reads acceptably is the open question the Parry
+  brief in `Docs/Combat-Decisions.md` still carries. The mix is very likely still the right call, for the
   reason the V3 swap itself recorded: V1 turns out to be specifically guard-shaped, which is a
   defect as a neutral stance and exactly right as a guard. What is not true is that it costs
   nothing.

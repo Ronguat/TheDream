@@ -22,9 +22,8 @@ code cannot drift from itself. Audited on the day this bar was set: 9 of the fir
 cleared it; the rest explained the current design, which the codebase does better.
 
 **How to read this file.** The sections above the first dated entry — **known traps**, the
-**tuning map**, **what has been superseded**, **retired item numbers**, **retired names**, **which
-numbers have been felt** and the **symbol index** — are the working part, and they are short on
-purpose. The dated entries below are
+**tuning map**, **what has been superseded**, **retired item numbers**, **retired names** and the
+**symbol index** — are the working part, and they are short on purpose. The dated entries below are
 an archive. Read the working sections when starting a slice; grep the entries when you want to know
 *why* something is the shape it is. Do not read it front to back.
 

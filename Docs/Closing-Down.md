@@ -70,14 +70,14 @@ audit in miniature; the rest is making sure nothing is left on the floor.
 4. **Discharge what you fixed.** Did this session fix anything filed as a trap? Clear it *and say
    what discharged it*, in the same commit. Did anything supersede an entry, or make an absence
    claim? Rows and dates, per the rules above.
-5. **Update the focus, and run the eviction if an item shipped.** If the next item changed,
+5. **Update the focus, and route a shipped item's consequences.** If the next item changed,
    `Current Focus` is the only place that says so.
 
-   **This is where the Done eviction rule fires, and nowhere else.** Done carries detail for the two
-   most recent shipped items; if a third has just shipped, the oldest is evicted *by routing* — the
-   destination table is in `CLAUDE.md`'s Done section, and the eviction is not finished until every
-   consequence is at its destination and you have said where each one went. **Verify each landed
-   before removing its old home**, in that order, because the reverse loses content silently.
+   **This is where the shipped-item routing fires, and nowhere else.** A shipped item keeps only
+   its strikethrough in the roster; everything else it carried routes out by the destination table
+   in `CLAUDE.md`'s "When a slice ships", and the routing is not finished until every consequence
+   is at its destination and you have said where each one went. **Verify each landed before
+   removing its old home**, in that order, because the reverse loses content silently.
 
    Attached here deliberately: the rule was written 2026-08-14 with no trigger, which is how the
    traps re-read failed until it became a step. An unenforced instruction fails.
