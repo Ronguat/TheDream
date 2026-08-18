@@ -236,6 +236,15 @@ without a single `GetActiveTags` round-trip.
 a dodge cancelling an attack — supplies the position and rate instead. `DODGE` and `COMMIT` come
 from the abilities and are unaffected; cross-check against those.
 
+**The notify-drift warning false-positives on a fast windup** *(measured 2026-08-18)*.
+`TDReleaseStartTolerance` is **0.03 in montage-seconds** while the runtime open position overshoots
+the authored trigger by up to one frame *scaled by the windup rate* — `0.0167 × rate`. At the
+light's 1.500 that is 0.025 and clears; at `AM_Attack_S2`'s **3.344** it is 0.056, so the warning
+fired on 2 of 6 otherwise-correct swings with a measured overshoot of 0.0338–0.0344. **Compare the
+authored value against `MONTAGE`'s `trigger=`, not against the warning** — `trigger=` is the
+authored truth and the warning is reading runtime jitter. Do not silence it by nudging
+`ReleaseStartSeconds` upward; that fudges authored data to quiet an instrument.
+
 **Two `BUFFER` traps.** A held buffer does not expire but does not wait either — it fires at the
 first opportunity, so holding a button through a lockout will not park one for testing. And **the
 hold duration in `released after Nms held` is the value that matters**: it is bounded by how long the
@@ -324,7 +333,7 @@ looks ignored.
 
 | Scenario | Attacker `…HoldSeconds` | Defender `DebugAutoDefendMode` | Asserts |
 |---|---|---|---|
-| `s1-light` | 0.1 | `Off` | press→`RELEASE BEGIN` 200 ms ±30; elapsed 0.750 +10–35 ms; 0 escalations, 0 coils |
+| `s1-light` | 0.1 | `Off` | press→`RELEASE BEGIN` 200 ms ±30; elapsed **0.950** +10–35 ms; 0 escalations, 0 coils |
 | `s1-heavy` | 0.3 | `Off` | 500 ms ±30; elapsed 1.150 +10–35 ms; exactly 1 escalation, 1 coil |
 | `s1-charged` | 0.8 | `Off` | 750 ms ±30; elapsed 1.500 +10–35 ms; exactly 2 escalations, 1 coil |
 | `s2-light` | 0.1 | `HoldBlock` | stamina damage exactly 5; `BLOCK cost` per `BLOCK up`; `GUARD BREAK` count equals blocks at `remaining=0.0`; break stun 1.0 s ±25 ms; `BLOCKSTUN` span 0.400 ±20 ms; guard-down `DAMAGED` exactly 15 with the health ledger stepping exactly |

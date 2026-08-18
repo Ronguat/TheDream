@@ -293,6 +293,23 @@ frame later. The swing ran 214 ms instead of 950 and was completely unpunishable
 stay comfortably under `length − windowStart − windowLen`. The other three montages clear it by
 2.6–3.1×; S2 cleared by 1.02×, which is to say not at all.
 
+***Generalised 2026-08-18, having cost a wrong fix: the binding rate is the fastest phase, and it
+is not always the release.*** The boundary is recomputed against **whatever rate is current**, so
+the release-rate form above is only the binding case when release is the fastest phase. On a clip
+whose strike lands late the **windup** is faster — windup rate is `ReleaseStartSeconds ÷ 0.200`,
+and a strike at 45% of a 1.5 s clip gives **3.344×**, putting the boundary at
+`1.500 − 0.25 × 3.344 = 0.664` — *before* the release window at 0.6688. The window never opens at
+all. **The general form:** for every phase, `length − BlendTime × thatPhaseRate` must stay beyond
+the montage position the phase needs to reach.
+
+**Two things this cost, both worth copying.** An assistant read `AM_Attack_S2`'s explicit
+`BlendOutTriggerTime = 0.05` as stale residue from the previous clip and reset it to `-1`; it was
+load-bearing for the *new* clip too, for a different reason. **An explicit trigger is rate-immune**
+— that is the whole point of setting one — so it is the fix for a fast-windup clip as much as for a
+wide window. And the symptom reproduced the original exactly: the swing ran **214 ms**, and the
+drift warning read `Release Window opened at 0.0000`, which is the second sentinel to recognise
+alongside `pos=-1.0000`.
+
 **Two things that make it nastier than it sounds.** `BlendOutTriggerTime = -1` does **not** mean
 "no trigger" — it means *default to `BlendOut.GetBlendTime()`*, so setting it explicitly to the
 same value writes what was already there and reads exactly like a write that did not land. And the
