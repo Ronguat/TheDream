@@ -186,28 +186,6 @@ Lunge slice at `9e4743b`, and the import outlived the swap. **Stale residue, not
 at it**, and no readable property on the montage does either. It will drop itself the next time
 the montage is edited and saved for any reason; it is not worth a resave of its own.
 
-**~~Before Light String — a buffered attack aims where the camera is when it fires, not when it was
-pressed.~~ DISCHARGED 2026-08-18** by the 1vX test it prescribed, played by the designer.
-**Verdict: aim at activation; latching at press is rejected** — not as the weaker of two options
-but as a change that could not do anything, because **facing never consults the stored direction at
-all.** It tracks the camera continuously through windup regardless of what the press recorded.
-
-**What settled it** was giving `FACING LOCK` the correlation this trap said was missing: it now
-carries `camDelta`, the camera yaw moved since the press, beside `err`. Across 24 commits
-**`camDelta` predicts nothing about `err`** — a **157°** sweep produced a perfect `err=+0.0`, while
-a **0.0°** sweep produced `err=+8.0`. Were the press-time heading load-bearing, that relationship
-would exist. It does not.
-
-**The residual is a different thing and is already ruled on.** `err` still reaches ±35°, and that is
-committing *mid-flick*: 1200°/s closes a **stationary** gap inside the windup and cannot close one
-still opening. The rate was scoped exactly that way when it was derived — *"for any input where aim
-was settled before the press"*, remainder identified as continuous spinning — and the designer's
-ruling stands that finishing a flick after committing is user error, not a defect. Deliberately no
-new note; see that entry.
-
-**Kept:** `camDelta` stays in the trace. It costs nothing and it is the only thing that separates an
-aim complaint from a timing one.
-
 **Before Interplay's buffer subslice — *the buffer extension lets you queue an attack ahead
 through a heavy or charged, and nobody chose that.*** Filed 2026-08-16 during the extension's
 review. `ShouldExtendBufferWhileActive()` is a property of the **ability**, not of the branch, and
@@ -267,76 +245,21 @@ a fifth strengthens the case for jump becoming an ability rather than weakening 
 structure audit's call. And `bLocksMovement` already exists on the shared base as the seam for
 exactly this.
 
-**~~Before Light String and before Stun — knockback and the next attack's travel are one
-budget.~~ Discharged 2026-08-16 by the build landing and being measured.** The fear was that a
-displacement pushing a target beyond the next attack's reach would make a chain structurally unable
-to link, reading as a broken combo rather than as knockback being too strong.
+**Whenever reach or travel move — *the string's connect inequality is unenforced.*** The
+fixed-destination knockback (2026-08-16, discharging the old two-number budget fear) reduced the
+connect condition to one comparison: `HitSpacingCm` must sit inside the chain hit's covered range —
+measured **150 against 410** (base lunge 100 + branch lunge 200 + reach 150 − standoff 40). Nothing
+enforces it in code, and the pending clip re-author moves exactly these numbers. The clamp
+direction is load-bearing: knockback never pulls a defender *inward*, so `spacing=191` against an
+authored 150 is the guard working rather than a fault.
 
-**What discharged it:** the fixed-destination design collapsed the two numbers into one authored
-`HitSpacingCm`, and the connect condition is now a single inequality — the spacing must sit inside
-the chain hit's covered range. Measured live: **150 against 410** (base lunge 100 + branch lunge
-200 + reach 150 − standoff 40), and all three hits of a three-hit string connected in sequence with
-`KNOCKBACK … spacing=150 centred=0.0` on every non-final hit.
-
-**Kept, because two things it established are still true.** The clamp direction is load-bearing —
-knockback never pulls a defender *inward* when contact happened beyond the destination, so
-`spacing=191` and `184` against an authored 150 are the guard working rather than a fault. And
-**the inequality must be re-checked whenever reach or travel move**, which the pending clip
-re-author may well do: it is one comparison, but nothing enforces it in code.
-
-The lights-low-knockback illustration died in the process, as the resolution predicted — lights
-author the **full** reset, and heavies and charged knock down instead.
-
-**~~Before the next fixture work — light 3's 360° wedge ships with no assertion behind it.~~
-DISCHARGED 2026-08-18, hours after being filed**, by `s4-360` — first burst only, attacks 1–2
-damaging zero targets and attack 3 damaging two, made to fail on purpose before being trusted. What
-discharged it was **`bDebugSuppressLunge`**: the attacker had to be stationary *during* an attack,
-and `bDebugAutoAttackHomeBetweenAttacks` could not do that because the lunge and the release both
-happen inside one attack, so re-homing afterwards left the hitbox having already gone live wherever
-the travel ended. Kept below because the diagnosis outlived the trap and two parts of it are
-standing hazards rather than history.
-
-**Still true, and the reason this entry stays:**
-
-- **The assertion covers the first burst only.** The finisher knocks both bodies onto the
-  attacker's facing axis, so later bursts have them inside the 60° wedge. **Knockdown & Oki lifts
-  that** when it replaces the ender's displacement with a knockdown — second in the order, behind
-  Parry.
-- **The ender's displacement is a known divergence, left alone deliberately.**
-  `ApplyKnockbackToTarget` runs on every unblocked hit with no final gate, while the slice was
-  specified as *"the ender, heavies and charged displace nothing"*. Knockdown & Oki owns replacing
-  it, and *"it is impossible for it not to come up, since an entire slice is dedicated explicitly
-  and specifically to it."*
-
-**Why the automated attempts failed, so nobody repeats them.** Two findings, both instrumented:
-
-- **A 360° wedge has no bearing test.** `FTDAttackHitbox::OverlapsCapsule` short-circuits on
-  `ArcDegrees >= 360` before computing one. So **facing is irrelevant to this test** — only reach,
-  and the attacker drifting out of it, ever mattered. Four of the five attempts were spent
-  rotating the attacker's aim, which could not have helped.
-- **AI focus does not drive an attack's target.** `bDebugAutoAttackRotateTargets` provably picks
-  correctly — the `ROTATE` trace shows it excluding the previous body and choosing the other on
-  every attack — and the attack commits elsewhere anyway: *"ROTATE chose Player → ACTIVATE swing=0
-  → TARGET commit 'Dummy' bearing=-89.3"*, a bearing far outside the ±20° wedge even with its
-  ~24° subtended widening. **The aim-assist selection is an independent system.** That is a
-  standing hazard for **Combat AI**, which will want to steer attacks and will meet it.
-
-**What worked in the end** was the designer's design, not that one: two targets either side of an attacker that aims between them and does not move. Both sit ~90° off-axis, so the 60° attacks reach neither and the 360 reaches both — a sharper discrimination than one-versus-two.
-
-**Also needed, and useful beyond this test:** a **between-bursts position reset for all
-combatants**. `bDebugAutoAttackHomeBetweenAttacks` (2026-08-18) holds the *attacker* still; the
-targets still drift under knockback. **Positions are the safe thing to reset and health and stamina
-are not** — `s3` asserts exhaustion entering at 0 and clearing at 100, and `s2-*` asserts guard
-breaks landing exactly when the bar empties and the health ledger stepping across hits, all of
-which require depletion to accumulate. `s4-string` is the one position exception, since it measures
-the spacing chain a *connecting* string produces, which a mid-burst teleport severs.
-
-**A second contaminator worth knowing** (the designer, 2026-08-18): the attacker sometimes runs
-into the side of the ramp and goes stationary mid-attack. Nothing warns about it, and it silently
-corrupts anything measuring attacker travel — lunge distance, spacing, knockback.
-
-**Invalidated by** any change to `FindAimAssistTarget`'s selection rule or to swing 3's
-`arcDegrees` — either makes the diagnosis above stale rather than merely old.
+**Before Combat AI — *AI focus does not drive an attack's target.*** Measured 2026-08-18 while
+building `s4-360`: aim-assist selection is an independent system — `ROTATE` provably chose one body
+while `TARGET commit` picked the other at −89.3° — so an AI that wants to steer its attacks needs a
+mechanism that does not exist. Related, same session: **a 360° wedge has no bearing test**
+(`FTDAttackHitbox::OverlapsCapsule` short-circuits on `ArcDegrees >= 360`), so facing can never
+constrain swing 3. **Invalidated by** any change to `FindAimAssistTarget`'s selection rule or to
+swing 3's `arcDegrees`.
 
 **Before authoring any new attack montage — *a wide Release Window can end the attack the instant
 it opens.*** Filed 2026-08-16, having cost two wrong fixes and several PIE cycles to find; the
@@ -439,37 +362,6 @@ silently comes alive at whatever it was left at. **It is the same coupling that 
 breaks block" true without a special case**, seen from the other side — which is why both belong in
 the same head when either moves.
 
-**~~Whenever anything grants a placed actor `GA_Block`.~~ Discharged 2026-08-14** by deleting and
-re-placing the dummy, with the user's explicit approval — the fix is destructive, which is what had
-deferred it. `BlockingTag` now reads `State.Blocking` on the placed instance and on the live PIE
-actor. **The actor's internal name changed `BP_TrainingDummy_C_1` → `_C_0`** as a result; label,
-transform and every other property were captured first and restored identically.
-
-Kept because two things it established are still true. **`EditDefaultsOnly` really is unfixable in
-place** — both `reset_properties` and `set_properties` were tried on `blockingTag` and both refused,
-so delete-and-re-place is the *only* route and that is now confirmed rather than assumed. And the
-hazard it described was real but latent: the dummy had only `GA_Attack`, so `IsBlocking()` was
-correctly false either way, and it would have bitten the moment **Parry** granted it a guard.
-
-**The lesson that outlives it: capture the whole instance before deleting, not the properties you
-happen to suspect.** Eighteen were diffed against the CDO beforehand and the debug auto-attacker's
-five were not; they turned out to live on the Blueprint rather than as overrides, so nothing was
-lost, but that was luck. A placed actor's overrides are exactly the thing nobody has a list of.
-
-**~~Before Parry — blockstun must learn to refuse it.~~ Withdrawn hours after filing, 2026-08-15,
-as mistaken.** It read the spec's *"disables offense + parry"* as an unimplemented requirement and
-concluded Parry must add `State.Blockstun`. **The user's rule is the opposite: blockstun disables
-offense but never defense, so blockstun and parry never know about each other.** The spec line was
-wrong, not the code — `GA_Attack` has always been the only carrier, and `GA_Dodge`/`GA_Block` omit
-the tag for exactly the reason the rule now states.
-
-**Kept because withdrawing a trap silently is unreviewable, and because the near-miss is the
-lesson.** A trap was filed against a documented requirement without asking whether the requirement
-was right, on a mechanic whose designer was in the conversation. **The implementation disagreeing
-with the spec is evidence about the spec**, not only about the code — and here the code was the
-half that had it right the whole time. What survives, restated by the user: **you cannot input a
-parry while actively blocking**, which is a property of the guard and not of blockstun.
-
 **Whenever dodge direction or the input buffer changes — *the loop cannot see a directional
 dodge at all.*** Filed 2026-08-16 with the dodge-cancel fix, as the deferral half of the
 loop-coverage rule; the user tests this one by hand.
@@ -503,6 +395,19 @@ needed), so that half of the trap discharged the moment a human opened it.*
 **`AM_Blockstun` was deleted the same day**, with the user's approval — it carried the inherited
 window and nothing referenced it. The lesson above is the whole of what it produced, and that was
 its job. **Blockstun's animation does not use a montage at all now**; see the decision below.
+
+**Whenever the aim-assist reach derivation changes — *it must stay monotonic across the ladder.***
+Made unrepresentable 2026-08-14 (reach is derived, so a later branch cannot express less), but only
+by the current formula: a shrinking wedge drops a target already locked mid-hold, so any change to
+the derivation re-opens it.
+
+**`InputBufferSeconds` is a watch, not a re-check — left at 0.20 deliberately.** No value is simply
+correct: a buffer long enough never to drop a tap during a swing queues an attack most of a swing
+ahead. Its aim-staleness half closed 2026-08-18 (facing never consults the stored heading), and the
+chain-tap case is the buffer extension's (2026-08-16). What re-opens it: a dropped input in normal
+play. **Read the `BUFFER` trace first** — `expired` is a window question; no line at all means the
+press never reached the character. Measured under deliberately abusive tapping: 13 of 88 dropped,
+all expiring 256–306 ms after press.
 
 ---
 
@@ -565,106 +470,6 @@ calls it. Still owed — replicate the *decision* (this attack is in its lock ph
 machine run its own fade, rather than putting a per-frame float on the wire.
 
 ---
-
-### Discharged, kept because a discharge is the one edit that cannot be reviewed silently
-
-**~~The dummy does not track its target, so offense parity is thinner than it reads.~~ Discharged
-2026-08-14 by `ETDDebugFacingMode`.** The dummy now takes a focus on the nearest living pawn while
-it swings, and turns at the same three rates the player does. Play-verified with a real control:
-the player spawned 90° off the dummy's placed axis, where a non-turning dummy reads `bearing=+90`,
-and every `TARGET commit` read **`+0.0`**.
-
-**Two things from it are still true and worth keeping.** The mechanism: `RotationRate.Yaw` only
-closes an *existing* error against `bUseControllerDesiredRotation`, so without a focus a stock
-`AAIController` copies its rotation from the pawn and every turn rate on the character multiplies
-nothing. And **`CoilTurnRateDegrees` is still not exercised** — it is 600 on the dummy now, matching
-the player, but `DebugAutoAttackHoldSeconds` is 0.1 and the light never coils. Set deliberately
-rather than left at 300, so that raising the hold does not silently get half-rate tracking; treat
-it as unverified until something actually coils.
-
-**The fixture changed, so measurements do not span it.** Anything comparing defensive feel before
-and after 2026-08-14 is comparing two different opponents.
-
-**~~The character hovers while a root-motion montage plays.~~ Discharged 2026-08-12.** Never about
-montages, root motion, skeletons or clips: the mesh sat at Z −90 under a 96 capsule half-height, so
-the feet floated 6 cm in every pose, and foot IK absorbed it everywhere the IK runs. Fixed in
-`ATheDreamCharacter`'s constructor beside the `InitCapsuleSize` it must agree with. **Build a
-montage from its clip, never empty-then-assign**, so the skeleton is right by construction.
-
-**~~Heavy and charged run ~70 ms longer than their authored numbers.~~ The reactability half is
-discharged 2026-08-12: the hitbox is on time on every tier.** Press to `RELEASE BEGIN` measured
-light 202–207 ms against 200, heavy 506–508 against 500, charged 751–754 against 750. The heavy
-carries the *same* +6 ms bias as the light, which never coils, so the coil delays nothing and
-neither tier is more reactable than authored. **The inference that pointed at the coil was wrong,
-and that is the part worth keeping**: a correlation across tiers suggested the mechanism, and only
-a per-tier absolute measurement could test it.
-
-**Now fully discharged, 2026-08-14.** The *total* overhead was measured from `ABILITY END …
-elapsed=` against the authored sum `ReleaseAtSeconds + ReleaseSeconds + RecoverySeconds`:
-
-| Tier | Authored | Measured | Over |
-|---|---|---|---|
-| Light | 0.750 | 0.760–0.776 (n=23) | **+16 ms** |
-| Heavy | 1.150 | 1.168, 1.169 | **+18 ms** |
-| Charged | 1.500 | 1.513, 1.519 | **+16 ms** |
-
-**The overhead is flat — one frame at 60 Hz, biased late — and does not grow with the number of
-escalations or with the coil.** That is the claim this trap existed to test, and it fails to
-reproduce: nothing accumulates. The +6 ms bias to `RELEASE BEGIN` measured on 2026-08-12 and this
-+16 ms to `ABILITY END` are the same frame quantisation seen at two points, not two costs.
-
-Worth keeping about the method: the tiers are separable **by elapsed value alone**, because the
-authored totals are 350 ms apart. Pairing each `ABILITY END` back to its `COMMIT branch N` confirmed
-it — and was necessary, since the dummy's auto-attacker contributes a light every 3 s to the same
-log.
-
-**~~Reaches must not decrease across the `AimAssistWedge` ladder.~~ Discharged 2026-08-14 by making
-it unrepresentable.** Reach is derived as `base lunge + branch lunge + branch damage reach +
-AimAssistMarginCm`, so a later branch reaching less than an earlier one cannot be expressed. The
-sharper half went with it: `MaxReachCm` of 0 was *disabled* rather than narrow and switched homing
-off mid-hold; derived reach is never 0, and `FTDAimAssistWedge::bEnabled` is now the only off
-switch. **The reasoning still binds anyone changing the formula** — a shrinking wedge drops a
-target already locked, so the derivation must stay monotonic.
-
-**~~Exhaustion can become permanent.~~ Closed 2026-08-14 as a non-defect.** The mechanism is real
-and unchanged — `ActivationBlockedTags` gates activation, not continuation — but **a state you are
-choosing to stay in, with the exit always available, is not a deadlock.** Holding block at zero
-accomplishes nothing and releasing ends it.
-
-**Two related edges are still live.** The stamina delegate fires only on a *change*, so a cost
-applied at exactly 0 cannot retrigger exhaustion — narrow today, since costs clamp at 0 and the
-100→0 transition does fire. And **`ExhaustedStaminaRegenPerSecond = 0` is permanent exhaustion**,
-not "no recovery while exhausted", with no exit the player can reach. The `ClampMin="0.01"` is
-load-bearing rather than tidy.
-
-**~~The melee trace follows `hand_r`.~~ Discharged 2026-08-12, twice over** — first onto the blade,
-then replaced entirely by authored `FTDAttackHitbox` wedges. Kept because it is still true and has
-no other home: **the values were tuned against a fist standing in for the whole hitbox**, so
-nothing carried forward from them numerically.
-
-**~~The melee trace opens on any `Event.Melee.WindowBegin` reaching that ASC.~~ Discharged during
-Attack Swap.** `IsWindowForThisAttack` filters on **both** edges deliberately — a foreign montage's
-window *ending* must not close ours, which would truncate an active swing rather than merely
-failing to start one. A null montage still means accept-any. **It sat filed for a day after being
-fixed**, which is what the discharge rule above exists to prevent.
-
-**~~Recovery is shorter than it looks, by exactly the montage's blend-out.~~ Discharged 2026-08-12**
-by `FTDAttackBranch::RecoverySeconds`: recovery ends at blend-out, and the montage is warped to fit.
-Two things stay true. **Mechanical and visible recovery differ** — a spectator sees ~0.25 s more
-attack than the attacker is committed to, now by design. And **the blend-out boundary moves with
-the play rate**, so anything deriving a rate against a fixed `Length - BlendTime` is right only at
-rate 1.0; the solution is `R = (Length - Position) / (RecoverySeconds + BlendTime)`.
-
-**~~Re-check `InputBufferSeconds`.~~ Now a watch rather than a re-check.** Left at **0.20**
-deliberately: the user did not feel the drops, and there is no value that is simply correct,
-because a buffer long enough never to drop a tap during a 0.75 s swing queues an attack most of a
-swing ahead. Its aim-staleness half is closed: the buffered-aim trap discharged 2026-08-18 having measured that a buffered attack's aim is not stale at all, since facing tracks the camera through windup and never consults the stored heading. So this value trades against dropped inputs alone now.
-
-**What makes it live again**, in rough order of likelihood: recovery tuned longer, the light string
-making rapid tapping the primary input pattern, or a dropped input in normal play. **Read the
-`BUFFER` trace first** — `expired` is a window question; no line at all means the press never
-reached the character. Measured under deliberately abusive tapping: 13 of 88 buffered presses
-dropped, all expiring 256–306 ms after press.
 
 ---
 
@@ -829,17 +634,21 @@ when it starts missing things; the rule for reading it is the standing one, that
 nothing proves only that the filter did not match.**
 
 Regenerate by extracting every backticked identifier from the dated entries, keeping only those
-that resolve against `Source/TheDream` (excluding `Variant_Combat/`) or a `Content/TheDream` asset
+that resolve against `Source/TheDream` or a `Content/TheDream` asset
 name — that filter is what keeps vendor clip names and engine symbols out. The command lives in
 this commit's message rather than here, since it is run about once a slice and is three pipelines
 long.
 
 | Symbol | Entries |
 |---|---|
-| `ABP_Combat` | 08-11, 08-12 |
+| `ABP_Combat` | 08-11, 08-12, 08-15 |
 | `ACharacter` | 08-12 |
 | `ACharacter::SetAnimRootMotionTranslationScale` | 08-12 |
+| `AGameModeBase::ChoosePlayerStart_Implementation` | 08-15 |
 | `AM_Attack` | 08-12 |
+| `AM_Attack_S2` | 08-16 |
+| `AM_Attack_S3` | 08-16 |
+| `AM_Attack_S4` | 08-16 |
 | `AM_Dodge` | 08-10, 08-11, 08-12, 08-13 |
 | `APawn::FaceRotation` | 08-12 |
 | `ATDCombatCharacter` | 08-10, 08-12 |
@@ -850,32 +659,43 @@ long.
 | `ATheDreamCharacter::ApplyCameraCollisionExemption` | 08-13 |
 | `ActivateAbility` | 08-10, 08-12 |
 | `ActivationBlockedTags` | 08-10, 08-11, 08-12 |
-| `AddMovementInput` | 08-12 |
+| `AddMovementInput` | 08-12, 08-16 |
+| `AimAssistWedge` | 08-16 |
 | `AirControl` | 08-13 |
 | `AnimRootMotionTranslationScale` | 08-10 |
-| `ApplyDeathState` | 08-11 |
+| `ApplyBlockstunState` | 08-15 |
+| `ApplyDeathState` | 08-11, 08-15 |
+| `ApplyExhaustionState` | 08-15 |
 | `ApplyModToAttribute` | 08-10 |
-| `BP_PlayerCharacter` | 08-11, 08-12 |
+| `BP_CombatPlayerController` | 08-15 |
+| `BP_PlayerCharacter` | 08-11, 08-12, 08-15 |
 | `BP_TrainingDummy` | 08-11, 08-12 |
+| `BS_SwordShield_Block` | 08-14 |
 | `BlendOutTriggerTime` | 08-12 |
+| `BlockCommitEndsAt` | 08-15 |
 | `BlockDrainPerSecond` | 08-14 |
 | `BlockInitialStaminaCost` | 08-14 |
+| `BlockedSpacingCm` | 08-16 |
 | `BlockingMaxWalkSpeed` | 08-14 |
-| `BlockstunSeconds` | 08-14 |
-| `BS_SwordShield_Block` | 08-14 |
+| `BlockstunEndsAt` | 08-15 |
+| `BlockstunSeconds` | 08-14, 08-16, 08-18 |
+| `BlueprintPure` | 08-15 |
 | `CanActivateAbility` | 08-10, 08-11 |
 | `CancelAbilities` | 08-14 |
 | `CancelAllAbilities` | 08-11, 08-12 |
+| `ChainOpenAfterRecoverySeconds` | 08-16, 08-18 |
 | `ClampVelocity` | 08-14 |
 | `ClearExhaustionState` | 08-11 |
 | `CoilEndSeconds` | 08-09, 08-12 |
 | `CoilTurnRateDegrees` | 08-12 |
-| `CommitAttack` | 08-13 |
+| `CommitAttack` | 08-13, 08-18 |
 | `CostGameplayEffectClass` | 08-10 |
 | `DamageEffectClass` | 08-14 |
+| `DebugAutoAttackInterval` | 08-15 |
+| `DebugAutoAttackStringTaps` | 08-16 |
 | `DefaultEffects` | 08-10 |
 | `DisableMovement` | 08-11 |
-| `DoMove` | 08-12 |
+| `DoMove` | 08-12, 08-16 |
 | `DodgeSeconds` | 08-10, 08-11 |
 | `DodgeTargetDistanceCm` | 08-11, 08-12, 08-13 |
 | `ECC_Camera` | 08-12, 08-13 |
@@ -886,78 +706,93 @@ long.
 | `EndTask` | 08-14 |
 | `EnterCoil` | 08-14 |
 | `EnterDeath` | 08-11 |
+| `EnterExhaustion` | 08-15 |
+| `ExhaustedMaxWalkSpeed` | 08-14 |
 | `ExhaustedStaminaRegenPerSecond` | 08-14 |
 | `ExhaustedTag` | 08-11 |
 | `ExhaustionSeconds` | 08-10, 08-14 |
 | `ExitExhaustion` | 08-11 |
 | `FCollisionShape` | 08-12 |
 | `FMath::IsNearlyEqual` | 08-13 |
+| `FMath::Max` | 08-15 |
+| `FMath::RandRange` | 08-15 |
 | `FRootMotionSource` | 08-12, 08-14 |
 | `FTDAimAssistWedge` | 08-14 |
 | `FTDAttackBranch::LungeDistanceCm` | 08-12 |
 | `FTDAttackBranch::LungeDurationSeconds` | 08-13 |
+| `FTDAttackBranch::MontageSection` | 08-18 |
 | `FTDAttackBranch::RecoverySeconds` | 08-12 |
 | `FTDAttackBranch::RootMotionScale` | 08-12 |
 | `FTDAttackHitbox` | 08-12, 08-13, 08-14 |
 | `FTDRootMotionSource_FacingForce` | 08-12, 08-13 |
 | `FTDRootMotionSource_FacingForce::IsWithinStandoff` | 08-14 |
 | `FTDRootMotionSource_FacingForce::PrepareRootMotion` | 08-13 |
+| `FTDStringSwing` | 08-16 |
 | `FacingLockFadeSeconds` | 08-12 |
-| `ExhaustedMaxWalkSpeed` | 08-14 |
 | `FinishVelocityParams` | 08-14 |
 | `GA_Attack` | 08-09, 08-10, 08-11, 08-12, 08-14 |
 | `GA_Block` | 08-14 |
 | `GA_Dodge` | 08-10, 08-11, 08-13, 08-14 |
-| `GuardBreakStunSeconds` | 08-14 |
-| `IsBlocking` | 08-14 |
-| `IsGuardFacing` | 08-14 |
-| `MinimumBlockSeconds` | 08-14 |
 | `GetActorForwardVector` | 08-12 |
 | `GetAimYawDegrees` | 08-13 |
-| `GetLastInputVector` | 08-10 |
+| `GetLastInputVector` | 08-10, 08-16 |
 | `GetScriptStruct` | 08-12 |
+| `GuardBreakStunSeconds` | 08-14 |
 | `HandleCheckpoint` | 08-14 |
 | `HeightMaxCm` | 08-12 |
 | `HeightMinCm` | 08-12 |
+| `HitSpacingCm` | 08-16 |
 | `Hitboxes` | 08-12 |
+| `HitstunSeconds` | 08-16 |
 | `HoldSeconds` | 08-11 |
-| `HoldUntilSeconds` | 08-09, 08-12 |
+| `HoldUntilSeconds` | 08-09, 08-12, 08-18 |
 | `IdleTurnRateDegrees` | 08-12 |
 | `InitCapsuleSize` | 08-12 |
-| `InitialiseAbilitySystem` | 08-11 |
-| `InputBufferSeconds` | 08-11, 08-12 |
+| `InitialiseAbilitySystem` | 08-11, 08-15 |
+| `InputBufferSeconds` | 08-11, 08-12, 08-15, 08-16 |
+| `IsBlocking` | 08-14 |
+| `IsChainOutOpen` | 08-16 |
 | `IsFacingLocked` | 08-12 |
 | `IsFalling` | 08-10 |
-| `IsIdle` | 08-12 |
+| `IsGuardFacing` | 08-14 |
+| `IsIdle` | 08-12, 08-16 |
+| `IsInBlockstun` | 08-15 |
 | `JumpRegenPauseSeconds` | 08-10 |
+| `LastRequestedMoveInput` | 08-16 |
 | `LaunchCharacter` | 08-12 |
 | `LocalPredicted` | 08-11 |
 | `LogTDCombatTiming` | 08-12 |
 | `LungeStandoffCm` | 08-13 |
 | `MakeDisabled` | 08-14 |
 | `MaxReachCm` | 08-12, 08-14 |
+| `MaxStamina` | 08-18 |
 | `MaxWalkSpeed` | 08-11, 08-12, 08-13 |
 | `MeasuredTravelCm` | 08-11, 08-12, 08-13 |
+| `MinimumBlockSeconds` | 08-14 |
+| `MontageJumpToSection` | 08-18 |
 | `MontageSection` | 08-09 |
+| `MoveAction` | 08-16 |
 | `NetExecutionPolicy` | 08-11 |
 | `NetSerialize` | 08-12 |
 | `OnCompleted` | 08-12 |
 | `OnDestroy` | 08-14 |
-| `OnRep` | 08-11 |
+| `OnRep` | 08-11, 08-16 |
+| `OnRep_PlayerState` | 08-15 |
 | `OverlapsCapsule` | 08-14 |
+| `PeriodicDodge` | 08-15 |
 | `PhysicsRotation` | 08-12 |
 | `PreAttributeBaseChange` | 08-10 |
 | `PreAttributeChange` | 08-10 |
 | `PrepareRootMotion` | 08-12 |
 | `REPNOTIFY_Always` | 08-11 |
 | `RecoveryPlayRate` | 08-12 |
-| `RecoverySeconds` | 08-12, 08-13 |
+| `RecoverySeconds` | 08-12, 08-13, 08-16, 08-18 |
 | `RegenSuppressedUntil` | 08-10 |
 | `ReleaseAtSeconds` | 08-09, 08-11, 08-12 |
 | `ReleaseSeconds` | 08-09, 08-12, 08-13 |
 | `ReleaseStartSeconds` | 08-09, 08-10, 08-11, 08-12 |
 | `RemoveRootMotionSourceByID` | 08-14 |
-| `ResolveDodgeDirection` | 08-10, 08-12 |
+| `ResolveDodgeDirection` | 08-10, 08-12, 08-16 |
 | `ResolveHits` | 08-13 |
 | `ReturnToDebugAutoAttackHome` | 08-11 |
 | `RootMotionScale` | 08-12 |
@@ -969,27 +804,33 @@ long.
 | `SetTimer` | 08-11 |
 | `ShieldMesh` | 08-11 |
 | `ShouldBufferFailedInput` | 08-11, 08-14 |
-| `StaminaDamage` | 08-14 |
-| `State.Blocking.Committed` | 08-14 |
-| `State.GuardBroken` | 08-14 |
+| `ShouldExtendBufferWhileActive` | 08-16 |
+| `StaminaDamage` | 08-14, 08-18 |
 | `StaminaRegenPauseSeconds` | 08-10, 08-14 |
 | `StaminaRegenPerSecond` | 08-10, 08-14 |
 | `StandoffCm` | 08-13 |
 | `StartAttackMontage` | 08-13 |
-| `StartLunge` | 08-14 |
+| `StartLunge` | 08-14, 08-16 |
+| `State.Blocking.Committed` | 08-14 |
+| `State.GuardBroken` | 08-14 |
+| `State.Hitstun` | 08-16 |
 | `StopLunge` | 08-14 |
 | `StopRagdoll` | 08-13 |
 | `StrengthOverTime` | 08-12 |
+| `StringLinkWindowSeconds` | 08-16 |
+| `StringSwings` | 08-16 |
 | `SwordShield` | 08-10, 08-11 |
 | `TDChargedAttackAbility` | 08-11 |
 | `TDDodgeAbility` | 08-11, 08-13 |
+| `TDPlayerState` | 08-15 |
 | `TargetImmunityTags` | 08-13 |
 | `TraceRadius` | 08-11, 08-12 |
-| `TurnRateDegrees` | 08-12, 08-13, 08-14 |
+| `TurnRateDegrees` | 08-12, 08-13, 08-14, 08-15, 08-18 |
 | `UAbilityTask_PlayMontageAndWait` | 08-12 |
 | `UAnimNotifyState_MeleeWindow` | 08-09 |
 | `UCharacterMovementComponent` | 08-12 |
 | `UGameplayAbility` | 08-11 |
+| `UTDAttributeSet` | 08-15 |
 | `UTDChargedAttackAbility` | 08-09, 08-10, 08-12 |
 | `UTDDodgeAbility` | 08-10 |
 | `UTDGameplayAbility` | 08-12, 08-14 |
@@ -1009,14 +850,18 @@ long.
 | `bAllowPhysicsRotationDuringAnimRootMotion` | 08-12 |
 | `bAttackCommitted` | 08-12 |
 | `bBlockedWhileAirborne` | 08-10, 08-12 |
-| `bDead` | 08-11 |
+| `bChainsIntoString` | 08-16 |
+| `bDead` | 08-11, 08-15 |
 | `bDebugAutoAttack` | 08-11 |
 | `bDebugAutoAttackResetPosition` | 08-11 |
 | `bDoCollisionTest` | 08-12 |
 | `bEnableRootMotion` | 08-12, 08-13 |
 | `bEnabled` | 08-14 |
-| `bExhausted` | 08-11 |
-| `bInBlockstun` | 08-14 |
+| `bExhausted` | 08-11, 08-15 |
+| `bGuardBroken` | 08-15 |
+| `bInBlockstun` | 08-14, 08-15 |
+| `bInHitstun` | 08-16 |
+| `bInRecovery` | 08-16 |
 | `bJumpRegenPauseActive` | 08-11, 08-12 |
 | `bLocksMovement` | 08-12 |
 | `bOrientRotationToMovement` | 08-10 |
@@ -1024,6 +869,7 @@ long.
 | `bTookMovementLock` | 08-12 |
 | `bUseControllerDesiredRotation` | 08-12 |
 | `bUseControllerRotationYaw` | 08-12 |
+| `compositeSections` | 08-15, 08-18 |
 | `gEComponents` | 08-10, 08-11 |
 
 ---
@@ -5654,7 +5500,7 @@ long it is held, and block and parry will share a button.
 a brief binds the session that picks that slice up and no other, so it was triggered content
 sitting in the always-read file.
 
-- **Parry.** **Re-searched 2026-08-11** by enumerating every distinct `SwordShield` move rather than grepping for parry words, and the earlier picture was too thin. Beyond `Block1_Parry` there are `Block1` and `Block2` — discrete block actions with their own `_Idle` and `_Hit` — so there are **three candidate shapes plus failure states**, not one clip, and all are already migrated. The two packs split by **idiom**: V1 does held guard (Block's), V3 does discrete actions (a parry's). The `SwordShield` archetype holds three differently-named packs (`SwordAndShieldAnimV1`, `SwordShieldAnimV2`, `SwordSwordAnimV3`) and dual-sword content is all `DualSwordAnimation*` in its own archetype — so `SwordSword` is a vendor naming quirk, not a stance. What is still open needs a preview, not a search: whether V3's guard pose reads consistently beside V1's. Details in `Docs/Animation-Library.md`. **Re-derive the spec's numbers against the current ladder before building** — the 400 ms window / 500 ms reward / 1000 ms whiff lockout predate the light's move to 200 ms (flagged 2026-08-15).
+- **Parry.** **Re-searched 2026-08-11** by enumerating every distinct `SwordShield` move rather than grepping for parry words, and the earlier picture was too thin. Beyond `Block1_Parry` there are `Block1` and `Block2` — discrete block actions with their own `_Idle` and `_Hit` — so there are **three candidate shapes plus failure states**, not one clip, and all are already migrated. The two packs split by **idiom**: V1 does held guard (Block's), V3 does discrete actions (a parry's). **You cannot input a parry while actively blocking** — a property of the guard, not of blockstun; blockstun and parry never know about each other (the user, 2026-08-15). The `SwordShield` archetype holds three differently-named packs (`SwordAndShieldAnimV1`, `SwordShieldAnimV2`, `SwordSwordAnimV3`) and dual-sword content is all `DualSwordAnimation*` in its own archetype — so `SwordSword` is a vendor naming quirk, not a stance. What is still open needs a preview, not a search: whether V3's guard pose reads consistently beside V1's. Details in `Docs/Animation-Library.md`. **Re-derive the spec's numbers against the current ladder before building** — the 400 ms window / 500 ms reward / 1000 ms whiff lockout predate the light's move to 200 ms (flagged 2026-08-15).
 - **Knockdown** *(functionality; from Stun's 2026-08-15 split, renamed and halved 2026-08-18)* — knockdown itself, the 1.5 s default get-up, the three early get-up options and the get-up attack, the charged's **hard knockdown** grade, plus the guard break's full-lockout state its trap defers here, **jump-as-ability** which rides it, and hitstun's movement lock (deferred beside the guard break's). **It is the light string's terminator**: the ender knocks down, and today it *displaces* instead — `ApplyKnockbackToTarget` runs on every unblocked hit with no final gate, left alone deliberately because this slice replaces what the ender does to its victim wholesale. That also makes it **what widens `s4-360`**, which asserts the first burst only for exactly that reason. **`SwordShield` has no get-up content whatsoever** — unfiltered search for `Rise|GetUp|StandUp|Recover|Wake|Prone|Ground|KnockDown|Knock|Fallen|Down` returned zero for the archetype (2026-08-10). It exists only in `DaggerCombatAnimationV1` (18: `Rise1`–`Rise9`, two variants each) and `Unarmed` (8, including the bundle's only explicit `KnockDown`). Knockdown recovery therefore needs a **cross-archetype migration** — raise it before the slice starts.
 - **Polish** *(style over substance; split from Knockdown 2026-08-18, the designer's call)* — deferred work that changes how something *reads* rather than what it does. **Carries the bespoke windup pass**: heavy and charged get their own clips, their windups become **blended transitions** into real anticipation, and **coil is deprecated**. It belongs here rather than in Knockdown because the reactability arithmetic is untouched — the blend occupies exactly the window the coil did, 350 ms light→heavy and 300 ms heavy→charged — so only the tell's *expression* changes, freeze to visible repositioning. **Sits early deliberately**, right after Knockdown: it must precede Interplay or the feel verdict is taken with both tiers still playing the light's clip. Spec, candidate pool and the two measured findings behind it are in `Docs/Combat-Decisions.md`, 2026-08-18.
 - **Death-full** *(from the same split)* — death's real treatment replacing the debug ragdoll, hit-reaction animation, and the questions **Death** deferred. `SwordSwordAnimV3` has **four directional** `Hit_<DIR>` and **four directional** `Death_<DIR>` clips, not single standalone ones (verified 2026-08-10). **Hitstun ships with Light String** (settled 2026-08-16); what this slice owes it is the reaction *animation*.

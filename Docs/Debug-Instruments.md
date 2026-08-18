@@ -28,7 +28,9 @@ shipped defaults (0.35 and 3.0) clear all three tiers with room — the charged 
 **The dummy throws only lights.** `DebugAutoAttackHoldSeconds` is 0.1, below the light's 150 ms
 boundary, so it never escalates and never coils — do not expect `ESCALATE`, `COIL START` or any
 `CoilTurnRateDegrees` effect from it. 0.3 buys a heavy and 0.8 a charged, and changing it changes
-the fixture every prior measurement was taken against.
+the fixture every prior measurement was taken against. `CoilTurnRateDegrees` is set to the
+player's 600 so a raised hold does not silently inherit half-rate tracking, and is **unverified
+until something actually coils**.
 
 **`DebugAutoAttackStringTaps` makes each cycle a burst** *(2026-08-16, inert at its default 1)*.
 Above 1, the dummy re-presses every `DebugAutoAttackStringTapIntervalSeconds` (0.25) so each tap
@@ -54,6 +56,11 @@ while `TARGET commit` picked another at −89.3°. `bDebugAutoAttackHomeBetweenA
 every attack rather than at burst end, which is how a **stationary** attacker is obtained; an
 attacker whiffing into open space has an open standoff gate and runs its full authored lunge.
 
+**Between bursts, positions are the safe thing to reset; health and stamina are not.** `s3` and
+`s2-*` assert depletion accumulating — exhaustion entering at 0, breaks landing as the bar empties,
+the health ledger stepping — while `s4-string` is the one position exception: it measures the
+spacing chain a *connecting* string produces, which a mid-burst teleport severs.
+
 **The attacker sometimes wedges against the ramp and goes stationary mid-attack** *(the designer,
 2026-08-18)*. Nothing warns about it, and it silently corrupts anything measuring attacker travel —
 lunge distance, spacing, knockback. If a travel figure looks impossibly small, check where it was
@@ -77,7 +84,8 @@ you circle is a dummy that is not turning.
 holds two: `BP_TrainingDummy_C_0`, the attacker at (200, 0, 96) yaw 180, unchanged; and
 `BP_TrainingDummy_C_1`, the defender at (200, −150, 96) yaw 90, facing it. **Measurements do not
 span this change** — a third pawn moves nearest-target selection, and every travel baseline taken
-before it was taken against a level with one dummy in it.
+before it was taken against a level with one dummy in it. Nor do defensive-feel comparisons span
+**2026-08-14**, when the dummy learned to track: two different opponents.
 
 **The defender's spacing is chosen against two constraints, and both bite if it moves.** It sits
 150 cm from the attacker so that it, not the player at `PlayerStart` (200 cm away), is the

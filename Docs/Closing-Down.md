@@ -67,6 +67,11 @@ audit in miniature; the rest is making sure nothing is left on the floor.
    orphaned, reading as prose belonging to whatever precedes it. That happened on 2026-08-12 and was
    caught by luck rather than by a step; a trap that no longer announces itself is the one edit in
    that file which cannot be reviewed.
+
+   **And if the session moved text between files, re-read both seams — each file's final paragraph
+   especially.** One edit in `ef62b17` mangled the tails of both files it touched, and two
+   closedown audits then passed them (found 2026-08-18): a content re-read checks fitness, not
+   integrity, and the line-count backstop stayed green throughout.
 4. **Discharge what you fixed.** Did this session fix anything filed as a trap? Clear it *and say
    what discharged it*, in the same commit. Did anything supersede an entry, or make an absence
    claim? Rows and dates, per the rules above.
