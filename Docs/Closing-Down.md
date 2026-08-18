@@ -35,13 +35,24 @@ audit in miniature; the rest is making sure nothing is left on the floor.
    executed in the reverse, because step 3 audits the very files step 2 would commit — commit first
    and every fix it finds becomes a second commit for no reason. Noted 2026-08-14, after doing it
    this way by instinct and being asked why the procedure appeared to skip a step.
-3. **Audit the two files that are read every session, for bloat as well as truth.** `CLAUDE.md` and
-   `Docs/Working-In-Unreal.md` are both loaded or read in full at every startup, so **length is a
-   correctness problem for them and not only a tidiness one** — a file nobody finishes reading
-   protects nobody, and both grew past that point once already. Re-read what you added today and ask
-   of each line: *is this a rule, or is it the story of how the rule was learned?* Stories go to
-   `Docs/Combat-Decisions.md` or stay in git; the rule stays here. Added 2026-08-13, when
-   `Working-In-Unreal.md` was cut in half without losing a single rule.
+3. **Audit the two always-read files. `CLAUDE.md` in full, every time.** It is short enough that a
+   full pass is cheap, and it is the pinnacle of what this project is — it earns one. For
+   `Docs/Working-In-Unreal.md`, re-read what you added today.
+
+   **Two questions of every line, because the two files fail differently:**
+   - *Is this a rule, or the story of how the rule was learned?* Stories go to
+     `Docs/Combat-Decisions.md` or stay in git. **Dates survive on capability claims** — a limit is
+     a measurement with a shelf life — and die on incidents.
+   - *Does this need re-reading **every** session, by someone who may not touch this system at
+     all?* A true rule that only binds one system is triggered content and belongs behind a
+     trigger. This clause is the one that was missing: a spec section passes the first question
+     cleanly and can still not belong.
+
+   **A file cannot trigger its own audit** — that is why this lives here and not in either file.
+   The budgets: `CLAUDE.md` ~200 and `Docs/Working-In-Unreal.md` ~500, both **backstops rather
+   than gates**. The questions above are the gate. A line count is checkable in a second and
+   fitness is not, so the number will crowd out the criterion unless it is explicitly demoted —
+   which is exactly how `CLAUDE.md` passed six length audits while most of it was unfit.
 
    Then **check the docs you touched, with three greps.** `grep -n "supersede" Docs/Combat-Decisions.md` —
    every hit needs a row in the supersession table, and two were missing on 2026-08-12. Then confirm

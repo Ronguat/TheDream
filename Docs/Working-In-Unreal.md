@@ -7,27 +7,11 @@ that never happened, a log that lies about absence. It is kept short enough for 
 reasonable: **anything that can be compressed to its rule has been**, and the incidents live in git
 and `Docs/Combat-Decisions.md`.
 
-**The budget is ~500 lines, enforced when you add, not when you audit.** Past it, compress first —
-the person adding a line knows what it replaces. Stated as a number because the vaguer version
-drifted **47 lines in a day** after the 2026-08-13 cut from 820 without anyone noticing.
-
-**It is a tripwire, not a cap** (2026-08-15, the user's call). Correct responses: compress, relocate
-to a triggered doc — how `Docs/Debug-Instruments.md` was born — or raise it with a dated note when
-the growth is genuinely rule material read every session. Deleting a live rule to hit the number is
-the one wrong answer. *Raised 400 → 500 on 2026-08-15; relocation was declined because toolset
-capability fails silently and so must be in your head before you touch the editor.*
-
-**Growth that is this file's belongs here; the project's does not.** Those 47 lines were our own
-debug instrumentation — one line per combat feature, forever — and now live in
-`Docs/Debug-Instruments.md`.
-
 **Confidence marks.** *(confirmed)* was observed directly; *(reported once)* comes from a single
 unreproduced incident. Never promote a mark without re-observing the behaviour.
 
-**Re-test any limit that blocks you, whatever its mark, and record the result** — a fresh date if it
-held, a correction if it did not. Seven walls here fell in one evening on 2026-08-15, every one
-written as flat assertion and never re-poked since. **A limit is a measurement with a date, not a
-property of the engine**, and routing a human around one that is not there costs their evening.
+**Re-test any limit that blocks you, whatever its mark, and record the result** — a fresh date if it held, a correction if it did not. **A limit is a measurement with a date, not a property of the
+engine.**
 
 ---
 
@@ -65,7 +49,7 @@ see a new tool inside an existing toolset, which is the price of staying cheap e
 files listed* is. **Two failure modes wear the same face:** a write that is saved but not yet live
 needs a restart and is safe, and a write that was never saved is already gone. Both read back fine
 from inside the editor. `git status` is the only thing that separates them and it must happen
-*before* the kill. A CDO write was lost exactly this way.
+*before* the kill.
 
 There is **no graceful quit** — checked across the whole toolset registry. So closing is always a
 forced kill, and **save-all covers assets only**: in-progress asset-editor state dies unasked.
@@ -80,8 +64,7 @@ same turn; opening needs no announcement.
 fails with `Unable to connect`; the only reliable signal is **an MCP call returning a result**.
 Poll `SceneTools.get_current_level` rather than sleeping — a blind wait is wrong in both directions.
 
-**Calling a tool takes three fields** *(re-derived from transcripts at six calls' cost,
-2026-08-15)*: `toolset_name` exactly as `list_toolsets` prints it, `tool_name` as the bare function
+**Calling a tool takes three fields**: `toolset_name` exactly as `list_toolsets` prints it, `tool_name` as the bare function
 name, and `arguments`. Inside `execute_tool_script`, call `get_execution_environment` once first;
 scripts define `run()` returning a dict and pass **full dotted names** to `execute_tool`.
 
@@ -91,21 +74,16 @@ the `UEDPIE_0_` world's actors — right for inspecting live state, wrong for au
 ### Driving the editor's UI, and the console
 
 **`SlateInspectorToolset` is a Playwright-style surface over the editor's own widget tree** —
-`Windows`, `Observe`, `Snapshot`, `Click`, `Type`, `PressKey`, `Drag`, `Screenshot`. *(Found
-2026-08-15, never previously tried, so every "needs a human" claim predating it was written
-without it.)*
+`Windows`, `Observe`, `Snapshot`, `Click`, `Type`, `PressKey`, `Drag`, `Screenshot`.
 
 **The editor console is drivable, and it is the only console route there is** — `EditorAppToolset`
 searches cvars and cannot set one. `Observe` the main window, `Snapshot` for the status-bar textbox
-beside the **"Cmd"** combobox, `Type` with `submit: true` *(verified 2026-08-15 by toggling a cvar
-and reading it back through a different path)*.
+beside the **"Cmd"** combobox, `Type` with `submit: true` *(confirmed 2026-08-15)*.
 
 **Menus navigate, which answers "where is this in the editor" without guessing** *(2026-08-15)*.
 `Click` a dropdown, `Click` an entry for its submenu, `PressKey Escape` to leave no state behind.
 Menus are separate Slate windows; **`Hover` does not open a submenu and `Click` does**; a full
-`Snapshot` here is enormous, so **`WaitFor` is the cheap presence probe**. **Use it before describing
-a UI location from memory** — a confident guess at where Blend Profiles live was wrong in a
-plausible-sounding way. **Keep it read-only** unless a change was asked for; it is their live editor.
+`Snapshot` here is enormous, so **`WaitFor` is the cheap presence probe**. **Use it before describing a UI location from memory.** **Keep it read-only** unless a change was asked for; it is their live editor.
 
 **It does not reach the game** *(confirmed 2026-08-15, both confounds killed first)*. `PressKey`
 delivers to the focused **accessible** widget and the PIE viewport is absent from the accessibility
@@ -114,8 +92,7 @@ player to act needs a human, or a debug driver on the pawn. No exec route either
 points carry no `UFUNCTION`, and **a timer-driven function is not evidence of reflection**.
 
 **A PIE transform is not a placed transform** *(confirmed 2026-08-13)*: it is where an actor *ended
-up* — settled under gravity, pushed if anything could push it — and one PIE reading was written up
-as a correction to documentation that was right. **The tell is that `z` has also moved.** Re-read in
+up* — settled under gravity, pushed if anything could push it. **The tell is that `z` has also moved.** Re-read in
 the editor world before writing any placement number down.
 
 ---
@@ -132,18 +109,6 @@ touching reflection — new classes, new or renamed `UPROPERTY`s, new module dep
 full editor-closed rebuild.** It has also crashed the editor once on a change it should have
 handled *(reported once)* — a convenience that can cost you the editor, not the cheap path.
 
-**Build from Bash, never PowerShell.** Every PowerShell tool call rewrites the user's console font
-registry key — it is the tool invocation itself, not the build. The repair, if it happens *(the
-user's preset is Consolas 14)*:
-
-```bash
-K="HKCU\Console\%SystemRoot%_System32_WindowsPowerShell_v1.0_powershell.exe"
-reg add "$K" //v FaceName   //t REG_SZ    //d Consolas //f
-reg add "$K" //v FontSize   //t REG_DWORD //d 917504   //f   # 0xE0000: height 14
-reg add "$K" //v FontFamily //t REG_DWORD //d 54       //f   # TrueType
-```
-
-Note `//v` rather than `/v` — MSYS rewrites a leading single slash as a path.
 
 **"Bash cannot do this" is nearly always wrong, and believing it is what breaks the rule.** There is
 **no Python on PATH** *(machine fact, hit twice)*, but Git Bash ships `base64`, `reg`, `xxd`,
@@ -163,7 +128,7 @@ cd "/c/Program Files (x86)/UE_5.8/Engine/Source" && \
 
 **Verify every build, without exception** — not that it reported success, but that the DLL is newer
 than every source file. The unattended close/build/reopen cycle removes the pause where a missing
-build used to be noticed; a fix was once handed over for testing having never been compiled.
+build would once have been noticed.
 
 ```bash
 # Empty output means the DLL is newer than every source. This is the check.
@@ -196,8 +161,7 @@ several distinct ways:
   A BlendSpace's `SampleData` wrote, read back, grew the `.uasset` and displayed on the grid — and
   produced no pose, the derived interpolation grid never having rebuilt. Suspect **any asset type
   with a build step**. Only play confirms those.
-- **For BlendSpaces specifically, the split is position versus count** *(2026-08-15, the harder half
-  learned by crashing the editor)*. **Moving** a sample keeps the array length, so the cached
+- **For BlendSpaces specifically, the split is position versus count** *(confirmed 2026-08-15)*. **Moving** a sample keeps the array length, so the cached
   triangulation's indices stay valid — that write works, and **merely opening the asset finishes the
   rebuild**, no edit or save needed. **Removing** a sample does not: the triangulation still indexes
   the old length and the engine dies on evaluation with
@@ -235,7 +199,7 @@ restart once**, and when a setting "is not working" **read the runtime instance 
 symptom did not move"*, the restart rule makes that ambiguous between a refuted hypothesis and a
 write that never landed. Make one write whose effect is numerically measurable, confirm it, then
 trust what follows. **Where a value drives behaviour, print the value** — that is what made
-`DodgeSeconds` diagnosable where judging 0.2 s by feel would not have been.
+a value diagnosable where judging it by feel would not be.
 
 **`reset_properties` resets to the property's *default*, not the inherited archetype value**
 *(confirmed 2026-08-12)* — it wrote `(0,0,0)` over a component offset. There is no scriptable
@@ -247,7 +211,7 @@ serialized copy. After any C++ default change to an inherited component, read it
 PIE actor.
 
 **When configuring an asset type for the first time, diff it against a known-good asset of the same
-type.** Comparing against stock `IMC_Default` is what exposed the input bug; ours looked fine alone.
+type** -- a broken one usually looks fine alone.
 
 ### Confirmed traps
 
@@ -313,10 +277,10 @@ value, and **opening the montage recomputes it unaided**, so the human step is o
 clips must be four montages.
 
 **Duplication carries the source's notifies, and `notifies` is unreadable — so you cannot see what
-you copied** *(2026-08-15, caught by the user by eye after the toolset called the montage healthy)*.
-Cloning `AM_Attack` dragged its **Release Window** across, and `UAnimNotifyState_MeleeWindow` emits
-`RELEASE BEGIN`/`END`, which `s1-*` asserts timing against — so a stray one poisons the checker
-while reading as a timing bug. **Never clone an attack montage to make a non-attack one.**
+you copied** *(confirmed 2026-08-15)*. A cloned attack montage brings its **Release Window** with
+it, and `UAnimNotifyState_MeleeWindow` emits `RELEASE BEGIN`/`END`, which `s1-*` asserts timing
+against — so a stray one poisons the checker while reading as a timing bug. **Never clone an attack
+montage to make a non-attack one.**
 
 **But creation is per-toolset, not a blanket limitation** *(confirmed 2026-08-12)*. `MaterialTools`
 and `MaterialInstanceTools` create and build whole graphs end to end. Check the toolset that owns the
@@ -388,9 +352,7 @@ have the user open the graph, then `CaptureEditorImage`.*
 ## Measuring and diagnosing
 
 **Before testing whether a symptom depends on X, test whether it depends on anything at all** — a
-strictly cheaper question that partitions the search harder. The hover bug was chased for two
-sessions through skeletons, root motion and montages while the level viewport displayed it statically
-the whole time. **A static defect is fully visible on a placed actor with no PIE and nothing
+strictly cheaper question that partitions the search harder. **A static defect is fully visible on a placed actor with no PIE and nothing
 running**, which makes the viewport the cheapest instrument here.
 
 **A sufficient explanation is not the actual one.** Prefer an experiment that *manipulates* the
@@ -398,12 +360,11 @@ suspected cause over one that only observes it. When two hypotheses are killed b
 anomaly rather than inventing a third.
 
 **An assumed control is worse than no control — a comparison case only disconfirms if it was
-actually *measured*.** The hover hunt killed its first hypothesis with "the dodge has the same
-setting and does not hover", having never checked: a guess carrying the authority of evidence, and
+actually *measured*.** An unchecked comparison is a guess carrying the authority of evidence, and
 it corrupts not the conclusion but the test used to reject one.
 
-**What the user glosses over is often the decisive observation.** "The dummy hovers in the preview
-too" reframed a two-session bug instantly; when a bug resists, ask what *else* shows the symptom.
+**What the user glosses over is often the decisive observation.** When a bug resists, ask what
+*else* shows the symptom.
 
 **A single fixed test configuration is a filter.** An automated PIE run spawns both characters at
 their placed transforms and nobody moves, so **"no damage landed" is not evidence about hit
@@ -417,15 +378,13 @@ way to measure around a pawn without dirtying the level.
 close; a travel figure measured against a blocked capsule had to be withdrawn.
 
 **And do not measure one actor's travel against another actor's *assumed* position** — the general
-form of the PIE-transform trap above, and it bit twice: two 2026-08-14 readings computed closing
-distance against the dummy's **placed** origin while the dummy was being shoved across the floor by
-the very attacks being measured, and both were withdrawn. **A moving reference frame reads as a
+form of the PIE-transform trap above. **A moving reference frame reads as a
 movement fault in the thing being measured.** Re-read both transforms, or measure against something
 that cannot be pushed.
 
-**A periodic world aliases against a periodic sampler.** Polling near a multiple of the 3 s
-auto-attack cycle returned the same phase nine times, reading exactly like "the character never
-moves" — vary the spacing deliberately rather than taking more samples at the same cadence.
+**A periodic world aliases against a periodic sampler.** Sampling near a multiple of the fixture's
+cycle returns the same phase every time, reading exactly like "the character never moves" — vary the
+spacing deliberately rather than taking more samples at the same cadence.
 
 **Prefer normal PIE for anything timed.** In `bSimulate: true` the dummy's looping timer stopped
 after ~30 s and never resumed, unexplained *(2026-08-12)*; editor focus is **not** the variable.
@@ -454,18 +413,13 @@ cvars and their defaults, the two ungated warnings, and the traps in reading it.
 ## Verifying combat changes
 
 After any structural change — a refactor, a type change, a system swapped out — **re-verify
-everything that previously worked, not only what changed.** Migrating ability input from an enum to
-tags wiped a Blueprint map purely because the value type changed, and nothing announced it.
+everything that previously worked, not only what changed.** A type change can silently wipe a
+Blueprint map, and nothing announces it.
 
-Name the checks up front, run them in one session, report as a pass/fail table. **Much of the list
-below is now automated** — `Tools/RegressionCheck/regression-check.sh` asserts the timing, stamina
-and guard invariants against a PIE log and prints that table itself; see `Docs/Debug-Instruments.md`
-for the scenario matrix, and run its `--self-test` before trusting a green result.
-
-**The checklist itself moved to `Docs/Debug-Instruments.md` on 2026-08-18** — what to re-verify, the
-stamina additions, and the sampling-skew caveat. It is combat content, it grows one line per combat
-feature forever, and this file's rule is that its own growth belongs here and the project's does
-not. That relocation is what brought this file back under budget, 508 → 473.
+Name the checks up front, run them in one session, report as a pass/fail table. Most of it is
+automated: `Tools/RegressionCheck/regression-check.sh` asserts the invariants against a PIE log and
+prints that table itself. **Run its `--self-test` before trusting a green result.** The checklist,
+the scenario matrix and the fixtures are in `Docs/Debug-Instruments.md`.
 
 ---
 

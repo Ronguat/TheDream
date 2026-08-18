@@ -5647,3 +5647,94 @@ the character, so adding an ability is a content change rather than a code chang
 `InputTag.*` is deliberately a separate namespace from `Ability.*`: the input is not the
 move. One press of `InputTag.Attack` resolves to light, heavy or charged depending on how
 long it is held, and block and parry will share a button.
+
+## Slice briefs — read the one you are picking up
+
+**Trigger: starting a slice**, alongside the traps section above, which is read at the same moment.
+`CLAUDE.md` carries the execution order; this carries what each item *is*. Moved here 2026-08-18:
+a brief binds the session that picks that slice up and no other, so it was triggered content
+sitting in the always-read file.
+
+- **Parry.** **Re-searched 2026-08-11** by enumerating every distinct `SwordShield` move rather than grepping for parry words, and the earlier picture was too thin. Beyond `Block1_Parry` there are `Block1` and `Block2` — discrete block actions with their own `_Idle` and `_Hit` — so there are **three candidate shapes plus failure states**, not one clip, and all are already migrated. The two packs split by **idiom**: V1 does held guard (Block's), V3 does discrete actions (a parry's). The `SwordShield` archetype holds three differently-named packs (`SwordAndShieldAnimV1`, `SwordShieldAnimV2`, `SwordSwordAnimV3`) and dual-sword content is all `DualSwordAnimation*` in its own archetype — so `SwordSword` is a vendor naming quirk, not a stance. What is still open needs a preview, not a search: whether V3's guard pose reads consistently beside V1's. Details in `Docs/Animation-Library.md`. **Re-derive the spec's numbers against the current ladder before building** — the 400 ms window / 500 ms reward / 1000 ms whiff lockout predate the light's move to 200 ms (flagged 2026-08-15).
+- **Knockdown** *(functionality; from Stun's 2026-08-15 split, renamed and halved 2026-08-18)* — knockdown itself, the 1.5 s default get-up, the three early get-up options and the get-up attack, the charged's **hard knockdown** grade, plus the guard break's full-lockout state its trap defers here, **jump-as-ability** which rides it, and hitstun's movement lock (deferred beside the guard break's). **It is the light string's terminator**: the ender knocks down, and today it *displaces* instead — `ApplyKnockbackToTarget` runs on every unblocked hit with no final gate, left alone deliberately because this slice replaces what the ender does to its victim wholesale. That also makes it **what widens `s4-360`**, which asserts the first burst only for exactly that reason. **`SwordShield` has no get-up content whatsoever** — unfiltered search for `Rise|GetUp|StandUp|Recover|Wake|Prone|Ground|KnockDown|Knock|Fallen|Down` returned zero for the archetype (2026-08-10). It exists only in `DaggerCombatAnimationV1` (18: `Rise1`–`Rise9`, two variants each) and `Unarmed` (8, including the bundle's only explicit `KnockDown`). Knockdown recovery therefore needs a **cross-archetype migration** — raise it before the slice starts.
+- **Polish** *(style over substance; split from Knockdown 2026-08-18, the designer's call)* — deferred work that changes how something *reads* rather than what it does. **Carries the bespoke windup pass**: heavy and charged get their own clips, their windups become **blended transitions** into real anticipation, and **coil is deprecated**. It belongs here rather than in Knockdown because the reactability arithmetic is untouched — the blend occupies exactly the window the coil did, 350 ms light→heavy and 300 ms heavy→charged — so only the tell's *expression* changes, freeze to visible repositioning. **Sits early deliberately**, right after Knockdown: it must precede Interplay or the feel verdict is taken with both tiers still playing the light's clip. Spec, candidate pool and the two measured findings behind it are in `Docs/Combat-Decisions.md`, 2026-08-18.
+- **Death-full** *(from the same split)* — death's real treatment replacing the debug ragdoll, hit-reaction animation, and the questions **Death** deferred. `SwordSwordAnimV3` has **four directional** `Hit_<DIR>` and **four directional** `Death_<DIR>` clips, not single standalone ones (verified 2026-08-10). **Hitstun ships with Light String** (settled 2026-08-16); what this slice owes it is the reaction *animation*.
+- **Settings menu.** Raised 2026-08-12. Mouse sensitivity is the immediate want, and it should own
+  **`TurnRateDegrees`** too — that number stopped being cosmetic the moment attacks began pointing
+  wherever it had turned to, so exposing it is a balance decision rather than a comfort one, and a
+  player lowering it would be quietly worsening their own aim without being told. Also the natural
+  home for a **turn cap** if fast-spin inputs ever need bounding, which single-rate facing already
+  provides incidentally. **A remote playtester's packaged build has no editor and no cvars — this
+  menu is their only tuning surface** (2026-08-15); it precedes Netcode's real-remote milestone by
+  construction. Last of the megaslice.
+- **Netcode** — the behavioural pass the 2026-08-15 recon mapped: the two `SetTimer` sites and
+  i-frame lag compensation (one problem twice), prediction windows, client stamina prediction, the
+  loose-tag aim-assist asymmetry, and a shareable direct-connect build — lobbies and matchmaking
+  stay out of scope. **It opens with the three checks V2 could not run** (2026-08-15, reclassified
+  from chores: client attack → server damage, the client-tag re-measure now `DEATH`/`EXHAUSTED` are
+  sited in `Apply*`, and `OnRep_PlayerState` via the `ASC RESOLVE` line, which is confirmed working
+  in standalone). None is input-blocked any more — `Net PktLag` runs from the editor console. **The kill-question comes first**: `PktLag` 40/80/120 emulation, one human as
+  client versus the fixtures, measuring whether the reactability budget survives a round trip
+  *before* any prediction machinery exists. The single-player checker never reads a two-player
+  log; **a netcheck sibling — bands, assertions and a self-test over both logs, grown from the
+  two-log recipe — is a budgeted deliverable of this slice, not an option** (2026-08-15, the
+  user's call: the riskiest phase does not run on the weakest verification).
+- **Tuning Rig** — every designer-facing combat value live-tunable at runtime, because Interplay's
+  real cost is iteration latency: a tweak today is a PIE restart locally and a full reconnect
+  against a remote player. **v1 is local-only and lands inside the megaslice** (2026-08-15, the
+  user's call — the first sitting that wants it): a reflection-driven panel over the `Combat|*`
+  categories writing **live instances**, `TUNE` trace lines for every change, and **the checker
+  refusing any log containing them — shipped with v1**, or a tuned smoke-log silently pollutes a
+  regression run. CDO write-back stays a once-per-session editor-side step, where the staleness
+  traps live. **v2 is this roster position**: the dev-only remote channel for per-machine values
+  (the far client's buffer, their sensitivity), designed against Netcode's replication reality.
+  **Derived values surface as derivations, read-only or auto-recomputed** — the rig encodes the
+  tuning map's relationships rather than exposing bare floats, or it industrializes the exact trap
+  class the docs fence. Rationale and the design questions: `Docs/Combat-Decisions.md`, 2026-08-15.
+- **Interplay** — the deliberate feel pass, one remote human against the designer, **on the wire**,
+  because the shipping game is the networked one. Consumes everything parked on verified-good —
+  the reach/travel/spacing re-author, the lunge strength curves, the heavy's reactability retune,
+  blockstun and commitment tuning — and **re-derives the checker's bands once, against final
+  numbers, never patching them to green**. The naive player's reads outweigh the designer's.
+  **Owns the input-forgiveness subslice** (2026-08-16): whether the buffer extension over-forgives
+  mashing in a game built on deliberate precision, and whether the chain windows are too vast.
+  Kept on probation rather than settled, because none of it is felt yet; see the decision log.
+  **Verified-good is called here; Combat AI follows it, never precedes it** — the reasoning,
+  including why Netcode needs no AI, is in `Docs/Combat-Decisions.md`, 2026-08-15.
+
+### Structure Audit — no roster position, keeps a trigger
+
+**Structure Audit — the structural half ran 2026-08-15, by the user's call; the feel half keeps
+its trigger.**
+
+Raised 2026-08-12 as an audit of what is designer-facing, widened the same day to the project
+entire. **Run 2026-08-15**: the docs re-audited for truth and budget, the never-referenced
+`Variant_Combat` / `ThirdPerson` / `LevelPrototyping` template trees deleted from source and
+content (the asset registry showed zero external referencers; `Characters` and `Input` are the
+template content that remains, both live), StateTree dropped from the module and plugin lists,
+and the founding irritant discharged — `ReleaseStartSeconds` and `WindupSection` now live in
+`Combat|Animation`, the guard's knobs and getters in `Combat|Block`. One limit met: the details
+panel ignores struct-member categories inside arrays, so grouping *inside* `Branches` still
+rests on the property comments.
+
+**Candidate raised 2026-08-15: trimming `/Game/Characters`.** 128 assets, **five referenced** — the
+jump/fall/land clips, `CR_Mannequin_FootIK` and `SK_Mannequin`. The rest (a Pistol set, a Death set,
+others) is dead weight. **It is a per-asset trim, never a folder deletion** — the details and the
+deliberate two-skeleton arrangement are in `Docs/Animation-Library.md`. Whether the template's six
+`MM_Death_*` clips are worth keeping is **Death-full's call**, not this trim's: `SwordSwordAnimV3`
+already has four directional `Death_<DIR>` clips authored for an armed character.
+
+**Deliberately not done, and why:** splitting `ATDCombatCharacter` — moving a UPROPERTY orphans
+every Blueprint CDO override of it, so reorganising before the systems settle would be paid for
+twice; jump-as-ability, which rides **Knockdown** per the guard-break trap; and the decision
+log's archive, which is append-only by design.
+
+**Lunge strength curves stay parked for Interplay** (2026-08-13 as the verified-good trigger,
+resolved to Interplay's roster position 2026-08-15). They are last-10% feel tuning, not
+structure: assets exist, wired to nothing, and the tuning map carries the warning that a curve's
+mean must be 1.0 or it silently scales the authored distance. The reach/travel/spacing re-author
+shares that home — **Interplay consumes both**; see its entry in Remaining.
+
+**Verification infrastructure — all three packages shipped 2026-08-15** (defense-capable dummy,
+regression loop, two-player recon). `Docs/Debug-Instruments.md` carries the fixtures, scenario matrix,
+checker and two-player recipe; the plan file that contracted them was deleted on delivery, as its
