@@ -241,4 +241,5 @@ in this file.
 | The argument behind any of it | its **dated entry**, where it already is |
 
 **Graduation has a bar: the rule must be general.** Something that only makes sense as the history
-own header required.
+of one slice is not a rule and goes to the decision log — otherwise the spec becomes the new
+dumping ground and the problem has merely moved.

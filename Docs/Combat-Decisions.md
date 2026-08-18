@@ -5738,3 +5738,4 @@ shares that home — **Interplay consumes both**; see its entry in Remaining.
 **Verification infrastructure — all three packages shipped 2026-08-15** (defense-capable dummy,
 regression loop, two-player recon). `Docs/Debug-Instruments.md` carries the fixtures, scenario matrix,
 checker and two-player recipe; the plan file that contracted them was deleted on delivery, as its
+own header required.
