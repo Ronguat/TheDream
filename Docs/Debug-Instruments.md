@@ -48,6 +48,23 @@ them. **The home reset waits for the burst**: taps remaining or an open link win
 or a teleport would sever the spacing chain s4 measures. The whole burst must fit inside
 `DebugAutoAttackInterval`, exactly as the single attack must.
 
+**Close the animation editor before measuring — its preview actor fires notifies into the same
+log** *(2026-08-19)*. An editor left open on `AM_Parry` loops its preview, and every loop emits a
+real `PARRY GESTURE` line from `AnimationEditorPreviewActor_0`. A sweep collected **8 preview
+gestures against 6 from the actual defender**, all of the preview ones falling outside any parry
+window — so an unscoped assertion reports a montage fault that does not exist. The checker now
+scopes gesture lines to the parrier by name, which covers the times somebody forgets, but the
+noise is still in the log for anyone reading it by eye. **Any notify on an open asset does this,
+not just this one.**
+
+**Count samples within the current PIE session, not across the log** *(2026-08-19)*. The log
+accumulates across PIE sessions for as long as the editor stays up, so a wait-loop counting the
+whole file stops a run on samples an *earlier* session produced — a sweep waited for 8 parry
+successes, saw 8 from three sessions back, and stopped a run that had zero. The checker itself is
+immune (it slices from the last PIE start), so the failure is loud rather than silent: the run
+reports "no samples" instead of passing wrongly. `Tools/RegressionCheck/session-count.sh <pattern>`
+counts inside the current session and is what a wait-loop should use.
+
 **Set the fixture with PIE stopped, and check the world in the returned path** *(2026-08-18)*.
 While PIE runs, `find_actors` returns the **`UEDPIE_0_`** world's actors, so a fixture write lands
 on the throwaway copy and the editor actor is untouched — the next session then runs the *old*
@@ -450,7 +467,7 @@ looks ignored.
 | `s1-light` | 0.1 | `Off` | press→`RELEASE BEGIN` 200 ms ±30; elapsed **0.950** +10–35 ms; 0 escalations, 0 coils |
 | `s1-heavy` | 0.22 | `Off` | 350 ms ±30; elapsed 1.000 +10–35 ms; exactly 1 escalation, 1 coil |
 | `s1-charged` | 0.8 | `Off` | 750 ms ±30; elapsed 1.500 +10–35 ms; exactly 2 escalations, 1 coil |
-| `s2-light` | 0.1 | `HoldBlock` | stamina damage exactly 5; `BLOCK cost` per `BLOCK up`; `GUARD BREAK` count equals blocks at `remaining=0.0`; break stun 1.0 s ±25 ms; `BLOCKSTUN` span 0.400 ±20 ms; guard-down `DAMAGED` exactly 15 with the health ledger stepping exactly |
+| `s2-light` | 0.1 | `HoldBlock` | stamina damage exactly 5; `BLOCK cost` per `BLOCK up`; `GUARD BREAK` count equals blocks at `remaining=0.0`; break stun 1.0 s ±25 ms; `BLOCKSTUN` span 0.350 ±20 ms; guard-down `DAMAGED` exactly 15 with the health ledger stepping exactly |
 | `s2-heavy` | 0.22 | `HoldBlock` | as above with damage 50, `BLOCKSTUN` span 0.600, `DAMAGED` 25 |
 | `s2-charged` | 0.8 | `HoldBlock` | as above with damage 100, `DAMAGED` 40, and **`BLOCKSTUN` never fires at all** |
 | `s3` | 0.1 | `PeriodicDodge` | `DODGE`/`DODGE END` paired; clean travel 400–420 cm; dodge from full leaves exactly 50; `EXHAUSTED`/`EXHAUSTION END` paired, entering at 0 and clearing at 100 |

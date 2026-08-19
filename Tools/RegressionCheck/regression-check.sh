@@ -754,13 +754,22 @@ gesture_outside_window() { # PARRY GESTURE lines that fall outside their own win
 	# The clip's read moment must land while the parry is actually live. If it drifts past the
 	# close, the character is seen catching a blow after the window it could have caught it in has
 	# already gone -- the fit silently wrong in the one way play would blame on the mechanic.
+	# **Scoped to the parrier by name, and it is not paranoia** *(2026-08-19)*: an animation editor
+	# left open on AM_Parry fires this notify from its own preview actor, on a loop, into the same
+	# log. A first sweep collected 8 gestures from `AnimationEditorPreviewActor_0` against 6 from
+	# the real defender -- every preview one falling outside any window, so an unscoped assertion
+	# reports a montage fault that does not exist. **Close the animation editor before measuring**,
+	# and let this filter cover the times somebody forgets.
 	awk '
 		/^\[[0-9.]+\] PARRY WINDOW open/ {
 			t=$1; gsub(/[\[\]]/,"",t); open_t=t; open_seen=1
+			who=""
+			for (i=1;i<=NF;i++) if ($i=="on") { who=$(i+1); break }
 			for (i=1;i<=NF;i++) if ($i ~ /^until=/) { split($i,a,"="); close_t=a[2] }
 			next
 		}
 		/^\[[0-9.]+\] PARRY GESTURE/ {
+			if (who == "" || $3 != who) next
 			t=$1; gsub(/[\[\]]/,"",t)
 			if (!open_seen || t+0 < open_t+0 || t+0 > close_t+0) print $0
 		}' "$SLICE"
@@ -803,7 +812,7 @@ assert_parry_grace() {
 assert_gesture_inside_window() {
 	local bad n
 	bad=$(gesture_outside_window)
-	n=$(grep -c "^\[[0-9.]*\] PARRY GESTURE" "$SLICE" || true)
+	n=$(grep -cE "^\[[0-9.]+\] PARRY GESTURE BP_" "$SLICE" || true)
 	# **n=0 fails, and the message says which of two causes it is**, because both are real and they
 	# need different fixes: the montage may not be assigned to GA_Parry, or it may be assigned with
 	# no Parry Gesture marker placed on it. Notify placement cannot be read off the asset by any
