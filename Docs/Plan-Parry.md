@@ -45,9 +45,15 @@ on A being felt.
   So this is genuinely a human job, as this plan always said.
 
   ***E also grew a behavioural half that was not in this plan***, and it is shipped and verified:
-  a whiffed parry now refuses every ability and holds the movement lock, the lockout/recovery
-  vocabulary split, and `State.DodgeRecovery` separating the post-dodge gap. See
+  a whiffed parry now refuses every ability and holds the movement lock, the jail running from the
+  press rather than from window close, the lockout/recovery vocabulary split, `State.DodgeRecovery`
+  separating the post-dodge gap, **parry made structurally sacred**, and **Parry Grace**. See
   `Docs/Combat-Decisions.md`, 2026-08-19.
+
+  **That growth came from a behavioural audit the designer expected**, if not at this point in the
+  order — *"realistically, this should've been its own sub-slice, but around this point is when the
+  behavioural audit would've happened anyway."* Recorded because the plan file otherwise reads as
+  though the slice ran away with itself.
 - **F — partly done.** Everything the shipped code *falsified* moved with it: the ladder table and
   feel-goals line, the spec's heavy and parry sections, the stamina rule, six tuning-map rows, the
   vocabulary's **initiative** and **flinch**, and two new traps. **Still owed: the Netcode brief's
