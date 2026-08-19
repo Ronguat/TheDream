@@ -116,7 +116,7 @@ reactable pole — the designer's ruling, quote the entry), vocabulary gains **i
 block); stamina section (+25 on parry success). Tuning map rows: window floor/ceiling invariants,
 whiff-lockout floor, post-dodge gap, movement-return derivation, heavy blockstun's new basis,
 charged ≥ coil + reaction + dodge. Netcode brief: the waiver visibility trap, the cancel-vs-commit
-race at the 150 boundary joins the kill-question's PktLag probes, the parry window named beside
+race at the 150 boundary joins the tempo measurement's PktLag probes, the parry window named beside
 i-frames in the lag-compensation ledger.
 
 ---
@@ -124,7 +124,9 @@ i-frames in the lag-compensation ledger.
 ## Order, and what is deferred
 
 **A → B → C → D (green) → E → F.** Estimated two to three sittings; A is independently
-verifiable and commits alone. Human-pending: the montage, a `Block1_Parry` preview, and the
+verifiable and commits alone. **Raise at the greenlight, un-ruled at planning:** whether B–F
+should gate on A being *felt*, not merely green — the retune touches shipped, played systems, and
+the rest of the evening's design is otherwise unplayed. Human-pending: the montage, a `Block1_Parry` preview, and the
 execution greenlight itself.
 
 Deferred with owners: recoil tell and all parry presentation (Polish); ranged redirect (out of

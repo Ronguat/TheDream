@@ -5736,7 +5736,9 @@ sitting in the always-read file.
   stay out of scope. **It opens with the three checks V2 could not run** (2026-08-15, reclassified
   from chores: client attack → server damage, the client-tag re-measure now `DEATH`/`EXHAUSTED` are
   sited in `Apply*`, and `OnRep_PlayerState` via the `ASC RESOLVE` line, which is confirmed working
-  in standalone). None is input-blocked any more — `Net PktLag` runs from the editor console. **The kill-question comes first**: `PktLag` 40/80/120 emulation, one human as
+  in standalone). None is input-blocked any more — `Net PktLag` runs from the editor console. **The tempo measurement comes first** *(the kill-question, renamed 2026-08-18 — its output is
+  the width of the buildable band, not a verdict; the laws are latency-invariant, so it can only
+  re-derive the icing, never reach the cake)*: `PktLag` 40/80/120 emulation, one human as
   client versus the fixtures, measuring whether the reactability budget survives a round trip
   *before* any prediction machinery exists. The single-player checker never reads a two-player
   log; **a netcheck sibling — bands, assertions and a self-test over both logs, grown from the
