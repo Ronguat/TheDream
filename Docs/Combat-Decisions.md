@@ -886,42 +886,14 @@ long.
 
 ## 2026-08-18 — The Exchange: the laws of the conversation, flowcharted
 
-**For reflection, not authority** — the designer's framing, and this entry's contract. The three
-entries below this one, the spec, and the code rule; this is the view from above, packed into one
-construct at the designer's request. **The laws are the cake and the math is icing**: laws are
-meant to stay true across every retune, current numbers appear in parentheses as the 2026-08-18
-evaluation only, and when math and a law disagree, *the math is what moves* — the rapid heavy was
-derived exactly that way, restoring Law 6 after the numbers drifted from it.
-
-### The eleven laws
-
-1. **The two ledgers.** Every exchange settles in initiative and stamina; nothing else keeps
-   score. A mechanic that arrives wanting a third currency is misdesigned.
-2. **Stamina never gates; time gates only at commitments.** Every input is always accepted. Only
-   commitments refuse you — your own attack past its checkpoint, a stun, a lockout, the guard's
-   floor — and every refusal in the game traces to one.
-3. **Punishment attaches to failure.** A whiffed or blocked commitment hands the opponent its
-   recovery; a clean hit waives defense instantly, returns movement when the victim can respond,
-   and is never taxed like a miss.
-4. **Accidents never impersonate reads.** Every defensive expression is a deliberate, orthogonal
-   input. The system may not manufacture a call you did not make — for you or against you.
-5. **Block answers pressure, never commitment.** The guard is home against the fast layer and the
-   wrong place to stand once a commitment is telegraphed; teaching you to leave it is the ladder's
-   job.
-6. **Reaction survives; only a read profits.** Calm reaction to a real tell always has a safe
-   exit, and converting a commitment into punishment always requires having predicted it.
-7. **The ladder brackets timing from both jaws.** The fast commitment punishes hesitation (heavy,
-   now ~350 ms); the slow one punishes anticipation and worn guards (charged, 750). Between the
-   jaws sits exactly one honest answer.
-8. **The mixup lives where discrimination dies.** Tiers are indistinguishable precisely as long as
-   they must be (the divergence is blind by design); a tell, once given, is always real.
-9. **Depletion escalates the skill demanded.** As stamina falls, priced answers disappear and
-   reads remain — the losing player is funneled toward the highest expression, never locked out of
-   playing. (A dodge and a blocked heavy both cost 50; the poverty parry costs only being right.)
-10. **Feints are defenses worn as offense.** An abort routes only into a priced defensive action,
-    so the bluff always costs the bluffer; bluffing lives where coils are long.
-11. **A hit ends the argument; a block continues it; a parry reverses it.** The three resolutions
-    of any swing, and the whole conversation in one line.
+Written as **"for reflection, not authority"**, and that contract lasted one hour — *amended
+inline the same evening, per the established practice*: the moment Law 6 was used to derive the
+rapid heavy, the laws were governing, and the designer called the mislabel. **The eleven laws
+graduated to `Docs/Combat-Spec.md`'s opening section** — the routing table's first row, a design
+rule that still governs play — icing stripped, numbering preserved, so every law reference below
+resolves against the spec. What stays here is the snapshot half: **the map and the scenarios,
+with the 2026-08-18 numbers as dated icing.** The cake moved to where cake lives; when math and a
+law disagree, the math is what moves — the rapid heavy was derived exactly that way.
 
 ### The map
 

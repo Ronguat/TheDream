@@ -11,6 +11,43 @@ back is its tuning map.
 
 ---
 
+## The laws
+
+The governing layer: every mechanical section below is an implementation of these, and a change
+that bends one is a design decision, never a tuning pass. *Graduated 2026-08-18 from the Exchange
+entry in `Docs/Combat-Decisions.md`, which keeps the map, the scenario walks, and that date's
+numbers; when current math and a law disagree, the math is what moves.*
+
+1. **The two ledgers.** Every exchange settles in initiative and stamina; nothing else keeps
+   score. A mechanic that arrives wanting a third currency is misdesigned.
+2. **Stamina never gates; time gates only at commitments.** Every input is always accepted. Only
+   commitments refuse you — your own attack past its checkpoint, a stun, a lockout, the guard's
+   floor — and every refusal in the game traces to one.
+3. **Punishment attaches to failure.** A whiffed or blocked commitment hands the opponent its
+   recovery; a clean hit waives defense instantly, returns movement when the victim can respond,
+   and is never taxed like a miss.
+4. **Accidents never impersonate reads.** Every defensive expression is a deliberate, orthogonal
+   input. The system may not manufacture a call you did not make — for you or against you.
+5. **Block answers pressure, never commitment.** The guard is home against the fast layer and the
+   wrong place to stand once a commitment is telegraphed; teaching you to leave it is the ladder's
+   job.
+6. **Reaction survives; only a read profits.** Calm reaction to a real tell always has a safe
+   exit, and converting a commitment into punishment always requires having predicted it.
+7. **The ladder brackets timing from both jaws.** The fast commitment punishes hesitation; the
+   slow one punishes anticipation and worn guards. Between the jaws sits exactly one honest
+   answer.
+8. **The mixup lives where discrimination dies.** Tiers are indistinguishable precisely as long as
+   they must be; a tell, once given, is always real.
+9. **Depletion escalates the skill demanded.** As stamina falls, priced answers disappear and
+   reads remain — the losing player is funneled toward the highest expression, never locked out of
+   playing.
+10. **Feints are defenses worn as offense.** An abort routes only into a priced defensive action,
+    so the bluff always costs the bluffer; bluffing lives where coils are long.
+11. **A hit ends the argument; a block continues it; a parry reverses it.** The three resolutions
+    of any swing, and the whole conversation in one line.
+
+---
+
 ### Offense (Melee)
 **An attack is defined by when it hits, not by how it plays.** Each tier authors the moment its
 hitbox goes live and the input boundary you must release before to get it — **the

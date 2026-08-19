@@ -70,6 +70,7 @@ CLAUDE.md:::| Light | 150 ms | **200 ms** |:::Combat-Spec cedes the ladder table
 CLAUDE.md:::### When a slice ships:::Closing-Down step 5 routes by this section
 CLAUDE.md:::## Working Rules:::Debug-Instruments points the loop-coverage rule here
 Docs/Combat-Spec.md:::### Stamina:::Debug-Instruments names this section as the stamina rule
+Docs/Combat-Spec.md:::## The laws:::the Exchange entry points at the graduated laws
 Docs/Combat-Spec.md:::ladder table lives in `CLAUDE.md`:::the spec must keep saying where its table went
 Docs/Combat-Decisions.md:::## Known traps:::CLAUDE.md loop step greps this section
 Docs/Combat-Decisions.md:::## Tuning map:::CLAUDE.md routing table sends knob rows here
