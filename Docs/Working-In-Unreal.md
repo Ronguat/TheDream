@@ -328,6 +328,29 @@ is how a node is spliced into a running chain without one. `read_graph_dsl` retu
 connections both ways. Change a node by a **partial** write to its `Node` struct; a full write
 clobbers pin-backed fields. `describe_toolset` on it is too large to return — grep a saved dump.
 
+**Creating a Blueprint asset *is* scriptable, and the wall was never real** *(2026-08-18)*.
+`BlueprintTools.create` takes `folder_path`, `asset_name` and an `asset_type` class reference and
+returns the new Blueprint — `GA_Parry` was made from `/Script/TheDream.TDParryAbility` that way,
+inheriting every C++ default correctly. `set_parent` and `get_parent` reparent an existing one. This
+does not contradict "AnimGraph creation is not scriptable" above, which is about *graphs*; it is the
+asset that can be made.
+
+**What actually hid it is the lesson worth keeping: nobody had enumerated the toolset.**
+`describe_toolset` on `BlueprintTools` overflows the response limit, and the snapshot recorded
+exactly that — *"describe_toolset too large to return"* — which is a fact about the **description**
+and says nothing about the capability. The absence was inherited rather than measured.
+
+**The enumeration is cheap and works on any toolset too large to describe.** The overflow is
+written to a file, so grep the file for tool names instead of reading it:
+
+```bash
+grep -o '"name":"<toolset>\.[a-z_]*"' <saved-file> | sed 's/.*\.//;s/"//' | sort -u
+```
+
+That returned 51 tools for `BlueprintTools` in one call, `create` among them. **Do this before
+concluding any toolset cannot do something** — a `describe_toolset` that will not fit is the exact
+condition under which a capability goes unnoticed for months.
+
 **`add_variable` does not make a variable live; compiling does** *(confirmed 2026-08-15)*. It
 returns null either way, and the new property is unreadable on the CDO until `compile_blueprint`
 runs — which reads exactly like the write having failed.

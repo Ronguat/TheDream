@@ -90,7 +90,8 @@ where you stand, which is a *useful control* and an easy thing to mistake for br
 you circle is a dummy that is not turning.
 
 **The defender is a second dummy, and it is the fixture change of 2026-08-15.** `L_CombatTest` now
-holds two: `BP_TrainingDummy_C_0`, the attacker at (200, 0, 96) yaw 180, unchanged; and
+holds two: `BP_TrainingDummy_C_2`, the attacker at (200, 0, 96) yaw 180 — **re-placed 2026-08-18 and
+named `_C_0` before that**, which is why older entries call it that; and
 `BP_TrainingDummy_C_1`, the defender at (200, −150, 96) yaw 90, facing it. **Measurements do not
 span this change** — a third pawn moves nearest-target selection, and every travel baseline taken
 before it was taken against a level with one dummy in it. Nor do defensive-feel comparisons span
@@ -131,7 +132,9 @@ distance you were hoping for.** The dodger also sits ~405 cm from home between d
 on the *next* press, not when the dodge ends — so the attacker spends much of the cycle chasing it.
 
 **Beware the placed axis when testing facing.** `L_CombatTest` puts the dummy at (200, 0, 96.0) yaw
-180 — actor `BP_TrainingDummy_C_0` since it was re-placed 2026-08-14, `_C_1` before that — and
+180 — actor `BP_TrainingDummy_C_2` since it was re-placed 2026-08-18, `_C_0` from 2026-08-14 and
+`_C_1` before that; **the suffix climbs every time it is re-placed and no doc can be trusted on it
+without a `find_actors` check** — and
 `PlayerStart` at (0, 0), *directly along its facing*, so `bearing=+0.0` there is what a dummy
 that never turns also reports. Use `StartPIE`'s `startTransform` to spawn off-axis; (200, −400)
 reads +90 for a non-turning dummy and 0 for a turning one.
@@ -401,6 +404,7 @@ looks ignored.
 | `s4-block` | 0.1, **taps 3** | `HoldBlock` | `BLOCKED` staminaDamage exactly 5; `BLOCKSTUN` spans 0.350 ±20 ms; knockback never inward |
 | `s4-360` | 0.1, **taps 3**, `FacingMode` **Never**, **`bDebugSuppressLunge`** | `Off`, plus the player spawned at (200, 150) opposite the defender | **first burst only**: attacks 1–2 damage **zero** distinct targets, attack 3 damages **two** |
 | `s5-parry` | 0.1, **taps 3** | `PeriodicParry` | `PARRY WINDOW` span 0.300 ±25 ms; at least one `PARRY SUCCESS` (**n=0 fails**); credited reward inside [0, 25]; **zero `STRING` link window after a parried swing** |
+| `s5-parry-reward` | 0.1, **taps 3** | `PeriodicParry`, `DebugParryPreBlockSeconds` **4.0**, `DebugParryIntervalSeconds` **5.3** | at least one `PARRY SUCCESS`; `gained` **exactly 25** on every one |
 | `s5-parry-whiff` | 0.1, **taps 3** | `PeriodicParry`, `DebugParryIntervalSeconds` **0.5** | `PARRY LOCKOUT` span 0.600 ±25 ms; `REFUSED` naming `State.ParryLockout` at least once |
 | `s5-cancel` | 0.1, **`bDebugCancelAttackIntoBlock`** | `Off` | zero `RELEASE BEGIN`; zero `DAMAGED`; `BLOCK cost` at least once |
 | `s5-waiver` | 0.1, **`bDebugDodgeAfterHit`** | `Off` | attacker `DODGE` within 100 ms of its own `DAMAGED`; `MOVE UNLOCK` present |
@@ -428,6 +432,21 @@ other row treats as a fixture error. They are the exception on purpose: the pre-
 the on-hit waiver are both rules about what an attacker may do mid-swing, and no arrangement of one
 attacker and one defender can witness them otherwise. Both knobs default off, so no existing
 scenario changes.
+
+**`s5-parry-reward` exists because a parry costs nothing, and that makes its own reward invisible.**
+An unattended parrier never spends, so its bar sits at 100 and the clamp trims the whole +25 —
+`s5-parry`'s samples all read `gained=0.0`, correctly. The fix is to make the parrier *spend first*:
+`DebugParryPreBlockSeconds` holds a guard before each attempt, because **blocking is the only
+spender that authors no displacement** and so does not carry the parrier out of the exchange the
+way a dodge would.
+
+**The timing is the fussy part and the arithmetic is worth keeping.** Raising a guard costs 10 and
+holding drains 10/s, so 4 s spends 50 and lands the bar near half — under the 75 above which the
+clamp starts trimming. But regen is **40/s** after a 0.5 s pause, so the bar is back over that
+threshold about **1.1 s** after the guard drops. The parry is therefore tapped a frame after the
+release, and its whole window closes before regen has even resumed. **Raise the pre-block far
+enough to break the guard and the fixture measures its own break instead** — a break refuses every
+ability, the parry included.
 
 **The `s4-*` bands come from `GA_Attack`'s CDO, not from the plan session.** Three of the plan's
 proposals were stale by the time they were built — cadence 350 → **500 ms** once it was measured off

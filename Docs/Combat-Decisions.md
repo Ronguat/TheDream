@@ -150,45 +150,56 @@ Two withdrawn readings, recorded so nobody re-derives them: the *overshoot* this
 before 2026-08-13 cannot occur now, and the *"branch lunge clamped 200 → 0 every time"* reading
 that replaced it was an instrument fault, not a finding. Both are in the dated entries.
 
-**Before tuning `ParryStaminaReward` — *the +25 has never been observed landing.*** Filed
-2026-08-18 with the parry, and it is a **deferral the plan did not expect to owe**: sub-slice D
-claimed loop coverage was satisfied in-package, and this is the one assertion that could not be
-written.
+**~~Before tuning `ParryStaminaReward` — the +25 has never been observed landing~~ — DISCHARGED
+2026-08-18**, same day, by the designer pointing out that the parrier can simply be made to spend
+first. Filed as a deferral sub-slice D did not expect to owe; closed within the hour.
 
-The mechanism is a consequence of the design rather than an oversight. **A parry costs no stamina**,
-so an unattended parrier never spends, its bar never leaves 100, and the attribute set's clamp eats
-the entire reward — every credited sample in the shipped run reads `gained=0.0`. That is the clamp
-working correctly and it is also why the number is untested: nothing in the fixture set can put the
-parrier below full stamina, because the only two spenders are the dodge and the guard and
-`ETDDebugDefendMode` is one behaviour at a time by design.
+The obstacle was real: **a parry costs no stamina**, so an unattended parrier never spends, its bar
+never leaves 100, and the attribute set's clamp eats the entire reward — every sample in the first
+shipped run read `gained=0.0`. What was wrong was the conclusion drawn from it, that no fixture
+*could* drain a parrier. **Blocking spends and authors no displacement**, so a guard held before
+each attempt drains the bar without moving the parrier out of the exchange the parry has to be
+resolved in. That is `DebugParryPreBlockSeconds`, and `s5-parry-reward` now asserts `gained` is
+exactly 25 — measured n=6, all exact.
 
-**What is asserted today is the clamp, not the magnitude.** `s5-parry` bounds `gained` to [0, 25],
-which would catch a negative or a runaway but passes happily on a reward that never applies.
-**`PARRY SUCCESS` prints `gained=` specifically so this becomes assertable the moment a fixture
-exists that can spend a parrier's stamina** — the cheapest being a defend mode that alternates, or
-a debug knob that seeds the bar. Until then, treat the 25 as authored-and-unverified.
+**The general lesson, which is why this stays after discharging: "no fixture can produce X" is a
+claim about imagination, not about the fixture set.** The knobs were all present; nobody had
+composed two of them. The arithmetic that makes it work is worth keeping — raising a guard costs 10
+and holding drains 10/s, so four seconds spends 50, while regen at 40/s refills past the clamp
+threshold about 1.1 s after the guard drops. **The parry therefore has to be tapped immediately
+after the release**, which is why the fixture drops the guard and presses a frame later rather than
+in the same frame.
 
-**Whenever a scenario needs the *attacker* dummy to defend — *`BP_TrainingDummy_C_0` cannot, and
-nothing says so.*** Measured 2026-08-18 while building `s5-cancel`. The placed attacker holds stale
-per-instance overrides from before its Blueprint authored them: `defaultAbilities` reads
-**`[GA_Attack]`** against a CDO carrying four, and `debugDefendBlockInputTag` /
-`debugDefendDodgeInputTag` both read **None**. It can attack and nothing else — no block, no dodge,
-no parry, ever.
+**`s5-parry` still asserts the clamp rather than the magnitude**, deliberately — its parrier never
+spends, so its samples are legitimately 0.0, and the two scenarios assert different halves.
 
-**The signature is the one the placed-actor trap in `Docs/Working-In-Unreal.md` describes**, and
-this is that trap with a name on it. Note the tell that confirms it: *new* properties inherit
-correctly — `debugDefendParryInputTag`, added the same day, read `InputTag.Parry` off the CDO
-without trouble — so the damage is confined to properties that existed when the instance was last
-serialized. **`set_properties` on `defaultAbilities` is refused, re-tested 2026-08-18**, and
-`EditDefaultsOnly` has no scriptable route, so the documented fix is delete-and-re-place.
+**~~Whenever a scenario needs the attacker dummy to defend — `BP_TrainingDummy_C_0` cannot~~ —
+DISCHARGED 2026-08-18** by re-placing the actor, in the same package that filed it. The silence it
+exploited is now instrumented, which is the part worth keeping.
 
-**Worked around rather than fixed, deliberately.** `s5-cancel` and `s5-waiver` swap the roles —
-`BP_TrainingDummy_C_1` is clean on every property and does the attacking, with `_C_0` as the
-target — which needs only `EditAnywhere` writes and touches nothing structural. Re-placing the
-actor is a level change with a cost the workaround does not have: the internal name moves, and
-`Docs/Debug-Instruments.md` names both dummies throughout. **The trap is that the next scenario
-wanting a defending attacker will reach for `_C_0` and get silence** — no refusal line, no warning,
-just an input that does nothing.
+What it was: the placed attacker held stale per-instance overrides from before its Blueprint
+authored them — `defaultAbilities` reading **`[GA_Attack]`** against a CDO carrying four, and
+`debugDefendBlockInputTag` / `debugDefendDodgeInputTag` both **None**. It could attack and nothing
+else. Found while building `s5-cancel`, which pressed block on schedule and produced no block
+input, no refusal and no warning of any kind.
+
+**Two findings survive the fix.** *New properties inherit correctly; only ones that existed at
+serialization time go stale* — `debugDefendParryInputTag`, added the same day, read `InputTag.Parry`
+off the CDO without trouble while its two older siblings read None. The damage is always confined
+to the past, which is exactly what hides it: the thing you just added works. And *`set_properties`
+on an `EditDefaultsOnly` property of an instance is refused* — re-tested 2026-08-18, still
+refused — so delete-and-re-place stays the only route, and **it moves the actor's internal name**:
+the attacker is `BP_TrainingDummy_C_2` now, `_C_0` from 2026-08-14, `_C_1` before that. Any doc
+naming it is a snapshot, so check with `find_actors` rather than trusting one.
+
+**The prevention is `ATDCombatCharacter::WarnOnStaleInstanceOverrides`**, run at `BeginPlay`. It
+compares the instance against its own CDO and emits an ungated `LogTDCombatTiming` warning naming
+the property, both values and the remedy. **It deliberately cannot repair anything** — the values
+are unwritable from there, and a silent repair would hide the divergence from the person who has to
+act on it. **Proven by making it fire**, the defender's dodge tag cleared on purpose and the warning
+naming it precisely. The exhaustive version is a whole-instance diff against the CDO, scriptable
+through `ProgrammaticToolset`; the re-placed attacker returns **zero** value overrides across 164
+properties, against three before.
 
 **Before the charged or heavy gets its own clip** — *the coil is a freeze, measured rather than
 predicted.* `rate=0.049` to `0.097` across ~40 throws, mean ~0.072: the montage advances at 5–10%

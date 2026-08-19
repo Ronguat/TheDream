@@ -51,7 +51,7 @@ state_tree_toolset.toolsets.state_tree.StateTreeTools	StateTree assets; StateTre
 sequencer_animmixer_toolset.toolsets.mixer.SequencerAnimMixerTools	Sequencer anim mixer
 editor_toolset.toolsets.actor.ActorTools	actor transforms, labels, components
 editor_toolset.toolsets.asset.AssetTools	find/load/save/duplicate/move/delete; path-string fns false-negative, use load_asset
-editor_toolset.toolsets.blueprint.BlueprintTools	graphs, nodes, pins, variables, compile. describe_toolset too large to return
+editor_toolset.toolsets.blueprint.BlueprintTools	graphs, nodes, pins, variables, compile -- AND create/set_parent: it makes Blueprint assets (2026-08-18). describe_toolset overflows to a file; grep that file for tool names
 editor_toolset.toolsets.curve_table.CurveTableTools	CurveTables
 editor_toolset.toolsets.data_asset.DataAssetTools	Data Assets
 editor_toolset.toolsets.data_table.DataTableTools	DataTables

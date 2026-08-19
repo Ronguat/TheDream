@@ -1698,6 +1698,9 @@ void ATDCombatCharacter::BeginPlay()
 {
 	Super::BeginPlay();
 
+	// First, before anything reads a value that may be a lie. See the function's comment.
+	WarnOnStaleInstanceOverrides();
+
 	// Captured before anything can move it, so the revive has a true rest pose to restore.
 	if (const USkeletalMeshComponent* SkeletalMesh = GetMesh())
 	{
@@ -1928,7 +1931,7 @@ void ATDCombatCharacter::SeedAbilitySystemDefaults()
 			GetWorldTimerManager().SetTimer(
 				DebugAutoParryTimerHandle,
 				this,
-				&ATDCombatCharacter::DebugAutoParryPress,
+				&ATDCombatCharacter::DebugAutoParryCycle,
 				DebugParryIntervalSeconds,
 				true,
 				DebugParryIntervalSeconds);
@@ -1938,6 +1941,110 @@ void ATDCombatCharacter::SeedAbilitySystemDefaults()
 	default:
 		break;
 	}
+}
+
+void ATDCombatCharacter::WarnOnStaleInstanceOverrides() const
+{
+	const UClass* Class = GetClass();
+	const ATDCombatCharacter* CDO = Class ? Cast<ATDCombatCharacter>(Class->GetDefaultObject()) : nullptr;
+
+	// The CDO compares against itself in the editor's own instance of the class; nothing to say.
+	if (!CDO || CDO == this)
+	{
+		return;
+	}
+
+	// **DefaultAbilities first, because it is the one that disables a character outright.** An
+	// instance short of an ability does not refuse anything or log anything -- the input simply
+	// finds nothing to activate, so it reads as an input bug, a binding bug or a broken fixture.
+	// Compared by content rather than by count: a swap of equal length is the same silence.
+	if (DefaultAbilities != CDO->DefaultAbilities)
+	{
+		UE_LOG(LogTDCombatTiming, Warning,
+			TEXT("Stale placed-actor override on %s: DefaultAbilities has %d entr%s, the class default has %d. ")
+			TEXT("This instance was placed before its Blueprint authored the rest and keeps the old list forever. ")
+			TEXT("EditDefaultsOnly cannot be written on an instance -- delete and re-place the actor. ")
+			TEXT("See Docs/Combat-Decisions.md."),
+			*GetName(),
+			DefaultAbilities.Num(),
+			DefaultAbilities.Num() == 1 ? TEXT("y") : TEXT("ies"),
+			CDO->DefaultAbilities.Num());
+	}
+
+	// The debug input tags, and only when a fixture actually depends on one -- an unset tag on a
+	// pawn that never uses that mode is not a fault worth a line. Each of these three was None on
+	// the attacker dummy while its class carried a real tag.
+	if (bDebugAutoAttack && !DebugAutoAttackInputTag.IsValid() && CDO->DebugAutoAttackInputTag.IsValid())
+	{
+		UE_LOG(LogTDCombatTiming, Warning,
+			TEXT("Stale placed-actor override on %s: DebugAutoAttackInputTag is unset while the class default is %s. The auto-attacker will press nothing."),
+			*GetName(), *CDO->DebugAutoAttackInputTag.ToString());
+	}
+
+	const bool bWantsBlockTag = (DebugAutoDefendMode == ETDDebugDefendMode::HoldBlock)
+		|| bDebugCancelAttackIntoBlock
+		|| (DebugAutoDefendMode == ETDDebugDefendMode::PeriodicParry && DebugParryPreBlockSeconds > 0.0f);
+	if (bWantsBlockTag && !DebugDefendBlockInputTag.IsValid() && CDO->DebugDefendBlockInputTag.IsValid())
+	{
+		UE_LOG(LogTDCombatTiming, Warning,
+			TEXT("Stale placed-actor override on %s: DebugDefendBlockInputTag is unset while the class default is %s. No guard will be raised."),
+			*GetName(), *CDO->DebugDefendBlockInputTag.ToString());
+	}
+
+	const bool bWantsDodgeTag = (DebugAutoDefendMode == ETDDebugDefendMode::PeriodicDodge) || bDebugDodgeAfterHit;
+	if (bWantsDodgeTag && !DebugDefendDodgeInputTag.IsValid() && CDO->DebugDefendDodgeInputTag.IsValid())
+	{
+		UE_LOG(LogTDCombatTiming, Warning,
+			TEXT("Stale placed-actor override on %s: DebugDefendDodgeInputTag is unset while the class default is %s. No dodge will be pressed."),
+			*GetName(), *CDO->DebugDefendDodgeInputTag.ToString());
+	}
+
+	const bool bWantsParryTag = (DebugAutoDefendMode == ETDDebugDefendMode::PeriodicParry);
+	if (bWantsParryTag && !DebugDefendParryInputTag.IsValid() && CDO->DebugDefendParryInputTag.IsValid())
+	{
+		UE_LOG(LogTDCombatTiming, Warning,
+			TEXT("Stale placed-actor override on %s: DebugDefendParryInputTag is unset while the class default is %s. No parry will be pressed."),
+			*GetName(), *CDO->DebugDefendParryInputTag.ToString());
+	}
+}
+
+void ATDCombatCharacter::DebugAutoParryCycle()
+{
+	// No pre-block requested: the cycle *is* the tap, exactly as it was before this existed. Every
+	// scenario that does not set DebugParryPreBlockSeconds is bit-for-bit unaffected.
+	if (DebugParryPreBlockSeconds <= 0.0f || !DebugDefendBlockInputTag.IsValid())
+	{
+		DebugAutoParryPress();
+		return;
+	}
+
+	// Spend stamina before parrying, so the reward has somewhere to land. See the knob's comment
+	// for why blocking rather than dodging: it is the only spender that authors no displacement.
+	OnAbilityInputPressed(DebugDefendBlockInputTag);
+
+	GetWorldTimerManager().SetTimer(
+		DebugAutoParryPreBlockTimerHandle,
+		this,
+		&ATDCombatCharacter::DebugAutoParryDropGuard,
+		DebugParryPreBlockSeconds,
+		false);
+}
+
+void ATDCombatCharacter::DebugAutoParryDropGuard()
+{
+	OnAbilityInputReleased(DebugDefendBlockInputTag);
+
+	// A frame's grace before the parry, and it is load-bearing rather than defensive. GA_Parry
+	// blocks on State.Blocking, which the guard only drops as its ability ends -- pressing in the
+	// same frame as the release would be refused every single cycle, producing a fixture that looks
+	// active and never once parries. Short enough to stay far inside the drained window: regen does
+	// not even resume for StaminaRegenPauseSeconds after the guard falls.
+	GetWorldTimerManager().SetTimer(
+		DebugAutoParryPreBlockTimerHandle,
+		this,
+		&ATDCombatCharacter::DebugAutoParryPress,
+		0.05f,
+		false);
 }
 
 void ATDCombatCharacter::DebugAutoParryPress()

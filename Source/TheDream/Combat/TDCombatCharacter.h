@@ -1036,6 +1036,30 @@ protected:
 	float DebugParryIntervalSeconds = 1.7f;
 
 	/**
+	 *  Hold a guard this long before each auto-parry, to spend stamina first. 0 disables it.
+	 *
+	 *  **This exists to make the parry's reward observable at all.** A parry costs nothing, so an
+	 *  unattended parrier never spends, its bar never leaves 100, and the attribute set's clamp
+	 *  eats the entire +25 -- every credited sample reads `gained=0.0`, which is the clamp working
+	 *  and the reward untested. Blocking is one of only two things in the game that spends stamina,
+	 *  and unlike the dodge it authors **no displacement**, so it drains the parrier without moving
+	 *  it out of the exchange the parry has to be resolved in.
+	 *
+	 *  **4.0 is the suggested working value and it has margin by design.** Raising a guard costs
+	 *  `BlockInitialStaminaCost` (10) and holding drains `BlockDrainPerSecond` (10/s), so four
+	 *  seconds spends 50 and leaves the bar near half -- comfortably under the 75 above which the
+	 *  clamp would start trimming a 25-point reward. Blocked hits landing during the hold drain it
+	 *  further, which only helps. **Do not raise it so far that the guard breaks**: a break refuses
+	 *  every ability, the parry included, and the fixture would then measure its own guard.
+	 *
+	 *  The regen rate is what makes the timing tight rather than the drain: at 40/s the bar is back
+	 *  above the clamp threshold about 1.1 s after the guard drops, so the parry is tapped a frame
+	 *  after the release and its whole window closes before regen has even resumed.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat|Debug", meta=(ClampMin="0.0"))
+	float DebugParryPreBlockSeconds = 0.0f;
+
+	/**
 	 *  Seconds between one auto-dodge and the next. Debug only.
 	 *
 	 *  **Default 1.9 rather than a round number, and that is the point.** A dodger whose period
@@ -1271,8 +1295,37 @@ private:
 	 *  exchange the way a backward-dodging dummy does, and a teleport between attempts would sever
 	 *  the very spacing the parry is meant to be resolved at.
 	 */
+	/**
+	 *  One PeriodicParry cycle. Raises a guard first when DebugParryPreBlockSeconds is set,
+	 *  otherwise goes straight to the tap.
+	 *
+	 *  Three steps rather than two because the guard must be *down* before the parry is pressed --
+	 *  GA_Parry refuses activation while State.Blocking is present, so releasing and pressing in
+	 *  the same frame would produce a refusal on every cycle and an assertion that never fires.
+	 */
+	void DebugAutoParryCycle();
+	void DebugAutoParryDropGuard();
 	void DebugAutoParryPress();
 	void DebugAutoParryRelease();
+
+	/**
+	 *  Warn when this placed actor's values have drifted from the class they came from.
+	 *
+	 *  **Exists because the failure it catches is completely silent.** A placed actor serialises
+	 *  the values its Blueprint had at the moment it was placed, and keeps them as per-instance
+	 *  overrides forever -- so a later-authored ability, input tag or knob never reaches it, and
+	 *  nothing in the editor, the log or the game says so. `BP_TrainingDummy_C_0` sat holding one
+	 *  ability against a class carrying four, unable to block, dodge or parry, and it took a
+	 *  scenario mysteriously producing no input at all to find.
+	 *
+	 *  Deliberately a **warning at BeginPlay rather than a fix**, for two reasons. The values
+	 *  cannot be repaired from here -- EditDefaultsOnly properties reject writes on an instance,
+	 *  which is the whole reason delete-and-re-place is the documented remedy -- and a silent
+	 *  repair would hide the divergence from the person who needs to act on it. Ungated on
+	 *  LogTDCombatTiming, joining the family that reports authored data which has quietly stopped
+	 *  matching what it was authored against.
+	 */
+	void WarnOnStaleInstanceOverrides() const;
 
 	/**
 	 *  The cancelling block press, scheduled by bDebugCancelAttackIntoBlock.
@@ -1659,6 +1712,7 @@ private:
 	FTimerHandle DebugAutoDodgeTimerHandle;
 	FTimerHandle DebugAutoParryTimerHandle;
 	FTimerHandle DebugAutoParryReleaseTimerHandle;
+	FTimerHandle DebugAutoParryPreBlockTimerHandle;
 	FTimerHandle DebugCancelIntoBlockTimerHandle;
 	FTimerHandle DebugAutoDodgeReleaseTimerHandle;
 

@@ -12,7 +12,7 @@
 #
 # Scenarios: s1-light s1-heavy s1-charged s2-light s2-heavy s2-charged s3
 #            s4-string s4-guarantee s4-block s4-360   (all need StringTaps 3)
-#            s5-parry s5-parry-whiff s5-cancel s5-waiver
+#            s5-parry s5-parry-reward s5-parry-whiff s5-cancel s5-waiver
 # Exit 0 = all assertions passed, 1 = at least one failed, 2 = usage/no data.
 
 set -uo pipefail
@@ -88,12 +88,16 @@ BAND_PARRY_WINDOW=0.300
 BAND_PARRY_LOCKOUT=0.600
 BAND_PARRY_SPAN_TOL=0.025
 
-# S5 -- the credited stamina reward. Deliberately a *band*, not an equality, and the reason is a
-# gap rather than a tolerance: the reward is clamped by the attribute set, and no fixture today can
-# put the parrier below full stamina -- a parry costs nothing, so an unattended parrier never
-# spends. Every sample is therefore legitimately 0.0. See the trap in Docs/Combat-Decisions.md.
+# S5 -- the credited stamina reward, as seen by s5-parry, whose parrier never spends. A parry costs
+# nothing, so that fixture's bar never leaves 100 and the attribute set's clamp trims the whole
+# reward: every sample there is legitimately 0.0. This band asserts the *clamp*, not the magnitude.
 BAND_PARRY_GAINED_MIN=0
 BAND_PARRY_GAINED_MAX=25
+
+# S5 -- the reward's actual magnitude, asserted by s5-parry-reward, whose parrier holds a guard
+# before each attempt and so has room for the credit. Source: ParryStaminaReward on the character
+# CDO. **The pre-block is what makes this assertable at all** -- see DebugParryPreBlockSeconds.
+BAND_PARRY_GAINED_EXACT=25
 
 # S5 -- how quickly the on-hit waiver lets the attacker's own dodge out, in ms from its DAMAGED.
 # The waiver frees defensive activations *instantly*, so this measures the fixture's press latency
@@ -547,6 +551,26 @@ run_s5_parry() {
 	assert_count "no STRING continuation after a parry" "$violations" 0
 }
 
+run_s5_parry_reward() {
+	local successes
+
+	# n=0 fails: a run with no successes proves nothing about a reward, and this fixture is the
+	# fussier of the two -- the parry has to land in the ~1.1 s after the guard drops and before
+	# regen has climbed back above the clamp threshold, so a mistuned pre-block reads as silence.
+	successes=$(grep -c "^\[[0-9.]*\] PARRY SUCCESS" "$SLICE" || true)
+	if [ "$successes" -gt 0 ]; then
+		check "PARRY SUCCESS observed" 0 "$successes"
+	else
+		check "PARRY SUCCESS observed" 1 "none -- no parry landed, so the reward was never credited"
+	fi
+
+	# **The magnitude, not the clamp.** This is the assertion s5-parry cannot make, and the whole
+	# reason DebugParryPreBlockSeconds exists. A sample reading 0.0 here means the parrier was at
+	# full stamina when it parried -- the pre-block did not spend, or regen had already refilled it.
+	assert_all_equal "parry reward credits in full" "parry_success_gained" \
+		"$BAND_PARRY_GAINED_EXACT"
+}
+
 run_s5_parry_whiff() {
 	local refusals
 
@@ -826,7 +850,8 @@ case "$SCENARIO" in
 	s4-guarantee) run_s4_guarantee ;;
 	s4-block)     run_s4_block ;;
 	s4-360)       run_s4_360 ;;
-	s5-parry)       run_s5_parry ;;
+	s5-parry)        run_s5_parry ;;
+	s5-parry-reward) run_s5_parry_reward ;;
 	s5-parry-whiff) run_s5_parry_whiff ;;
 	s5-cancel)      run_s5_cancel ;;
 	s5-waiver)      run_s5_waiver ;;

@@ -16,6 +16,11 @@ on A being felt.
 - **B, C, D — shipped** (`d4ad50e`). `GA_Parry`, `IA_Parry` on MB4, the on-hit waiver, the
   `PeriodicParry` fixture, and four `s5-*` scenarios all green with every new assertion made to
   fail once on purpose.
+- **Both traps D filed were discharged the same evening**, by the designer. The reward's magnitude
+  is now asserted by `s5-parry-reward` — the parrier holds a guard before each attempt, because
+  blocking is the only spender that authors no displacement — and the attacker dummy was re-placed,
+  clearing all three stale overrides and gaining a `BeginPlay` warning so the next one announces
+  itself. It is `BP_TrainingDummy_C_2` now.
 - **E — outstanding, and it is the human step.** The clip's root-motion pair is already set
   (`bEnableRootMotion` false, `bForceRootLock` true on
   `AS_SwordSwordAnimV3_Block1_Parry_RM`). **`AM_Parry` itself still needs creating from that clip**
