@@ -186,6 +186,15 @@ Lunge slice at `9e4743b`, and the import outlived the swap. **Stale residue, not
 at it**, and no readable property on the montage does either. It will drop itself the next time
 the montage is edited and saved for any reason; it is not worth a resave of its own.
 
+**Chain-to-defense is live today and is a watch, not a defect** *(filed 2026-08-18 at the parry
+plan)*. A whiffed chain-eligible light can chain-press and cancel the new swing into a defensive
+action inside its [0, 150) startup, converting ~950 ms of whiff exposure into ~500 ms plus 10
+stamina, a guard commitment, and initiative handed over. It bends recovery-as-the-punish-window
+into "the punish, or the defensive-cancel tax" — a favourable RPS position rather than an escape,
+answerable by the flinch race and by heavy-on-block. Accepted eyes-open per the 08-16 whiff-chain
+precedent, **same recorded fallback: a contact gate on chain-out kills both behaviours in one
+condition.** Interplay judges; do not fix on paper.
+
 **Before Interplay's buffer subslice — *the buffer extension lets you queue an attack ahead
 through a heavy or charged, and nobody chose that.*** Filed 2026-08-16 during the extension's
 review. `ShouldExtendBufferWhileActive()` is a property of the **ability**, not of the branch, and
@@ -658,6 +667,7 @@ long.
 | `ATheDreamCharacter::ApplyCameraCollisionExemption` | 08-13 |
 | `ActivateAbility` | 08-10, 08-12 |
 | `ActivationBlockedTags` | 08-10, 08-11, 08-12 |
+| `ActorsHitThisWindow` | 08-18 |
 | `AddMovementInput` | 08-12, 08-16 |
 | `AimAssistWedge` | 08-16 |
 | `AirControl` | 08-13 |
@@ -706,6 +716,7 @@ long.
 | `EnterCoil` | 08-14 |
 | `EnterDeath` | 08-11 |
 | `EnterExhaustion` | 08-15 |
+| `EnterHitstun` | 08-18 |
 | `ExhaustedMaxWalkSpeed` | 08-14 |
 | `ExhaustedStaminaRegenPerSecond` | 08-14 |
 | `ExhaustedTag` | 08-11 |
@@ -742,7 +753,7 @@ long.
 | `HeightMinCm` | 08-12 |
 | `HitSpacingCm` | 08-16 |
 | `Hitboxes` | 08-12 |
-| `HitstunSeconds` | 08-16 |
+| `HitstunSeconds` | 08-16, 08-18 |
 | `HoldSeconds` | 08-11 |
 | `HoldUntilSeconds` | 08-09, 08-12, 08-18 |
 | `IdleTurnRateDegrees` | 08-12 |
@@ -767,7 +778,7 @@ long.
 | `MaxStamina` | 08-18 |
 | `MaxWalkSpeed` | 08-11, 08-12, 08-13 |
 | `MeasuredTravelCm` | 08-11, 08-12, 08-13 |
-| `MinimumBlockSeconds` | 08-14 |
+| `MinimumBlockSeconds` | 08-14, 08-18 |
 | `MontageJumpToSection` | 08-18 |
 | `MontageSection` | 08-09 |
 | `MoveAction` | 08-16 |
@@ -788,11 +799,11 @@ long.
 | `RecoverySeconds` | 08-12, 08-13, 08-16, 08-18 |
 | `RegenSuppressedUntil` | 08-10 |
 | `ReleaseAtSeconds` | 08-09, 08-11, 08-12 |
-| `ReleaseSeconds` | 08-09, 08-12, 08-13 |
+| `ReleaseSeconds` | 08-09, 08-12, 08-13, 08-18 |
 | `ReleaseStartSeconds` | 08-09, 08-10, 08-11, 08-12 |
 | `RemoveRootMotionSourceByID` | 08-14 |
 | `ResolveDodgeDirection` | 08-10, 08-12, 08-16 |
-| `ResolveHits` | 08-13 |
+| `ResolveHits` | 08-13, 08-18 |
 | `ReturnToDebugAutoAttackHome` | 08-11 |
 | `RootMotionScale` | 08-12 |
 | `RotationRate` | 08-10, 08-12 |
@@ -872,6 +883,134 @@ long.
 | `gEComponents` | 08-10, 08-11 |
 
 ---
+
+## 2026-08-18 — A parry makes them whiff at your feet: derived success, the on-hit waiver, and the two-ledger law
+
+**Parry success is one rule: the hit is negated and the attacker rides their own attack into
+recovery, planted at zero distance** (the lunge-stop plants them). Everything downstream is derived:
+recovery is already the punish window, so the reward needs no authoring and auto-scales with the
+victim's commitment — a parried charged cannot chain out and is a near-guarantee, a parried light
+would have raced its own chain until the designer closed it: **a parried attack cannot chain.
+"No more games."** The spec's 500 ms offensive lock **re-derives to deleted** — recovery subsumes
+it with better per-tier texture. A parry is a dodge that stands still: it manufactures the whiff at
+zero centimetres, which under feel goal #1 makes it the whiff-punish maximizer.
+
+**The designer's authored additions:** success pays **+25 stamina and instantly clears the regen
+pause**; the window is **300 ms**; activation costs **zero** — completing a pricing symmetry the
+project had never stated: dodge is stamina-priced, block is priced in both ledgers, parry is purely
+time-priced. Whiff pays a defensive lockout, re-derived down from 1000 with a floor constraint: it
+must let the charged collect on a fast-timed whiff (a press at ~300 must stay locked through 750).
+Parry never buffers; it is refused while blocking, while exhausted, and for a derived **~150 ms
+after a dodge ends** — without that gap, a predictive dodge chains into a parry that covers the
+charged, and the vise's late jaw unscrews. It lives inside blockstun, which never knew it existed.
+
+**Rejected: per-branch parry rewards.** The derived model pays by the victim's commitment, not the
+read's difficulty — the inversion is recorded, and an authored per-branch bonus exists only if play
+demands read-difficulty compensation. Also rejected: converting a parried swing's remaining release
+into recovery — it pokes the phase-rate machinery (the blend-out trap family) to buy nothing,
+because `ActorsHitThisWindow` already makes the remainder inert against the parrier (confirmed in
+`ResolveHits`). The surviving invariant: **the parry window must be ≥ the longest authored
+`ReleaseSeconds`** (300 ≥ 150 today).
+
+**The on-hit waiver, the first rule authored for 1vX: punishment attaches to failure, and a hit is
+not failure.** On any clean hit, defensive actions are freed from recovery instantly; **movement
+returns at contact + that swing's `HitstunSeconds`** — derived, not chosen: earlier lets the
+attacker erode the authored spacing the fixed-destination knockback just paid for; later is dead
+freedom. Offense stays on the chain rules. Recovery-as-punish-window survives where it was derived:
+against whiffs and blocks. The consequence accepted eyes-open, same shape as the 08-16 whiff-chain
+ruling and sharing its recorded fallback (a contact gate on chain-out kills both): **chain-to-
+defense** — whiff, chain-press, cancel to guard — converts the whiff punish from guaranteed damage
+into a favourable RPS position, priced at 10 stamina, a guard commitment, initiative handed over,
+and a flinch race the punisher can win. Filed as a watch; Interplay judges.
+
+**The evening's headline law: stamina never gates, and time gates only at commitments.** Every
+lockout in the game is a commitment consequence; nothing else restricts an input. Depth is
+multiplicative through the two shared ledgers — initiative and stamina — and the standing warning
+sign is any future mechanic that arrives wanting a third currency.
+
+The how is `Docs/Plan-Parry.md`, work-in-flight, deleted on delivery.
+
+## 2026-08-18 — Parry is a read, the input stays standalone, and the counterfeit-call theorem
+
+**The identity ruling, the designer's: parry is the "I called that!" button** — these fights are a
+conversation between two players, not a communal recitation. That single answer searched the whole
+input space, via the theorem it implies: **false-positive erasure comes from signal orthogonality,
+and a system that can mint counterfeit calls debases the only currency the game trades in.** The
+counterfeit has three faces — defensive false positives (inference schemes), offensive ones
+(accidents that impersonate reads), and option-selects (one input covering two reads).
+
+**Rejected, with mechanisms:** naive release-to-parry — the whiff lockout would tax every innocent
+guard drop, and **release-innocence is load-bearing for the 08-14 exhaustion no-deadlock ruling**
+("the exit always available"); tap-parry — re-opens the feathering hole `MinimumBlockSeconds`
+closed, and its ~120 ms intent latency bars fast-layer parries outright; the full Smash transplant —
+the one *coherent* share, requiring ambient-cost-only pricing and a tiny window, and rejected
+because it flips parry's identity from read to timing test (Smash affords it because shield-drop
+was never innocent and party DNA tolerates accidents); chamber-on-LMB — **offensive false positives
+are worse than defensive ones** (the designer's Mobius outlaw: "did you read my cancel, or did you
+accidentally hit me?"), compounded here by unreactability; context-dependent interpretation —
+boundary abuse plus netcode-fragile inference on remote state.
+
+**The 08-10 separate-buttons ruling is re-examined and upheld**, not superseded — it rejected
+identity-deferral; tonight's schemes die on different grounds that extend its reasoning. The
+hardware objection was re-priced for this topology: the mouse thumb is premium unused real estate,
+the audience is side-buttoned, Settings precedes any remote human, and Mobius already ran this
+triad — play evidence over imported rationale. The deciding argument is the clearest-signal
+mandate: **false positives are measurement noise in the one unrepeatable experiment**; the input
+scheme is semi-reversible after Interplay, contaminated data is not.
+
+**The anti-option-select ceiling, derived:** one press must not cover two read-classes. Under the
+re-poled ladder the binding gap is fast↔charged (750 − 350 = 400 ms), so the designer's 300 ms
+window is legal — and one press at *t* covers [*t*, *t*+300] ⊇ {200, 350}, the whole fast layer
+under a single read, which is now the intended grain. Under the old three-tier reading the ceiling
+was 250 and 300 would have violated it; the window is legal *because* of the re-poling.
+
+## 2026-08-18 — The ladder re-poles: rapid heavy, plus-on-block, and the solved-defense proof
+
+Raised from the runway by parry architecture — the first mechanic that prices tier-ambiguity, which
+is why New World and DKO carry both held tiers painlessly (nothing in them interrogates the ladder
+at fine grain) and this project no longer could.
+
+**The solved-defense proof, at current numbers:** block until the coil, reaction-dodge in
+[350, 500] — which covers *both* arrivals, because the both-cover window and the honest-reaction
+window are the same window — and dodge *laterally*, which keeps the whiff punish: post-dodge
+separation ~300 cm against a light's 450 cm coverage. (An assistant claim that "all dodges
+surrender the punish" was corrected here — it rested on a pre-Lunge number from 08-11 used against
+a post-Lunge mechanic.) Defense answered every held attack with no read required, and profited.
+
+**An economy defense of the heavy was offered, withdrawn, and revived — number-contingent both
+times, recorded as such.** Withdrawn: with reaction-dodge available at the same 50-stamina price,
+blocking a heavy was the indecision floor, not a chosen absorb — the heavy/charged discrimination
+arrives 50 ms before the heavy does, and drain taxes the waiting stance whose information comes too
+late. Revived by the fix: **the rapid heavy** (arrival ~350, decision boundary for the charged
+moving below it) kills the reaction answer, making block-vs-heavy the sane default again and
+restoring the stamina-installment game. **The ladder re-poles: a fast layer (light 200, heavy
+~350; read: "they pressed") and a slow layer (charged 750; read: "they're charging").** This
+amends the feel-goals line — only the charged holds the reactable-but-rewarding pole now — ruled
+by the designer.
+
+**Plus-on-block heavy** completes it: a heavy landing on guard is the *intended paid transaction* —
+50 stamina bitten, **initiative** retained (vocabulary, from the first-person-melee space: frame
+advantage) — and the string's peaceful exit. Its blockstun basis becomes recovery-plus-advantage.
+The loop: block beats light (the Rumbleverse deterrent, transplanted), heavy beats block and gets
+paid, prediction-defense beats heavy, charged beats prediction and worn guards. Stamina is the
+running score. Derived and kept: **the charged must arrive at or after coil + reaction + dodge
+duration** — 750 = 150 + 200 + 400, exactly on the line today.
+
+**Feints are already priced, and the pricing migrates.** Premeditated feints exist at every tier
+(any startup cancels into defense, paying block's 10 + 250 ms commitment, or a dodge's 50);
+reactive aborts exist only on the charged's long coil — under the rapid heavy, the mind games
+concentrate on the slow layer. Cancels are pre-commit only; recovery never cancels, so "no light is
+truly safe" stands. **The challenge and the flinch** (vocabulary: a raw counter out of blockstun;
+hitstun interrupting offense — confirmed shipped, the cancel lives in `EnterHitstun`) are the
+blocked-string triangle confirmed by its own derivation: the challenge loses to the immediate chain
+by exactly the 50 ms the blockstun derivation guarantees, now also answerable by chain-feint-block
+and by cancel-into-parry, the recursion priced at every layer.
+
+**Considered and obsoleted: per-position string tiers ("the sauce").** The input freedom above
+already affords the expression, and mid-string hold-conversion already carries its best payload —
+an escalated hit arrives past hitstun's guarantee, so the escapable-escalation tension exists
+through the front door. The term decouples and re-enters the vocabulary as the designer's general
+word for input freedom and maximal expression.
 
 ## 2026-08-18 — The felt-numbers table is retired, and derived values keep their warnings
 
@@ -5499,7 +5638,7 @@ long it is held, and block and parry will share a button.
 a brief binds the session that picks that slice up and no other, so it was triggered content
 sitting in the always-read file.
 
-- **Parry.** **Re-searched 2026-08-11** by enumerating every distinct `SwordShield` move rather than grepping for parry words, and the earlier picture was too thin. Beyond `Block1_Parry` there are `Block1` and `Block2` — discrete block actions with their own `_Idle` and `_Hit` — so there are **three candidate shapes plus failure states**, not one clip, and all are already migrated. The two packs split by **idiom**: V1 does held guard (Block's), V3 does discrete actions (a parry's). **You cannot input a parry while actively blocking** — a property of the guard, not of blockstun; blockstun and parry never know about each other (the user, 2026-08-15). The `SwordShield` archetype holds three differently-named packs (`SwordAndShieldAnimV1`, `SwordShieldAnimV2`, `SwordSwordAnimV3`) and dual-sword content is all `DualSwordAnimation*` in its own archetype — so `SwordSword` is a vendor naming quirk, not a stance. What is still open needs a preview, not a search: whether V3's guard pose reads consistently beside V1's. Details in `Docs/Animation-Library.md`. **Re-derive the spec's numbers against the current ladder before building** — the 400 ms window / 500 ms reward / 1000 ms whiff lockout predate the light's move to 200 ms (flagged 2026-08-15).
+- **Parry.** **Re-searched 2026-08-11** by enumerating every distinct `SwordShield` move rather than grepping for parry words, and the earlier picture was too thin. Beyond `Block1_Parry` there are `Block1` and `Block2` — discrete block actions with their own `_Idle` and `_Hit` — so there are **three candidate shapes plus failure states**, not one clip, and all are already migrated. The two packs split by **idiom**: V1 does held guard (Block's), V3 does discrete actions (a parry's). **You cannot input a parry while actively blocking** — a property of the guard, not of blockstun; blockstun and parry never know about each other (the user, 2026-08-15). The `SwordShield` archetype holds three differently-named packs (`SwordAndShieldAnimV1`, `SwordShieldAnimV2`, `SwordSwordAnimV3`) and dual-sword content is all `DualSwordAnimation*` in its own archetype — so `SwordSword` is a vendor naming quirk, not a stance. What is still open needs a preview, not a search: whether V3's guard pose reads consistently beside V1's. Details in `Docs/Animation-Library.md`. **Re-derive the spec's numbers against the current ladder before building** — the 400 ms window / 500 ms reward / 1000 ms whiff lockout predate the light's move to 200 ms (flagged 2026-08-15). **Re-derived and planned 2026-08-18**: the design entries of that date carry the rulings (window 300, reward derived, lock deleted, the ladder re-poled around a rapid heavy), and `Docs/Plan-Parry.md` carries the how — read both before building.
 - **Knockdown** *(functionality; from Stun's 2026-08-15 split, renamed and halved 2026-08-18)* — knockdown itself, the 1.5 s default get-up, the three early get-up options and the get-up attack, the charged's **hard knockdown** grade, plus the guard break's full-lockout state its trap defers here, **jump-as-ability** which rides it, and hitstun's movement lock (deferred beside the guard break's). **It is the light string's terminator**: the ender knocks down, and today it *displaces* instead — `ApplyKnockbackToTarget` runs on every unblocked hit with no final gate, left alone deliberately because this slice replaces what the ender does to its victim wholesale. That also makes it **what widens `s4-360`**, which asserts the first burst only for exactly that reason. **`SwordShield` has no get-up content whatsoever** — unfiltered search for `Rise|GetUp|StandUp|Recover|Wake|Prone|Ground|KnockDown|Knock|Fallen|Down` returned zero for the archetype (2026-08-10). It exists only in `DaggerCombatAnimationV1` (18: `Rise1`–`Rise9`, two variants each) and `Unarmed` (8, including the bundle's only explicit `KnockDown`). Knockdown recovery therefore needs a **cross-archetype migration** — raise it before the slice starts.
 - **Polish** *(style over substance; split from Knockdown 2026-08-18, the designer's call)* — deferred work that changes how something *reads* rather than what it does. **Carries the bespoke windup pass**: heavy and charged get their own clips, their windups become **blended transitions** into real anticipation, and **coil is deprecated**. It belongs here rather than in Knockdown because the reactability arithmetic is untouched — the blend occupies exactly the window the coil did, 350 ms light→heavy and 300 ms heavy→charged — so only the tell's *expression* changes, freeze to visible repositioning. **Sits early deliberately**, right after Knockdown: it must precede Interplay or the feel verdict is taken with both tiers still playing the light's clip. Spec, candidate pool and the two measured findings behind it are in `Docs/Combat-Decisions.md`, 2026-08-18.
 - **Death-full** *(from the same split)* — death's real treatment replacing the debug ragdoll, hit-reaction animation, and the questions **Death** deferred. `SwordSwordAnimV3` has **four directional** `Hit_<DIR>` and **four directional** `Death_<DIR>` clips, not single standalone ones (verified 2026-08-10). **Hitstun ships with Light String** (settled 2026-08-16); what this slice owes it is the reaction *animation*.
