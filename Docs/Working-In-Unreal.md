@@ -269,7 +269,14 @@ Needs a human in the editor:
 
 - Creating levels, BlendSpaces and AnimBlueprints **from scratch**
 - Placing or configuring AnimNotifies — a montage's `notifies` is not even readable, so notify
-  placement can only be verified at runtime
+  placement can only be verified at runtime. **Re-tested 2026-08-19 and it held**: `get_properties`
+  on `AM_Attack` still answers *"the following properties could not be read: notifies"*.
+
+  **But that is the toolset's limit, not the engine's — C++ reads `UAnimMontage::Notifies` fine**
+  *(2026-08-19)*. `UTDParryAbility::FindGestureTime` walks the array to find its marker's trigger
+  time at activation. So the split for anything notify-driven is: **a human places it, C++ reads
+  it, and the trace line it emits is what lets us verify the placement.** Reaching for a screenshot
+  here would be answering a question the game can answer itself, every run.
 - A montage's **`compositeSections`** — neither readable nor writable, and `sequenceLength` is
   read-only and does not recompute after a reflection write
 - **`UCurveFloat`'s keys** *(confirmed 2026-08-13)* — `FloatCurve` is a bare `UPROPERTY()` the
