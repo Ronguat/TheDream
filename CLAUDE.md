@@ -7,7 +7,9 @@ Build a high-precision **PvP** combat prototype in Unreal Engine that prioritize
 
 Feel goals (in priority order):
 - Precise spacing and whiff punish
-- Unreactable-but-risky light offense vs reactable-but-rewarding heavy/charged options
+- Unreactable-but-risky light offense vs reactable-but-rewarding charged options — **the heavy
+  left the reactable pole on 2026-08-18** and joined the light in a fast layer read as *"they
+  pressed"*; only the charged is read as *"they're charging"*
 - High-agency defense (block, dodge, parry) with meaningful costs
 - Fair, readable knockdown / oki
 - Strong melee identity first; ranged and hybrid come later
@@ -49,8 +51,8 @@ numbers per tier, needed to read a commit message or a trace line in any session
 | | Release before | Hitbox live |
 |---|---|---|
 | Light | 150 ms | **200 ms** |
-| Heavy | 450 ms | **500 ms** |
-| Charged Heavy | (held past 450 ms) | **750 ms** |
+| Heavy | 300 ms | **350 ms** |
+| Charged Heavy | (held past 300 ms) | **750 ms** |
 
 - **Windup** — everything before the attack can deal damage.
 - **Release** — the period during which the attack deals damage. Marked on a montage by the

@@ -27,8 +27,17 @@ shipped defaults (0.35 and 3.0) clear all three tiers with room — the charged 
 
 **The dummy throws only lights.** `DebugAutoAttackHoldSeconds` is 0.1, below the light's 150 ms
 boundary, so it never escalates and never coils — do not expect `ESCALATE`, `COIL START` or any
-`CoilTurnRateDegrees` effect from it. 0.3 buys a heavy and 0.8 a charged, and changing it changes
-the fixture every prior measurement was taken against. `CoilTurnRateDegrees` is set to the
+`CoilTurnRateDegrees` effect from it. **0.22** buys a heavy and 0.8 a charged, and changing it
+changes the fixture every prior measurement was taken against.
+
+**The heavy's hold was 0.3 until 2026-08-18 and that value is now a coin flip** — the ladder
+re-pole moved the heavy's `HoldUntilSeconds` to **0.30**, which is checkpoint 2, the charged
+decision boundary. A hold sitting exactly on a checkpoint escalates or does not depending on
+whether the release beats the timer that frame, so `s1-heavy` at 0.3 would silently measure a
+mixture of heavies and chargeds. 0.22 is the middle of the surviving band, (0.15, 0.30). **The
+general rule: a fixture hold is only valid strictly between two checkpoints, so re-check every
+hold whenever any `HoldUntilSeconds` moves** — they are the fixture's real dependency and nothing
+links them. `CoilTurnRateDegrees` is set to the
 player's 600 so a raised hold does not silently inherit half-rate tracking, and is **unverified
 until something actually coils**.
 
@@ -361,10 +370,10 @@ looks ignored.
 | Scenario | Attacker `…HoldSeconds` | Defender `DebugAutoDefendMode` | Asserts |
 |---|---|---|---|
 | `s1-light` | 0.1 | `Off` | press→`RELEASE BEGIN` 200 ms ±30; elapsed **0.950** +10–35 ms; 0 escalations, 0 coils |
-| `s1-heavy` | 0.3 | `Off` | 500 ms ±30; elapsed 1.150 +10–35 ms; exactly 1 escalation, 1 coil |
+| `s1-heavy` | 0.22 | `Off` | 350 ms ±30; elapsed 1.000 +10–35 ms; exactly 1 escalation, 1 coil |
 | `s1-charged` | 0.8 | `Off` | 750 ms ±30; elapsed 1.500 +10–35 ms; exactly 2 escalations, 1 coil |
 | `s2-light` | 0.1 | `HoldBlock` | stamina damage exactly 5; `BLOCK cost` per `BLOCK up`; `GUARD BREAK` count equals blocks at `remaining=0.0`; break stun 1.0 s ±25 ms; `BLOCKSTUN` span 0.400 ±20 ms; guard-down `DAMAGED` exactly 15 with the health ledger stepping exactly |
-| `s2-heavy` | 0.3 | `HoldBlock` | as above with damage 50, `BLOCKSTUN` span 0.500, `DAMAGED` 25 |
+| `s2-heavy` | 0.22 | `HoldBlock` | as above with damage 50, `BLOCKSTUN` span 0.600, `DAMAGED` 25 |
 | `s2-charged` | 0.8 | `HoldBlock` | as above with damage 100, `DAMAGED` 40, and **`BLOCKSTUN` never fires at all** |
 | `s3` | 0.1 | `PeriodicDodge` | `DODGE`/`DODGE END` paired; clean travel 400–420 cm; dodge from full leaves exactly 50; `EXHAUSTED`/`EXHAUSTION END` paired, entering at 0 and clearing at 100 |
 | `s4-string` | 0.1, **taps 3** | `Off` | three swing indices in equal counts; chain gap 0.500 ±45 ms and chain latency 125–175 ms; `DAMAGED` exactly 15 with the ledger stepping; `HITSTUN` spans 0.550 ±20 ms; **`KNOCKBACK` spacing never below the authored value it prints, and n=0 fails** |

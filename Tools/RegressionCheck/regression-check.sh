@@ -24,7 +24,12 @@ set -uo pipefail
 # ---------------------------------------------------------------------------
 
 # S1 -- press to RELEASE BEGIN, milliseconds. Authored hitbox-live times.
-BAND_RELEASE_LIGHT=200;   BAND_RELEASE_HEAVY=500;   BAND_RELEASE_CHARGED=750
+# Heavy 500 -> 350 on 2026-08-18, the ladder re-pole: the heavy becomes *rapid*, which is what
+# kills the reaction-dodge answer that had solved defense (block until the coil, then dodge in
+# [350, 500], covering both arrivals at no read). The ladder now poles as a fast layer -- light
+# 200, heavy 350, read "they pressed" -- against a slow layer, charged 750, read "they're
+# charging". Authored truth moved and the band followed it.
+BAND_RELEASE_LIGHT=200;   BAND_RELEASE_HEAVY=350;   BAND_RELEASE_CHARGED=750
 BAND_RELEASE_TOL=30
 
 # S1 -- ABILITY END elapsed against the authored total, seconds.
@@ -33,7 +38,10 @@ BAND_RELEASE_TOL=30
 # RecoverySeconds went 0.40 -> 0.60, so the authored total is 0.20 + 0.15 + 0.60. Authored truth
 # moved and the band followed it -- this is not a band patched to green. Heavy and charged are
 # untouched; only the light chains, so only the light's recovery was retuned.
-BAND_ELAPSED_LIGHT=0.950; BAND_ELAPSED_HEAVY=1.150; BAND_ELAPSED_CHARGED=1.500
+# Heavy 1.150 -> 1.000 on 2026-08-18 with the ladder re-pole. Its ReleaseAtSeconds went 0.50 ->
+# 0.35, so the authored total is 0.35 + 0.15 + 0.50. RecoverySeconds is untouched at 0.50 --
+# the re-pole moves when the heavy *arrives*, never how long it is punishable for.
+BAND_ELAPSED_LIGHT=0.950; BAND_ELAPSED_HEAVY=1.000; BAND_ELAPSED_CHARGED=1.500
 # Floor 0.010 -> 0.005 on 2026-08-16: a completed heavy measured +9 ms (press->release in-band,
 # every sibling +10..+35). The overhead is frame quantisation, and one frame landing tight is
 # jitter at the sampler, not a combat change -- the floor now admits it.
@@ -50,14 +58,19 @@ BAND_STAMDMG_LIGHT=5; BAND_STAMDMG_HEAVY=50; BAND_STAMDMG_CHARGED=100
 # Source: GA_Attack's Branches CDO, read 2026-08-15.
 BAND_HEALTHDMG_LIGHT=15; BAND_HEALTHDMG_HEAVY=25; BAND_HEALTHDMG_CHARGED=40
 
-# S2 -- blockstun span equals the tier's authored RecoverySeconds.
+# S2 -- blockstun span. Each tier's basis is its own; neither asserted tier is its RecoverySeconds
+# any more, so do not re-derive one from the other.
 # The charged has none reachable: its stamina damage empties any bar, so it
 # always breaks instead. That is a filed trap, asserted here as a standing fact.
 # Light 0.400 -> 0.350 on 2026-08-16, derived rather than felt: after blocking, the defender must
 # be able to *start* an attack before the next chained hit lands, but never land first. At a 500 ms
 # chain cadence the hit arrives at T+200 and the next at T+700, so blockstun B must satisfy
 # 400 + B > 700 (never first) -- B > 300. 350 is that floor plus the 50 ms margin used elsewhere.
-BAND_BLOCKSTUN_LIGHT=0.350; BAND_BLOCKSTUN_HEAVY=0.500
+# Heavy 0.500 -> 0.600 on 2026-08-18. This is a *basis change*, not a nudge: the heavy landing on
+# a guard is now the intended paid transaction -- 50 stamina bitten, initiative retained -- so it
+# is plus on block by design. Basis is recovery (0.50) + 0.10 of advantage, the advantage being
+# the only felt number in it. It is no longer "neutral minus 50 ms" like the tier it left behind.
+BAND_BLOCKSTUN_LIGHT=0.350; BAND_BLOCKSTUN_HEAVY=0.600
 BAND_BLOCKSTUN_TOL=0.020
 
 # S2 -- GuardBreakStunSeconds, break to GUARD END. Measured 1.004..1.007.
