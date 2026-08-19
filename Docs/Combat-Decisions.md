@@ -322,6 +322,31 @@ mechanism that does not exist. Related, same session: **a 360° wedge has no bea
 constrain swing 3. **Invalidated by** any change to `FindAimAssistTarget`'s selection rule or to
 swing 3's `arcDegrees`.
 
+**Whenever a second attacker becomes possible — *the half of Parry Grace that matters most has
+never been observed.*** Filed 2026-08-19 with Grace, and **owed from plan time rather than
+discovered**: the package promised scenarios for the observable half and a trap for the rest, then
+shipped the scenarios and forgot the trap.
+
+**What is verified**, by `s5-parry` against real logs: the tail exists on every window catch, its
+span is 0.150 ±25 ms, exactly one tail per `by=window` success, and it never re-arms — no tail from
+a `by=grace` catch, none overlapping.
+
+**What is not:** that Grace *actually catches a second hit*, which is the entire reason it exists.
+No fixture can produce two hits inside 150 ms — the tightest interval available is the 250 ms
+string tap, and the chain gap is 500 ms — so every `PARRY SUCCESS` observed so far reads
+`by=window` and **the `by=grace` path has never once executed.** The reward, the plant, the string
+loss and the stamina credit are all unexercised on that path even though the code treats both
+identically.
+
+**Also unverified: that Grace gates no input**, including a fresh parry. The ruling is explicit —
+*"it is there to aid, not restrict, and it should never be a punishment"* — but confirming it needs
+a parry press landing inside a 150 ms tail, which the fixture cannot reliably time either.
+
+**The cheapest discharge is a second attacker**, which nothing in the project can spawn today; the
+1vX exercise of the on-hit waiver is blocked on exactly the same thing and should be discharged in
+the same sitting. Failing that, a debug knob that fires two overlapping hits would do it, and would
+serve both.
+
 **Before ranged, DoTs, or anything that damages without inflicting a lockout — *three parry rules
 are currently indistinguishable, and one carve-out is unreachable.*** Filed 2026-08-19, owner
 **Interplay**, with Knockdown as the likelier first tripwire.
