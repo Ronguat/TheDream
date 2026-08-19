@@ -7,9 +7,9 @@ Build a high-precision **PvP** combat prototype in Unreal Engine that prioritize
 
 Feel goals (in priority order):
 - Precise spacing and whiff punish
-- Unreactable-but-risky light offense vs reactable-but-rewarding charged options — **the heavy
-  left the reactable pole on 2026-08-18** and joined the light in a fast layer read as *"they
-  pressed"*; only the charged is read as *"they're charging"*
+- Unreactable-but-risky light offense vs reactable-but-rewarding **charged** options. Light and
+  heavy form a **fast layer**, read as *"they pressed"*; only the charged holds the reactable
+  pole, read as *"they're charging"*
 - High-agency defense (block, dodge, parry) with meaningful costs
 - Fair, readable knockdown / oki
 - Strong melee identity first; ranged and hybrid come later
@@ -61,12 +61,10 @@ numbers per tier, needed to read a commit message or a trace line in any session
 - **Coil** — *not* a fourth phase: the sub-state of windup slowed while waiting for the commit
   checkpoint, existing as visual feedback. Its tuning values are named `Coil*` rather than after a
   phase.
-- **Initiative** — frame advantage, borrowed from the first-person-melee space. One of the **two
-  ledgers** an exchange settles in, the other being stamina; a heavy that is plus on block bites
-  50 stamina *and* keeps initiative, which is what makes it a paid transaction rather than a trade.
-- **Flinch** — hitstun interrupting offense. Distinct from the **challenge**, which is a raw
-  counter thrown out of blockstun; the two race each other, and the blockstun derivation is what
-  decides by how much.
+- **Initiative** — frame advantage. One of the **two ledgers** an exchange settles in, the other
+  being stamina; an attack that is plus on block takes stamina *and* keeps initiative.
+- **Flinch** — hitstun interrupting offense. Distinct from the **challenge**, a raw counter thrown
+  out of blockstun; the two race, and the blockstun derivation decides by how much.
 
 Note that "release" also names the button coming up, via GAS's `InputReleased`. Bare "release"
 always means the damaging phase; the button edge is always written as *input release*.
@@ -245,8 +243,9 @@ Execution order, the only line that changes when the order does:
 
 > **~~Attack Ladder~~ → ~~Dodge~~ → ~~Sword & Shield~~ → ~~Input Buffer~~ → ~~Death~~ → ~~Dodge Distance~~ → ~~Attack Swap~~ → ~~[hover bug]~~ → ~~[facing pass]~~ → ~~Recovery~~ + ~~Lunge~~ → ~~Target Lock~~ → ~~Block~~ → ~~Light String~~ → Parry → Knockdown → Polish → Death-full → Settings → Netcode → Tuning Rig → Interplay**
 
-**Pick up at Parry. Nothing is blocked. Read its brief in `Docs/Combat-Decisions.md`'s
-slice-briefs section before starting.**
+**Pick up at Parry's sub-slice E — the animation, which is all that is left of it.** Everything
+else shipped and is verified. `Docs/Plan-Parry.md` carries the status, what E still needs and the
+one design question it opens; the slice brief in `Docs/Combat-Decisions.md` still applies.
 
 **Structure Audit has no roster position and keeps a trigger**; its brief is in the same section.
 

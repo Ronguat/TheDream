@@ -35,6 +35,10 @@ on A being felt.
   three additions** (the waiver's server-only visibility, the cancel-vs-commit race at the 150 ms
   boundary, and the parry window beside i-frames in the lag-compensation ledger).
 
+**The nine remaining matrix scenarios were taken by the designer** at closedown on 2026-08-18. The
+attacker's re-place is structural, and only `s1-light` was re-run against it here (4/4, n=19) — so
+if anything in `s2-*`, `s3` or `s4-*` is failing, that re-place is the first suspect.
+
 **Do not strike Parry off the roster or delete this file until E lands** — the slice is not shipped
 while its animation is outstanding.
 
