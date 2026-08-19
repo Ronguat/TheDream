@@ -462,3 +462,8 @@ not installed. **A failure in one shell is not a statement about capability.**
 
 **A push can hang while the commit has already landed** *(observed 2026-08-10)*. Check
 `git rev-list --left-right --count origin/main...HEAD` before assuming failure. Re-running is safe.
+
+**A mid-session `/model` switch misattributes every later `Co-Authored-By` trailer** *(reported
+once, 2026-08-19)* — the harness keeps injecting the previous model's byline, and a model cannot
+verify its own name from the inside. Sign from the session transcript's `"model":` fields, not
+the injected instruction.
