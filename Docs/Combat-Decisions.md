@@ -143,7 +143,8 @@ design.** The clamp works, hit detection works, and the ladder connects at the p
 re-measured 2026-08-14 with damage in exact multiples and `TARGET release` at 118.7 / 117.1 /
 123.0 cm against the 124 the geometry predicts. What is open is **what the authored distances
 should be**, given the clamp is what decides them at close range and two tiers still play the
-light's clip.
+light's clip. **The pass has a home as of 2026-08-18: the Tuning Rig's greening** (the
+hypothesis-dataset entry), golded at Interplay.
 
 Two withdrawn readings, recorded so nobody re-derives them: the *overshoot* this trap described
 before 2026-08-13 cannot occur now, and the *"branch lunge clamped 200 → 0 every time"* reading
@@ -883,6 +884,35 @@ long.
 | `gEComponents` | 08-10, 08-11 |
 
 ---
+
+## 2026-08-18 — The hypothesis dataset: greened at the Tuning Rig, golded at Interplay
+
+**The concept, the designer's: "Pre-Interplay" first authorship.** The first true PvP playtests
+must meet a game designed to a significant extent — every tuning value consciously chosen, so first
+impressions are never burned on gimme questions a designer could have caught alone. **Greened, not
+golded**: a coherent hypothesis dataset, explicitly provisional, tested by Interplay rather than
+authored during it.
+
+**It lands at the Tuning Rig, and Polish was considered first and superseded within the hour.**
+Polish is the mechanics-complete boundary and the fold was structurally legal — but it greened
+blind and pre-wire, carrying a two-pass smell (green locally, re-examine under latency). The Rig
+sits after Netcode and Settings: **the tempo measurement runs first and the greening happens inside
+the measured band**, with real latency, the designer's real sensitivity and binds, and Polish's
+real clips. Measure the budget, green within it, gold at Interplay — nothing greens blind, nothing
+greens twice.
+
+**The pass doubles as the Rig's stress test** — prove the instrument on a real workload. Greening
+every `Combat|*` value exercises the whole reflection surface at once, and specifically the
+derived-values-as-derivations question, exactly where a rig exposing bare floats would
+industrialize the trap class the docs fence.
+
+**What this re-routes.** Interplay stops consuming first-authorship work — it golds the greened
+dataset, so its verdicts are about the design rather than the defaults, resolving the gimme-burning
+latent in its old brief (the reach/travel/spacing re-author was assigned to happen *during* the
+unrepeatable playtests). The oldest live trap's re-author lands at the Rig's greening. **Polish
+keeps "style over substance"** with one crisp boundary: it still sets the values its own clips
+require to read — blend windows, clip fitting — which is clip-work, not greening. Briefs re-routed
+the same day.
 
 ## 2026-08-18 — The Exchange: the laws of the conversation, flowcharted
 
@@ -5690,7 +5720,7 @@ sitting in the always-read file.
 
 - **Parry.** **Re-searched 2026-08-11** by enumerating every distinct `SwordShield` move rather than grepping for parry words, and the earlier picture was too thin. Beyond `Block1_Parry` there are `Block1` and `Block2` — discrete block actions with their own `_Idle` and `_Hit` — so there are **three candidate shapes plus failure states**, not one clip, and all are already migrated. The two packs split by **idiom**: V1 does held guard (Block's), V3 does discrete actions (a parry's). **You cannot input a parry while actively blocking** — a property of the guard, not of blockstun; blockstun and parry never know about each other (the user, 2026-08-15). The `SwordShield` archetype holds three differently-named packs (`SwordAndShieldAnimV1`, `SwordShieldAnimV2`, `SwordSwordAnimV3`) and dual-sword content is all `DualSwordAnimation*` in its own archetype — so `SwordSword` is a vendor naming quirk, not a stance. What is still open needs a preview, not a search: whether V3's guard pose reads consistently beside V1's. Details in `Docs/Animation-Library.md`. **Re-derive the spec's numbers against the current ladder before building** — the 400 ms window / 500 ms reward / 1000 ms whiff lockout predate the light's move to 200 ms (flagged 2026-08-15). **Re-derived and planned 2026-08-18**: the design entries of that date carry the rulings (window 300, reward derived, lock deleted, the ladder re-poled around a rapid heavy), and `Docs/Plan-Parry.md` carries the how — read both before building.
 - **Knockdown** *(functionality; from Stun's 2026-08-15 split, renamed and halved 2026-08-18)* — knockdown itself, the 1.5 s default get-up, the three early get-up options and the get-up attack, the charged's **hard knockdown** grade, plus the guard break's full-lockout state its trap defers here, **jump-as-ability** which rides it, and hitstun's movement lock (deferred beside the guard break's). **It is the light string's terminator**: the ender knocks down, and today it *displaces* instead — `ApplyKnockbackToTarget` runs on every unblocked hit with no final gate, left alone deliberately because this slice replaces what the ender does to its victim wholesale. That also makes it **what widens `s4-360`**, which asserts the first burst only for exactly that reason. **`SwordShield` has no get-up content whatsoever** — unfiltered search for `Rise|GetUp|StandUp|Recover|Wake|Prone|Ground|KnockDown|Knock|Fallen|Down` returned zero for the archetype (2026-08-10). It exists only in `DaggerCombatAnimationV1` (18: `Rise1`–`Rise9`, two variants each) and `Unarmed` (8, including the bundle's only explicit `KnockDown`). Knockdown recovery therefore needs a **cross-archetype migration** — raise it before the slice starts.
-- **Polish** *(style over substance; split from Knockdown 2026-08-18, the designer's call)* — deferred work that changes how something *reads* rather than what it does. **Carries the bespoke windup pass**: heavy and charged get their own clips, their windups become **blended transitions** into real anticipation, and **coil is deprecated**. It belongs here rather than in Knockdown because the reactability arithmetic is untouched — the blend occupies exactly the window the coil did, 350 ms light→heavy and 300 ms heavy→charged — so only the tell's *expression* changes, freeze to visible repositioning. **Sits early deliberately**, right after Knockdown: it must precede Interplay or the feel verdict is taken with both tiers still playing the light's clip. Spec, candidate pool and the two measured findings behind it are in `Docs/Combat-Decisions.md`, 2026-08-18.
+- **Polish** *(style over substance; split from Knockdown 2026-08-18, the designer's call)* — deferred work that changes how something *reads* rather than what it does. **Carries the bespoke windup pass**: heavy and charged get their own clips, their windups become **blended transitions** into real anticipation, and **coil is deprecated**. It belongs here rather than in Knockdown because the reactability arithmetic is untouched — the blend occupies exactly the window the coil did, 350 ms light→heavy and 300 ms heavy→charged — so only the tell's *expression* changes, freeze to visible repositioning. **Sits early deliberately**, right after Knockdown: it must precede Interplay or the feel verdict is taken with both tiers still playing the light's clip. **Clip-fitting values are Polish's; whole-surface greening is not** — the hypothesis dataset lands at the Tuning Rig (2026-08-18). Spec, candidate pool and the two measured findings behind it are in `Docs/Combat-Decisions.md`, 2026-08-18.
 - **Death-full** *(from the same split)* — death's real treatment replacing the debug ragdoll, hit-reaction animation, and the questions **Death** deferred. `SwordSwordAnimV3` has **four directional** `Hit_<DIR>` and **four directional** `Death_<DIR>` clips, not single standalone ones (verified 2026-08-10). **Hitstun ships with Light String** (settled 2026-08-16); what this slice owes it is the reaction *animation*.
 - **Settings menu.** Raised 2026-08-12. Mouse sensitivity is the immediate want, and it should own
   **`TurnRateDegrees`** too — that number stopped being cosmetic the moment attacks began pointing
@@ -5723,12 +5753,17 @@ sitting in the always-read file.
   (the far client's buffer, their sensitivity), designed against Netcode's replication reality.
   **Derived values surface as derivations, read-only or auto-recomputed** — the rig encodes the
   tuning map's relationships rather than exposing bare floats, or it industrializes the exact trap
-  class the docs fence. Rationale and the design questions: `Docs/Combat-Decisions.md`, 2026-08-15.
+  class the docs fence. **The hypothesis-dataset pass lands here** (2026-08-18): every combat value
+  **greened** — consciously chosen, not golded — inside the band the tempo measurement establishes,
+  with Settings' real binds and Polish's real clips; the pass doubles as the rig's stress test, its
+  first real workload. Rationale and the design questions: `Docs/Combat-Decisions.md`, 2026-08-15
+  and 2026-08-18.
 - **Interplay** — the deliberate feel pass, one remote human against the designer, **on the wire**,
-  because the shipping game is the networked one. Consumes everything parked on verified-good —
-  the reach/travel/spacing re-author, the lunge strength curves, the heavy's reactability retune,
-  blockstun and commitment tuning — and **re-derives the checker's bands once, against final
-  numbers, never patching them to green**. The naive player's reads outweigh the designer's.
+  because the shipping game is the networked one. **Golds the hypothesis dataset the Tuning Rig
+  greened** (re-routed 2026-08-18): the reach/travel/spacing re-author, the lunge strength curves,
+  the heavy's reactability retune and blockstun tuning are greened there and judged here, so every
+  verdict is about the design rather than the defaults — and **re-derives the checker's bands once,
+  against final numbers, never patching them to green**. The naive player's reads outweigh the designer's.
   **Owns the input-forgiveness subslice** (2026-08-16): whether the buffer extension over-forgives
   mashing in a game built on deliberate precision, and whether the chain windows are too vast.
   Kept on probation rather than settled, because none of it is felt yet; see the decision log.
@@ -5762,11 +5797,12 @@ every Blueprint CDO override of it, so reorganising before the systems settle wo
 twice; jump-as-ability, which rides **Knockdown** per the guard-break trap; and the decision
 log's archive, which is append-only by design.
 
-**Lunge strength curves stay parked for Interplay** (2026-08-13 as the verified-good trigger,
-resolved to Interplay's roster position 2026-08-15). They are last-10% feel tuning, not
-structure: assets exist, wired to nothing, and the tuning map carries the warning that a curve's
-mean must be 1.0 or it silently scales the authored distance. The reach/travel/spacing re-author
-shares that home — **Interplay consumes both**; see its entry in Remaining.
+**Lunge strength curves are parked for the Tuning Rig's greening pass** (2026-08-13 as the
+verified-good trigger; resolved to Interplay 2026-08-15; re-routed to the Rig 2026-08-18). They are
+last-10% feel tuning, not structure: assets exist, wired to nothing, and the tuning map carries the
+warning that a curve's mean must be 1.0 or it silently scales the authored distance. The
+reach/travel/spacing re-author shares that home — **greened at the Rig, golded at Interplay**; see
+the hypothesis-dataset entry and the Interplay brief above.
 
 **Verification infrastructure — all three packages shipped 2026-08-15** (defense-capable dummy,
 regression loop, two-player recon). `Docs/Debug-Instruments.md` carries the fixtures, scenario matrix,
