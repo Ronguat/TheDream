@@ -291,17 +291,17 @@ public:
 	/**
 	 *  Opens the negation window for DurationSeconds. Called by GA_Parry on activation.
 	 *
-	 *  The whiff lockout travels in with it rather than being read back later, so the price of a
+	 *  The whiff recovery travels in with it rather than being read back later, so the price of a
 	 *  window is fixed at the moment it opens -- retuning GA_Parry mid-window cannot change what an
 	 *  already-running parry costs.
 	 */
-	void OpenParryWindow(float DurationSeconds, float WhiffLockoutSeconds);
+	void OpenParryWindow(float DurationSeconds, float WhiffRecoverySeconds);
 
 	/**
-	 *  Closes the window, charging the whiff lockout unless it caught something. Idempotent.
+	 *  Closes the window, charging the whiff recovery unless it caught something. Idempotent.
 	 *
 	 *  **One exit for every way a window can end** -- expiry in Tick, the ability being cancelled,
-	 *  death -- so the lockout cannot be skipped by ending the parry through an unusual path. That
+	 *  death -- so the recovery cannot be skipped by ending the parry through an unusual path. That
 	 *  matters because being *cancelled* is the cheap exit an attacker could otherwise hand you.
 	 */
 	void CloseParryWindow();
@@ -318,17 +318,37 @@ public:
 	void NotifyParrySuccess(AActor* Attacker);
 
 	/**
-	 *  Refuses defensive activations for DurationSeconds, or extends a running lockout to the later
-	 *  end time. Both of its causes -- a whiffed parry and a dodge ending -- come through here.
+	 *  Refuses **every** ability for DurationSeconds after a parry whiffed, or extends a running
+	 *  recovery to the later end time.
 	 *
 	 *  Max-extended rather than reassigned, following blockstun: two overlapping causes must never
 	 *  produce a shorter total than either alone.
 	 */
-	void ApplyParryLockout(float DurationSeconds);
+	void ApplyParryRecovery(float DurationSeconds);
 
-	/** True while defensive activations are refused. See State_ParryLockout. */
+	/** True while every ability is refused by a whiffed parry. See State_ParryRecovery. */
 	UFUNCTION(BlueprintPure, Category="Combat|Parry")
-	bool IsParryLockedOut() const { return bParryLockedOut; }
+	bool IsInParryRecovery() const { return bInParryRecovery; }
+
+	/**
+	 *  Refuses **parry only** for DurationSeconds after a dodge ended, or extends a running gap.
+	 *
+	 *  Split from ApplyParryRecovery on 2026-08-19. The two shared one implementation while both
+	 *  merely refused defensive activations; once a whiffed parry began refusing everything and
+	 *  committing the character, keeping them shared would have made every dodge commit you for
+	 *  DodgeRecoverySeconds as well -- a feel change nobody asked for.
+	 */
+	void ApplyDodgeRecovery(float DurationSeconds);
+
+	/** True while a parry is refused by a just-ended dodge. See State_DodgeRecovery. */
+	UFUNCTION(BlueprintPure, Category="Combat|Dodge")
+	bool IsInDodgeRecovery() const { return bInDodgeRecovery; }
+
+	/**
+	 *  Ends whatever GA_Parry instance is running. Shared by the catch path, which ends it at once,
+	 *  and by the whiff's recovery expiry, which ends it 600 ms later.
+	 */
+	void CancelParryAbility();
 
 	/**
 	 *  Hands movement back DelaySeconds from now, part-way through an attack that connected.
@@ -1027,9 +1047,9 @@ protected:
 	 *  a single unattended session produce both successes and whiffs -- the two things the parry
 	 *  scenarios need to assert, and they cannot be scripted separately without a human.
 	 *
-	 *  **It also has to clear the lockout, which the dodger's interval does not have to do.** A
-	 *  whiffed parry refuses defensive activations for ParryWhiffLockoutSeconds, so an interval
-	 *  shorter than window + lockout would spend most of the run pressing into a refusal and
+	 *  **It also has to clear the recovery, which the dodger's interval does not have to do.** A
+	 *  whiffed parry refuses defensive activations for ParryWhiffRecoverySeconds, so an interval
+	 *  shorter than window + recovery would spend most of the run pressing into a refusal and
 	 *  measuring the fixture rather than the mechanic.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat|Debug", meta=(ClampMin="0.1"))
@@ -1448,14 +1468,22 @@ private:
 	void ClearHitstunState();
 
 	/**
-	 *  Ends the parry lockout. Driven from Tick against ParryLockoutEndsAt, as the stuns are.
+	 *  Ends the parry recovery. Driven from Tick against ParryRecoveryEndsAt, as the stuns are.
 	 *
 	 *  There is no window equivalent here: the window's expiry is CloseParryWindow, which is shared
-	 *  with the cancellation path so that a lockout cannot be dodged by ending the parry unusually.
+	 *  with the cancellation path so that a recovery cannot be dodged by ending the parry unusually.
+	 *
+	 *  **This one also ends GA_Parry**, which a whiff deliberately leaves running so its movement
+	 *  lock spans the recovery.
 	 */
-	void EndParryLockout();
-	void ApplyParryLockoutState();
-	void ClearParryLockoutState();
+	void EndParryRecovery();
+	void ApplyParryRecoveryState();
+	void ClearParryRecoveryState();
+
+	/** The dodge's parry gap, same shape. Ends no ability -- GA_Dodge is long over by then. */
+	void EndDodgeRecovery();
+	void ApplyDodgeRecoveryState();
+	void ClearDodgeRecoveryState();
 
 	UFUNCTION()
 	void OnRep_Dead();
@@ -1473,7 +1501,10 @@ private:
 	void OnRep_Hitstun();
 
 	UFUNCTION()
-	void OnRep_ParryLockout();
+	void OnRep_ParryRecovery();
+
+	UFUNCTION()
+	void OnRep_DodgeRecovery();
 
 	/**
 	 *  Applies State.Dead, cancels everything running, and stops the character moving.
@@ -1591,17 +1622,24 @@ private:
 	 *  Captured when the window opens rather than read back off GA_Parry at close time, so the
 	 *  price of a window is fixed the moment it is bought.
 	 */
-	float PendingParryWhiffLockoutSeconds = 0.0f;
+	float PendingParryWhiffRecoverySeconds = 0.0f;
 
 	/** Whether the open window has already negated a hit, which is what makes its close free. */
 	bool bParryCaughtThisWindow = false;
 
-	/** Defensive activations are refused. The seventh of the family, same contract. */
-	UPROPERTY(ReplicatedUsing = OnRep_ParryLockout)
-	bool bParryLockedOut = false;
+	/** Every ability is refused by a whiffed parry. The seventh of the family, same contract. */
+	UPROPERTY(ReplicatedUsing = OnRep_ParryRecovery)
+	bool bInParryRecovery = false;
 
-	/** When the parry lockout expires, in world seconds. Max-extended, never reassigned. */
-	float ParryLockoutEndsAt = 0.0f;
+	/** When the parry recovery expires, in world seconds. Max-extended, never reassigned. */
+	float ParryRecoveryEndsAt = 0.0f;
+
+	/** A parry is refused by a just-ended dodge. The eighth of the family, same contract. */
+	UPROPERTY(ReplicatedUsing = OnRep_DodgeRecovery)
+	bool bInDodgeRecovery = false;
+
+	/** When the dodge's parry gap expires, in world seconds. Max-extended, never reassigned. */
+	float DodgeRecoveryEndsAt = 0.0f;
 
 	/** A connected attack owes this character its movement back. See BeginOnHitMovementWaiver. */
 	bool bOnHitMovementWaiverPending = false;

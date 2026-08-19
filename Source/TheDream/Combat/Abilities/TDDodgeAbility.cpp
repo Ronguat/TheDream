@@ -298,10 +298,16 @@ void UTDDodgeAbility::EndAbility(const FGameplayAbilitySpecHandle Handle, const 
 	// unscrews and the charged stops collecting on a wrong read. The constraint is that dodge-end
 	// plus this gap plus the parry window must overshoot 750 for the worst-timed predictive dodge.
 	//
-	// Expressed as the same State.ParryLockout a whiffed parry pays, rather than as a bespoke
-	// timestamp consulted in CanActivateAbility. One tag, one refusal, and the max-extension in
-	// ApplyParryLockout is then what stops the two causes overlapping into a shorter total than
-	// either alone -- which is the exact escape this gap exists to close.
+	// Expressed as a tag rather than as a bespoke timestamp consulted in CanActivateAbility, so the
+	// refusal is visible in the same place every other refusal is.
+	//
+	// ***It had its own tag from 2026-08-19 and shared State.ParryRecovery before that.*** The
+	// sharing was deliberate and correct while both causes said only "you may not put a parry
+	// window here". The designer's ruling that a whiffed parry must prevent *acting* ended the
+	// equivalence: that one now commits the character for its whole duration, and this one still
+	// takes nothing but the parry. Leaving them merged would have made every dodge lock the player
+	// out of everything for DodgeRecoverySeconds -- a feel regression arriving as a side effect of
+	// an unrelated ruling, which is exactly the kind of change that gets blamed on the wrong slice.
 	//
 	// Applied on *every* exit including a cancel, deliberately: a dodge cut short still bought its
 	// i-frames, and letting a cancel skip the gap would make cancelling the cheap route to the
@@ -309,7 +315,7 @@ void UTDDodgeAbility::EndAbility(const FGameplayAbilitySpecHandle Handle, const 
 	// activate while State.Dodging is present.
 	if (ATDCombatCharacter* Character = Cast<ATDCombatCharacter>(GetAvatarActorFromActorInfo()))
 	{
-		Character->ApplyParryLockout(PostDodgeParryLockoutSeconds);
+		Character->ApplyDodgeRecovery(DodgeRecoverySeconds);
 	}
 
 	// Cleared here for the same reason: a status line that outlives its ability describes

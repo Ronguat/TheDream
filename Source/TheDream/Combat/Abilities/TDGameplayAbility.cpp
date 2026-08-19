@@ -120,6 +120,29 @@ bool UTDGameplayAbility::CanActivateAbility(const FGameplayAbilitySpecHandle Han
 		return false;
 	}
 
+	// **A whiffed parry's recovery, refusing everything, from 2026-08-19.** The designer's ruling:
+	// "if you can act during parry recovery, you shouldn't be able to" -- qualified the same
+	// evening to "assuming the parry never makes contact", which is precisely this state, since a
+	// parry that *did* connect charges no recovery at all.
+	//
+	// Sited here rather than in each ability's ActivationBlockedTags for the reason death and the
+	// guard break give: a refusal any one ability could be granted without is one that will
+	// eventually be missed by one. It also keeps the CDO tag containers out of it, which is worth
+	// something on its own -- an array edit there is the operation that half-writes.
+	//
+	// This is what makes the recovery a *price* rather than a pause. It costs no stamina, so the
+	// whole cost of a missed read is the time, and time you can act during is not a cost.
+	if (ActorInfo && ActorInfo->AbilitySystemComponent.IsValid()
+		&& ActorInfo->AbilitySystemComponent->HasMatchingGameplayTag(TDTags::State_ParryRecovery))
+	{
+		TD_TIMING_LOG(TEXT("[%.3f] REFUSED    %s on %s: parry recovery"),
+			ActorInfo->AvatarActor.IsValid() && ActorInfo->AvatarActor->GetWorld()
+				? ActorInfo->AvatarActor->GetWorld()->GetTimeSeconds() : 0.0f,
+			*GetName(),
+			*GetNameSafe(ActorInfo->AvatarActor.Get()));
+		return false;
+	}
+
 	// Hitstun refuses everything, from the shared base like death and the guard break, and for the
 	// same reason: a stun any one ability could be granted without is a stun that will eventually
 	// be missed by one. Refusing *defense* here is not a side effect -- it is the entire mechanism

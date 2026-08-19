@@ -109,22 +109,68 @@ namespace TDTags
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Blocking_Committed);
 
 	/**
-	 *  Defensive activations are refused: a parry whiffed, or a dodge has just ended.
+	 *  Your own whiffed parry. Refuses **every** ability for ParryWhiffRecoverySeconds.
 	 *
-	 *  **One tag, two causes, because they are the same sentence for the same reason** -- both say
-	 *  "you may not put a parry window here". The whiff is the price of a missed read, sized so a
-	 *  fast-timed whiff stays locked through the charged's arrival; the post-dodge gap exists so a
-	 *  predictive dodge cannot chain into a parry that covers the charged, which would unscrew the
-	 *  vise's late jaw. Authoring them as two tags would let the pair overlap into a shorter total
-	 *  than either alone, which is the bug the max-extension below exists to prevent.
+	 *  **A recovery, not a lockout, and the distinction is the schema** (the designer, 2026-08-19):
+	 *  *lockouts are externally inflicted, recoveries are self-inflicted.* Nobody did this to you --
+	 *  you threw a read and missed -- so it is a recovery, the same category as an attack's.
 	 *
-	 *  Native for the reason the four above are: C++ applies it, C++ refuses on it, and an
+	 *  **It refuses everything, which is what separates it from the gap below.** Until 2026-08-19
+	 *  this refused only *defensive* activations and shared one tag with the post-dodge gap, on the
+	 *  argument that both say "you may not put a parry window here". The designer's ruling that a
+	 *  whiffed parry must prevent acting broke that equivalence: this one now commits you, and the
+	 *  gap deliberately still does not. Splitting them is what stopped the ruling from silently
+	 *  making every dodge commit you for 0.15 s as well.
+	 *
+	 *  The refusal itself lives in UTDGameplayAbility::CanActivateAbility rather than in each
+	 *  ability's ActivationBlockedTags -- one place, and a future ability cannot be granted without
+	 *  it. Same argument State_Dead makes.
+	 *
+	 *  Native for the reason the others are: C++ applies it, C++ refuses on it, and an
 	 *  EditDefaultsOnly equivalent can go stale on a placed actor with nothing to show for it.
-	 *
-	 *  **Deliberately not State.Parrying**, which is the ini tag GA_Parry carries in its
-	 *  ActivationOwnedTags while the window is open, exactly as State.Blocking marks a live guard.
-	 *  That one says "a parry is happening"; this one says "one may not start". The split follows
-	 *  State.Blocking / State.Blockstun and keeps the asset-facing half editable without a rebuild.
 	 */
-	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_ParryLockout);
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_ParryRecovery);
+
+	/**
+	 *  Your own dodge, just ended. Refuses **parry only**, for DodgeRecoverySeconds.
+	 *
+	 *  Exists so a predictive dodge cannot chain into a parry that covers the charged, which would
+	 *  unscrew the vise's late jaw. Self-inflicted, so a recovery by the schema above -- but a far
+	 *  narrower one than the parry's: it takes nothing away except the parry it exists to forbid.
+	 *  Movement, offense and block are all untouched, which is the behaviour it had before the
+	 *  2026-08-19 split and deliberately keeps.
+	 *
+	 *  Refused through GA_Parry's ActivationBlockedTags rather than the C++ base, precisely because
+	 *  it is one ability's business rather than a global state.
+	 *
+	 *  **The max-extension in ApplyDodgeRecovery still matters** now that the two are separate
+	 *  tags: two dodges landing close together must not shorten the gap below either alone.
+	 */
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_DodgeRecovery);
+
+	/**
+	 *  Sent by UAnimNotify_ParryGesture when the parry clip's gesture reaches its read moment.
+	 *
+	 *  **Cosmetic, and deliberately so.** It switches the montage's play rate from the window
+	 *  segment's to the recovery segment's -- nothing about whether a hit is negated goes anywhere
+	 *  near it. The window stays a timestamp checked in Tick; see UTDParryAbility.
+	 */
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Parry_Gesture);
+
+	/*
+	 *  **State.ParryLockout is RESERVED and deliberately not declared here.**
+	 *
+	 *  It named this file's parry-whiff tail until 2026-08-19, when the recovery/lockout schema
+	 *  arrived and the name turned out to be wrong for that job -- a whiffed parry is
+	 *  self-inflicted. The name is being kept free rather than recycled because the designer has
+	 *  used it before, in an earlier project, for the state inflicted on an attacker who *has been*
+	 *  parried, carrying its own authored properties. That is externally inflicted and so a
+	 *  lockout under the schema; the attacker/defender asymmetry is immaterial.
+	 *
+	 *  This project's parry currently authors nothing on the parried attacker at all -- the reward
+	 *  is *derived*, from their being planted at zero distance and riding their own recovery. The
+	 *  designer's read is that the lean version has a significant chance of proving under-authored,
+	 *  in which case the authored form returns and this is its name. See Docs/Combat-Decisions.md,
+	 *  2026-08-19. Do not reuse it for anything else.
+	 */
 }

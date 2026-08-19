@@ -113,7 +113,7 @@ void ATDCombatCharacter::Tick(float DeltaSeconds)
 		}
 
 		// The parry window, same timestamp shape as the three above. Its close is *not* a plain
-		// expiry, though: closing charges the whiff lockout, so this is where a missed read starts
+		// expiry, though: closing charges the whiff recovery, so this is where a missed read starts
 		// paying for itself. See CloseParryWindow.
 		if (bParryWindowOpen)
 		{
@@ -124,15 +124,28 @@ void ATDCombatCharacter::Tick(float DeltaSeconds)
 			}
 		}
 
-		// And the lockout the close produces. Separate state from the window deliberately -- the
-		// window is 300 ms and the lockout it leaves behind is twice that, so one cannot be
-		// derived from the other, and a dodge ending raises this with no window involved at all.
-		if (bParryLockedOut)
+		// And the recovery the close produces. Separate state from the window deliberately -- the
+		// window is 300 ms and the recovery it leaves behind is twice that, so one cannot be
+		// derived from the other. **Its expiry also ends GA_Parry**, which stayed alive across the
+		// recovery to hold the movement lock; see EndParryRecovery.
+		if (bInParryRecovery)
 		{
 			const UWorld* World = GetWorld();
-			if (World && World->GetTimeSeconds() >= ParryLockoutEndsAt)
+			if (World && World->GetTimeSeconds() >= ParryRecoveryEndsAt)
 			{
-				EndParryLockout();
+				EndParryRecovery();
+			}
+		}
+
+		// The dodge's own tail, which forbids only a parry. Split from the above 2026-08-19: they
+		// shared one tag while both merely refused defensive activations, and stopped being the
+		// same sentence when a whiffed parry began refusing everything.
+		if (bInDodgeRecovery)
+		{
+			const UWorld* World = GetWorld();
+			if (World && World->GetTimeSeconds() >= DodgeRecoveryEndsAt)
+			{
+				EndDodgeRecovery();
 			}
 		}
 
@@ -892,7 +905,7 @@ void ATDCombatCharacter::OnRep_Hitstun()
 	}
 }
 
-void ATDCombatCharacter::OpenParryWindow(float DurationSeconds, float WhiffLockoutSeconds)
+void ATDCombatCharacter::OpenParryWindow(float DurationSeconds, float WhiffRecoverySeconds)
 {
 	UWorld* World = GetWorld();
 	if (!World || !HasAuthority() || DurationSeconds <= 0.0f || bDead)
@@ -908,7 +921,7 @@ void ATDCombatCharacter::OpenParryWindow(float DurationSeconds, float WhiffLocko
 	bParryWindowOpen = true;
 	bParryCaughtThisWindow = false;
 	ParryWindowEndsAt = World->GetTimeSeconds() + DurationSeconds;
-	PendingParryWhiffLockoutSeconds = WhiffLockoutSeconds;
+	PendingParryWhiffRecoverySeconds = WhiffRecoverySeconds;
 
 	TD_TIMING_LOG(TEXT("[%.3f] PARRY WINDOW open on %s  until=%.3f"),
 		World->GetTimeSeconds(),
@@ -935,42 +948,61 @@ void ATDCombatCharacter::CloseParryWindow()
 	if (!bCaught)
 	{
 		// **The whiff is charged here, at the one exit every ending shares.** Expiry, cancellation
-		// and death all arrive at this line, which is what stops a lockout being skipped by ending
+		// and death all arrive at this line, which is what stops a recovery being skipped by ending
 		// the parry through an unusual path -- and being *cancelled* is exactly the cheap exit an
 		// attacker would otherwise be handing you for free.
 		//
 		// Note this deliberately charges a parrier who was hit out of their own window. They are
-		// already in hitstun, so most of the lockout is served concurrently; the alternative is a
+		// already in hitstun, so most of the recovery is served concurrently; the alternative is a
 		// rule that says a failed read costs nothing as long as it failed badly enough.
-		ApplyParryLockout(PendingParryWhiffLockoutSeconds);
+		ApplyParryRecovery(PendingParryWhiffRecoverySeconds);
 
-		TD_TIMING_LOG(TEXT("[%.3f] PARRY WHIFF  %s  lockout=%.3f"),
+		TD_TIMING_LOG(TEXT("[%.3f] PARRY WHIFF  %s  recovery=%.3f"),
 			World->GetTimeSeconds(),
 			*GetName(),
-			PendingParryWhiffLockoutSeconds);
+			PendingParryWhiffRecoverySeconds);
 	}
 
-	PendingParryWhiffLockoutSeconds = 0.0f;
+	PendingParryWhiffRecoverySeconds = 0.0f;
 
-	// End the ability itself, so the window and GA_Parry cannot outlive one another in either
-	// direction. Matched on type rather than on a tag, for the reason CancelBlockAbility gives at
-	// length -- CancelAbilities matches *asset* tags, not the ActivationOwnedTags a reader expects.
-	if (AbilitySystem)
+	// **Only a caught parry ends the ability here, and that asymmetry is the 2026-08-19 ruling.**
+	// A whiff keeps GA_Parry alive across State.ParryRecovery so its movement lock holds and the
+	// recovery is a real commitment rather than a refusal you can walk around during; the cancel
+	// then happens in EndParryRecovery. A catch frees the parrier instantly, which is the reward
+	// the whole design derives from -- "successful parries can retrigger without impeding other
+	// actions" survives only because this path ends immediately.
+	//
+	// The window closing without the ability ending is therefore a legitimate state now, where it
+	// used to be an invariant violation. What still may not happen is the reverse -- the ability
+	// outliving the window with the window still open -- and EndAbility's close is what covers it.
+	if (bCaught)
 	{
-		TArray<FGameplayAbilitySpecHandle> ToCancel;
-		for (const FGameplayAbilitySpec& Spec : AbilitySystem->GetActivatableAbilities())
-		{
-			if (Spec.IsActive() && Spec.Ability && Spec.Ability->IsA<UTDParryAbility>())
-			{
-				ToCancel.Add(Spec.Handle);
-			}
-		}
+		CancelParryAbility();
+	}
+}
 
-		// Collected first: cancelling inside the loop can reallocate the ASC's live spec array.
-		for (const FGameplayAbilitySpecHandle& Handle : ToCancel)
+void ATDCombatCharacter::CancelParryAbility()
+{
+	// Matched on type rather than on a tag, for the reason CancelBlockAbility gives at length --
+	// CancelAbilities matches *asset* tags, not the ActivationOwnedTags a reader expects.
+	if (!AbilitySystem)
+	{
+		return;
+	}
+
+	TArray<FGameplayAbilitySpecHandle> ToCancel;
+	for (const FGameplayAbilitySpec& Spec : AbilitySystem->GetActivatableAbilities())
+	{
+		if (Spec.IsActive() && Spec.Ability && Spec.Ability->IsA<UTDParryAbility>())
 		{
-			AbilitySystem->CancelAbilityHandle(Handle);
+			ToCancel.Add(Spec.Handle);
 		}
+	}
+
+	// Collected first: cancelling inside the loop can reallocate the ASC's live spec array.
+	for (const FGameplayAbilitySpecHandle& Handle : ToCancel)
+	{
+		AbilitySystem->CancelAbilityHandle(Handle);
 	}
 }
 
@@ -1031,7 +1063,7 @@ void ATDCombatCharacter::NotifyParrySuccess(AActor* Attacker)
 	CloseParryWindow();
 }
 
-void ATDCombatCharacter::ApplyParryLockout(float DurationSeconds)
+void ATDCombatCharacter::ApplyParryRecovery(float DurationSeconds)
 {
 	UWorld* World = GetWorld();
 	if (!World || !HasAuthority() || DurationSeconds <= 0.0f || bDead)
@@ -1039,65 +1071,143 @@ void ATDCombatCharacter::ApplyParryLockout(float DurationSeconds)
 		return;
 	}
 
-	// Max-extended like blockstun and hitstun, and here the reason is concrete rather than
-	// theoretical: this tag has *two* causes -- a whiffed parry and a dodge ending -- which can
-	// overlap in a single exchange. Reassigning would let the second one arriving early cut the
-	// first one short, so dodging out of a whiffed parry would buy a shorter total than either
-	// alone. That is precisely the escape the post-dodge gap exists to close.
-	ParryLockoutEndsAt = FMath::Max(ParryLockoutEndsAt, World->GetTimeSeconds() + DurationSeconds);
+	// Max-extended like blockstun and hitstun. **One cause since 2026-08-19** -- a whiffed parry --
+	// where this used to carry the dodge's gap as well; that moved to State.DodgeRecovery when the
+	// two stopped forbidding the same things. Kept as a max rather than an assignment anyway,
+	// because two whiffs cannot overlap today only by construction (GA_Parry refuses itself while
+	// State.ParryRecovery is present) and an assignment would quietly become the bug the moment
+	// anything else charged one.
+	ParryRecoveryEndsAt = FMath::Max(ParryRecoveryEndsAt, World->GetTimeSeconds() + DurationSeconds);
 
-	if (!bParryLockedOut)
+	if (!bInParryRecovery)
 	{
-		bParryLockedOut = true;
-		ApplyParryLockoutState();
+		bInParryRecovery = true;
+		ApplyParryRecoveryState();
 	}
 }
 
-void ATDCombatCharacter::EndParryLockout()
+void ATDCombatCharacter::EndParryRecovery()
 {
-	if (!bParryLockedOut)
+	if (!bInParryRecovery)
 	{
 		return;
 	}
 
-	bParryLockedOut = false;
-	ClearParryLockoutState();
+	bInParryRecovery = false;
+	ClearParryRecoveryState();
+
+	// **This is where a whiffed parry's ability finally ends.** CloseParryWindow deliberately left
+	// it running so the movement lock held across the recovery; without this the ability would
+	// outlive its own recovery and the character would never get moving again. Harmless when the
+	// recovery came from anything else, since nothing else charges this one.
+	CancelParryAbility();
 }
 
-void ATDCombatCharacter::ApplyParryLockoutState()
+void ATDCombatCharacter::ApplyParryRecoveryState()
 {
 	if (AbilitySystem)
 	{
-		AbilitySystem->AddLooseGameplayTag(TDTags::State_ParryLockout);
+		AbilitySystem->AddLooseGameplayTag(TDTags::State_ParryRecovery);
 	}
 
-	TD_TIMING_LOG(TEXT("[%.3f] PARRY LOCKOUT %s  until=%.3f"),
+	TD_TIMING_LOG(TEXT("[%.3f] PARRY RECOVERY %s  until=%.3f"),
 		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f,
 		*GetName(),
-		ParryLockoutEndsAt);
+		ParryRecoveryEndsAt);
 }
 
-void ATDCombatCharacter::ClearParryLockoutState()
+void ATDCombatCharacter::ClearParryRecoveryState()
 {
 	if (AbilitySystem)
 	{
-		AbilitySystem->RemoveLooseGameplayTag(TDTags::State_ParryLockout);
+		AbilitySystem->RemoveLooseGameplayTag(TDTags::State_ParryRecovery);
 	}
 
-	TD_TIMING_LOG(TEXT("[%.3f] PARRY LOCKOUT END %s"),
+	TD_TIMING_LOG(TEXT("[%.3f] PARRY RECOVERY END %s"),
 		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f,
 		*GetName());
 }
 
-void ATDCombatCharacter::OnRep_ParryLockout()
+void ATDCombatCharacter::OnRep_ParryRecovery()
 {
-	if (bParryLockedOut)
+	if (bInParryRecovery)
 	{
-		ApplyParryLockoutState();
+		ApplyParryRecoveryState();
 	}
 	else
 	{
-		ClearParryLockoutState();
+		ClearParryRecoveryState();
+	}
+}
+
+void ATDCombatCharacter::ApplyDodgeRecovery(float DurationSeconds)
+{
+	UWorld* World = GetWorld();
+	if (!World || !HasAuthority() || DurationSeconds <= 0.0f || bDead)
+	{
+		return;
+	}
+
+	// Max-extended, and here the reason is the concrete one the shared tag used to carry: two
+	// dodges landing close together must not let the second one's gap cut the first one short,
+	// which would make chaining dodges the cheap route to the parry this forbids.
+	DodgeRecoveryEndsAt = FMath::Max(DodgeRecoveryEndsAt, World->GetTimeSeconds() + DurationSeconds);
+
+	if (!bInDodgeRecovery)
+	{
+		bInDodgeRecovery = true;
+		ApplyDodgeRecoveryState();
+	}
+}
+
+void ATDCombatCharacter::EndDodgeRecovery()
+{
+	if (!bInDodgeRecovery)
+	{
+		return;
+	}
+
+	bInDodgeRecovery = false;
+	ClearDodgeRecoveryState();
+
+	// **No ability cancel here, unlike EndParryRecovery.** This gap forbids one activation; it was
+	// never a commitment, and GA_Dodge has been over since before it started.
+}
+
+void ATDCombatCharacter::ApplyDodgeRecoveryState()
+{
+	if (AbilitySystem)
+	{
+		AbilitySystem->AddLooseGameplayTag(TDTags::State_DodgeRecovery);
+	}
+
+	TD_TIMING_LOG(TEXT("[%.3f] DODGE RECOVERY %s  until=%.3f"),
+		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f,
+		*GetName(),
+		DodgeRecoveryEndsAt);
+}
+
+void ATDCombatCharacter::ClearDodgeRecoveryState()
+{
+	if (AbilitySystem)
+	{
+		AbilitySystem->RemoveLooseGameplayTag(TDTags::State_DodgeRecovery);
+	}
+
+	TD_TIMING_LOG(TEXT("[%.3f] DODGE RECOVERY END %s"),
+		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f,
+		*GetName());
+}
+
+void ATDCombatCharacter::OnRep_DodgeRecovery()
+{
+	if (bInDodgeRecovery)
+	{
+		ApplyDodgeRecoveryState();
+	}
+	else
+	{
+		ClearDodgeRecoveryState();
 	}
 }
 
@@ -1328,7 +1438,8 @@ void ATDCombatCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& O
 	DOREPLIFETIME(ATDCombatCharacter, bInBlockstun);
 	DOREPLIFETIME(ATDCombatCharacter, bInHitstun);
 	DOREPLIFETIME(ATDCombatCharacter, bParryWindowOpen);
-	DOREPLIFETIME(ATDCombatCharacter, bParryLockedOut);
+	DOREPLIFETIME(ATDCombatCharacter, bInParryRecovery);
+	DOREPLIFETIME(ATDCombatCharacter, bInDodgeRecovery);
 	DOREPLIFETIME(ATDCombatCharacter, StringIndex);
 }
 

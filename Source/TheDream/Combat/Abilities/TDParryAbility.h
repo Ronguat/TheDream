@@ -6,6 +6,8 @@
 #include "Combat/Abilities/TDGameplayAbility.h"
 #include "TDParryAbility.generated.h"
 
+class UAnimMontage;
+
 /**
  *  A read. Opens a short window in which any incoming melee hit is negated outright.
  *
@@ -24,7 +26,7 @@
  *  **A parry is a dodge that stands still**: it manufactures the whiff at zero centimetres, which
  *  under feel goal #1 makes it the whiff-punish maximiser.
  *
- *  The three numbers the designer did author are the window, the whiff lockout and the stamina
+ *  The three numbers the designer did author are the window, the whiff recovery and the stamina
  *  reward. Activation itself costs **nothing**, completing a pricing symmetry the project had
  *  never stated: the dodge is stamina-priced, block is priced in both ledgers, and parry is purely
  *  time-priced.
@@ -60,7 +62,7 @@ public:
 	 *  holds for actions whose value does not depend on *when* they land. A parry's entire value is
 	 *  when it lands: replaying one a hundred milliseconds late does not rescue the read, it
 	 *  manufactures a window the player never asked for at a moment they did not choose -- and
-	 *  then charges them the whiff lockout for it.
+	 *  then charges them the whiff recovery for it.
 	 *
 	 *  It is also the anti-counterfeit rule applied to the input layer. A buffered parry is a call
 	 *  the player did not make, which is exactly the false positive the whole input scheme was
@@ -92,17 +94,72 @@ protected:
 	float ParryWindowSeconds = 0.30f;
 
 	/**
-	 *  How long defensive activations are refused after a window closes without catching anything.
+	 *  How long **every** ability is refused after a window closes without catching anything.
 	 *
 	 *  **This is the whole price of the input**, since activation costs no stamina -- the parry is
-	 *  time-priced and this is the time. Applied as State.ParryLockout, which the dodge's tail
-	 *  shares; see that tag.
+	 *  time-priced and this is the time. Applied as State.ParryRecovery.
 	 *
 	 *  Floored by a constraint rather than chosen for feel: a whiff timed against the *fast* layer
 	 *  must stay locked through the charged's arrival, or reading "fast" wrongly costs nothing and
 	 *  the charged can never collect on it. A press at ~150 must still be locked at 750, which is
 	 *  what re-derived it down from the spec's original 1000.
+	 *
+	 *  ***The floor above is unchanged by 2026-08-19; what it buys is not.*** It was derived when
+	 *  this refused only *defensive* activations, so it priced a whiff at "you cannot defend". The
+	 *  designer's ruling that a whiffed parry must prevent acting widened it to "you cannot do
+	 *  anything", and GA_Parry now stays alive across it holding the movement lock. The constraint
+	 *  still binds -- it is a floor, and a stricter refusal cannot violate it -- but 0.60 is now a
+	 *  materially harsher punish than the number chosen for the narrow reading. Whether it is still
+	 *  the right cost is a feel question and belongs to play, not to arithmetic.
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Parry", meta=(ClampMin="0.0"))
-	float ParryWhiffLockoutSeconds = 0.60f;
+	float ParryWhiffRecoverySeconds = 0.60f;
+
+	/**
+	 *  The clip. Purely cosmetic, and the parry works correctly with this unset.
+	 *
+	 *  **Fitted to the authored values in two segments, never the reverse** (the designer,
+	 *  2026-08-19). A Parry Gesture notify on the montage marks where the gesture reads; the
+	 *  segment before it is played across ParryWindowSeconds and the segment after it across
+	 *  ParryWhiffRecoverySeconds, each at its own derived rate. A single uniform rate would only
+	 *  align both if the marker happened to sit at exactly window/(window+recovery) of the clip --
+	 *  1/3 at today's numbers -- so two rates is what makes the fit hold wherever it is placed.
+	 *
+	 *  **With no marker, the whole clip plays across the total at one rate and warns.** That is a
+	 *  legible fallback rather than a correct one: notify placement cannot be read off the asset,
+	 *  so the warning is the only thing that can tell you the marker is missing.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Parry")
+	TObjectPtr<UAnimMontage> ParryMontage;
+
+	/**
+	 *  Switches the montage to its recovery rate when the gesture marker passes.
+	 *
+	 *  Driven by the notify rather than by a timer set at activation, though the two coincide by
+	 *  construction: the marker is reached at ParryWindowSeconds precisely because the first
+	 *  segment's rate was derived to make that true. Taking it from the montage's own playhead
+	 *  means the switch stays correct if anything perturbs playback, and it costs nothing --
+	 *  the notify has to exist anyway to carry the geometry.
+	 */
+	UFUNCTION()
+	void HandleParryGesture(FGameplayEventData Payload);
+
+private:
+
+	/** Starts the clip at the window segment's derived rate. Silent and harmless with no montage. */
+	void PlayParryMontage();
+
+	/**
+	 *  Trigger time of the Parry Gesture marker on ParryMontage, or -1 if there is none.
+	 *
+	 *  Read straight off UAnimMontage::Notifies, which **C++ can see even though the MCP toolset
+	 *  cannot** -- the "notifies are unreadable" limit in Docs/Working-In-Unreal.md is a fact about
+	 *  the toolset, not about the engine. That is what lets the rates be derived at activation
+	 *  rather than discovered when the notify fires.
+	 */
+	float FindGestureTime() const;
+
+	/** The montage this activation is playing, so a stray gesture event from elsewhere is ignored. */
+	UPROPERTY()
+	TObjectPtr<UAnimMontage> ActiveParryMontage;
 };

@@ -86,7 +86,7 @@ protected:
 	float DodgeSeconds = 0.5f;
 
 	/**
-	 *  How long after this dodge ends a parry may not be started. Applied as State.ParryLockout.
+	 *  How long after this dodge ends a parry may not be started. Applied as State.DodgeRecovery.
 	 *
 	 *  **Derived, and it must not be tuned freely.** The constraint is that dodge-end plus this gap
 	 *  plus ParryWindowSeconds has to overshoot the charged's 750 ms arrival for the worst-timed
@@ -94,13 +94,18 @@ protected:
 	 *  chains into covers the slow one at no extra read, which is the option-select the whole input
 	 *  scheme was chosen to prevent.
 	 *
-	 *  It lives on the dodge rather than on GA_Parry because the dodge is what knows one just
-	 *  ended, and because the refusal it produces is the parry lockout the whiff already uses --
-	 *  there is no second mechanism here, only a second cause. Re-derive it whenever DodgeSeconds,
-	 *  the parry window, or the charged's arrival moves.
+	 *  It lives on the dodge rather than on GA_Parry because the dodge is what knows one just ended.
+	 *  Re-derive it whenever DodgeSeconds, the parry window, or the charged's arrival moves.
+	 *
+	 *  ***It shared the whiff's tag and mechanism until 2026-08-19 -- "no second mechanism, only a
+	 *  second cause" -- and now has its own.*** Both merely refused defensive activations, so one
+	 *  tag said the whole sentence. The designer's ruling that a whiffed parry must prevent acting
+	 *  applies to that cause and not to this one: **this gap still takes nothing but the parry**,
+	 *  leaving movement, offense and block alone. Keeping them merged would have committed the
+	 *  player for 0.15 s after every dodge as a side effect of a ruling about something else.
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Dodge", meta=(ClampMin="0.0"))
-	float PostDodgeParryLockoutSeconds = 0.15f;
+	float DodgeRecoverySeconds = 0.15f;
 
 	/**
 	 *  How far a dodge should carry, in cm. **This is the distance knob.**
