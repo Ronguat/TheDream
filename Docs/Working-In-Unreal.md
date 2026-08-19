@@ -117,6 +117,10 @@ handled *(reported once)* — a convenience that can cost you the editor, not th
 **no Python on PATH** *(machine fact, hit twice)*, but Git Bash ships `base64`, `reg`, `xxd`,
 `certutil` and `curl`. Check for the binary before concluding otherwise.
 
+**A single Bash tool command near ~14 KB can arrive mangled** *(reported once, 2026-08-19)* —
+a quoted heredoc died with a shell parse error mid-content, while the same content in ~5 KB
+appended chunks wrote cleanly. Write large files in chunks and read the line count back.
+
 `Build.bat` cannot be called from Git Bash — the space in `Program Files (x86)` survives every
 quoting form. Call UnrealBuildTool directly, with the **bundled** dotnet (the system one tops out at
 .NET 9; UBT needs 10). **The CWD matters** — UBT must run from `Engine/Source`:
