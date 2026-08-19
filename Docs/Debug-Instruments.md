@@ -226,12 +226,19 @@ rule assertable at all — every tail must follow a `by=window`, and a `by=grace
 `PARRY RECOVERY OVERRIDDEN` fires when a lockout supersedes a running recovery and prints
 `remaining=`, so the waived time is visible rather than inferred.
 
-**`PARRY RECOVERY` is currently unreachable as a *refusal reason*, and that is not a fault**
-*(measured 2026-08-19: 222 "parrying", zero "parry recovery")*. A whiffed parry keeps `GA_Parry`
-alive across its recovery so the movement lock holds, so `State.Parrying` is present for the whole
-900 ms jail and its check — which runs first — shadows the recovery's entirely. **Assert on either
-name.** The recovery's refusal becomes load-bearing again the moment anything ends the ability at
-window close.
+**Each jail phase refuses under its own name — `parrying` for the window, `parry recovery` for the
+recovery — and the ratio between them is a health check.** The recovery is twice the window, so it
+should collect roughly twice the refusals; measured 81 against 394 across 35 windows.
+
+***This was briefly untrue, and the failure mode is the one worth remembering.*** For a few hours on
+2026-08-19 the recovery's refusal was **unreachable**: `State.Parrying` rode in `GA_Parry`'s
+`ActivationOwnedTags`, so a whiffed parry keeping the ability alive across its recovery left the tag
+up for the whole 900 ms jail, and its check — which runs first — shadowed the recovery's entirely.
+It measured 222 "parrying" and **zero** "parry recovery" while the jail worked perfectly, so the
+symptom was an assertion failing against correct behaviour. **The general form: a tag borrowed from
+an ability's lifetime silently re-scopes itself whenever that lifetime changes.** The tag now tracks
+`bParryWindowOpen` instead, and both halves are asserted separately — together they would hide
+either one going silent.
 
 **An ungated warning marks a sacredness violation**: *"GA_Parry ended … with its window still
 open"*. Parry is sacred, so an ability ending mid-window means something cancelled a committed

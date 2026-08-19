@@ -704,7 +704,7 @@ run_s5_parry_reward() {
 }
 
 run_s5_parry_whiff() {
-	local refusals
+	local win_refusals rec_refusals
 
 	assert_all_in_band "PARRY RECOVERY span" "parry_recovery_spans" \
 		"$(awk -v v="$BAND_PARRY_RECOVERY" -v t="$BAND_PARRY_SPAN_TOL" 'BEGIN{printf "%.3f", v-t}')" \
@@ -719,19 +719,27 @@ run_s5_parry_whiff() {
 	# "dead" and "guard broken" do. Grepping for a tag here would return zero forever and read as
 	# the refusal being broken.
 	#
-	# ***Either reason counts, and that is a finding rather than laziness*** (2026-08-19). A whiffed
-	# parry keeps GA_Parry alive across its recovery so the movement lock holds, which means the
-	# ability's ActivationOwnedTags keep **State.Parrying present for the whole 900 ms jail** -- so
-	# the "parrying" check, which runs first, shadows the "parry recovery" one entirely and the
-	# latter is currently unreachable as a *reason*. Measured: 222 "parrying", zero "parry
-	# recovery", with the jail working perfectly throughout. Asserting the shadowed string alone
-	# would fail forever while nothing was wrong. State.ParryRecovery stays as defence in depth and
-	# becomes load-bearing again the moment anything ends the ability at window close.
-	refusals=$(grep "^\[[0-9.]*\] REFUSED" "$SLICE" | grep -cE "parrying|parry recovery" || true)
-	if [ "$refusals" -gt 0 ]; then
-		check "REFUSED names the parry jail" 0 "$refusals"
+	# ***Both halves are asserted separately, and that is the point of the 2026-08-19 fix.*** For a
+	# few hours this had to accept either name: State.Parrying rode in GA_Parry's
+	# ActivationOwnedTags, so a whiffed parry keeping the ability alive across its recovery left the
+	# tag up for the whole 900 ms jail -- 222 "parrying", zero "parry recovery", with the jail
+	# working perfectly throughout. The tag now tracks the window instead of the ability, so each
+	# phase refuses under its own name and asserting them together would hide either one going
+	# silent. **A single count passing tells you the jail refused something; two tell you which
+	# half.**
+	win_refusals=$(grep "^\[[0-9.]*\] REFUSED" "$SLICE" | grep -c ": parrying" || true)
+	rec_refusals=$(grep "^\[[0-9.]*\] REFUSED" "$SLICE" | grep -c "parry recovery" || true)
+
+	if [ "$win_refusals" -gt 0 ]; then
+		check "REFUSED names the parry window" 0 "$win_refusals"
 	else
-		check "REFUSED names the parry jail" 1 "none -- the jail refused nothing"
+		check "REFUSED names the parry window" 1 "none -- the window refused nothing"
+	fi
+
+	if [ "$rec_refusals" -gt 0 ]; then
+		check "REFUSED names parry recovery" 0 "$rec_refusals"
+	else
+		check "REFUSED names parry recovery" 1 "none -- the recovery refused nothing"
 	fi
 
 	# **The ruling itself, asserted as an absence** (2026-08-19). The refusal count above proves the

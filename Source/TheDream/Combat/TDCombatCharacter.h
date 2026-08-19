@@ -1574,6 +1574,16 @@ private:
 	void ClearDodgeRecoveryState();
 
 	/**
+	 *  State.Parrying, applied and cleared against the window rather than against the ability.
+	 *
+	 *  There is no Begin/End pair here because the window already has one -- OpenParryWindow and
+	 *  CloseParryWindow -- and adding a second would give the tag a lifetime that could drift from
+	 *  the thing it names, which is exactly the fault this replaced.
+	 */
+	void ApplyParryWindowState();
+	void ClearParryWindowState();
+
+	/**
 	 *  Ends a running parry recovery because something was inflicted on this character.
 	 *
 	 *  **The schema doing the work rather than a special case**: a lockout is externally inflicted
@@ -1610,6 +1620,9 @@ private:
 
 	UFUNCTION()
 	void OnRep_DodgeRecovery();
+
+	UFUNCTION()
+	void OnRep_ParryWindow();
 
 	/**
 	 *  Applies State.Dead, cancels everything running, and stops the character moving.
@@ -1704,18 +1717,23 @@ private:
 	 *  A parry window is open. The sixth of the replicated-state family, same contract.
 	 *
 	 *  **Replicated rather than left as the ability's business**, under the project's own rule that
-	 *  new state is a replicated property and never a loose tag. It is deliberately *not* the same
-	 *  thing as State.Parrying, which GA_Parry carries in its ActivationOwnedTags exactly as
-	 *  GA_Block carries State.Blocking: that tag drives presentation and gating, this bool is the
-	 *  mechanism the attacker's hit path reads. Keeping them apart is what lets the animation and
-	 *  the negation be retimed independently.
+	 *  new state is a replicated property and never a loose tag. This bool is the mechanism the
+	 *  attacker's hit path reads; State.Parrying is the tag that marks the same span for anything
+	 *  that gates on it. Keeping them apart is what lets the animation and the negation be retimed
+	 *  independently.
 	 *
-	 *  Plain Replicated rather than ReplicatedUsing, unlike the rest of the family, because there is
-	 *  no local state to apply from it -- State.Parrying arrives with the ability on every machine
-	 *  that runs one. An OnRep here would exist only for symmetry, and a hook that does nothing is
-	 *  somewhere for a later reader to put something that does not belong.
+	 *  ***It became ReplicatedUsing on 2026-08-19, and the reason it was not is the whole story.***
+	 *  State.Parrying used to arrive free with the ability, via GA_Parry's ActivationOwnedTags --
+	 *  so there was genuinely no local state to apply here and an OnRep would have done nothing.
+	 *  That held only while the ability's lifetime *was* the window's. When a whiffed parry began
+	 *  keeping GA_Parry alive across its recovery, to hold the movement lock, **the tag's span
+	 *  silently followed the ability instead of the window** and stayed up for the whole 900 ms
+	 *  jail. Nobody chose that; it rode along.
+	 *
+	 *  The tag is now applied and cleared against *this* bool, so State.Parrying means the window
+	 *  is open and State.ParryRecovery means the recovery is running -- each says what it is named.
 	 */
-	UPROPERTY(Replicated)
+	UPROPERTY(ReplicatedUsing = OnRep_ParryWindow)
 	bool bParryWindowOpen = false;
 
 	/** When the parry window expires, in world seconds. A Tick-checked timestamp like the stuns. */

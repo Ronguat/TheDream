@@ -1215,6 +1215,14 @@ override stays on lockouts, expressed as a single named function anything future
 
 ### The instrument finding: one refusal now shadows the other
 
+> ***Superseded within the day — it was a defect, not a property.*** The designer read the entry
+> below and asked the obvious question: *"It seems like `State.Parrying` should indicate when the
+> parry window is active, and then `State.ParryRecovery` would indicate parry recovery."* That is
+> the correct design, and the shadowing was the symptom of it being violated rather than a fact to
+> document around. The fix and the lesson are in the subsection after this one. **Left standing
+> because the reasoning below is exactly the trap it describes** — an accepted-limitation framing
+> arrived at honestly, from measurement, and wrong.
+
 `REFUSED names parry recovery` passed at 65 and then fell to **zero** with no behavioural
 regression, which is the sort of thing worth chasing rather than re-banding.
 
@@ -1225,6 +1233,36 @@ ability's `ActivationOwnedTags` keep **`State.Parrying` present for the whole 90
 currently unreachable as a *reason***, and becomes load-bearing again the moment anything ends the
 ability at window close. The assertion now accepts either name and says why; the tag stays as
 defence in depth.
+
+---
+
+### `State.Parrying` marks the window, not the ability that opens it
+
+**The designer's question, and it went straight to the defect the subsection above had accepted.**
+The tag was in `GA_Parry`'s `ActivationOwnedTags`, which GAS applies for the ability's *entire
+lifetime* — so it never meant "the window is open", it meant **"GA_Parry is running."**
+
+That was a distinction without a difference until the same day, because the two spans were
+identical: `CloseParryWindow` cancelled the ability unconditionally. The whiff commitment broke it —
+a whiffed parry now keeps `GA_Parry` alive across its recovery so `bLocksMovement` holds — and **the
+tag's span silently followed the ability rather than the window.** Nobody chose that; it rode along.
+
+**The general lesson, which is the reason this is an entry and not a commit message:** *a tag
+borrowed from an ability's lifetime re-scopes itself whenever that lifetime changes, silently.*
+Nothing warns, and the symptom surfaces somewhere else entirely — here, as a regression assertion
+failing against behaviour that was perfectly correct.
+
+**The fix is small because the tag had only two readers** — the shared base's refusal, and `GA_Parry`
+blocking its own re-entry. Nothing in the AnimBP or presentation touched it. `State.Parrying` is now
+a loose tag applied and cleared against `bParryWindowOpen`, the pattern every other state on the
+character already used, and that bool becomes `ReplicatedUsing` — it had been plain `Replicated`
+*because* the tag arrived free with the ability, so the justification died with the coupling.
+
+**What it bought, beyond the naming being honest:** both refusals are reachable and distinct again,
+so the checker asserts each phase separately instead of accepting either name. Measured after the
+fix: 81 window refusals against 394 recovery ones across 35 windows — roughly the 1:2 the phase
+lengths predict, which is now itself a health check. Asserting them together would have hidden
+either half going silent, which is precisely what the shadowing had been doing.
 
 ---
 

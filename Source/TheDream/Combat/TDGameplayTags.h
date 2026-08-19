@@ -119,8 +119,17 @@ namespace TDTags
 	 *
 	 *  Until then this was an ini tag that nothing refused on, so a parry could be attacked,
 	 *  blocked or dodged out of mid-window -- which made the read free, since the tell arrives in
-	 *  time to cancel. GA_Parry still carries it in ActivationOwnedTags exactly as before; what
-	 *  changed is that the shared base now reads it.
+	 *  time to cancel.
+	 *
+	 *  ***It marks the window, not the ability, and the difference is not cosmetic.*** It rode in
+	 *  GA_Parry's ActivationOwnedTags until 2026-08-19, which was exact while the ability's
+	 *  lifetime *was* the window's. The whiff commitment broke that -- a whiffed parry keeps
+	 *  GA_Parry alive across its recovery to hold the movement lock -- and **the tag's span
+	 *  silently followed the ability, staying up for the whole 900 ms jail** and shadowing
+	 *  State_ParryRecovery so completely that the recovery's own refusal became unreachable.
+	 *  Applied and cleared against bParryWindowOpen now, so the two tags mean what they are named.
+	 *  The general form is worth keeping: **a tag borrowed from an ability's lifetime silently
+	 *  re-scopes itself whenever that lifetime changes.**
 	 *
 	 *  **Declared natively *and* left in DefaultGameplayTags.ini**, following State_Hitstun, which
 	 *  has been in both since it shipped. The ini entry is now redundant rather than wrong, and

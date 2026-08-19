@@ -948,6 +948,7 @@ void ATDCombatCharacter::OpenParryWindow(float DurationSeconds, float WhiffRecov
 	// and taking a max here would only matter if that guarantee had already failed.
 	bParryWindowOpen = true;
 	bParryCaughtThisWindow = false;
+	ApplyParryWindowState();
 	ParryWindowEndsAt = World->GetTimeSeconds() + DurationSeconds;
 	PendingParryWhiffRecoverySeconds = WhiffRecoverySeconds;
 
@@ -969,6 +970,7 @@ void ATDCombatCharacter::CloseParryWindow(ETDParryCloseReason Reason)
 	// GA_Parry's EndAbility -- finds nothing to do. Idempotence by ordering rather than by a
 	// re-entrancy flag.
 	bParryWindowOpen = false;
+	ClearParryWindowState();
 
 	bParryCaughtThisWindow = false;
 
@@ -1113,6 +1115,38 @@ void ATDCombatCharacter::NotifyParrySuccess(AActor* Attacker)
 	if (bByWindow)
 	{
 		CloseParryWindow(ETDParryCloseReason::Caught);
+	}
+}
+
+void ATDCombatCharacter::ApplyParryWindowState()
+{
+	if (AbilitySystem)
+	{
+		AbilitySystem->AddLooseGameplayTag(TDTags::State_Parrying);
+	}
+}
+
+void ATDCombatCharacter::ClearParryWindowState()
+{
+	if (AbilitySystem)
+	{
+		AbilitySystem->RemoveLooseGameplayTag(TDTags::State_Parrying);
+	}
+}
+
+void ATDCombatCharacter::OnRep_ParryWindow()
+{
+	// **Added 2026-08-19 with the tag's move off the ability.** While State.Parrying rode in
+	// GA_Parry's ActivationOwnedTags it arrived on every machine for free and this hook would have
+	// done nothing; now the tag is the window's, a client has to apply it from the replicated bool
+	// exactly as it does for the recoveries and the stuns.
+	if (bParryWindowOpen)
+	{
+		ApplyParryWindowState();
+	}
+	else
+	{
+		ClearParryWindowState();
 	}
 }
 
