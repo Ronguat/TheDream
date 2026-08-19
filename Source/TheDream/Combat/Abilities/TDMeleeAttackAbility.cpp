@@ -348,7 +348,7 @@ void UTDMeleeAttackAbility::HandleTraceHit(const FHitResult& Hit)
 			// they mean it: IsChainOutOpen reads it to forbid skipping recovery, and EndAbility
 			// reads it to kill the string outright, so the attacker's next press starts a fresh
 			// swing 0 rather than resuming where the parry interrupted them (the designer,
-			// 2026-08-19). The string dies *there* rather than here, because that is where the
+			// 2026-08-18). The string dies *there* rather than here, because that is where the
 			// link window is opened -- resetting at contact and then falling through would only
 			// re-open the window the reset had just closed.
 			//

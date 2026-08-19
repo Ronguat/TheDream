@@ -61,6 +61,12 @@ numbers per tier, needed to read a commit message or a trace line in any session
 - **Coil** — *not* a fourth phase: the sub-state of windup slowed while waiting for the commit
   checkpoint, existing as visual feedback. Its tuning values are named `Coil*` rather than after a
   phase.
+- **Initiative** — frame advantage, borrowed from the first-person-melee space. One of the **two
+  ledgers** an exchange settles in, the other being stamina; a heavy that is plus on block bites
+  50 stamina *and* keeps initiative, which is what makes it a paid transaction rather than a trade.
+- **Flinch** — hitstun interrupting offense. Distinct from the **challenge**, which is a raw
+  counter thrown out of blockstun; the two race each other, and the blockstun derivation is what
+  decides by how much.
 
 Note that "release" also names the button coming up, via GAS's `InputReleased`. Bare "release"
 always means the damaging phase; the button edge is always written as *input release*.

@@ -150,6 +150,46 @@ Two withdrawn readings, recorded so nobody re-derives them: the *overshoot* this
 before 2026-08-13 cannot occur now, and the *"branch lunge clamped 200 → 0 every time"* reading
 that replaced it was an instrument fault, not a finding. Both are in the dated entries.
 
+**Before tuning `ParryStaminaReward` — *the +25 has never been observed landing.*** Filed
+2026-08-18 with the parry, and it is a **deferral the plan did not expect to owe**: sub-slice D
+claimed loop coverage was satisfied in-package, and this is the one assertion that could not be
+written.
+
+The mechanism is a consequence of the design rather than an oversight. **A parry costs no stamina**,
+so an unattended parrier never spends, its bar never leaves 100, and the attribute set's clamp eats
+the entire reward — every credited sample in the shipped run reads `gained=0.0`. That is the clamp
+working correctly and it is also why the number is untested: nothing in the fixture set can put the
+parrier below full stamina, because the only two spenders are the dodge and the guard and
+`ETDDebugDefendMode` is one behaviour at a time by design.
+
+**What is asserted today is the clamp, not the magnitude.** `s5-parry` bounds `gained` to [0, 25],
+which would catch a negative or a runaway but passes happily on a reward that never applies.
+**`PARRY SUCCESS` prints `gained=` specifically so this becomes assertable the moment a fixture
+exists that can spend a parrier's stamina** — the cheapest being a defend mode that alternates, or
+a debug knob that seeds the bar. Until then, treat the 25 as authored-and-unverified.
+
+**Whenever a scenario needs the *attacker* dummy to defend — *`BP_TrainingDummy_C_0` cannot, and
+nothing says so.*** Measured 2026-08-18 while building `s5-cancel`. The placed attacker holds stale
+per-instance overrides from before its Blueprint authored them: `defaultAbilities` reads
+**`[GA_Attack]`** against a CDO carrying four, and `debugDefendBlockInputTag` /
+`debugDefendDodgeInputTag` both read **None**. It can attack and nothing else — no block, no dodge,
+no parry, ever.
+
+**The signature is the one the placed-actor trap in `Docs/Working-In-Unreal.md` describes**, and
+this is that trap with a name on it. Note the tell that confirms it: *new* properties inherit
+correctly — `debugDefendParryInputTag`, added the same day, read `InputTag.Parry` off the CDO
+without trouble — so the damage is confined to properties that existed when the instance was last
+serialized. **`set_properties` on `defaultAbilities` is refused, re-tested 2026-08-18**, and
+`EditDefaultsOnly` has no scriptable route, so the documented fix is delete-and-re-place.
+
+**Worked around rather than fixed, deliberately.** `s5-cancel` and `s5-waiver` swap the roles —
+`BP_TrainingDummy_C_1` is clean on every property and does the attacking, with `_C_0` as the
+target — which needs only `EditAnywhere` writes and touches nothing structural. Re-placing the
+actor is a level change with a cost the workaround does not have: the internal name moves, and
+`Docs/Debug-Instruments.md` names both dummies throughout. **The trap is that the next scenario
+wanting a defending attacker will reach for `_C_0` and get silence** — no refusal line, no warning,
+just an input that does nothing.
+
 **Before the charged or heavy gets its own clip** — *the coil is a freeze, measured rather than
 predicted.* `rate=0.049` to `0.097` across ~40 throws, mean ~0.072: the montage advances at 5–10%
 speed for the whole coil. Nothing is broken by it and no warning fires. **It is the concrete
@@ -454,6 +494,29 @@ until a correction arrives. Bounded at ~117 cm light / ~175 heavy / ~233 charged
 possible hit, and far less in practice. `FRootMotionSource::UpdateStateFrom` is the channel the
 engine intends for it.
 
+**The on-hit waiver's trigger is server-only knowledge, so a client cannot predict the freedom it
+grants** *(filed 2026-08-18 with the waiver)*. Landing a hit is decided in `HandleTraceHit` behind
+an authority gate; the waiver drops `State.Attacking.Committed` there, and that is a **loose tag**,
+so on a client the commitment marker stays up until a correction arrives. The owning player has
+watched their attack connect and their block, dodge or parry is still being refused locally —
+the same family as the aim-assist asymmetry, and the same fix: decide on the server, replicate the
+*decision*, apply everywhere. Single-player correct today.
+
+**The cancel-vs-commit race sits exactly on the 150 ms boundary and wants measuring, not solving
+yet.** A defensive action cancels an attack's startup and never its commitment, so a press landing
+either side of `HoldUntilSeconds` produces opposite outcomes — and with a round trip in it, the two
+machines can disagree about which side it landed on. It belongs to the **tempo measurement**'s
+`PktLag` probes rather than to a prediction fix: the question is first how wide the disagreement
+band is at 40/80/120 ms, and `s5-cancel` is the single-player control it should be read against.
+
+**The parry window joins i-frames in the lag-compensation ledger, and it is the tighter of the
+two.** A 300 ms negation window is shorter than the dodge's 400 ms of invulnerability and carries
+the same shape of problem: a client parries at T, the server learns at T+RTT/2, and an attack
+resolving inside that gap ignores a parry the player watched land. It is worse here than for the
+dodge in one specific way — the parry is a **read**, so a swallowed one is not merely a lost
+defence but a correct call the game denied, which is the "I dodged that!" complaint aimed at the
+mechanic least able to absorb it.
+
 **I-frames have no lag compensation, and the dodge is 400 ms of invulnerability.** A client dodges
 at T, the server learns at T+RTT/2, and an attack resolving inside that gap ignores a dodge the
 player has watched begin. This is the "I dodged that!" complaint and this design can least afford
@@ -544,6 +607,12 @@ kept in their own notes. What belongs here is only what to move once a verdict a
 | Chain links drop when mashing fast | Nothing — check the `BUFFER` trace first. Pressing early buys **no** cadence: chain-out fires when recovery opens, not when the press arrived | Widening `InputBufferSeconds`, or `StringLinkWindowSeconds`. A dropped chain tap means the press was *completed* inside the swing's first ~165 ms, which the extension already rescues; if it still drops, the extension is off or the ability stopped opting in. |
 | The window to chain feels too generous | `StringLinkWindowSeconds` for the post-recovery half, `ChainOpenAfterRecoverySeconds` for when the in-swing half opens | The buffer. The chain-out span is the whole of recovery by construction — it is gated on `bInRecovery` — so tightening the *input* window is not what shortens it; `RecoverySeconds` is, and that is the punish window. |
 | The string's cadence feels wrong | **`ChainOpenAfterRecoverySeconds`, but it is derived and not free.** 0.133 comes from `cadence = 0.200 + 0.150 + ChainOpen + one frame` against a **500 ms cadence tapped by the designer**, the one number in the project measured off a human rather than chosen. Moving it moves the cadence away from that measurement, so re-derive rather than nudge — and `HitstunSeconds` must stay above the resulting gap or the string's guarantee silently stops being true | The montage rates or `RecoverySeconds`. Pressing earlier buys no cadence at all: chain-out fires when recovery opens, not when the press arrived. |
+| The parry window feels too tight, or too forgiving | **Nothing, without re-deriving both fences.** `ParryWindowSeconds` is bounded above by the anti-option-select ceiling — one press must not cover two read-classes, so it must stay under the fast↔charged gap, 750 − 350 = **400 ms** — and below by the longest authored `ReleaseSeconds`, **0.150**, or a damaging phase can span the whole window and come out unparried. 300 is legal *only because of the re-pole*; under the old ladder the ceiling was 250 | Widening it toward the gap "because there is room". The room is the whole margin protecting the read from becoming an option-select, and spending it converts parry from a read into a timing test — which is the identity the entire input scheme was chosen to protect |
+| A whiffed parry is punished too hard, or too cheaply | `ParryWhiffLockoutSeconds`, above its floor. The floor is a constraint, not a feel: a whiff timed against the **fast** layer must stay locked through the charged's 750 ms arrival, or reading "fast" wrongly costs nothing and the charged can never collect on it. That is what re-derived it down from the spec's 1000 | Adding a stamina cost to the parry. It is **time**-priced by design, and pricing it in both ledgers makes it block with extra steps — the pricing symmetry (dodge stamina, block both, parry time) is the thing being protected |
+| Dodging into a parry feels like it covers too much | `PostDodgeParryLockoutSeconds`, **derived**: dodge-end + gap + window must overshoot the charged's 750 for the worst-timed predictive dodge. Re-derive it whenever `DodgeSeconds`, the parry window, or the charged's arrival moves | Shortening the parry window to compensate. That fixes one option-select by tightening a fence that is already load-bearing for a different one, and does it everywhere rather than where the problem is |
+| Movement comes back too early or too late after landing a hit | **Nothing — it is derived.** The on-hit waiver returns movement at contact + *that swing's* `HitstunSeconds`. Earlier lets the attacker erode the authored spacing the fixed-destination knockback just paid for; later is dead freedom, since the victim is out of hitstun and the exchange has restarted | A separate waiver duration. Authoring it apart immediately allows the pair that makes no sense — movement returning while the victim is still stunned for it, or staying locked after they can act |
+| A parried attacker gets away with too much | **Nothing — the reward is derived and already per-tier.** Recovery *is* the punish window, so a parried charged pays more than a parried light without anyone authoring it; the string reset is what compensates at the light end | A per-branch parry bonus. Raised 2026-08-18 and rejected: the derived model pays by the victim's commitment rather than by the read's difficulty, and an authored bonus exists only if play demands read-difficulty compensation |
+| The charged feels unreactable, or trivially reactable | **Nothing, without re-deriving it.** It must arrive at or after coil + reaction + dodge duration — 750 = 150 + 200 + 400, exactly on the line today, so it has no slack downward at all | Moving it for feel. Below the derived value the slow layer stops being answerable by the defence it exists to reward, and the ladder loses the pole that makes the fast layer mean anything |
 
 Add a row whenever an entry below establishes that a fix belongs in one place rather than
 another. That is the reusable part of an entry; the argument around it is not.
@@ -884,6 +953,48 @@ long.
 | `gEComponents` | 08-10, 08-11 |
 
 ---
+
+## 2026-08-18 — Parry ships: three rulings the plan left open, and a disagreement inside it
+
+Built the evening of the plan, A through D. What is worth recording is not the implementation —
+the code carries that — but the four questions the plan could not answer and how each was settled.
+
+**The regen pause: charged, then discharged.** The designer's ruling, and it is a third option
+neither offered. GA_Parry carries `State.StaminaRegenPaused` exactly like every other ability, and
+a *successful* parry clears the suppression outright. So whiff and success differ in the **stamina
+ledger** as well as on the clock, which the plan's "+25 and the pause clears" only half-said. It
+also resolves what looked like circularity — clearing a pause your own parry had just created — by
+making the clearing a real discharge of whatever you were already carrying.
+
+**The parry locks movement**, following a split the code already drew and nobody had stated:
+**actions own their displacement, states leave you mobile.** Attacks lock, the dodge moves you,
+and block is the one defensive ability that does not lock precisely because a guard is a stance you
+carry. A parry is an action, and it is the action that manufactures a whiff at zero centimetres — a
+parrier free to drift while the attacker is planted would blur the geometry the reward derives from.
+
+**A parried attack loses the string, not merely the chain-out — and this was the plan disagreeing
+with itself.** Sub-slice B said to express "a parried attack cannot chain" as `IsChainOutOpen()`
+returning false; the `s5-parry` scenario asserted the stronger "zero `STRING` continuation after a
+parried swing". Built the narrow reading first and measured it: the parried swing rode its full
+0.963 s recovery and then opened a link window anyway, so the attacker kept their place in the
+string. The designer ruled the strong reading. **"No more games" is terminal.**
+
+The argument that settled it is worth keeping, because it answers a weakness in the derived model
+rather than merely being stricter. Recovery scales the punish by the victim's commitment, so a
+parried **light** — the shortest recovery of the three — pays least, exactly where a parry is
+hardest to time. Taking the string compensates *there*, and does it without authoring the
+per-branch bonus that was raised and rejected on 2026-08-18 for inverting the reward's basis.
+
+**And a bug the first build had: resetting the string at the moment of the parry does nothing**,
+because the link window is opened later, in `EndAbility`. The reset has to live where the window is
+opened or it is immediately undone. Recorded because the instinct is to put it where the event is.
+
+**What could not be tested, and it is the one deferral the plan did not expect to owe.** Sub-slice
+D asserted that loop coverage was satisfied in-package. It is not, by one number: the **+25 reward's
+magnitude**. A parry costs no stamina, so an unattended parrier never spends, its bar never leaves
+100, and the clamp eats the whole reward — every credited sample reads `gained=0.0`, which is the
+clamp working and the reward unobserved. Filed as a trap; `PARRY SUCCESS` prints `gained=` so it
+becomes assertable the moment a fixture can spend a parrier's stamina.
 
 ## 2026-08-18 — The hypothesis dataset: greened at the Tuning Rig, golded at Interplay
 

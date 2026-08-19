@@ -78,7 +78,7 @@ BAND_BLOCKSTUN_TOL=0.020
 BAND_GUARDSTUN=1.000; BAND_GUARDSTUN_TOL=0.025
 
 # S5 -- the parry window and the lockout a whiff leaves behind.
-# Source: GA_Parry's CDO (ParryWindowSeconds, ParryWhiffLockoutSeconds), read 2026-08-19.
+# Source: GA_Parry's CDO (ParryWindowSeconds, ParryWhiffLockoutSeconds), read 2026-08-18.
 # Neither is a free number. The window is fenced above by the anti-option-select ceiling -- one
 # press must not cover two read-classes, so it must stay under the fast-to-charged gap of 400 ms --
 # and below by the longest authored ReleaseSeconds, 0.150, or a damaging phase could span the whole

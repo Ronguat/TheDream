@@ -192,7 +192,7 @@ beside it means the guard broke instead**, which is correct and supersedes it; `
 *neither* is the failure to watch for. **Nothing will ever print it for a charged** — its stamina
 damage empties any bar, so it always breaks. That is a filed trap, not a bug.
 
-**Parry adds five, and the pairing to read is window → outcome** *(2026-08-19)*. `PARRY WINDOW
+**Parry adds five, and the pairing to read is window → outcome** *(2026-08-18)*. `PARRY WINDOW
 open` carries `until=`, so its span is read the way `BLOCKSTUN`'s is — the end time, not a duration.
 Exactly one of two lines follows it: `PARRY SUCCESS`, naming the attacker it caught, or `PARRY
 WHIFF` with the lockout it just bought. `PARRY LOCKOUT` / `PARRY LOCKOUT END` then bracket the
@@ -405,7 +405,7 @@ looks ignored.
 | `s5-cancel` | 0.1, **`bDebugCancelAttackIntoBlock`** | `Off` | zero `RELEASE BEGIN`; zero `DAMAGED`; `BLOCK cost` at least once |
 | `s5-waiver` | 0.1, **`bDebugDodgeAfterHit`** | `Off` | attacker `DODGE` within 100 ms of its own `DAMAGED`; `MOVE UNLOCK` present |
 
-**`s5-parry-whiff` needs its own interval, and finding out why cost a run** *(2026-08-19)*. At the
+**`s5-parry-whiff` needs its own interval, and finding out why cost a run** *(2026-08-18)*. At the
 default 1.7 the lockout is **never exercised**: a whiff closes 0.3 s after the press and its lockout
 expires 0.6 s later, so the next press arrives 800 ms after the refusal window has already gone.
 That run produced 10 whiffs and **zero** `REFUSED` lines naming `State.ParryLockout` — a lockout
@@ -417,7 +417,7 @@ fixtures.** Measuring how long a lockout *lasts* only requires it to exist; prov
 anything requires something to arrive while it is up, and a co-prime sweep is specifically designed
 to avoid that collision.
 
-**Successes are rare, and the run has to be long enough to admit that.** Measured 2026-08-19 at
+**Successes are rare, and the run has to be long enough to admit that.** Measured 2026-08-18 at
 taps 1: **1 success in 14 windows** over 40 s, because a 300 ms window has to meet a 150 ms release
 inside a 3 s attack cycle. Taps 3 improves it by putting three hitboxes in each cycle. **Budget
 minutes, not seconds** — and a run reporting zero successes is a fixture that never met an attack,

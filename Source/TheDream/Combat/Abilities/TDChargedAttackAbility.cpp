@@ -927,7 +927,7 @@ void UTDChargedAttackAbility::EndAbility(const FGameplayAbilitySpecHandle Handle
 		else if (bParried)
 		{
 			// **A parried swing takes the string with it** -- "no more games" (the designer,
-			// 2026-08-19). Gated here rather than only at the moment of the parry because this is
+			// 2026-08-18). Gated here rather than only at the moment of the parry because this is
 			// where the link window is *opened*: resetting at contact and then falling through to
 			// the branch below would re-open the very window the reset just closed, which is
 			// exactly what the first build did.

@@ -5,6 +5,34 @@ choice here is the three dated 2026-08-18 entries in `Docs/Combat-Decisions.md`;
 only the *how*. Design direction is ruled; **execution awaits a greenlight at the session that
 picks this up.** Implementation deliberately did not occur in the planning session.
 
+---
+
+## Status, 2026-08-18 — A, B, C and D shipped; E and part of F remain
+
+**Greenlit A→F straight through**, the un-ruled gating question below answered: B–F do **not** wait
+on A being felt.
+
+- **A — shipped** (`abdbddc`). Heavy 0.35 / 0.30 / 0.60, bands moved with it, full matrix 11/11.
+- **B, C, D — shipped** (`d4ad50e`). `GA_Parry`, `IA_Parry` on MB4, the on-hit waiver, the
+  `PeriodicParry` fixture, and four `s5-*` scenarios all green with every new assertion made to
+  fail once on purpose.
+- **E — outstanding, and it is the human step.** The clip's root-motion pair is already set
+  (`bEnableRootMotion` false, `bForceRootLock` true on
+  `AS_SwordSwordAnimV3_Block1_Parry_RM`). **`AM_Parry` itself still needs creating from that clip**
+  — montage-from-clip, never by duplicating an attack montage. **Nothing plays a montage yet
+  either**: `GA_Parry` deliberately has no montage property, so wiring one is a second step and
+  carries a real design question — *what mechanical duration does the parry clip play across?* The
+  window is 300 ms and the clip is 0.800 s, so "fit the clip to the duration" needs a duration
+  choosing. Parry ships felt-not-seen until then, exactly as blockstun did.
+- **F — partly done.** Everything the shipped code *falsified* moved with it: the ladder table and
+  feel-goals line, the spec's heavy and parry sections, the stamina rule, six tuning-map rows, the
+  vocabulary's **initiative** and **flinch**, and two new traps. **Still owed: the Netcode brief's
+  three additions** (the waiver's server-only visibility, the cancel-vs-commit race at the 150 ms
+  boundary, and the parry window beside i-frames in the lag-compensation ledger).
+
+**Do not strike Parry off the roster or delete this file until E lands** — the slice is not shipped
+while its animation is outstanding.
+
 **The first-attempt doctrine applies** (the designer, at greenlight of this plan's discussion): the
 prototype exists to be wrong at times — hypothesize, observe, adjust. Numbers below are first
 attempts unless marked derived.
