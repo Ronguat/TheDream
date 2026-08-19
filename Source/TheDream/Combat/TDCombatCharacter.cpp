@@ -8,6 +8,7 @@
 #include "Combat/Attributes/TDAttributeSet.h"
 #include "Combat/Abilities/TDGameplayAbility.h"
 #include "Combat/Abilities/TDBlockAbility.h"
+#include "Combat/Abilities/TDParryAbility.h"
 #include "Combat/TDCombatDebug.h"
 #include "Combat/TDGameplayTags.h"
 #include "Core/TDPlayerState.h"
@@ -108,6 +109,46 @@ void ATDCombatCharacter::Tick(float DeltaSeconds)
 			if (World && World->GetTimeSeconds() >= HitstunEndsAt)
 			{
 				EndHitstun();
+			}
+		}
+
+		// The parry window, same timestamp shape as the three above. Its close is *not* a plain
+		// expiry, though: closing charges the whiff lockout, so this is where a missed read starts
+		// paying for itself. See CloseParryWindow.
+		if (bParryWindowOpen)
+		{
+			const UWorld* World = GetWorld();
+			if (World && World->GetTimeSeconds() >= ParryWindowEndsAt)
+			{
+				CloseParryWindow();
+			}
+		}
+
+		// And the lockout the close produces. Separate state from the window deliberately -- the
+		// window is 300 ms and the lockout it leaves behind is twice that, so one cannot be
+		// derived from the other, and a dodge ending raises this with no window involved at all.
+		if (bParryLockedOut)
+		{
+			const UWorld* World = GetWorld();
+			if (World && World->GetTimeSeconds() >= ParryLockoutEndsAt)
+			{
+				EndParryLockout();
+			}
+		}
+
+		// The on-hit waiver's movement half, deliberately last: it only ever *returns* control, so
+		// it can run beside anything above without ordering mattering.
+		if (bOnHitMovementWaiverPending)
+		{
+			const UWorld* World = GetWorld();
+			if (World && World->GetTimeSeconds() >= OnHitMovementWaiverAt)
+			{
+				bOnHitMovementWaiverPending = false;
+				SetAbilityMovementLocked(false);
+
+				TD_TIMING_LOG(TEXT("[%.3f] MOVE UNLOCK %s  (on-hit waiver)"),
+					World->GetTimeSeconds(),
+					*GetName());
 			}
 		}
 	}
@@ -851,6 +892,256 @@ void ATDCombatCharacter::OnRep_Hitstun()
 	}
 }
 
+void ATDCombatCharacter::OpenParryWindow(float DurationSeconds, float WhiffLockoutSeconds)
+{
+	UWorld* World = GetWorld();
+	if (!World || !HasAuthority() || DurationSeconds <= 0.0f || bDead)
+	{
+		return;
+	}
+
+	// Assigned rather than max-extended, which is the deliberate difference from every stun beside
+	// it. A stun is a sentence and two of them must never total less than one; a parry window is a
+	// *purchase*, and GA_Parry cannot be re-entered while one is open anyway -- State.Parrying
+	// blocks its own activation the way GA_Block does. So there is no second window to merge with,
+	// and taking a max here would only matter if that guarantee had already failed.
+	bParryWindowOpen = true;
+	bParryCaughtThisWindow = false;
+	ParryWindowEndsAt = World->GetTimeSeconds() + DurationSeconds;
+	PendingParryWhiffLockoutSeconds = WhiffLockoutSeconds;
+
+	TD_TIMING_LOG(TEXT("[%.3f] PARRY WINDOW open on %s  until=%.3f"),
+		World->GetTimeSeconds(),
+		*GetName(),
+		ParryWindowEndsAt);
+}
+
+void ATDCombatCharacter::CloseParryWindow()
+{
+	UWorld* World = GetWorld();
+	if (!World || !bParryWindowOpen)
+	{
+		return;
+	}
+
+	// Cleared before anything else, so that the cancel at the bottom -- which re-enters here
+	// through GA_Parry's EndAbility -- finds nothing to do. Idempotence by ordering rather than by
+	// a re-entrancy flag.
+	bParryWindowOpen = false;
+
+	const bool bCaught = bParryCaughtThisWindow;
+	bParryCaughtThisWindow = false;
+
+	if (!bCaught)
+	{
+		// **The whiff is charged here, at the one exit every ending shares.** Expiry, cancellation
+		// and death all arrive at this line, which is what stops a lockout being skipped by ending
+		// the parry through an unusual path -- and being *cancelled* is exactly the cheap exit an
+		// attacker would otherwise be handing you for free.
+		//
+		// Note this deliberately charges a parrier who was hit out of their own window. They are
+		// already in hitstun, so most of the lockout is served concurrently; the alternative is a
+		// rule that says a failed read costs nothing as long as it failed badly enough.
+		ApplyParryLockout(PendingParryWhiffLockoutSeconds);
+
+		TD_TIMING_LOG(TEXT("[%.3f] PARRY WHIFF  %s  lockout=%.3f"),
+			World->GetTimeSeconds(),
+			*GetName(),
+			PendingParryWhiffLockoutSeconds);
+	}
+
+	PendingParryWhiffLockoutSeconds = 0.0f;
+
+	// End the ability itself, so the window and GA_Parry cannot outlive one another in either
+	// direction. Matched on type rather than on a tag, for the reason CancelBlockAbility gives at
+	// length -- CancelAbilities matches *asset* tags, not the ActivationOwnedTags a reader expects.
+	if (AbilitySystem)
+	{
+		TArray<FGameplayAbilitySpecHandle> ToCancel;
+		for (const FGameplayAbilitySpec& Spec : AbilitySystem->GetActivatableAbilities())
+		{
+			if (Spec.IsActive() && Spec.Ability && Spec.Ability->IsA<UTDParryAbility>())
+			{
+				ToCancel.Add(Spec.Handle);
+			}
+		}
+
+		// Collected first: cancelling inside the loop can reallocate the ASC's live spec array.
+		for (const FGameplayAbilitySpecHandle& Handle : ToCancel)
+		{
+			AbilitySystem->CancelAbilityHandle(Handle);
+		}
+	}
+}
+
+void ATDCombatCharacter::NotifyParrySuccess(AActor* Attacker)
+{
+	UWorld* World = GetWorld();
+	if (!World || !HasAuthority() || !bParryWindowOpen)
+	{
+		return;
+	}
+
+	// Set before the close, because the close reads it to decide whether to charge the whiff.
+	bParryCaughtThisWindow = true;
+
+	// Read before the write so the trace can print what was *actually* credited rather than what
+	// was authored. The two differ whenever the bar is near full, and printing the authored number
+	// there would be an instrument reporting the input as though it were the output -- the exact
+	// failure that let two never-observed wedge values ship. See the gained= field below.
+	const float StaminaBefore = GetStamina();
+
+	if (AbilitySystem && ParryStaminaReward > 0.0f)
+	{
+		// Additive through the ordinary attribute path, so the attribute set's clamp applies and a
+		// reward at full stamina is silently free rather than an overflow. Same route
+		// PayBlockInitialCost takes in the other direction.
+		AbilitySystem->ApplyModToAttribute(
+			UTDAttributeSet::GetStaminaAttribute(),
+			EGameplayModOp::Additive,
+			ParryStaminaReward);
+	}
+
+	// **The pause is discharged outright rather than left to tail off** -- the designer's ruling,
+	// and the half of the reward that lives in the stamina ledger. GA_Parry carries
+	// State.StaminaRegenPaused like every other ability, so a *whiffed* parry pays the pause in the
+	// ordinary way; a successful one does not. Clearing the timestamp is what makes it instant:
+	// the tag coming off with the ability would otherwise still leave StaminaRegenPauseSeconds of
+	// tail behind it.
+	RegenSuppressedUntil = 0.0f;
+
+	// **gained= is the credited delta, not the authored reward**, and the distinction is the whole
+	// reason it is printed. They are equal only when the bar had room; at full stamina the clamp
+	// makes the reward silently free, and a line printing the authored 25 there would assert a
+	// payment that never happened.
+	//
+	// Today the fixture can only ever produce gained=0.0: a parry costs nothing, so an unattended
+	// parrier never spends and its bar never leaves 100. That is the clamp behaving, not a fault --
+	// and it is why the reward's *magnitude* is filed as untested rather than asserted. This field
+	// is what makes it assertable the moment a fixture exists that can spend the parrier's stamina.
+	TD_TIMING_LOG(TEXT("[%.3f] PARRY SUCCESS %s parried %s  gained=%.1f stamina=%.1f"),
+		World->GetTimeSeconds(),
+		*GetName(),
+		*GetNameSafe(Attacker),
+		GetStamina() - StaminaBefore,
+		GetStamina());
+
+	// Free instantly: no success recovery, so "successful parries can retrigger without impeding
+	// other actions" survives from the spec. The close charges nothing, because it caught something.
+	CloseParryWindow();
+}
+
+void ATDCombatCharacter::ApplyParryLockout(float DurationSeconds)
+{
+	UWorld* World = GetWorld();
+	if (!World || !HasAuthority() || DurationSeconds <= 0.0f || bDead)
+	{
+		return;
+	}
+
+	// Max-extended like blockstun and hitstun, and here the reason is concrete rather than
+	// theoretical: this tag has *two* causes -- a whiffed parry and a dodge ending -- which can
+	// overlap in a single exchange. Reassigning would let the second one arriving early cut the
+	// first one short, so dodging out of a whiffed parry would buy a shorter total than either
+	// alone. That is precisely the escape the post-dodge gap exists to close.
+	ParryLockoutEndsAt = FMath::Max(ParryLockoutEndsAt, World->GetTimeSeconds() + DurationSeconds);
+
+	if (!bParryLockedOut)
+	{
+		bParryLockedOut = true;
+		ApplyParryLockoutState();
+	}
+}
+
+void ATDCombatCharacter::EndParryLockout()
+{
+	if (!bParryLockedOut)
+	{
+		return;
+	}
+
+	bParryLockedOut = false;
+	ClearParryLockoutState();
+}
+
+void ATDCombatCharacter::ApplyParryLockoutState()
+{
+	if (AbilitySystem)
+	{
+		AbilitySystem->AddLooseGameplayTag(TDTags::State_ParryLockout);
+	}
+
+	TD_TIMING_LOG(TEXT("[%.3f] PARRY LOCKOUT %s  until=%.3f"),
+		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f,
+		*GetName(),
+		ParryLockoutEndsAt);
+}
+
+void ATDCombatCharacter::ClearParryLockoutState()
+{
+	if (AbilitySystem)
+	{
+		AbilitySystem->RemoveLooseGameplayTag(TDTags::State_ParryLockout);
+	}
+
+	TD_TIMING_LOG(TEXT("[%.3f] PARRY LOCKOUT END %s"),
+		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f,
+		*GetName());
+}
+
+void ATDCombatCharacter::OnRep_ParryLockout()
+{
+	if (bParryLockedOut)
+	{
+		ApplyParryLockoutState();
+	}
+	else
+	{
+		ClearParryLockoutState();
+	}
+}
+
+void ATDCombatCharacter::BeginOnHitMovementWaiver(float DelaySeconds)
+{
+	UWorld* World = GetWorld();
+	if (!World || !HasAuthority())
+	{
+		return;
+	}
+
+	// Taken as the *earliest* of any pending waiver rather than the latest, which is the opposite
+	// of the stun family beside it and is the right way round for the same reason: these are
+	// releases, not sentences. Two hits landing in one exchange should hand movement back at the
+	// first moment either of them allows, never make the attacker wait for the slower one.
+	const float ReturnAt = World->GetTimeSeconds() + FMath::Max(DelaySeconds, 0.0f);
+	OnHitMovementWaiverAt = bOnHitMovementWaiverPending ? FMath::Min(OnHitMovementWaiverAt, ReturnAt) : ReturnAt;
+	bOnHitMovementWaiverPending = true;
+
+	// The fixture that witnesses the waiver, and it rides here because this is the one place that
+	// runs exactly when an attacker has connected. Deduped on a short window rather than on the
+	// attack instance: a swing that hits two bodies calls this twice in one tick, and the intent is
+	// one dodge per connecting attack, not one per victim. The window is well under the shortest
+	// gap between two attacks the fixture can throw.
+	if (bDebugDodgeAfterHit && DebugDefendDodgeInputTag.IsValid()
+		&& World->GetTimeSeconds() - DebugLastDodgeAfterHitAt > 0.25f)
+	{
+		DebugLastDodgeAfterHitAt = World->GetTimeSeconds();
+
+		// The input edges directly rather than DebugAutoDodgePress(), which re-homes the pawn
+		// first. Here the dodger *is* the attacker, mid-recovery, and teleporting it home would
+		// destroy the very thing the scenario measures -- whether the dodge came out at all -- by
+		// moving the body the moment the measurement starts.
+		OnAbilityInputPressed(DebugDefendDodgeInputTag);
+
+		GetWorldTimerManager().SetTimer(
+			DebugAutoDodgeReleaseTimerHandle,
+			this,
+			&ATDCombatCharacter::DebugAutoDodgeRelease,
+			0.05f,
+			false);
+	}
+}
+
 void ATDCombatCharacter::ReceiveKnockback(const FVector& DestinationWorld, float DurationSeconds, UCurveFloat* TimeMappingCurve)
 {
 	UCharacterMovementComponent* Movement = GetCharacterMovement();
@@ -1036,6 +1327,8 @@ void ATDCombatCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& O
 	DOREPLIFETIME(ATDCombatCharacter, bGuardBroken);
 	DOREPLIFETIME(ATDCombatCharacter, bInBlockstun);
 	DOREPLIFETIME(ATDCombatCharacter, bInHitstun);
+	DOREPLIFETIME(ATDCombatCharacter, bParryWindowOpen);
+	DOREPLIFETIME(ATDCombatCharacter, bParryLockedOut);
 	DOREPLIFETIME(ATDCombatCharacter, StringIndex);
 }
 
@@ -1629,9 +1922,70 @@ void ATDCombatCharacter::SeedAbilitySystemDefaults()
 		}
 		break;
 
+	case ETDDebugDefendMode::PeriodicParry:
+		if (DebugDefendParryInputTag.IsValid())
+		{
+			GetWorldTimerManager().SetTimer(
+				DebugAutoParryTimerHandle,
+				this,
+				&ATDCombatCharacter::DebugAutoParryPress,
+				DebugParryIntervalSeconds,
+				true,
+				DebugParryIntervalSeconds);
+		}
+		break;
+
 	default:
 		break;
 	}
+}
+
+void ATDCombatCharacter::DebugAutoParryPress()
+{
+	// Deliberately no ReturnToDebugAutoAttackHome() here, unlike the dodger. A parry does not
+	// travel, so the pawn never walks out of the exchange and there is nothing to correct -- while
+	// a teleport between attempts would move the parrier mid-approach and sever the spacing the
+	// hit is resolved at, which is the contamination the dodge fixture accepts only because a
+	// backward dodge genuinely does leave.
+	OnAbilityInputPressed(DebugDefendParryInputTag);
+
+	// Tapped rather than held, for the reason the dodge's tap gives: a press that never comes up is
+	// never stale, so a refused one would sit in the buffer and fire at a moment nobody scheduled.
+	// It matters more here -- GA_Parry refuses to buffer at all, since a replayed parry is a
+	// mistimed parry, so a stuck press would be a permanently held input answering nothing.
+	GetWorldTimerManager().SetTimer(
+		DebugAutoParryReleaseTimerHandle,
+		this,
+		&ATDCombatCharacter::DebugAutoParryRelease,
+		0.05f,
+		false);
+}
+
+void ATDCombatCharacter::DebugAutoParryRelease()
+{
+	OnAbilityInputReleased(DebugDefendParryInputTag);
+}
+
+void ATDCombatCharacter::DebugCancelIntoBlockPress()
+{
+	OnAbilityInputPressed(DebugDefendBlockInputTag);
+
+	// 0.40 rather than the dodge fixture's 0.05, because this press has to outlive
+	// MinimumBlockSeconds. Releasing inside the guard's own commitment window is the *feathering*
+	// case GA_Block deliberately defers, so the release would be remembered and applied later --
+	// giving a guard whose duration is set by the floor rather than by this fixture, which is
+	// exactly the bimodal-duration confusion the block slice already paid to remove once.
+	GetWorldTimerManager().SetTimer(
+		DebugCancelIntoBlockTimerHandle,
+		this,
+		&ATDCombatCharacter::DebugCancelIntoBlockRelease,
+		0.40f,
+		false);
+}
+
+void ATDCombatCharacter::DebugCancelIntoBlockRelease()
+{
+	OnAbilityInputReleased(DebugDefendBlockInputTag);
 }
 
 void ATDCombatCharacter::ReturnToDebugAutoAttackHome()
@@ -1904,6 +2258,19 @@ void ATDCombatCharacter::DebugAutoAttackPress()
 	}
 
 	OnAbilityInputPressed(DebugAutoAttackInputTag);
+
+	// The pre-commit cancel fixture. Scheduled from the press rather than from any montage event,
+	// because the boundary it has to land inside is measured from the press too -- the light's
+	// HoldUntilSeconds -- so anything else would be comparing against a different clock.
+	if (bDebugCancelAttackIntoBlock && DebugDefendBlockInputTag.IsValid())
+	{
+		GetWorldTimerManager().SetTimer(
+			DebugCancelIntoBlockTimerHandle,
+			this,
+			&ATDCombatCharacter::DebugCancelIntoBlockPress,
+			FMath::Max(DebugCancelAfterPressSeconds, 0.001f),
+			false);
+	}
 
 	// The burst's next tap, at string cadence -- it lands during the running swing, is refused,
 	// buffered, and chains out exactly as a mashing human's would. Re-enters this function with

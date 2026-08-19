@@ -53,13 +53,19 @@ namespace TDTags
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_GuardBroken);
 
 	/**
-	 *  A block succeeded. Refuses offense and parry for a duration the *attack* chose.
+	 *  A block succeeded. Refuses offense -- and *only* offense -- for a duration the *attack* chose.
 	 *
 	 *  **The counterpart to State_GuardBroken, and the pair only makes sense together.** A guard that
 	 *  fails costs you everything for a fixed stun; a guard that works costs you initiative for as
-	 *  long as what you blocked deserves. So this refuses attacking and parrying while leaving
-	 *  movement, dodging and the guard itself alone -- the defender never released the button, and
+	 *  long as what you blocked deserves. So this refuses attacking while leaving movement, dodging,
+	 *  parrying and the guard itself alone -- the defender never released the button, and
 	 *  taking their guard away for blocking correctly would invert the mechanic.
+	 *
+	 *  **Parry is deliberately not refused, and this comment said the opposite until 2026-08-18.**
+	 *  The "offense + parry" wording was wrong from the day it was written and no implementation
+	 *  ever matched it; blockstun and parry never know about each other (the designer, 2026-08-15).
+	 *  It was the last surviving copy of a claim Docs/Combat-Spec.md had already corrected, and it
+	 *  survived precisely because nothing could contradict it while parry did not exist.
 	 *
 	 *  Duration is authored per attack branch rather than here, because a heavy should pin a guard
 	 *  longer than a light and only the attacker knows which was thrown.
@@ -101,4 +107,24 @@ namespace TDTags
 	 *  EditDefaultsOnly equivalent can go stale on a placed actor with nothing to show for it.
 	 */
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Blocking_Committed);
+
+	/**
+	 *  Defensive activations are refused: a parry whiffed, or a dodge has just ended.
+	 *
+	 *  **One tag, two causes, because they are the same sentence for the same reason** -- both say
+	 *  "you may not put a parry window here". The whiff is the price of a missed read, sized so a
+	 *  fast-timed whiff stays locked through the charged's arrival; the post-dodge gap exists so a
+	 *  predictive dodge cannot chain into a parry that covers the charged, which would unscrew the
+	 *  vise's late jaw. Authoring them as two tags would let the pair overlap into a shorter total
+	 *  than either alone, which is the bug the max-extension below exists to prevent.
+	 *
+	 *  Native for the reason the four above are: C++ applies it, C++ refuses on it, and an
+	 *  EditDefaultsOnly equivalent can go stale on a placed actor with nothing to show for it.
+	 *
+	 *  **Deliberately not State.Parrying**, which is the ini tag GA_Parry carries in its
+	 *  ActivationOwnedTags while the window is open, exactly as State.Blocking marks a live guard.
+	 *  That one says "a parry is happening"; this one says "one may not start". The split follows
+	 *  State.Blocking / State.Blockstun and keeps the asset-facing half editable without a rebuild.
+	 */
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_ParryLockout);
 }

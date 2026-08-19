@@ -487,6 +487,16 @@ protected:
 	virtual float GetAttackBlockstunSeconds() const override;
 	virtual float GetAttackHitstunSeconds() const override;
 	virtual float GetKnockbackSpacingCm(bool bBlocked) const override;
+
+	/**
+	 *  The on-hit waiver's offensive half: drop CommittedTag now rather than at EndAbility.
+	 *
+	 *  Only the tag goes. The facing lock and the movement lock are separate flags with their own
+	 *  lifetimes, and neither is touched here -- movement comes back on its own derived delay, and
+	 *  facing stays frozen because a connected swing has no business re-aiming itself.
+	 */
+	virtual void ReleaseCommitmentTag() override;
+
 	virtual const TArray<FTDAttackHitbox>& GetAttackHitboxes() const override;
 	virtual UAnimMontage* GetActiveAttackMontage() const override;
 

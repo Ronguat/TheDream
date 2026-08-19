@@ -12,6 +12,7 @@
 #
 # Scenarios: s1-light s1-heavy s1-charged s2-light s2-heavy s2-charged s3
 #            s4-string s4-guarantee s4-block s4-360   (all need StringTaps 3)
+#            s5-parry s5-parry-whiff s5-cancel s5-waiver
 # Exit 0 = all assertions passed, 1 = at least one failed, 2 = usage/no data.
 
 set -uo pipefail
@@ -75,6 +76,30 @@ BAND_BLOCKSTUN_TOL=0.020
 
 # S2 -- GuardBreakStunSeconds, break to GUARD END. Measured 1.004..1.007.
 BAND_GUARDSTUN=1.000; BAND_GUARDSTUN_TOL=0.025
+
+# S5 -- the parry window and the lockout a whiff leaves behind.
+# Source: GA_Parry's CDO (ParryWindowSeconds, ParryWhiffLockoutSeconds), read 2026-08-19.
+# Neither is a free number. The window is fenced above by the anti-option-select ceiling -- one
+# press must not cover two read-classes, so it must stay under the fast-to-charged gap of 400 ms --
+# and below by the longest authored ReleaseSeconds, 0.150, or a damaging phase could span the whole
+# window and come out unparried. The lockout is floored by the constraint that a whiff timed against
+# the fast layer stays locked through the charged's 750 ms arrival.
+BAND_PARRY_WINDOW=0.300
+BAND_PARRY_LOCKOUT=0.600
+BAND_PARRY_SPAN_TOL=0.025
+
+# S5 -- the credited stamina reward. Deliberately a *band*, not an equality, and the reason is a
+# gap rather than a tolerance: the reward is clamped by the attribute set, and no fixture today can
+# put the parrier below full stamina -- a parry costs nothing, so an unattended parrier never
+# spends. Every sample is therefore legitimately 0.0. See the trap in Docs/Combat-Decisions.md.
+BAND_PARRY_GAINED_MIN=0
+BAND_PARRY_GAINED_MAX=25
+
+# S5 -- how quickly the on-hit waiver lets the attacker's own dodge out, in ms from its DAMAGED.
+# The waiver frees defensive activations *instantly*, so this measures the fixture's press latency
+# rather than a designed delay; anything beyond a couple of frames means the commitment tag is
+# still refusing, which is the rule silently not working.
+BAND_WAIVER_DODGE_MAX_MS=100
 
 # S3 -- DodgeTargetDistanceCm and the spread measured on clean samples.
 BAND_DODGE_MIN=400; BAND_DODGE_MAX=420
@@ -229,6 +254,53 @@ hitstun_spans() { # until= minus the timestamp it was printed at; same shape as 
 		/^\[[0-9.]+\] HITSTUN    / {
 			t=$1; gsub(/[\[\]]/,"",t)
 			for (i=1;i<=NF;i++) if ($i ~ /^until=/) { split($i,a,"="); printf "%.3f\n", a[2]-t }
+		}' "$SLICE"
+}
+
+parry_window_spans() { # until= minus the timestamp it was printed at; blockstun_spans' shape
+	awk '
+		/^\[[0-9.]+\] PARRY WINDOW open/ {
+			t=$1; gsub(/[\[\]]/,"",t)
+			for (i=1;i<=NF;i++) if ($i ~ /^until=/) { split($i,a,"="); printf "%.3f\n", a[2]-t }
+		}' "$SLICE"
+}
+
+parry_lockout_spans() { # same, for State.ParryLockout -- **both** of its causes
+	# Deliberately not filtered to whiffs. The tag has two sources, a whiffed parry (0.600) and a
+	# dodge ending (0.150), so a log containing dodges yields both lengths and a band expecting one
+	# will fail on the other. That is correct rather than a flaw -- s5-parry-whiff's fixture never
+	# dodges, so its samples are all whiffs -- but it is why this must not be pointed at an
+	# arbitrary log. Proven the day it was written: run against s5-waiver's log it returns
+	# seventeen 0.150s, which are the post-dodge gaps and nothing to do with a parry whiff.
+	awk '
+		/^\[[0-9.]+\] PARRY LOCKOUT [^E]/ {
+			t=$1; gsub(/[\[\]]/,"",t)
+			for (i=1;i<=NF;i++) if ($i ~ /^until=/) { split($i,a,"="); printf "%.3f\n", a[2]-t }
+		}' "$SLICE"
+}
+
+parry_success_gained() { grep "^\[[0-9.]*\] PARRY SUCCESS" "$SLICE" | grep -o "gained=[0-9.-]*" | cut -d= -f2; }
+
+parried_string_violations() { # a parried swing must not open a link window
+	# The next STRING line after each PARRY SUCCESS has to be a reset, never "link window open".
+	# Looking forward rather than pairing by swing index because the parried attacker is named on
+	# the WAIVER/STRING lines but not on the parry's own, and the fixture is 1v1 -- so the very next
+	# STRING event is unambiguously this swing's. A second attacker would need the name.
+	awk '
+		/^\[[0-9.]+\] PARRY SUCCESS/ { armed=1; next }
+		armed && /^\[[0-9.]+\] STRING/ {
+			if ($0 ~ /link window open/) print $0
+			armed=0
+		}' "$SLICE"
+}
+
+waiver_dodge_latency_ms() { # ms from each DAMAGED to the next DODGE, the waiver's own latency
+	awk '
+		/^\[[0-9.]+\] DAMAGED/ { t=$1; gsub(/[\[\]]/,"",t); hit=t; armed=1; next }
+		armed && /^\[[0-9.]+\] DODGE      dir=/ {
+			t=$1; gsub(/[\[\]]/,"",t)
+			printf "%.0f\n", (t-hit)*1000
+			armed=0
 		}' "$SLICE"
 }
 
@@ -448,6 +520,97 @@ run_s3() {
 # --- S4: the light string ---------------------------------------------------
 # Fixture for all four: DebugAutoAttackStringTaps 3. The defender differs per scenario.
 
+run_s5_parry() {
+	local successes violations
+
+	# The window itself. Mechanical, not a notify, so this is the one place its length is visible.
+	assert_all_in_band "PARRY WINDOW span" "parry_window_spans" \
+		"$(awk -v v="$BAND_PARRY_WINDOW" -v t="$BAND_PARRY_SPAN_TOL" 'BEGIN{printf "%.3f", v-t}')" \
+		"$(awk -v v="$BAND_PARRY_WINDOW" -v t="$BAND_PARRY_SPAN_TOL" 'BEGIN{printf "%.3f", v+t}')" "s"
+
+	# A run with no successes is not a pass -- it is a fixture that never met an attack, which is
+	# exactly what an aliasing interval produces while looking healthy. n=0 fails, as it does for
+	# knockback in s4-string and for the same reason.
+	successes=$(grep -c "^\[[0-9.]*\] PARRY SUCCESS" "$SLICE" || true)
+	if [ "$successes" -gt 0 ]; then
+		check "PARRY SUCCESS observed" 0 "$successes"
+	else
+		check "PARRY SUCCESS observed" 1 "none -- the parry interval may be aliasing against the attacker's"
+	fi
+
+	# The credited reward, clamp included. See the band's comment for why this is not an equality.
+	assert_all_in_band "parry reward within clamp" "parry_success_gained" \
+		"$BAND_PARRY_GAINED_MIN" "$BAND_PARRY_GAINED_MAX"
+
+	# "No more games": a parried swing takes the string with it, so no link window may follow one.
+	violations=$(parried_string_violations | grep -c '[0-9]' || true)
+	assert_count "no STRING continuation after a parry" "$violations" 0
+}
+
+run_s5_parry_whiff() {
+	local refusals
+
+	assert_all_in_band "PARRY LOCKOUT span" "parry_lockout_spans" \
+		"$(awk -v v="$BAND_PARRY_LOCKOUT" -v t="$BAND_PARRY_SPAN_TOL" 'BEGIN{printf "%.3f", v-t}')" \
+		"$(awk -v v="$BAND_PARRY_LOCKOUT" -v t="$BAND_PARRY_SPAN_TOL" 'BEGIN{printf "%.3f", v+t}')" "s"
+
+	# The lockout has to actually refuse something, or it is a tag nobody reads. The parry fixture
+	# presses on its own schedule, so presses land inside a running lockout by construction.
+	refusals=$(grep "^\[[0-9.]*\] REFUSED" "$SLICE" | grep -c "State.ParryLockout" || true)
+	if [ "$refusals" -gt 0 ]; then
+		check "REFUSED names State.ParryLockout" 0 "$refusals"
+	else
+		check "REFUSED names State.ParryLockout" 1 "none -- the lockout refused nothing"
+	fi
+}
+
+run_s5_cancel() {
+	local releases costs damaged
+
+	# The pre-commit cancel: a defensive action inside the attack's startup erases the swing before
+	# it can ever damage. No release window means the hitbox never went live at all.
+	releases=$(grep -c "^\[[0-9.]*\] RELEASE BEGIN" "$SLICE" || true)
+	assert_count "cancelled swings never release" "$releases" 0
+
+	damaged=$(grep -c "^\[[0-9.]*\] DAMAGED" "$SLICE" || true)
+	assert_count "cancelled swings deal no damage" "$damaged" 0
+
+	# The guard the cancel bought is real and charged for, once per cancel rather than once ever --
+	# which is what says the fixture is re-pressing rather than holding a stale guard up.
+	costs=$(grep -c "^\[[0-9.]*\] BLOCK      cost" "$SLICE" || true)
+	if [ "$costs" -gt 0 ]; then
+		check "BLOCK cost per cancel" 0 "$costs"
+	else
+		check "BLOCK cost per cancel" 1 "none -- no guard was raised, so nothing was cancelled"
+	fi
+}
+
+run_s5_waiver() {
+	local dodges
+
+	# The waiver's whole observable claim: the attacker's own dodge comes out of its own recovery.
+	# Before the waiver this press was refused by State.Attacking.Committed and produced a REFUSED
+	# line instead, so a zero here is the rule silently not working.
+	dodges=$(waiver_dodge_latency_ms | grep -c '[0-9]' || true)
+	if [ "$dodges" -gt 0 ]; then
+		check "attacker dodges out of its own hit" 0 "$dodges"
+	else
+		check "attacker dodges out of its own hit" 1 "none -- the commitment tag is still refusing"
+	fi
+
+	assert_all_in_band "waiver dodge latency" "waiver_dodge_latency_ms" \
+		0 "$BAND_WAIVER_DODGE_MAX_MS" "ms"
+
+	# And the movement half, which is the *derived* one: contact plus that swing's hitstun.
+	local unlocks
+	unlocks=$(grep -c "^\[[0-9.]*\] MOVE UNLOCK" "$SLICE" || true)
+	if [ "$unlocks" -gt 0 ]; then
+		check "MOVE UNLOCK observed" 0 "$unlocks"
+	else
+		check "MOVE UNLOCK observed" 1 "none -- movement never came back early"
+	fi
+}
+
 assert_burst_shape() { # every swing index in the string fires the same number of times
 	local counts n_idx uneven
 	counts=$(swing_index_counts)
@@ -663,6 +826,10 @@ case "$SCENARIO" in
 	s4-guarantee) run_s4_guarantee ;;
 	s4-block)     run_s4_block ;;
 	s4-360)       run_s4_360 ;;
+	s5-parry)       run_s5_parry ;;
+	s5-parry-whiff) run_s5_parry_whiff ;;
+	s5-cancel)      run_s5_cancel ;;
+	s5-waiver)      run_s5_waiver ;;
 	*) echo "regression-check: unknown scenario '$SCENARIO'" >&2; usage ;;
 esac
 

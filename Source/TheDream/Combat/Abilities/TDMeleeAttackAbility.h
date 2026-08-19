@@ -408,6 +408,30 @@ protected:
 	void HandleTraceHit(const FHitResult& Hit);
 
 	/**
+	 *  Drops this attack's commitment marker early, so defensive actions open mid-recovery.
+	 *
+	 *  The on-hit waiver's offensive half. A no-op here because a plain swing has no commit
+	 *  checkpoint to release; UTDChargedAttackAbility overrides it, since the tag is that class's
+	 *  per-branch CommittedTag. Expressed as a hook rather than by moving the property down,
+	 *  because moving a UPROPERTY orphans every Blueprint CDO override of it.
+	 */
+	virtual void ReleaseCommitmentTag() {}
+
+	/**
+	 *  This swing was parried. Set in the hit path, cleared on every activation.
+	 *
+	 *  **What it actually forbids is chaining** -- see UTDChargedAttackAbility::IsChainOutOpen.
+	 *  A parried attacker is planted at zero distance and rides their own recovery, which *is* the
+	 *  punish window; letting them chain out of it would hand back the entire reward, and a parried
+	 *  light would arrive again before the punish it earned could land. "No more games" -- the
+	 *  designer, 2026-08-18.
+	 *
+	 *  Runtime only and not replicated: it is read on the server, in the same tick-ordered path
+	 *  that set it, and the chain-out it gates is already named for Netcode's prediction pass.
+	 */
+	bool bParried = false;
+
+	/**
 	 *  Computes the fixed destination for this swing's knockback and hands it to the target.
 	 *
 	 *  Authority-implied: only ever called from HandleTraceHit past its authority gate. The

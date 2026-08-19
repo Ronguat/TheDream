@@ -13,4 +13,5 @@ namespace TDTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Blocking_Committed, "State.Blocking.Committed", "A guard is inside its minimum duration. Refuses everything but movement.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Blockstun, "State.Blockstun", "A block succeeded. Refuses offense only -- never defense -- for a duration the attack chose.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Hitstun, "State.Hitstun", "Cleanly hit. Refuses every ability, defense included, for a duration the attack authored.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_ParryLockout, "State.ParryLockout", "A parry whiffed, or a dodge just ended. Refuses defensive activations for its duration.");
 }

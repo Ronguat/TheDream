@@ -86,6 +86,23 @@ protected:
 	float DodgeSeconds = 0.5f;
 
 	/**
+	 *  How long after this dodge ends a parry may not be started. Applied as State.ParryLockout.
+	 *
+	 *  **Derived, and it must not be tuned freely.** The constraint is that dodge-end plus this gap
+	 *  plus ParryWindowSeconds has to overshoot the charged's 750 ms arrival for the worst-timed
+	 *  predictive dodge -- otherwise a dodge thrown on a guess eats the fast layer and the parry it
+	 *  chains into covers the slow one at no extra read, which is the option-select the whole input
+	 *  scheme was chosen to prevent.
+	 *
+	 *  It lives on the dodge rather than on GA_Parry because the dodge is what knows one just
+	 *  ended, and because the refusal it produces is the parry lockout the whiff already uses --
+	 *  there is no second mechanism here, only a second cause. Re-derive it whenever DodgeSeconds,
+	 *  the parry window, or the charged's arrival moves.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Dodge", meta=(ClampMin="0.0"))
+	float PostDodgeParryLockoutSeconds = 0.15f;
+
+	/**
 	 *  How far a dodge should carry, in cm. **This is the distance knob.**
 	 *
 	 *  **Every direction travels exactly this**, as of 2026-08-13. It used to be a target that eight

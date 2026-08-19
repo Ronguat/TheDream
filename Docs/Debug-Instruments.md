@@ -192,6 +192,26 @@ beside it means the guard broke instead**, which is correct and supersedes it; `
 *neither* is the failure to watch for. **Nothing will ever print it for a charged** — its stamina
 damage empties any bar, so it always breaks. That is a filed trap, not a bug.
 
+**Parry adds five, and the pairing to read is window → outcome** *(2026-08-19)*. `PARRY WINDOW
+open` carries `until=`, so its span is read the way `BLOCKSTUN`'s is — the end time, not a duration.
+Exactly one of two lines follows it: `PARRY SUCCESS`, naming the attacker it caught, or `PARRY
+WHIFF` with the lockout it just bought. `PARRY LOCKOUT` / `PARRY LOCKOUT END` then bracket the
+refusal, and **that pair has two causes** — a whiffed parry and a dodge ending — so a `PARRY
+LOCKOUT` with no `PARRY WHIFF` beside it is the post-dodge gap, not a missing line.
+
+**`PARRY SUCCESS`'s `gained=` is the *credited* stamina, not the authored reward**, and the two
+differ whenever the bar is near full. Today every sample reads `gained=0.0`: a parry costs nothing,
+so an unattended parrier never spends and its bar never leaves 100, and the clamp eats the whole
+reward. That is the clamp working. It is also why the reward's magnitude is a filed trap rather
+than an assertion — see `Docs/Combat-Decisions.md`.
+
+**The waiver adds two, and they are deliberately not simultaneous.** `WAIVER` fires at contact and
+names the tag it dropped; `MOVE UNLOCK` fires later, at contact plus that swing's `HitstunSeconds`.
+**The gap between them is the derivation, so it is the thing to check** — measured 0.557 against
+the light's authored 0.550 on the day it landed. `WAIVER` with no `MOVE UNLOCK` following is
+movement never coming back early, which reads in play as an attacker rooted after a hit that
+connected.
+
 **`INPUT <tag> pressed/released` is the button edge, and the only line in the trace that is** —
 **but it is not proof of a human** *(clarified 2026-08-15)*. The debug attacker and defender both
 drive `OnAbilityInputPressed`, so they emit `INPUT` exactly as a keyboard does; `INPUT
@@ -380,6 +400,34 @@ looks ignored.
 | `s4-guarantee` | 0.1, **taps 3** | `PeriodicDodge` | `REFUSED` lines attributed to `State.Hitstun`; **zero `DODGE` between `HITSTUN` and `HITSTUN END`** — the string's guarantee, observable; `HITSTUN` spans as above |
 | `s4-block` | 0.1, **taps 3** | `HoldBlock` | `BLOCKED` staminaDamage exactly 5; `BLOCKSTUN` spans 0.350 ±20 ms; knockback never inward |
 | `s4-360` | 0.1, **taps 3**, `FacingMode` **Never**, **`bDebugSuppressLunge`** | `Off`, plus the player spawned at (200, 150) opposite the defender | **first burst only**: attacks 1–2 damage **zero** distinct targets, attack 3 damages **two** |
+| `s5-parry` | 0.1, **taps 3** | `PeriodicParry` | `PARRY WINDOW` span 0.300 ±25 ms; at least one `PARRY SUCCESS` (**n=0 fails**); credited reward inside [0, 25]; **zero `STRING` link window after a parried swing** |
+| `s5-parry-whiff` | 0.1, **taps 3** | `PeriodicParry`, `DebugParryIntervalSeconds` **0.5** | `PARRY LOCKOUT` span 0.600 ±25 ms; `REFUSED` naming `State.ParryLockout` at least once |
+| `s5-cancel` | 0.1, **`bDebugCancelAttackIntoBlock`** | `Off` | zero `RELEASE BEGIN`; zero `DAMAGED`; `BLOCK cost` at least once |
+| `s5-waiver` | 0.1, **`bDebugDodgeAfterHit`** | `Off` | attacker `DODGE` within 100 ms of its own `DAMAGED`; `MOVE UNLOCK` present |
+
+**`s5-parry-whiff` needs its own interval, and finding out why cost a run** *(2026-08-19)*. At the
+default 1.7 the lockout is **never exercised**: a whiff closes 0.3 s after the press and its lockout
+expires 0.6 s later, so the next press arrives 800 ms after the refusal window has already gone.
+That run produced 10 whiffs and **zero** `REFUSED` lines naming `State.ParryLockout` — a lockout
+that had never once refused anything, while every span assertion passed. At **0.5** the presses land
+inside it and roughly every other one is refused.
+
+**The general form is worth keeping: a span assertion and a refusal assertion need different
+fixtures.** Measuring how long a lockout *lasts* only requires it to exist; proving it *does*
+anything requires something to arrive while it is up, and a co-prime sweep is specifically designed
+to avoid that collision.
+
+**Successes are rare, and the run has to be long enough to admit that.** Measured 2026-08-19 at
+taps 1: **1 success in 14 windows** over 40 s, because a 300 ms window has to meet a 150 ms release
+inside a 3 s attack cycle. Taps 3 improves it by putting three hitboxes in each cycle. **Budget
+minutes, not seconds** — and a run reporting zero successes is a fixture that never met an attack,
+which is why `s5-parry` fails on n=0 rather than passing vacuously.
+
+**`s5-cancel` and `s5-waiver` are the two scenarios where the *attacker* defends**, which every
+other row treats as a fixture error. They are the exception on purpose: the pre-commit cancel and
+the on-hit waiver are both rules about what an attacker may do mid-swing, and no arrangement of one
+attacker and one defender can witness them otherwise. Both knobs default off, so no existing
+scenario changes.
 
 **The `s4-*` bands come from `GA_Attack`'s CDO, not from the plan session.** Three of the plan's
 proposals were stale by the time they were built — cadence 350 → **500 ms** once it was measured off

@@ -292,6 +292,26 @@ void UTDDodgeAbility::EndAbility(const FGameplayAbilitySpecHandle Handle, const 
 	// character permanently invulnerable -- the defensive equivalent of a stuck State tag.
 	EndIFrames();
 
+	// **The post-dodge gap, and it is derived rather than felt.** Without it a *predictive* dodge
+	// chains straight into a parry whose window covers the charged's arrival: the dodge eats the
+	// fast layer on a guess, and the parry covers the slow one for free, so the vise's late jaw
+	// unscrews and the charged stops collecting on a wrong read. The constraint is that dodge-end
+	// plus this gap plus the parry window must overshoot 750 for the worst-timed predictive dodge.
+	//
+	// Expressed as the same State.ParryLockout a whiffed parry pays, rather than as a bespoke
+	// timestamp consulted in CanActivateAbility. One tag, one refusal, and the max-extension in
+	// ApplyParryLockout is then what stops the two causes overlapping into a shorter total than
+	// either alone -- which is the exact escape this gap exists to close.
+	//
+	// Applied on *every* exit including a cancel, deliberately: a dodge cut short still bought its
+	// i-frames, and letting a cancel skip the gap would make cancelling the cheap route to the
+	// chain this forbids. The dodge itself needs no cover, since GA_Parry already refuses to
+	// activate while State.Dodging is present.
+	if (ATDCombatCharacter* Character = Cast<ATDCombatCharacter>(GetAvatarActorFromActorInfo()))
+	{
+		Character->ApplyParryLockout(PostDodgeParryLockoutSeconds);
+	}
+
 	// Cleared here for the same reason: a status line that outlives its ability describes
 	// something that is no longer happening, which is worse than showing nothing.
 	if (ATDCombatCharacter* Character = Cast<ATDCombatCharacter>(GetAvatarActorFromActorInfo()))

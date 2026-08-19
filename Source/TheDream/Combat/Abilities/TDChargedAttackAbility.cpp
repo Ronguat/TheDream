@@ -787,8 +787,39 @@ UAnimMontage* UTDChargedAttackAbility::GetActiveAttackMontage() const
 	return AttackMontage;
 }
 
+void UTDChargedAttackAbility::ReleaseCommitmentTag()
+{
+	// Guarded on the attack having actually committed, so a hit landing before the checkpoint --
+	// which nothing produces today, but which a shorter windup could -- cannot remove a tag that
+	// was never added. RemoveLooseGameplayTag on an absent tag is harmless; the guard is here so
+	// the *intent* reads correctly rather than depending on that.
+	if (!bAttackCommitted || !CommittedTag.IsValid())
+	{
+		return;
+	}
+
+	if (UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo())
+	{
+		ASC->RemoveLooseGameplayTag(CommittedTag);
+	}
+
+	TD_TIMING_LOG(TEXT("[%.3f] WAIVER     %s dropped %s on contact"),
+		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f,
+		*GetNameSafe(GetAvatarActorFromActorInfo()),
+		*CommittedTag.ToString());
+}
+
 bool UTDChargedAttackAbility::IsChainOutOpen() const
 {
+	// **A parried attack cannot chain.** One condition, and it is the whole of what a parry does to
+	// the attacker beyond planting them: recovery is the punish window, and chaining out of it is
+	// precisely the escape that would hand the reward back. A parried light would otherwise race
+	// its own chain and arrive again before the punish it just earned could land.
+	if (bParried)
+	{
+		return false;
+	}
+
 	if (!bInRecovery || !IsNonFinalStringLight())
 	{
 		return false;
@@ -892,6 +923,15 @@ void UTDChargedAttackAbility::EndAbility(const FGameplayAbilitySpecHandle Handle
 		if (bWasCancelled)
 		{
 			CombatCharacter->ResetString(TEXT("swing cancelled"));
+		}
+		else if (bParried)
+		{
+			// **A parried swing takes the string with it** -- "no more games" (the designer,
+			// 2026-08-19). Gated here rather than only at the moment of the parry because this is
+			// where the link window is *opened*: resetting at contact and then falling through to
+			// the branch below would re-open the very window the reset just closed, which is
+			// exactly what the first build did.
+			CombatCharacter->ResetString(TEXT("parried"));
 		}
 		else if (bAttackCommitted && IsNonFinalStringLight())
 		{

@@ -23,6 +23,11 @@ void UTDMeleeAttackAbility::ActivateAbility(const FGameplayAbilitySpecHandle Han
 {
 	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
 
+	// Reset per activation: these instances are InstancedPerActor and therefore reused, so a parry
+	// suffered by a previous swing would otherwise forbid this one from chaining -- the same shape
+	// of bug GA_Block's bReleasePending reset exists to prevent.
+	bParried = false;
+
 	StartMeleeTrace(GetAttackHitboxes());
 
 	// The base lunge starts on the same frame as the montage, deliberately: it *is* the
@@ -313,6 +318,49 @@ void UTDMeleeAttackAbility::HandleTraceHit(const FHitResult& Hit)
 		return;
 	}
 
+	// Parry, resolved here for the same reason i-frames are, and ordered between them and the block.
+	//
+	// **In practice none of the three can co-occur**: GA_Parry refuses activation while
+	// State.Dodging or State.Blocking is present, so this ordering describes what happens if one of
+	// those guarantees ever breaks rather than a case anyone can reach today. It follows the
+	// precedent set just above -- intangibility is a stronger claim than negation, and negation is
+	// stronger than absorption.
+	//
+	// The dedup that makes the rest of this release window inert against the parrier is already
+	// done: ResolveHits adds every geometrically-valid candidate to ActorsHitThisWindow *before*
+	// broadcasting, so nothing is needed here to stop the remaining active frames re-hitting them.
+	if (ATDCombatCharacter* Parrier = Cast<ATDCombatCharacter>(HitActor))
+	{
+		if (Parrier->IsParryWindowOpen())
+		{
+			// **The attacker is planted, exactly as on a connecting hit, and that is the entire
+			// reward.** A parry is a dodge that stands still: stopping the lunge here manufactures
+			// the whiff at zero centimetres, so the attacker rides their own attack into recovery
+			// -- which is already the punish window, and already scales with the tier they chose.
+			// Nothing is authored on the attacker's side because nothing needs to be.
+			StopLunge();
+
+			// Everything the hit would have done is simply not done: no damage, no stamina damage,
+			// no blockstun, no hitstun, no knockback. The early return is the whole negation.
+			bParried = true;
+
+			// **"No more games."** This one flag stops two different things, and only together do
+			// they mean it: IsChainOutOpen reads it to forbid skipping recovery, and EndAbility
+			// reads it to kill the string outright, so the attacker's next press starts a fresh
+			// swing 0 rather than resuming where the parry interrupted them (the designer,
+			// 2026-08-19). The string dies *there* rather than here, because that is where the
+			// link window is opened -- resetting at contact and then falling through would only
+			// re-open the window the reset had just closed.
+			//
+			// The string half also lands the reward where the derived model is weakest: recovery
+			// scales the punish by the victim's commitment, so a parried *light* has the shortest
+			// recovery and pays least, and taking the string compensates exactly there without
+			// authoring the per-branch bonus that was raised and rejected.
+			Parrier->NotifyParrySuccess(GetAvatarActorFromActorInfo());
+			return;
+		}
+	}
+
 	// Block, resolved here for the same reason i-frames are: this is the only place that knows a
 	// hit happened at all, and a defender cannot refuse damage it never sees.
 	//
@@ -412,6 +460,35 @@ void UTDMeleeAttackAbility::HandleTraceHit(const FHitResult& Hit)
 	{
 		Victim->EnterHitstun(GetAttackHitstunSeconds());
 		ApplyKnockbackToTarget(Victim, /*bBlocked=*/false);
+	}
+
+	// **The on-hit waiver: punishment attaches to failure, and a hit is not failure.** The first
+	// rule authored with 1vX in mind (the designer, 2026-08-18). Recovery is the punish window, and
+	// it stays exactly that where it was derived -- against whiffs and against blocks. What it was
+	// never meant to do is pin an attacker who *connected*, which in a crowd is the difference
+	// between a swing and a sentence.
+	//
+	// Two halves, and they are deliberately not the same length. Defensive activations open
+	// **instantly**, by dropping the commitment marker: from here the attacker may block, dodge or
+	// parry out of their own recovery. Offense is untouched -- the chain rules already govern it,
+	// and this must not become a second way to chain.
+	//
+	// The consequence, accepted eyes-open and filed as a watch: chain-to-defense. A whiffed
+	// chain-eligible light can chain-press and cancel into a guard, converting a whiff punish from
+	// guaranteed damage into a favourable RPS position. It is priced -- 10 stamina, a guard
+	// commitment, initiative handed over, and a flinch race the punisher can win -- and Interplay
+	// judges it. The recorded fallback for both this and the 08-16 whiff-chain ruling is one
+	// condition: a contact gate on chain-out.
+	ReleaseCommitmentTag();
+
+	if (ATDCombatCharacter* Attacker = Cast<ATDCombatCharacter>(GetAvatarActorFromActorInfo()))
+	{
+		// **Movement returns later than defense, and the delay is derived rather than chosen.**
+		// Earlier lets the attacker walk in and erode the authored spacing the fixed-destination
+		// knockback just paid for; later is dead freedom, since by then the victim is out of
+		// hitstun and the exchange has restarted. So it is exactly contact plus this swing's own
+		// hitstun -- the window during which the victim cannot answer anyway.
+		Attacker->BeginOnHitMovementWaiver(GetAttackHitstunSeconds());
 	}
 }
 

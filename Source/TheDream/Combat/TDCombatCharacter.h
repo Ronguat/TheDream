@@ -149,7 +149,19 @@ enum class ETDDebugDefendMode : uint8
 	 *  fixed schedule and travels a known distance in a known direction -- which is what makes the
 	 *  exhaustion cycle and DodgeTargetDistanceCm measurable without a human.
 	 */
-	PeriodicDodge
+	PeriodicDodge,
+
+	/**
+	 *  Tap the parry input on DebugParryIntervalSeconds.
+	 *
+	 *  **The phase sweep is the whole design, and it is why this produces both outcomes.** A parry
+	 *  is a 300 ms window against attacks arriving on their own schedule, so a period co-prime with
+	 *  the attacker's walks the window across windup, release and recovery -- yielding successes
+	 *  *and* whiffs from one unattended run, which is what lets a scenario assert the reward and
+	 *  the lockout in the same log. A period that divided the attacker's would answer one question
+	 *  forever and look like a working fixture while doing it. See DebugParryIntervalSeconds.
+	 */
+	PeriodicParry
 };
 
 /**
@@ -264,6 +276,72 @@ public:
 	 *  victim's own string. Server decides; the state pair applies the tag everywhere. 0 no-ops.
 	 */
 	void EnterHitstun(float DurationSeconds);
+
+	/**
+	 *  True while a parry window is open and has not yet caught anything.
+	 *
+	 *  **Asked by the *attacker's* hit path, which is the reason this is mechanical state on the
+	 *  character rather than anything owned by GA_Parry.** A defender cannot refuse a hit it never
+	 *  sees, exactly as with i-frames and the guard, so the negation is resolved where the hit is
+	 *  detected -- and that code has a character pointer, not an ability one.
+	 */
+	UFUNCTION(BlueprintPure, Category="Combat|Parry")
+	bool IsParryWindowOpen() const { return bParryWindowOpen; }
+
+	/**
+	 *  Opens the negation window for DurationSeconds. Called by GA_Parry on activation.
+	 *
+	 *  The whiff lockout travels in with it rather than being read back later, so the price of a
+	 *  window is fixed at the moment it opens -- retuning GA_Parry mid-window cannot change what an
+	 *  already-running parry costs.
+	 */
+	void OpenParryWindow(float DurationSeconds, float WhiffLockoutSeconds);
+
+	/**
+	 *  Closes the window, charging the whiff lockout unless it caught something. Idempotent.
+	 *
+	 *  **One exit for every way a window can end** -- expiry in Tick, the ability being cancelled,
+	 *  death -- so the lockout cannot be skipped by ending the parry through an unusual path. That
+	 *  matters because being *cancelled* is the cheap exit an attacker could otherwise hand you.
+	 */
+	void CloseParryWindow();
+
+	/**
+	 *  A parry landed: pay the reward and close the window free of charge.
+	 *
+	 *  Called from the attacker's hit path on the server, which is the only place that knows a hit
+	 *  was resolved at all. Clears the regen pause outright rather than letting it tail off -- the
+	 *  designer's ruling, and the reason the parry's own State.StaminaRegenPaused is charged like
+	 *  everyone else's: a *whiff* pays the pause, a *success* discharges it. That asymmetry is the
+	 *  reward showing up in the stamina ledger as well as in the clock.
+	 */
+	void NotifyParrySuccess(AActor* Attacker);
+
+	/**
+	 *  Refuses defensive activations for DurationSeconds, or extends a running lockout to the later
+	 *  end time. Both of its causes -- a whiffed parry and a dodge ending -- come through here.
+	 *
+	 *  Max-extended rather than reassigned, following blockstun: two overlapping causes must never
+	 *  produce a shorter total than either alone.
+	 */
+	void ApplyParryLockout(float DurationSeconds);
+
+	/** True while defensive activations are refused. See State_ParryLockout. */
+	UFUNCTION(BlueprintPure, Category="Combat|Parry")
+	bool IsParryLockedOut() const { return bParryLockedOut; }
+
+	/**
+	 *  Hands movement back DelaySeconds from now, part-way through an attack that connected.
+	 *
+	 *  The on-hit waiver's movement half. Called by the attacking ability on a clean hit; the
+	 *  defensive half is instant and happens there, by dropping the commitment tag.
+	 *
+	 *  **A release, never a lock** -- it can only ever return control early, so a waiver that fires
+	 *  against an ability which has already ended is harmless rather than a way to strand movement.
+	 *  The ability's own EndAbility still releases the lock on every path, and both calls go to the
+	 *  same idempotent setter.
+	 */
+	void BeginOnHitMovementWaiver(float DelaySeconds);
 
 	/**
 	 *  The knockback's receiving half: carry this character to a fixed world destination over a
@@ -676,6 +754,27 @@ protected:
 	float BlockInitialStaminaCost = 0.0f;
 
 	/**
+	 *  Stamina paid to the parrier when a parry lands. The one *authored* half of the reward.
+	 *
+	 *  Everything else a parry pays out is derived -- the attacker is planted at zero distance and
+	 *  rides their own attack into recovery, so the punish scales with their commitment for free.
+	 *  This is the deliberate exception: a flat refund that makes a correct read *pay* rather than
+	 *  merely cost nothing, and it is paid per parry rather than per tier.
+	 *
+	 *  **Per-branch rewards were raised and rejected** (2026-08-18). The derived model pays by the
+	 *  victim's commitment rather than by the read's difficulty, which is an inversion the designer
+	 *  accepted eyes-open; an authored per-branch bonus exists only if play demands compensation
+	 *  for how hard a given tier is to read.
+	 *
+	 *  Lives here rather than on GA_Parry because the stamina economy is orchestrated in one place
+	 *  on purpose -- a second spender on an ability's own clock would be the first thing able to
+	 *  disagree with it. Clamped by the attribute set like every other write, so a reward at full
+	 *  stamina is silently free rather than an overflow.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Parry", meta=(ClampMin="0.0"))
+	float ParryStaminaReward = 25.0f;
+
+	/**
 	 *  Collapse into a ragdoll on death.
 	 *
 	 *  The minimal death shipped by the Death slice is otherwise *inert* rather than legible --
@@ -843,6 +942,46 @@ protected:
 	bool bDebugAutoAttackHomeBetweenAttacks = false;
 
 	/**
+	 *  On landing a clean hit, immediately press dodge. Debug only, off by default.
+	 *
+	 *  **The on-hit waiver's only unattended witness.** The waiver frees defensive actions the
+	 *  instant an attack connects, and nothing else in the fixture set ever asks an *attacker* to
+	 *  defend -- the auto-attacker only attacks and the auto-defender never attacks. Without this
+	 *  the rule would ship asserted by nobody, which is the deferral the loop-coverage rule exists
+	 *  to prevent.
+	 *
+	 *  What it produces is a DODGE line between the attacker's own DAMAGED and the end of its
+	 *  recovery, which is exactly the waiver working: before it, that press was refused by
+	 *  State.Attacking.Committed and appeared as a REFUSED line instead.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat|Debug")
+	bool bDebugDodgeAfterHit = false;
+
+	/**
+	 *  Press block a fixed delay after each auto-attack press, cancelling the swing. Debug only.
+	 *
+	 *  **The unattended witness for the pre-commit cancel**, which nothing else in the fixture set
+	 *  can produce: the auto-attacker only attacks and the auto-defender never attacks, so
+	 *  "any defensive action cancels an attack's startup" has always been a human-only check.
+	 *
+	 *  It matters more now than before the on-hit waiver. That rule loosens when defensive actions
+	 *  are permitted, so the *other* boundary -- that a committed swing still cannot be cancelled,
+	 *  and an uncommitted one still can -- wants a standing assertion rather than trust.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat|Debug")
+	bool bDebugCancelAttackIntoBlock = false;
+
+	/**
+	 *  Delay from the auto-attack press to the cancelling block press, in seconds.
+	 *
+	 *  Default 0.10, which is inside the light's 0.15 commit boundary with 50 ms to spare -- the
+	 *  cancel must land *before* State.Attacking.Committed or the scenario measures a refusal
+	 *  rather than a cancel. Raise it above the boundary deliberately to assert the opposite.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat|Debug", meta=(ClampMin="0.0"))
+	float DebugCancelAfterPressSeconds = 0.10f;
+
+	/**
 	 *  Suppress **every** lunge this character would start — base, per-attack, and the dodge's.
 	 *  Fixture-only, defaulted off, and checked in `UTDGameplayAbility::StartLunge` because that is
 	 *  the single function they all route through. Logs `LUNGE SKIP` so it is never silently on.
@@ -874,6 +1013,27 @@ protected:
 	/** Input the PeriodicDodge mode taps, normally InputTag.Dodge. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat|Debug")
 	FGameplayTag DebugDefendDodgeInputTag;
+
+	/** Input the PeriodicParry mode taps, normally InputTag.Parry. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat|Debug")
+	FGameplayTag DebugDefendParryInputTag;
+
+	/**
+	 *  Seconds between one auto-parry and the next. Debug only.
+	 *
+	 *  **Default 1.7 for the reason the dodger's is 1.9**: it must not alias against the attacker's
+	 *  DebugAutoAttackInterval of 3.0, or the window meets every swing at the same phase and the
+	 *  run answers one question repeatedly while looking thorough. 1.7 sweeps, which is what makes
+	 *  a single unattended session produce both successes and whiffs -- the two things the parry
+	 *  scenarios need to assert, and they cannot be scripted separately without a human.
+	 *
+	 *  **It also has to clear the lockout, which the dodger's interval does not have to do.** A
+	 *  whiffed parry refuses defensive activations for ParryWhiffLockoutSeconds, so an interval
+	 *  shorter than window + lockout would spend most of the run pressing into a refusal and
+	 *  measuring the fixture rather than the mechanic.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat|Debug", meta=(ClampMin="0.1"))
+	float DebugParryIntervalSeconds = 1.7f;
 
 	/**
 	 *  Seconds between one auto-dodge and the next. Debug only.
@@ -1104,6 +1264,28 @@ private:
 	void DebugAutoDodgePress();
 	void DebugAutoDodgeRelease();
 
+	/**
+	 *  PeriodicParry's tap. Unlike the dodge's, it does **not** re-home the pawn first.
+	 *
+	 *  A parrier is supposed to stand its ground -- that is the mechanic -- so it never leaves the
+	 *  exchange the way a backward-dodging dummy does, and a teleport between attempts would sever
+	 *  the very spacing the parry is meant to be resolved at.
+	 */
+	void DebugAutoParryPress();
+	void DebugAutoParryRelease();
+
+	/**
+	 *  The cancelling block press, scheduled by bDebugCancelAttackIntoBlock.
+	 *
+	 *  Released again rather than held, unlike the HoldBlock mode: a guard left up would make
+	 *  BLOCK cost fire once for the whole session instead of once per cancelled swing, and the
+	 *  per-swing count is the assertion. The release is deliberately later than
+	 *  MinimumBlockSeconds so the guard clears its own commitment and ends as a release rather
+	 *  than fighting the floor.
+	 */
+	void DebugCancelIntoBlockPress();
+	void DebugCancelIntoBlockRelease();
+
 	/** Teleports back to DebugAutoAttackHomeTransform and kills leftover velocity. No-op if disabled. */
 	void ReturnToDebugAutoAttackHome();
 
@@ -1212,6 +1394,16 @@ private:
 	void ApplyHitstunState();
 	void ClearHitstunState();
 
+	/**
+	 *  Ends the parry lockout. Driven from Tick against ParryLockoutEndsAt, as the stuns are.
+	 *
+	 *  There is no window equivalent here: the window's expiry is CloseParryWindow, which is shared
+	 *  with the cancellation path so that a lockout cannot be dodged by ending the parry unusually.
+	 */
+	void EndParryLockout();
+	void ApplyParryLockoutState();
+	void ClearParryLockoutState();
+
 	UFUNCTION()
 	void OnRep_Dead();
 
@@ -1226,6 +1418,9 @@ private:
 
 	UFUNCTION()
 	void OnRep_Hitstun();
+
+	UFUNCTION()
+	void OnRep_ParryLockout();
 
 	/**
 	 *  Applies State.Dead, cancels everything running, and stops the character moving.
@@ -1315,6 +1510,54 @@ private:
 
 	/** When hitstun expires, in world seconds. A Tick-checked timestamp like its two siblings. */
 	float HitstunEndsAt = 0.0f;
+
+	/**
+	 *  A parry window is open. The sixth of the replicated-state family, same contract.
+	 *
+	 *  **Replicated rather than left as the ability's business**, under the project's own rule that
+	 *  new state is a replicated property and never a loose tag. It is deliberately *not* the same
+	 *  thing as State.Parrying, which GA_Parry carries in its ActivationOwnedTags exactly as
+	 *  GA_Block carries State.Blocking: that tag drives presentation and gating, this bool is the
+	 *  mechanism the attacker's hit path reads. Keeping them apart is what lets the animation and
+	 *  the negation be retimed independently.
+	 *
+	 *  Plain Replicated rather than ReplicatedUsing, unlike the rest of the family, because there is
+	 *  no local state to apply from it -- State.Parrying arrives with the ability on every machine
+	 *  that runs one. An OnRep here would exist only for symmetry, and a hook that does nothing is
+	 *  somewhere for a later reader to put something that does not belong.
+	 */
+	UPROPERTY(Replicated)
+	bool bParryWindowOpen = false;
+
+	/** When the parry window expires, in world seconds. A Tick-checked timestamp like the stuns. */
+	float ParryWindowEndsAt = 0.0f;
+
+	/**
+	 *  What the currently-open window will charge if it closes without catching anything.
+	 *
+	 *  Captured when the window opens rather than read back off GA_Parry at close time, so the
+	 *  price of a window is fixed the moment it is bought.
+	 */
+	float PendingParryWhiffLockoutSeconds = 0.0f;
+
+	/** Whether the open window has already negated a hit, which is what makes its close free. */
+	bool bParryCaughtThisWindow = false;
+
+	/** Defensive activations are refused. The seventh of the family, same contract. */
+	UPROPERTY(ReplicatedUsing = OnRep_ParryLockout)
+	bool bParryLockedOut = false;
+
+	/** When the parry lockout expires, in world seconds. Max-extended, never reassigned. */
+	float ParryLockoutEndsAt = 0.0f;
+
+	/** A connected attack owes this character its movement back. See BeginOnHitMovementWaiver. */
+	bool bOnHitMovementWaiverPending = false;
+
+	/** When the on-hit waiver hands movement back, in world seconds: contact + that swing's hitstun. */
+	float OnHitMovementWaiverAt = 0.0f;
+
+	/** Dedup clock for bDebugDodgeAfterHit, so a swing hitting two bodies still dodges once. */
+	float DebugLastDodgeAfterHitAt = -1.0f;
 
 	/**
 	 *  Which hit of the light string the *next* chained attack continues from. 0 is a fresh
@@ -1414,6 +1657,9 @@ private:
 	FTimerHandle DebugAutoAttackStringTimerHandle;
 
 	FTimerHandle DebugAutoDodgeTimerHandle;
+	FTimerHandle DebugAutoParryTimerHandle;
+	FTimerHandle DebugAutoParryReleaseTimerHandle;
+	FTimerHandle DebugCancelIntoBlockTimerHandle;
 	FTimerHandle DebugAutoDodgeReleaseTimerHandle;
 
 	/**
