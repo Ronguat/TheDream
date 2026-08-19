@@ -151,21 +151,18 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Parry")
 	TObjectPtr<UAnimMontage> ParryMontage;
 
-	/**
-	 *  Switches the montage to its recovery rate when the gesture marker passes.
-	 *
-	 *  Driven by the notify rather than by a timer set at activation, though the two coincide by
-	 *  construction: the marker is reached at ParryWindowSeconds precisely because the first
-	 *  segment's rate was derived to make that true. Taking it from the montage's own playhead
-	 *  means the switch stays correct if anything perturbs playback, and it costs nothing --
-	 *  the notify has to exist anyway to carry the geometry.
-	 */
-	UFUNCTION()
-	void HandleParryGesture(FGameplayEventData Payload);
-
 private:
 
-	/** Starts the clip at the window segment's derived rate. Silent and harmless with no montage. */
+	/**
+	 *  Starts the clip at the window segment's rate and parks the recovery segment's on the
+	 *  character. Silent and harmless with no montage.
+	 *
+	 *  **Both rates are computed here rather than when the marker fires**, which is what lets the
+	 *  recovery rate survive this ability: a catch ends GA_Parry at the instant it lands, so a
+	 *  runtime handler would be gone before the marker arrived and the tail would play at the
+	 *  window's rate. The designer ruled the authored recovery rate is always the one used
+	 *  (2026-08-19). Nothing needs the playhead -- the marker's trigger time *is* the position.
+	 */
 	void PlayParryMontage();
 
 	/**
@@ -177,8 +174,4 @@ private:
 	 *  rather than discovered when the notify fires.
 	 */
 	float FindGestureTime() const;
-
-	/** The montage this activation is playing, so a stray gesture event from elsewhere is ignored. */
-	UPROPERTY()
-	TObjectPtr<UAnimMontage> ActiveParryMontage;
 };

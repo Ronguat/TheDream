@@ -331,7 +331,12 @@ void UTDMeleeAttackAbility::HandleTraceHit(const FHitResult& Hit)
 	// broadcasting, so nothing is needed here to stop the remaining active frames re-hitting them.
 	if (ATDCombatCharacter* Parrier = Cast<ATDCombatCharacter>(HitActor))
 	{
-		if (Parrier->IsParryWindowOpen())
+		// **Grace is checked here and nowhere else, which is what "self-contained" means.** It is a
+		// brief tail on a *successful* parry so that a success lasts longer than 0 ms -- a catch
+		// closes the window, so without it one press can only ever answer one attack, and no human
+		// presses twice inside the 150 ms two attackers can arrive in. It grants nothing this
+		// branch does not already grant and prevents nothing anywhere; see ParryGraceSeconds.
+		if (Parrier->IsParryWindowOpen() || Parrier->IsInParryGrace())
 		{
 			// **The attacker is planted, exactly as on a connecting hit, and that is the entire
 			// reward.** A parry is a dodge that stands still: stopping the lunge here manufactures

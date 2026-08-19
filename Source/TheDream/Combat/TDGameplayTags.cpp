@@ -16,5 +16,4 @@ namespace TDTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Parrying, "State.Parrying", "A parry window is live. Refuses every ability while it is up.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_ParryRecovery, "State.ParryRecovery", "Your own parry whiffed. Refuses every ability for its duration.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_DodgeRecovery, "State.DodgeRecovery", "Your own dodge just ended. Refuses parry only.");
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Parry_Gesture, "Event.Parry.Gesture", "The parry clip's gesture reached its read moment; switch to the recovery play rate.");
 }

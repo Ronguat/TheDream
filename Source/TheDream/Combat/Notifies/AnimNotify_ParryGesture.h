@@ -7,9 +7,14 @@
 #include "AnimNotify_ParryGesture.generated.h"
 
 /**
- *  Marks the instant on the parry clip where the gesture has read -- where the character has
- *  visibly caught the blow. Everything before it is the parry; everything after it is the
- *  recovery settling back to neutral.
+ *  Marks the boundary on the parry clip where the parry motion **ends** and the recovery begins.
+ *
+ *  **Place it at the end of the parry, not at the visual peak of the catch** (the designer,
+ *  2026-08-19). The distinction decides both play rates, so it is an authoring instruction rather
+ *  than a description: everything before the marker is stretched to fit ParryWindowSeconds and
+ *  everything after it to fit ParryWhiffRecoverySeconds. A marker placed at the peak -- earlier
+ *  than the motion actually resolves -- silently compresses the parry and stretches the recovery,
+ *  and nothing about the result looks like a misplaced notify.
  *
  *  **An instant treated as a span** (the designer, 2026-08-19). The marker names one frame, and
  *  the two spans either side of it are what the ability actually uses: clip start to here is

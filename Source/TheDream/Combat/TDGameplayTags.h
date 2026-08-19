@@ -168,14 +168,13 @@ namespace TDTags
 	 */
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_DodgeRecovery);
 
-	/**
-	 *  Sent by UAnimNotify_ParryGesture when the parry clip's gesture reaches its read moment.
-	 *
-	 *  **Cosmetic, and deliberately so.** It switches the montage's play rate from the window
-	 *  segment's to the recovery segment's -- nothing about whether a hit is negated goes anywhere
-	 *  near it. The window stays a timestamp checked in Tick; see UTDParryAbility.
+	/*
+	 *  **There is deliberately no Event.Parry.Gesture tag.** One existed briefly on 2026-08-19,
+	 *  when the marker's rate switch was handled inside GA_Parry and needed an event to reach it.
+	 *  Moving the switch into the notify itself -- so it survives the ability ending, which a catch
+	 *  does immediately -- removed the only reason for the tag, and an unused tag in the registry
+	 *  is something a later reader has to disprove. See UAnimNotify_ParryGesture.
 	 */
-	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Parry_Gesture);
 
 	/*
 	 *  **State.ParryLockout is RESERVED and deliberately not declared here.**

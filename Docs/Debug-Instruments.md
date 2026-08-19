@@ -219,6 +219,25 @@ than a missing line. The dodge's gap is its own state now and prints **`DODGE RE
 once again a real anomaly. What changed underneath: a whiffed parry now refuses **every** ability
 and holds the movement lock, while the dodge's gap still refuses only a parry.
 
+**Parry Grace adds a pair, and the override adds one** *(2026-08-19)*. `PARRY GRACE` / `PARRY GRACE
+END` bracket the 150 ms tail a *successful* parry leaves behind, read off `until=` like the
+recoveries. `PARRY SUCCESS` gained **`by=window` or `by=grace`**, which is what makes the no-re-arm
+rule assertable at all — every tail must follow a `by=window`, and a `by=grace` must start none.
+`PARRY RECOVERY OVERRIDDEN` fires when a lockout supersedes a running recovery and prints
+`remaining=`, so the waived time is visible rather than inferred.
+
+**`PARRY RECOVERY` is currently unreachable as a *refusal reason*, and that is not a fault**
+*(measured 2026-08-19: 222 "parrying", zero "parry recovery")*. A whiffed parry keeps `GA_Parry`
+alive across its recovery so the movement lock holds, so `State.Parrying` is present for the whole
+900 ms jail and its check — which runs first — shadows the recovery's entirely. **Assert on either
+name.** The recovery's refusal becomes load-bearing again the moment anything ends the ability at
+window close.
+
+**An ungated warning marks a sacredness violation**: *"GA_Parry ended … with its window still
+open"*. Parry is sacred, so an ability ending mid-window means something cancelled a committed
+parry, which the design forbids. The window is left running rather than torn down. Nothing in the
+project can trigger it today; Knockdown and ability effects are the candidates.
+
 **The animation adds three, all cosmetic** *(2026-08-19)*. `PARRY MONTAGE` prints once per parry
 with the clip length, the marker's trigger time as `gesture=`, and the derived `windowRate=`;
 `PARRY GESTURE` fires when the marker passes, carrying the montage `pos=` and `rate=`; `PARRY RATE`
@@ -432,9 +451,9 @@ looks ignored.
 | `s4-guarantee` | 0.1, **taps 3** | `PeriodicDodge` | `REFUSED` lines attributed to `State.Hitstun`; **zero `DODGE` between `HITSTUN` and `HITSTUN END`** — the string's guarantee, observable; `HITSTUN` spans as above |
 | `s4-block` | 0.1, **taps 3** | `HoldBlock` | `BLOCKED` staminaDamage exactly 5; `BLOCKSTUN` spans 0.350 ±20 ms; knockback never inward |
 | `s4-360` | 0.1, **taps 3**, `FacingMode` **Never**, **`bDebugSuppressLunge`** | `Off`, plus the player spawned at (200, 150) opposite the defender | **first burst only**: attacks 1–2 damage **zero** distinct targets, attack 3 damages **two** |
-| `s5-parry` | 0.1, **taps 3** | `PeriodicParry` | `PARRY WINDOW` span 0.300 ±25 ms; at least one `PARRY SUCCESS` (**n=0 fails**); credited reward inside [0, 25]; **zero `STRING` link window after a parried swing**; **every `PARRY GESTURE` inside its own window (n=0 fails)** |
+| `s5-parry` | 0.1, **taps 3** | `PeriodicParry` | `PARRY WINDOW` span 0.300 ±25 ms; at least one `PARRY SUCCESS` (**n=0 fails**); credited reward inside [0, 25]; **zero `STRING` link window after a parried swing**; **every `PARRY GESTURE` inside its own window (n=0 fails)** ; **`PARRY GRACE` span 0.150 ±25 ms**; every `by=window` success starts exactly one tail; **Grace never re-arms** (no tail from a `by=grace` catch, none overlapping) |
 | `s5-parry-reward` | 0.1, **taps 3** | `PeriodicParry`, `DebugParryPreBlockSeconds` **4.0**, `DebugParryIntervalSeconds` **5.3** | at least one `PARRY SUCCESS`; `gained` **exactly 25** on every one |
-| `s5-parry-whiff` | 0.1, **taps 3** | `PeriodicParry`, `DebugParryIntervalSeconds` **0.5**, **and the defender also auto-attacks** (`bDebugAutoAttack`, interval **0.7**, `bDebugSuppressLunge`) | `PARRY RECOVERY` span 0.600 ±25 ms; `REFUSED` naming **`parry recovery`** at least once; **nothing activates inside a recovery span (n=0 fails)**; **nothing activates inside a parry window either (n=0 fails)** |
+| `s5-parry-whiff` | 0.1, **taps 3** | `PeriodicParry`, `DebugParryIntervalSeconds` **0.5**, **and the defender also auto-attacks** (`bDebugAutoAttack`, interval **0.7**, `bDebugSuppressLunge`) | `PARRY RECOVERY` span 0.600 ±25 ms; `REFUSED` naming **the jail** (`parrying` or `parry recovery`) at least once; **nothing activates inside a recovery span (n=0 fails)**; **nothing activates inside a parry window either (n=0 fails)** |
 | `s5-cancel` | 0.1, **`bDebugCancelAttackIntoBlock`** | `Off` | zero `RELEASE BEGIN`; zero `DAMAGED`; `BLOCK cost` at least once |
 | `s5-waiver` | 0.1, **`bDebugDodgeAfterHit`** | `Off` | attacker `DODGE` within 100 ms of its own `DAMAGED`; `MOVE UNLOCK` present |
 

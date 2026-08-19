@@ -322,6 +322,31 @@ mechanism that does not exist. Related, same session: **a 360° wedge has no bea
 constrain swing 3. **Invalidated by** any change to `FindAimAssistTarget`'s selection rule or to
 swing 3's `arcDegrees`.
 
+**Before ranged, DoTs, or anything that damages without inflicting a lockout — *three parry rules
+are currently indistinguishable, and one carve-out is unreachable.*** Filed 2026-08-19, owner
+**Interplay**, with Knockdown as the likelier first tripwire.
+
+A whiffed parry's recovery ends when an attacker inflicts punishment, hooked as **"any lockout
+overrides a recovery"** — the schema's own consequence rather than an enumeration, so knockdown and
+future ability effects join by calling `OverrideParryRecovery`. The designer explicitly declined to
+narrow it to hitstun.
+
+**What cannot be told apart today:** there is exactly one damage path in the project and it always
+pairs with a lockout, so *"ends on a lockout"*, *"ends on damage"* and *"ends on anything that
+flinches"* are the same rule against the current game. The first source of damage without a lockout
+picks between them silently.
+
+**The idea that was raised and withdrawn, kept because it will be raised again:** a per-attack
+**flinch** property, separate from damage and from lockouts — every attack inflicting a lockout also
+flinches, not every flinch inflicts one, not every damaging attack flinches. The designer withdrew
+it the same evening on the grounds that flinch already has durations and is itself an authored
+lockout, and that ranged behaviour is undecided. *"I don't know what will happen to players when
+they are hit by ranged attacks yet."*
+
+**And the unreachable carve-out travels with it:** death is the sole exception to "parry is sacred",
+and nothing can damage you through an open parry window — so a DoT is the only way to die inside
+one. `ETDParryCloseReason::Death` has never executed. Both go live together.
+
 **Before authoring any new attack montage — *a wide Release Window can end the attack the instant
 it opens.*** Filed 2026-08-16, having cost two wrong fixes and several PIE cycles to find; the
 symptom in play was only *"light 2's release feels short"*.
@@ -620,6 +645,7 @@ kept in their own notes. What belongs here is only what to move once a verdict a
 | The string's cadence feels wrong | **`ChainOpenAfterRecoverySeconds`, but it is derived and not free.** 0.133 comes from `cadence = 0.200 + 0.150 + ChainOpen + one frame` against a **500 ms cadence tapped by the designer**, the one number in the project measured off a human rather than chosen. Moving it moves the cadence away from that measurement, so re-derive rather than nudge — and `HitstunSeconds` must stay above the resulting gap or the string's guarantee silently stops being true | The montage rates or `RecoverySeconds`. Pressing earlier buys no cadence at all: chain-out fires when recovery opens, not when the press arrived. |
 | The parry window feels too tight, or too forgiving | **Nothing, without re-deriving both fences.** `ParryWindowSeconds` is bounded above by the anti-option-select ceiling — one press must not cover two read-classes, so it must stay under the fast↔charged gap, 750 − 350 = **400 ms** — and below by the longest authored `ReleaseSeconds`, **0.150**, or a damaging phase can span the whole window and come out unparried. 300 is legal *only because of the re-pole*; under the old ladder the ceiling was 250 | Widening it toward the gap "because there is room". The room is the whole margin protecting the read from becoming an option-select, and spending it converts parry from a read into a timing test — which is the identity the entire input scheme was chosen to protect |
 | A whiffed parry is punished too hard, or too cheaply | `ParryWhiffRecoverySeconds`, above its floor. **Re-derive before tuning: 2026-08-19 widened what it buys from "you cannot defend" to "you cannot act", so the number now prices a materially harsher punish than when it was chosen.** The floor is a constraint, not a feel: a whiff timed against the **fast** layer must stay locked through the charged's 750 ms arrival, or reading "fast" wrongly costs nothing and the charged can never collect on it. That is what re-derived it down from the spec's 1000 | Adding a stamina cost to the parry. It is **time**-priced by design, and pricing it in both ledgers makes it block with extra steps — the pricing symmetry (dodge stamina, block both, parry time) is the thing being protected |
+| Parries feel like they need two presses against two attackers | `ParryGraceSeconds`, and **nothing else** — the window and the recovery are both fenced. **Derived**: 150 ms is roughly the interval humans cannot beat, about seven inputs a second, which is the whole basis for calling two hits "simultaneous". Re-derive against that ceiling, never by feel | Widening `ParryWindowSeconds` to cover both hits. That buys the same forgiveness by making the *read* easier, which is the one thing Grace is designed not to do — and it walks into the window's option-select ceiling |
 | Dodging into a parry feels like it covers too much | `DodgeRecoverySeconds` (`State.DodgeRecovery`, its own tag since 2026-08-19), **derived**: dodge-end + gap + window must overshoot the charged's 750 for the worst-timed predictive dodge. Re-derive it whenever `DodgeSeconds`, the parry window, or the charged's arrival moves | Shortening the parry window to compensate. That fixes one option-select by tightening a fence that is already load-bearing for a different one, and does it everywhere rather than where the problem is |
 | Movement comes back too early or too late after landing a hit | **Nothing — it is derived.** The on-hit waiver returns movement at contact + *that swing's* `HitstunSeconds`. Earlier lets the attacker erode the authored spacing the fixed-destination knockback just paid for; later is dead freedom, since the victim is out of hitstun and the exchange has restarted | A separate waiver duration. Authoring it apart immediately allows the pair that makes no sense — movement returning while the victim is still stunned for it, or staying locked after they can act |
 | A parried attacker gets away with too much | **Nothing — the reward is derived and already per-tier.** Recovery *is* the punish window, so a parried charged pays more than a parried light without anyone authoring it; the string reset is what compensates at the light end | A per-branch parry bonus. Raised 2026-08-18 and rejected: the derived model pays by the victim's commitment rather than by the read's difficulty, and an authored bonus exists only if play demands read-difficulty compensation |
@@ -1107,6 +1133,100 @@ instant, and requiring the first to fail and the second to pass.
 defender's jail counted the attacker's swings as violations. Fixed the same way `REFUSED` was fixed
 on 2026-08-12 for the identical reason — **that entry's lesson had simply never been carried to the
 other trace lines**, and it is worth asking which of the rest still lack one.
+
+### Parry is sacred, and Parry Grace makes a success last longer than 0 ms
+
+**A behavioural audit run after building rather than before, and it found things.** Sub-slice E's
+scope had already widened twice; the designer's framing is worth keeping — *"that a behavioural
+audit proves relevant and necessary is not at all surprising… we didn't really deviate from the
+plan I was anticipating so much as we deviated from the one that was written."*
+
+**Sacred.** *"The only way out of a committed parry is success. This will never change. Nothing will
+ever beat parry while it is active. There will never be some move designed to defeat parry like you
+might see in similar games. I absolutely would not make that promise for block, but for parry
+specifically, it is sacred."*
+
+The audit found this held **emergently, not structurally**. No melee could interrupt a parry because
+an open window negates the hit instead — but `GA_Parry::EndAbility` closed the window on *any*
+cancellation and billed the whiff, so the first future thing to cancel abilities without routing
+through the parry check would silently eat a parry and charge for it. Knockdown is next on the
+roster. Closing now takes an `ETDParryCloseReason`, exhaustive by design: **Expired, Caught,
+Death.** A fourth would be a design change, which is exactly why it is an enum and not a bool.
+
+**And it superseded a live argument rather than merely adding to it.** `CloseParryWindow` billed on
+cancellation on the reasoning that *"being cancelled is exactly the cheap exit an attacker would
+otherwise be handing you for free"* — which presumes an attacker *can* interrupt a parry. Both
+readings produced identical behaviour, which is why the disagreement had been invisible. The
+designer's ruling retires the premise, so the defence retires with it.
+
+**Death is the one carve-out and it is on the house** — no recovery charged, because dying resets
+your starting conditions. It is **unreachable today**, and the irony is the point: nothing can
+damage you through an open window, so a damage-over-time effect is the only way to die inside one,
+and none exists. It goes live at the same moment the deferred ranged question does.
+
+### Parry Grace: one parry per attack, unless the attacks are simultaneous
+
+Pulled forward by the designer from **Mobius**, an earlier title that answered the same question.
+A catch closes the window, so one press answers exactly one attack — correct in 1v1 and
+unanswerable in 1vX, where two attackers can land inside an interval no human can press twice in.
+
+**Grace is a 150 ms tail on a *successful* parry**, functionally identical to a parry and entirely
+invisible. *"Parries activate Grace, but Grace is self-contained and never activates or prevents
+anything, other than acting as a brief extension of a successful parry so that it lasts longer than
+0 ms."* That last clause is the cleanest statement of why it exists.
+
+**150 ms is derived, not chosen:** roughly the interval most humans cannot beat, about seven inputs
+a second. It goes in the tuning map as derived, re-derived against that ceiling and never by feel.
+
+**The framing matters as much as the mechanic.** The designer files it beside **Target Lock** as
+quality-of-life rather than design — something players should never stop to consider. That is why
+*"early parries get a shorter window and late ones a longer one"* is explicitly the wrong way to
+read it: **the precedent is one parry per incoming attack, unless the attacks are simultaneous**,
+and Grace only waives the second press in the case a human could never have served.
+
+Three properties it deliberately lacks, each ruled outright:
+- **It does not re-arm.** One fixed tail per successful parry. Made structural rather than checked:
+  only a *window* catch reaches `CloseParryWindow(Caught)`, and only that starts a tail — a Grace
+  catch has no window to close, so it pays the full reward and starts nothing. Without that, "you
+  are protected from all incoming attacks" would quietly extend itself through its own protection.
+- **It gates no input at all, including a fresh parry** — *"for the gaming demons out there who
+  actually can input incredibly quickly… It's there to aid, not restrict, and it should never be a
+  punishment."*
+- **It jails nothing.** A success frees you instantly and Grace does not take that back, so you are
+  mechanically free *and* protected. A parry into an immediate attack has its startup covered for
+  150 ms, which is a real strength and an accepted one.
+
+**It carries no gameplay tag**, alone in the state family. Tags here exist to refuse things and
+Grace refuses nothing; a tag would invite something to start blocking on it.
+
+### What was deferred, and the reasoning that nearly became scope creep
+
+The designer first proposed generalising "attacked" into a **flinch channel** — an attack property
+separate from damage and from lockouts, since all attacks that inflict a lockout also flinch, but
+not all that flinch inflict one, and not all that damage flinch. Then withdrew it in the same
+breath: flinch already has durations and is itself an authored lockout, ranged behaviour is
+undecided, and none of it is in this megaslice.
+
+**Deferring costs nothing observable, which is what makes it the right call rather than a punt.**
+Checked rather than assumed: there is exactly one damage path in the project, and it always pairs
+with a lockout — `EnterBlockstun` on a blocked hit, `EnterHitstun` on a clean one. *"Ends on a
+lockout"* and *"ends on damage"* are therefore the same rule against the current game. The recovery
+override stays on lockouts, expressed as a single named function anything future can call.
+
+### The instrument finding: one refusal now shadows the other
+
+`REFUSED names parry recovery` passed at 65 and then fell to **zero** with no behavioural
+regression, which is the sort of thing worth chasing rather than re-banding.
+
+A whiffed parry keeps `GA_Parry` alive across its recovery so the movement lock holds — so the
+ability's `ActivationOwnedTags` keep **`State.Parrying` present for the whole 900 ms jail**, and the
+"parrying" check, which runs first, shadows the "parry recovery" one entirely. Measured: 222
+"parrying", zero "parry recovery", jail working throughout. **`State.ParryRecovery`'s refusal is
+currently unreachable as a *reason***, and becomes load-bearing again the moment anything ends the
+ability at window close. The assertion now accepts either name and says why; the tag stays as
+defence in depth.
+
+---
 
 ### What was left open
 

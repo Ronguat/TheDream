@@ -89,6 +89,14 @@ BAND_PARRY_WINDOW=0.300
 BAND_PARRY_RECOVERY=0.600
 BAND_PARRY_SPAN_TOL=0.025
 
+# S5 -- Parry Grace, the tail a *successful* parry leaves behind (2026-08-19). Source:
+# ParryGraceSeconds on the character CDO.
+# **Derived, not chosen**: 150 ms is roughly the interval humans cannot beat, about seven inputs a
+# second, which is what makes two attacks inside it unanswerable by a second press. Re-derive it
+# against that ceiling, never against feel. It exists so a successful parry lasts longer than 0 ms
+# -- a catch closes the window, so without it one press can only ever answer one attack.
+BAND_PARRY_GRACE=0.150
+
 # S5 -- the credited stamina reward, as seen by s5-parry, whose parrier never spends. A parry costs
 # nothing, so that fixture's bar never leaves 100 and the attribute set's clamp trims the whole
 # reward: every sample there is legitimately 0.0. This band asserts the *clamp*, not the magnitude.
@@ -369,6 +377,43 @@ acts_during_parry_recovery() { # anything that activated while a recovery was ru
 
 parry_success_gained() { grep "^\[[0-9.]*\] PARRY SUCCESS" "$SLICE" | grep -o "gained=[0-9.-]*" | cut -d= -f2; }
 
+parry_grace_spans() { # Grace's authored tail, read off until= like the recoveries
+	awk '
+		/^\[[0-9.]+\] PARRY GRACE [^E]/ {
+			t=$1; gsub(/[\[\]]/,"",t)
+			for (i=1;i<=NF;i++) if ($i ~ /^until=/) { split($i,a,"="); printf "%.3f\n", a[2]-t }
+		}' "$SLICE"
+}
+
+grace_rearm_violations() { # a Grace tail that started from anything other than a window catch
+	# **The no-re-arm rule, asserted as an identity rather than a timing.** Only a catch made by an
+	# open *window* may start a tail; a catch made by Grace itself pays the full reward and starts
+	# nothing, or "protected from everything" would quietly extend itself through the protection it
+	# grants. So every PARRY GRACE must be immediately preceded by a by=window success, and a
+	# by=grace success must never be followed by one.
+	#
+	# Checked pairwise in log order rather than by counting, because equal totals would also be
+	# produced by one window catch starting two tails while a grace catch started none.
+	awk '
+		/^\[[0-9.]+\] PARRY SUCCESS/ {
+			last_by = ($0 ~ /by=window/) ? "window" : "grace"
+			seen_success = 1
+			next
+		}
+		/^\[[0-9.]+\] PARRY GRACE [^E]/ {
+			if (!seen_success)      { print "grace with no preceding success: " $0; next }
+			if (last_by != "window") { print "grace started by a grace catch: " $0; next }
+			# consumed -- a second tail before the next success would be a re-arm
+			last_by = "consumed"
+		}' "$SLICE"
+}
+
+grace_overlap_violations() { # a tail opening while one is already running
+	awk '
+		/^\[[0-9.]+\] PARRY GRACE [^E]/ { if (open) print "grace opened while one was running: " $0; open=1; next }
+		/^\[[0-9.]+\] PARRY GRACE END/  { open=0 }' "$SLICE"
+}
+
 parried_string_violations() { # a parried swing must not open a link window
 	# The next STRING line after each PARRY SUCCESS has to be a reset, never "link window open".
 	# Looking forward rather than pairing by swing index because the parried attacker is named on
@@ -631,6 +676,7 @@ run_s5_parry() {
 		"$BAND_PARRY_GAINED_MIN" "$BAND_PARRY_GAINED_MAX"
 
 	assert_gesture_inside_window
+	assert_parry_grace
 
 	# "No more games": a parried swing takes the string with it, so no link window may follow one.
 	violations=$(parried_string_violations | grep -c '[0-9]' || true)
@@ -664,19 +710,28 @@ run_s5_parry_whiff() {
 		"$(awk -v v="$BAND_PARRY_RECOVERY" -v t="$BAND_PARRY_SPAN_TOL" 'BEGIN{printf "%.3f", v-t}')" \
 		"$(awk -v v="$BAND_PARRY_RECOVERY" -v t="$BAND_PARRY_SPAN_TOL" 'BEGIN{printf "%.3f", v+t}')" "s"
 
-	# The recovery has to actually refuse something, or it is a tag nobody reads. The parry fixture
-	# presses on its own schedule, so presses land inside a running recovery by construction.
+	# The jail has to actually refuse something, or it is a rule nobody reads. The fixture presses
+	# on its own schedule, so presses land inside a running jail by construction.
 	#
-	# **Matched on the reason string, not the tag name.** State.ParryRecovery is refused in
-	# UTDGameplayAbility::CanActivateAbility rather than through ActivationBlockedTags, so it never
-	# reaches the tag-filter path that prints tag names -- it prints its own reason, the way "dead"
-	# and "guard broken" do. Grepping for the tag here would return zero forever and read as the
-	# refusal being broken.
-	refusals=$(grep "^\[[0-9.]*\] REFUSED" "$SLICE" | grep -c "parry recovery" || true)
+	# **Matched on the reason string, not the tag name.** Both halves are refused in
+	# UTDGameplayAbility::CanActivateAbility rather than through ActivationBlockedTags, so neither
+	# reaches the tag-filter path that prints tag names -- they print their own reasons, the way
+	# "dead" and "guard broken" do. Grepping for a tag here would return zero forever and read as
+	# the refusal being broken.
+	#
+	# ***Either reason counts, and that is a finding rather than laziness*** (2026-08-19). A whiffed
+	# parry keeps GA_Parry alive across its recovery so the movement lock holds, which means the
+	# ability's ActivationOwnedTags keep **State.Parrying present for the whole 900 ms jail** -- so
+	# the "parrying" check, which runs first, shadows the "parry recovery" one entirely and the
+	# latter is currently unreachable as a *reason*. Measured: 222 "parrying", zero "parry
+	# recovery", with the jail working perfectly throughout. Asserting the shadowed string alone
+	# would fail forever while nothing was wrong. State.ParryRecovery stays as defence in depth and
+	# becomes load-bearing again the moment anything ends the ability at window close.
+	refusals=$(grep "^\[[0-9.]*\] REFUSED" "$SLICE" | grep -cE "parrying|parry recovery" || true)
 	if [ "$refusals" -gt 0 ]; then
-		check "REFUSED names parry recovery" 0 "$refusals"
+		check "REFUSED names the parry jail" 0 "$refusals"
 	else
-		check "REFUSED names parry recovery" 1 "none -- the recovery refused nothing"
+		check "REFUSED names the parry jail" 1 "none -- the jail refused nothing"
 	fi
 
 	# **The ruling itself, asserted as an absence** (2026-08-19). The refusal count above proves the
@@ -701,6 +756,40 @@ gesture_outside_window() { # PARRY GESTURE lines that fall outside their own win
 			t=$1; gsub(/[\[\]]/,"",t)
 			if (!open_seen || t+0 < open_t+0 || t+0 > close_t+0) print $0
 		}' "$SLICE"
+}
+
+assert_parry_grace() {
+	local n wins bad
+
+	# The tail's authored length. Vacuous-pass guarded by the count check below rather than here,
+	# since assert_all_in_band already fails on an empty sample set.
+	assert_all_in_band "PARRY GRACE span" "parry_grace_spans" \
+		"$(awk -v v="$BAND_PARRY_GRACE" -v t="$BAND_PARRY_SPAN_TOL" 'BEGIN{printf "%.3f", v-t}')" \
+		"$(awk -v v="$BAND_PARRY_GRACE" -v t="$BAND_PARRY_SPAN_TOL" 'BEGIN{printf "%.3f", v+t}')" "s"
+
+	# **Every window catch starts exactly one tail.** n=0 on either side fails: a run with no
+	# successes proves nothing about Grace, and a run with successes but no Grace is the mechanic
+	# silently not firing -- which is what this scenario exists to catch.
+	n=$(grep -c "^\[[0-9.]*\] PARRY GRACE [^E]" "$SLICE" || true)
+	wins=$(grep "^\[[0-9.]*\] PARRY SUCCESS" "$SLICE" | grep -c "by=window" || true)
+	if [ "$wins" -eq 0 ]; then
+		check "every window catch starts Grace" 1 "no by=window successes -- nothing was asserted"
+	elif [ "$n" -eq "$wins" ]; then
+		check "every window catch starts Grace" 0 "n=$n tails for $wins window catches"
+	else
+		check "every window catch starts Grace" 1 "$n tails for $wins window catches"
+	fi
+
+	# **Grace does not re-arm**, the property that keeps it bounded. Two independent readings:
+	# nothing but a window catch may start a tail, and no tail may open while one is running.
+	bad=$(printf '%s\n%s\n' "$(grace_rearm_violations)" "$(grace_overlap_violations)" | grep -v '^$' || true)
+	if [ "$n" -eq 0 ]; then
+		check "Grace never re-arms" 1 "no PARRY GRACE lines at all -- nothing was asserted"
+	elif [ -z "$bad" ]; then
+		check "Grace never re-arms" 0 "n=$n tails, each from one window catch and none overlapping"
+	else
+		check "Grace never re-arms" 1 "$(echo "$bad" | head -3 | tr '\n' ' ')"
+	fi
 }
 
 assert_gesture_inside_window() {

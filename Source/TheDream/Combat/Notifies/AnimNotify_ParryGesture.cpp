@@ -3,7 +3,7 @@
 #include "Combat/Notifies/AnimNotify_ParryGesture.h"
 #include "Combat/TDCombatDebug.h"
 #include "Combat/TDGameplayTags.h"
-#include "AbilitySystemBlueprintLibrary.h"
+#include "Combat/TDCombatCharacter.h"
 #include "Animation/AnimInstance.h"
 #include "Animation/AnimMontage.h"
 #include "Components/SkeletalMeshComponent.h"
@@ -46,17 +46,32 @@ void UAnimNotify_ParryGesture::Notify(USkeletalMeshComponent* MeshComp, UAnimSeq
 			Instance ? Instance->GetPlayRate() : -1.0f);
 	}
 
-	FGameplayEventData Payload;
-	Payload.EventTag = TDTags::Event_Parry_Gesture;
-	Payload.Instigator = Owner;
+	// **The rate switch happens here rather than in GA_Parry, and that is the point.** A successful
+	// parry ends the ability at the instant it catches -- 0 ms in, in the worst case -- so anything
+	// waiting inside the ability would be gone before this marker arrived, and the recovery segment
+	// would play at the window's rate. The designer ruled the authored recovery rate is *always*
+	// the one used (2026-08-19), so the switch has to live somewhere that outlives the ability.
+	//
+	// The rate itself was derived at activation and parked on the character; nothing is recomputed
+	// here, and no gameplay event is needed to carry it.
+	if (ATDCombatCharacter* Character = Cast<ATDCombatCharacter>(Owner))
+	{
+		const float RecoveryRate = Character->GetPendingParryMontageRecoveryRate();
+		UAnimInstance* AnimInstance = MeshComp->GetAnimInstance();
+		UAnimMontage* Montage = AnimInstance ? AnimInstance->GetCurrentActiveMontage() : nullptr;
 
-	// Which animation carried the marker, for the reason Release Window passes the same thing: the
-	// event goes to the whole ASC, so a second montage carrying this notify would otherwise be
-	// indistinguishable from the parry's own. GA_Parry compares this against the montage it is
-	// playing and ignores anything else.
-	Payload.OptionalObject = Animation;
+		// Guarded on the montage the marker actually sits in, not merely on there being one: this
+		// class is placed on exactly one asset today, but a second would otherwise retime whatever
+		// happened to be playing. Same hazard Release Window's payload exists to prevent.
+		if (AnimInstance && Montage && Montage == Animation && RecoveryRate > 0.0f)
+		{
+			AnimInstance->Montage_SetPlayRate(Montage, RecoveryRate);
 
-	UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(Owner, TDTags::Event_Parry_Gesture, Payload);
+			UE_LOG(LogTDCombatTiming, Log, TEXT("[%.3f] PARRY RATE    %s  recoveryRate=%.3f"),
+				MeshComp->GetWorld() ? MeshComp->GetWorld()->GetTimeSeconds() : -1.0f,
+				*GetNameSafe(Owner), RecoveryRate);
+		}
+	}
 }
 
 #if WITH_EDITOR

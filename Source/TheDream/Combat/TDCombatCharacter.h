@@ -97,6 +97,39 @@ struct FTDBufferedInput
  *  parity rule is "accurate in the dimension being measured", and Block measures what happens
  *  when an attack arrives rather than how it closed the distance.
  */
+/**
+ *  Why a parry window is closing. **There are exactly three, and that is the mechanic.**
+ *
+ *  ***Parry is sacred*** (the designer, 2026-08-19): *"the only way out of a committed parry is
+ *  success. Nothing will ever beat parry while it is active. There will never be some move
+ *  designed to defeat parry."* That promise is deliberately **not** made for block. So this enum
+ *  is exhaustive by design rather than by current need -- a fourth reason would be a design
+ *  change, not an addition, which is exactly why closing takes a reason instead of a bool.
+ *
+ *  Cancellation is absent on purpose. An ability cancelled mid-window leaves the window running;
+ *  see UTDParryAbility::EndAbility, which warns rather than closing.
+ */
+UENUM(BlueprintType)
+enum class ETDParryCloseReason : uint8
+{
+	/** Ran its authored length without catching anything. The one path that bills the whiff. */
+	Expired,
+
+	/** Negated a hit. Bills nothing and starts the Grace tail. */
+	Caught,
+
+	/**
+	 *  Died. **The single carve-out to "sacred", and it is on the house** -- no recovery charged,
+	 *  because death resets your starting conditions anyway.
+	 *
+	 *  Unreachable today, and the reason is a small irony worth recording: nothing can damage you
+	 *  through an open parry window, so a damage-over-time effect is the only way to die inside
+	 *  one -- and none exists. It goes live at exactly the moment the deferred ranged/DoT question
+	 *  does. See Docs/Combat-Decisions.md, 2026-08-19.
+	 */
+	Death,
+};
+
 UENUM(BlueprintType)
 enum class ETDDebugFacingMode : uint8
 {
@@ -304,7 +337,28 @@ public:
 	 *  death -- so the recovery cannot be skipped by ending the parry through an unusual path. That
 	 *  matters because being *cancelled* is the cheap exit an attacker could otherwise hand you.
 	 */
-	void CloseParryWindow();
+	void CloseParryWindow(ETDParryCloseReason Reason);
+
+	/**
+	 *  True while a successful parry's Grace tail is still protecting this character.
+	 *
+	 *  **Deliberately carries no gameplay tag**, unlike every other state on this character. Tags
+	 *  here exist to refuse things, and Grace refuses nothing -- it is read by the *attacker's* hit
+	 *  path and by nothing else. A tag would invite something to start blocking on it.
+	 */
+	UFUNCTION(BlueprintPure, Category="Combat|Parry")
+	bool IsInParryGrace() const { return bInParryGrace; }
+
+	/**
+	 *  The montage rate the parry clip's recovery segment should switch to, or -1 if unset.
+	 *
+	 *  Parked here rather than on GA_Parry because **the ability is gone by the time it is needed
+	 *  on a successful parry** -- a catch ends it at once, and the authored recovery rate must be
+	 *  used regardless (the designer, 2026-08-19). Computed once at activation, since the marker's
+	 *  position and the clip's length are both known then; see UTDParryAbility::PlayParryMontage.
+	 */
+	float GetPendingParryMontageRecoveryRate() const { return PendingParryMontageRecoveryRate; }
+	void SetPendingParryMontageRecoveryRate(float Rate) { PendingParryMontageRecoveryRate = Rate; }
 
 	/**
 	 *  A parry landed: pay the reward and close the window free of charge.
@@ -793,6 +847,40 @@ protected:
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Parry", meta=(ClampMin="0.0"))
 	float ParryStaminaReward = 25.0f;
+
+	/**
+	 *  **Parry Grace** -- how long a successful parry keeps protecting you after it lands.
+	 *
+	 *  *"Parries activate Grace, but Grace is self-contained and never activates or prevents
+	 *  anything, other than acting as a brief extension of a successful parry so that it lasts
+	 *  longer than 0 ms."* (the designer, 2026-08-19, pulling the mechanic forward from an earlier
+	 *  title where it answered the same question.)
+	 *
+	 *  **The problem it solves is 1vX, and it solves it without changing what a parry is.** A catch
+	 *  closes the window, so one press answers exactly one attack -- correct, and unanswerable when
+	 *  two attacks arrive together, because no human presses twice that fast. Grace waives the
+	 *  second press for *simultaneous* hits only, where simultaneous is authored as this value. The
+	 *  precedent survives intact: **one parry per incoming attack, unless the attacks are
+	 *  simultaneous.**
+	 *
+	 *  **Categorically a quality-of-life system, not game design** -- the designer files it beside
+	 *  Target Lock, as something players should never have to think about. That is why it is
+	 *  invisible, and why the framing "early parries get a shorter window, late ones a longer one"
+	 *  is the wrong way to read it.
+	 *
+	 *  **Derived, not chosen:** 150 ms is the interval most humans cannot beat, around seven inputs
+	 *  a second. Re-derive it against that, never against feel.
+	 *
+	 *  Three properties it deliberately does **not** have, each ruled explicitly:
+	 *  - **It does not re-arm.** Only a catch by an open *window* starts a tail; a catch made by
+	 *    Grace itself pays the full reward and starts nothing, or "protected from everything" would
+	 *    silently extend itself through the protection it grants.
+	 *  - **It gates no input whatsoever, including a fresh parry.** It aids, it never restricts.
+	 *  - **It jails nothing.** A successful parry frees you instantly and Grace does not take that
+	 *    back, so you are mechanically free *and* protected for its duration.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Parry", meta=(ClampMin="0.0"))
+	float ParryGraceSeconds = 0.15f;
 
 	/**
 	 *  Collapse into a ragdoll on death.
@@ -1485,6 +1573,23 @@ private:
 	void ApplyDodgeRecoveryState();
 	void ClearDodgeRecoveryState();
 
+	/**
+	 *  Ends a running parry recovery because something was inflicted on this character.
+	 *
+	 *  **The schema doing the work rather than a special case**: a lockout is externally inflicted
+	 *  and a recovery is self-inflicted, so being punished supersedes the price you were paying
+	 *  yourself. **Anything that inflicts a lockout should call this** -- knockdown will, and so
+	 *  will ability effects that do not exist yet. That generality is the designer's explicit
+	 *  instruction not to narrow it to hitstun.
+	 */
+	void OverrideParryRecovery(const TCHAR* Cause);
+
+	/** Starts the Grace tail. Called only from a window catch, never from a Grace catch. */
+	void BeginParryGrace();
+
+	/** Grace expiring. Driven from Tick against ParryGraceEndsAt, as the recoveries are. */
+	void EndParryGrace();
+
 	UFUNCTION()
 	void OnRep_Dead();
 
@@ -1640,6 +1745,24 @@ private:
 
 	/** When the dodge's parry gap expires, in world seconds. Max-extended, never reassigned. */
 	float DodgeRecoveryEndsAt = 0.0f;
+
+	/**
+	 *  A successful parry is still protecting this character. **Replicated but tagless**, which is
+	 *  the one place this breaks the family's pattern: the others carry a gameplay tag because
+	 *  something refuses on them, and nothing refuses on Grace.
+	 */
+	UPROPERTY(Replicated)
+	bool bInParryGrace = false;
+
+	/**
+	 *  When Grace expires, in world seconds. **Assigned, never max-extended** -- the deliberate
+	 *  opposite of every other timestamp here, and it is the no-re-arm rule expressed in one line.
+	 *  Only BeginParryGrace writes it, and only a window catch calls that.
+	 */
+	float ParryGraceEndsAt = 0.0f;
+
+	/** See GetPendingParryMontageRecoveryRate. -1 means the parry montage has no marker. */
+	float PendingParryMontageRecoveryRate = -1.0f;
 
 	/** A connected attack owes this character its movement back. See BeginOnHitMovementWaiver. */
 	bool bOnHitMovementWaiverPending = false;

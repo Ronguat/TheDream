@@ -5,7 +5,6 @@
 #include "Combat/TDCombatDebug.h"
 #include "Combat/TDGameplayTags.h"
 #include "Combat/Notifies/AnimNotify_ParryGesture.h"
-#include "Abilities/Tasks/AbilityTask_WaitGameplayEvent.h"
 #include "Animation/AnimInstance.h"
 #include "Animation/AnimMontage.h"
 
@@ -60,29 +59,11 @@ void UTDParryAbility::ActivateAbility(
 		Character->OpenParryWindow(ParryWindowSeconds, ParryWhiffRecoverySeconds);
 	}
 
-	// Listen before playing, or a marker sitting at time 0 fires into nothing.
-	//
-	// The task dies with the ability, which is correct and worth stating because it produces one
-	// visible asymmetry: on a *successful* parry the ability ends at the catch, so nothing is left
-	// to switch the rate and the clip plays out its tail at the window rate. That is accepted
-	// rather than overlooked -- on success there is no recovery for the tail to be fitted to, and
-	// the designer's expectation is that the player's next action overrides the clip almost every
-	// time. See Docs/Combat-Decisions.md, 2026-08-19.
-	if (UAbilityTask_WaitGameplayEvent* GestureTask = UAbilityTask_WaitGameplayEvent::WaitGameplayEvent(
-		this, TDTags::Event_Parry_Gesture, /*OptionalExternalTarget=*/nullptr,
-		/*OnlyTriggerOnce=*/true, /*OnlyMatchExact=*/true))
-	{
-		GestureTask->EventReceived.AddDynamic(this, &UTDParryAbility::HandleParryGesture);
-		GestureTask->ReadyForActivation();
-	}
-
 	PlayParryMontage();
 }
 
 void UTDParryAbility::PlayParryMontage()
 {
-	ActiveParryMontage = nullptr;
-
 	// **The parry works with no montage, and that is deliberate rather than tolerated.** It shipped
 	// felt-not-seen exactly as blockstun did, so nothing here may become load-bearing: every early
 	// return below leaves a fully functional parry behind it.
@@ -127,7 +108,47 @@ void UTDParryAbility::PlayParryMontage()
 			*ParryMontage->GetName(), ParryWindowSeconds + ParryWhiffRecoverySeconds);
 	}
 
-	ActiveParryMontage = ParryMontage;
+	// **Both rates are fully determined right here, which is what lets the recovery rate outlive
+	// this ability** -- the designer's ruling that the authored recovery rate is *always* the one
+	// used (2026-08-19). A catch ends GA_Parry at the instant it lands, so anything that waited for
+	// the marker at runtime would be gone before the marker arrived, and the tail would play at the
+	// window's rate instead. Nothing here needs the playhead: the marker's trigger time *is* the
+	// position it will be at.
+	//
+	// **The blend-out boundary is why this is not (Length - Gesture) / Recovery.** UE begins the
+	// automatic blend-out before the montage's end, so a naive rate runs the segment long -- by 6%
+	// at rate 0.94 and by 49% at 0.50 when this was found on the attack ladder in 2026-08-12. Same
+	// arithmetic UTDChargedAttackAbility::ComputeRecoveryPlayRate derives at length; only the
+	// choice of boundary differs.
+	float RecoveryRate = -1.0f;
+	if (GestureTime > KINDA_SMALL_NUMBER && ParryWhiffRecoverySeconds > 0.0f)
+	{
+		const float TriggerTime = ParryMontage->BlendOutTriggerTime;
+		if (TriggerTime >= 0.0f)
+		{
+			// Explicit trigger: a fixed position, so it is rate-immune and the rate follows
+			// directly. AM_Parry sets one precisely so the clip's recovery tail is not blended away.
+			const float ToBoundary = (Length - TriggerTime) - GestureTime;
+			RecoveryRate = (ToBoundary <= KINDA_SMALL_NUMBER)
+				? TDMinParryPlayRate
+				: FMath::Max(ToBoundary / ParryWhiffRecoverySeconds, TDMinParryPlayRate);
+		}
+		else
+		{
+			// Rate-dependent boundary: the blend begins BlendTime*R before the end, so it cancels
+			// out of the position but not out of the time. R = Remaining / (Target + BlendTime).
+			const float BlendTime = ParryMontage->BlendOut.GetBlendTime();
+			const float Remaining = Length - GestureTime;
+			RecoveryRate = FMath::Max(Remaining / (ParryWhiffRecoverySeconds + BlendTime), TDMinParryPlayRate);
+		}
+	}
+
+	// Parked on the character because that is what the notify can reach, and what survives this
+	// ability ending. See ATDCombatCharacter::GetPendingParryMontageRecoveryRate.
+	if (ATDCombatCharacter* Character = Cast<ATDCombatCharacter>(GetAvatarActorFromActorInfo()))
+	{
+		Character->SetPendingParryMontageRecoveryRate(RecoveryRate);
+	}
 
 	// **Played straight through the AnimInstance rather than through PlayMontageAndWait, and that
 	// is the designer's ruling made mechanical** (2026-08-19): a successful parry frees the parrier
@@ -138,61 +159,10 @@ void UTDParryAbility::PlayParryMontage()
 	// callbacks either: the parry's length is authored, never taken from the clip.
 	AnimInstance->Montage_Play(ParryMontage, WindowRate);
 
-	TD_TIMING_LOG(TEXT("[%.3f] PARRY MONTAGE %s  len=%.3f gesture=%.4f windowRate=%.3f window=%.3f recovery=%.3f"),
+	TD_TIMING_LOG(TEXT("[%.3f] PARRY MONTAGE %s  len=%.3f gesture=%.4f windowRate=%.3f recoveryRate=%.3f window=%.3f recovery=%.3f"),
 		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f,
-		*ParryMontage->GetName(), Length, GestureTime, WindowRate,
+		*ParryMontage->GetName(), Length, GestureTime, WindowRate, RecoveryRate,
 		ParryWindowSeconds, ParryWhiffRecoverySeconds);
-}
-
-void UTDParryAbility::HandleParryGesture(FGameplayEventData Payload)
-{
-	// The event reaches the whole ASC, so a marker on any other montage would otherwise retime this
-	// one. Same guard Release Window's payload exists to allow.
-	if (!ActiveParryMontage || Payload.OptionalObject.Get() != ActiveParryMontage.Get())
-	{
-		return;
-	}
-
-	const FGameplayAbilityActorInfo* ActorInfo = GetCurrentActorInfo();
-	UAnimInstance* AnimInstance = ActorInfo ? ActorInfo->GetAnimInstance() : nullptr;
-	if (!AnimInstance || !AnimInstance->Montage_IsPlaying(ActiveParryMontage))
-	{
-		return;
-	}
-
-	const float Length = ActiveParryMontage->GetPlayLength();
-	const float Position = AnimInstance->Montage_GetPosition(ActiveParryMontage);
-
-	// **The blend-out boundary is why this is not (Length - Position) / Recovery.** UE begins the
-	// automatic blend-out before the montage's end, so a naive rate runs the segment long -- by 6%
-	// at rate 0.94 and by 49% at 0.50 when this was found on the attack ladder in 2026-08-12. The
-	// two forms below are the same arithmetic UTDChargedAttackAbility::ComputeRecoveryPlayRate
-	// derives at length; the difference is only which boundary applies.
-	float RecoveryRate;
-	const float TriggerTime = ActiveParryMontage->BlendOutTriggerTime;
-	if (TriggerTime >= 0.0f)
-	{
-		// Explicit trigger: a fixed position, so it is rate-immune and the rate follows directly.
-		// AM_Parry sets one precisely so the clip's recovery tail is not blended away.
-		const float ToBoundary = (Length - TriggerTime) - Position;
-		RecoveryRate = (ToBoundary <= KINDA_SMALL_NUMBER)
-			? TDMinParryPlayRate
-			: FMath::Max(ToBoundary / ParryWhiffRecoverySeconds, TDMinParryPlayRate);
-	}
-	else
-	{
-		// Rate-dependent boundary: the blend begins BlendTime*R before the end, so it cancels out
-		// of the position but not out of the time. R = Remaining / (Target + BlendTime).
-		const float BlendTime = ActiveParryMontage->BlendOut.GetBlendTime();
-		const float Remaining = Length - Position;
-		RecoveryRate = FMath::Max(Remaining / (ParryWhiffRecoverySeconds + BlendTime), TDMinParryPlayRate);
-	}
-
-	AnimInstance->Montage_SetPlayRate(ActiveParryMontage, RecoveryRate);
-
-	TD_TIMING_LOG(TEXT("[%.3f] PARRY RATE    %s  pos=%.4f recoveryRate=%.3f"),
-		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f,
-		*ActiveParryMontage->GetName(), Position, RecoveryRate);
 }
 
 float UTDParryAbility::FindGestureTime() const
@@ -232,7 +202,26 @@ void UTDParryAbility::EndAbility(
 	// ATDCombatCharacter::CloseParryWindow.
 	if (ATDCombatCharacter* Character = Cast<ATDCombatCharacter>(ActorInfo ? ActorInfo->AvatarActor.Get() : nullptr))
 	{
-		Character->CloseParryWindow();
+		// ***This used to close the window and now deliberately does not*** -- "parry is sacred"
+		// (the designer, 2026-08-19). An ability ending with its window still open means something
+		// cancelled a committed parry, which the design says can never happen: the only ways out
+		// are expiry, a catch, and death, and death closes the window itself before cancelling.
+		//
+		// **The window is left running rather than torn down**, because the protection lives on the
+		// character and survives its ability perfectly well. Tick expires it on schedule and bills
+		// the whiff as usual, so the parry still resolves honestly -- what is lost is the jail,
+		// which is the lesser harm and the one that fails visibly.
+		//
+		// Ungated, because this is the sacredness violation detector and there is nothing else.
+		// If it ever fires, something new is cancelling abilities without routing through the parry
+		// check -- Knockdown and ability effects are the candidates on the roster.
+		if (Character->IsParryWindowOpen())
+		{
+			UE_LOG(LogTDCombatTiming, Warning,
+				TEXT("GA_Parry ended on %s with its window still open -- something cancelled a "
+				     "committed parry, which 'parry is sacred' forbids. The window is left running."),
+				*GetNameSafe(Character));
+		}
 	}
 
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);

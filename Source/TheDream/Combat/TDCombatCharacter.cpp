@@ -120,7 +120,18 @@ void ATDCombatCharacter::Tick(float DeltaSeconds)
 			const UWorld* World = GetWorld();
 			if (World && World->GetTimeSeconds() >= ParryWindowEndsAt)
 			{
-				CloseParryWindow();
+				CloseParryWindow(ETDParryCloseReason::Expired);
+			}
+		}
+
+		// Parry Grace, and it is the simplest state on this character by design: no tag, no lock,
+		// nothing to unwind. It expires and that is all. See ParryGraceSeconds.
+		if (bInParryGrace)
+		{
+			const UWorld* World = GetWorld();
+			if (World && World->GetTimeSeconds() >= ParryGraceEndsAt)
+			{
+				EndParryGrace();
 			}
 		}
 
@@ -685,6 +696,11 @@ void ATDCombatCharacter::EnterGuardBreak()
 	// a window of free hits.
 	GuardBreakEndsAt = World->GetTimeSeconds() + GuardBreakStunSeconds;
 
+	// Unreachable today for the same reason blockstun's is -- breaking a guard needs a guard, and
+	// GA_Parry refuses to activate while State.Blocking is present. Hooked because the rule is
+	// about lockouts overriding recoveries in general, not about the paths that can fire now.
+	OverrideParryRecovery(TEXT("guard break"));
+
 	if (!bGuardBroken)
 	{
 		bGuardBroken = true;
@@ -759,6 +775,13 @@ void ATDCombatCharacter::EnterBlockstun(float DurationSeconds)
 	// *shorten* the heavy's lockout, making a faster follow-up a favour to the defender -- which is
 	// the same failure the guard break's re-entrancy comment describes, in the other direction.
 	BlockstunEndsAt = FMath::Max(BlockstunEndsAt, World->GetTimeSeconds() + DurationSeconds);
+
+	// Unreachable today and hooked anyway: a parrier cannot be holding a guard, since GA_Parry
+	// refuses to activate while State.Blocking is present, so no blocked hit can land during a
+	// parry jail. Hooked because **the rule is about lockouts overriding recoveries in general**,
+	// and a hook that only covers the paths that can fire today is one nobody adds to the paths
+	// that can fire tomorrow.
+	OverrideParryRecovery(TEXT("blockstun"));
 
 	if (!bInBlockstun)
 	{
@@ -847,6 +870,11 @@ void ATDCombatCharacter::EnterHitstun(float DurationSeconds)
 	// earlier swing must not survive being cleanly hit. Idempotent beside the cancel path's.
 	ResetString(TEXT("cleanly hit"));
 
+	// **After the cancel, deliberately.** The cancel is what closes any open parry window and bills
+	// its whiff, so overriding before it would leave the recovery to be charged a line later and
+	// outlive the punishment that was supposed to supersede it.
+	OverrideParryRecovery(TEXT("hitstun"));
+
 	if (!bInHitstun)
 	{
 		bInHitstun = true;
@@ -929,7 +957,7 @@ void ATDCombatCharacter::OpenParryWindow(float DurationSeconds, float WhiffRecov
 		ParryWindowEndsAt);
 }
 
-void ATDCombatCharacter::CloseParryWindow()
+void ATDCombatCharacter::CloseParryWindow(ETDParryCloseReason Reason)
 {
 	UWorld* World = GetWorld();
 	if (!World || !bParryWindowOpen)
@@ -937,24 +965,25 @@ void ATDCombatCharacter::CloseParryWindow()
 		return;
 	}
 
-	// Cleared before anything else, so that the cancel at the bottom -- which re-enters here
-	// through GA_Parry's EndAbility -- finds nothing to do. Idempotence by ordering rather than by
-	// a re-entrancy flag.
+	// Cleared before anything else, so that the cancel below -- which re-enters here through
+	// GA_Parry's EndAbility -- finds nothing to do. Idempotence by ordering rather than by a
+	// re-entrancy flag.
 	bParryWindowOpen = false;
 
-	const bool bCaught = bParryCaughtThisWindow;
 	bParryCaughtThisWindow = false;
 
-	if (!bCaught)
+	// ***Superseded 2026-08-19 -- "parry is sacred".*** This used to charge the whiff on every exit
+	// including cancellation, reasoning that "being cancelled is exactly the cheap exit an attacker
+	// would otherwise be handing you for free". The designer has since ruled that an attacker can
+	// never interrupt an active parry at all -- there will never be a move designed to defeat one,
+	// a promise deliberately not made for block -- so the threat that argument defended against
+	// does not exist. Cancellation no longer reaches here: GA_Parry::EndAbility leaves an open
+	// window running and warns instead.
+	//
+	// **Only Expired bills.** A catch owes nothing, and death is on the house because dying resets
+	// your starting conditions anyway.
+	if (Reason == ETDParryCloseReason::Expired)
 	{
-		// **The whiff is charged here, at the one exit every ending shares.** Expiry, cancellation
-		// and death all arrive at this line, which is what stops a recovery being skipped by ending
-		// the parry through an unusual path -- and being *cancelled* is exactly the cheap exit an
-		// attacker would otherwise be handing you for free.
-		//
-		// Note this deliberately charges a parrier who was hit out of their own window. They are
-		// already in hitstun, so most of the recovery is served concurrently; the alternative is a
-		// rule that says a failed read costs nothing as long as it failed badly enough.
 		ApplyParryRecovery(PendingParryWhiffRecoverySeconds);
 
 		TD_TIMING_LOG(TEXT("[%.3f] PARRY WHIFF  %s  recovery=%.3f"),
@@ -962,20 +991,23 @@ void ATDCombatCharacter::CloseParryWindow()
 			*GetName(),
 			PendingParryWhiffRecoverySeconds);
 	}
+	else if (Reason == ETDParryCloseReason::Caught)
+	{
+		// **Grace starts here and only here.** Siting it on the window's catch rather than in
+		// NotifyParrySuccess is what makes "does not re-arm" structural: a Grace catch never
+		// reaches this function, because there is no window left to close.
+		BeginParryGrace();
+	}
 
 	PendingParryWhiffRecoverySeconds = 0.0f;
 
-	// **Only a caught parry ends the ability here, and that asymmetry is the 2026-08-19 ruling.**
-	// A whiff keeps GA_Parry alive across State.ParryRecovery so its movement lock holds and the
-	// recovery is a real commitment rather than a refusal you can walk around during; the cancel
-	// then happens in EndParryRecovery. A catch frees the parrier instantly, which is the reward
-	// the whole design derives from -- "successful parries can retrigger without impeding other
-	// actions" survives only because this path ends immediately.
-	//
-	// The window closing without the ability ending is therefore a legitimate state now, where it
-	// used to be an invariant violation. What still may not happen is the reverse -- the ability
-	// outliving the window with the window still open -- and EndAbility's close is what covers it.
-	if (bCaught)
+	// **A catch and a death end the ability at once; an expiry does not.** A whiff keeps GA_Parry
+	// alive across State.ParryRecovery so its movement lock holds and the recovery is a real
+	// commitment rather than a refusal you can walk around during -- that cancel happens in
+	// EndParryRecovery instead. A catch frees the parrier instantly, which is the reward the whole
+	// design derives from: "successful parries can retrigger without impeding other actions"
+	// survives only because this path ends immediately.
+	if (Reason != ETDParryCloseReason::Expired)
 	{
 		CancelParryAbility();
 	}
@@ -1009,13 +1041,22 @@ void ATDCombatCharacter::CancelParryAbility()
 void ATDCombatCharacter::NotifyParrySuccess(AActor* Attacker)
 {
 	UWorld* World = GetWorld();
-	if (!World || !HasAuthority() || !bParryWindowOpen)
+	if (!World || !HasAuthority())
 	{
 		return;
 	}
 
-	// Set before the close, because the close reads it to decide whether to charge the whiff.
-	bParryCaughtThisWindow = true;
+	// **Two things can catch, and which one did is the entire no-re-arm rule.** An open window
+	// catches and then starts a Grace tail; Grace itself catches and starts nothing. The window
+	// wins when both are somehow true, because only it has a tail to give.
+	const bool bByWindow = bParryWindowOpen;
+	const bool bByGrace = !bByWindow && bInParryGrace;
+	if (!bByWindow && !bByGrace)
+	{
+		return;
+	}
+
+	bParryCaughtThisWindow = bByWindow;
 
 	// Read before the write so the trace can print what was *actually* credited rather than what
 	// was authored. The two differ whenever the bar is near full, and printing the authored number
@@ -1051,16 +1092,63 @@ void ATDCombatCharacter::NotifyParrySuccess(AActor* Attacker)
 	// parrier never spends and its bar never leaves 100. That is the clamp behaving, not a fault --
 	// and it is why the reward's *magnitude* is filed as untested rather than asserted. This field
 	// is what makes it assertable the moment a fixture exists that can spend the parrier's stamina.
-	TD_TIMING_LOG(TEXT("[%.3f] PARRY SUCCESS %s parried %s  gained=%.1f stamina=%.1f"),
+	//
+	// **by= names which of the two caught it**, added with Grace 2026-08-19. Without it a run in
+	// which Grace never fires is indistinguishable from one in which it fires constantly, and the
+	// no-re-arm rule -- at most one by=window per tail -- is unassertable.
+	TD_TIMING_LOG(TEXT("[%.3f] PARRY SUCCESS %s parried %s  by=%s gained=%.1f stamina=%.1f"),
 		World->GetTimeSeconds(),
 		*GetName(),
 		*GetNameSafe(Attacker),
+		bByWindow ? TEXT("window") : TEXT("grace"),
 		GetStamina() - StaminaBefore,
 		GetStamina());
 
 	// Free instantly: no success recovery, so "successful parries can retrigger without impeding
-	// other actions" survives from the spec. The close charges nothing, because it caught something.
-	CloseParryWindow();
+	// other actions" survives from the spec. The close charges nothing and starts the Grace tail.
+	//
+	// **A Grace catch closes nothing and starts nothing**, which is the whole of "it does not
+	// re-arm": there is no window to close, the parrier was already free, and the tail keeps
+	// running on its original clock. It still paid the full reward above, because it is a parry.
+	if (bByWindow)
+	{
+		CloseParryWindow(ETDParryCloseReason::Caught);
+	}
+}
+
+void ATDCombatCharacter::BeginParryGrace()
+{
+	UWorld* World = GetWorld();
+	if (!World || !HasAuthority() || ParryGraceSeconds <= 0.0f)
+	{
+		return;
+	}
+
+	// **Assigned, never max-extended, and that is deliberate against every other timestamp here.**
+	// Max-extension is what the stuns use so overlapping causes cannot shorten a sentence; Grace
+	// has exactly one cause and must not accumulate, so a plain assignment *is* the no-re-arm rule.
+	// Only a window catch reaches this, so there is nothing to accumulate anyway -- the assignment
+	// is belt and braces against a future caller.
+	ParryGraceEndsAt = World->GetTimeSeconds() + ParryGraceSeconds;
+	bInParryGrace = true;
+
+	TD_TIMING_LOG(TEXT("[%.3f] PARRY GRACE  %s  until=%.3f"),
+		World->GetTimeSeconds(), *GetName(), ParryGraceEndsAt);
+}
+
+void ATDCombatCharacter::EndParryGrace()
+{
+	if (!bInParryGrace)
+	{
+		return;
+	}
+
+	bInParryGrace = false;
+
+	// Nothing else to undo. Grace applies no tag, takes no lock and refuses nothing, so expiring
+	// is the whole of ending it -- which is what "self-contained" means in practice.
+	TD_TIMING_LOG(TEXT("[%.3f] PARRY GRACE END %s"),
+		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f, *GetName());
 }
 
 void ATDCombatCharacter::ApplyParryRecovery(float DurationSeconds)
@@ -1084,6 +1172,37 @@ void ATDCombatCharacter::ApplyParryRecovery(float DurationSeconds)
 		bInParryRecovery = true;
 		ApplyParryRecoveryState();
 	}
+}
+
+void ATDCombatCharacter::OverrideParryRecovery(const TCHAR* Cause)
+{
+	if (!bInParryRecovery)
+	{
+		return;
+	}
+
+	// **A lockout overrides a recovery, and that is the schema doing the work rather than a
+	// special case.** The designer, 2026-08-19: a parry jail ends when "an attacker overrides it
+	// via inflicting punishment". Since a lockout is *externally inflicted* and a recovery is
+	// *self-inflicted*, the general rule falls straight out -- being punished supersedes the price
+	// you were paying yourself, and there is no need to enumerate which punishments count.
+	//
+	// **Deliberately not narrowed to hitstun** (the designer, same evening): knockdown will want
+	// this, and so will ability effects that do not exist yet. **Anything that inflicts a lockout
+	// should call this**, which is why it is a named function rather than three copies of a bool
+	// assignment.
+	//
+	// The charge usually happened moments earlier -- EnterHitstun cancels every ability, which runs
+	// GA_Parry's EndAbility, which closes the window and bills the whiff. Charging and then
+	// overriding is correct rather than wasteful: the trace shows the read failed *and* that the
+	// punishment absorbed its price, which is two separate facts a reader wants.
+	TD_TIMING_LOG(TEXT("[%.3f] PARRY RECOVERY OVERRIDDEN %s  by=%s  remaining=%.3f"),
+		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f,
+		*GetName(),
+		Cause,
+		GetWorld() ? FMath::Max(0.0f, ParryRecoveryEndsAt - GetWorld()->GetTimeSeconds()) : -1.0f);
+
+	EndParryRecovery();
 }
 
 void ATDCombatCharacter::EndParryRecovery()
@@ -1440,6 +1559,7 @@ void ATDCombatCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& O
 	DOREPLIFETIME(ATDCombatCharacter, bParryWindowOpen);
 	DOREPLIFETIME(ATDCombatCharacter, bInParryRecovery);
 	DOREPLIFETIME(ATDCombatCharacter, bInDodgeRecovery);
+	DOREPLIFETIME(ATDCombatCharacter, bInParryGrace);
 	DOREPLIFETIME(ATDCombatCharacter, StringIndex);
 }
 
@@ -1450,6 +1570,18 @@ void ATDCombatCharacter::EnterDeath()
 		return;
 	}
 	bDead = true;
+
+	// **Death is the single carve-out to "parry is sacred", and it is on the house** (the designer,
+	// 2026-08-19): the window closes and no recovery is charged, because dying resets your starting
+	// conditions anyway. Explicitly *before* the cancel below -- the cancel runs GA_Parry's
+	// EndAbility, which warns about an open window it is no longer allowed to close, and that
+	// warning should be reserved for a real sacredness violation.
+	//
+	// Unreachable today, and the irony is worth keeping: nothing can damage you through an open
+	// parry window, so a damage-over-time effect is the only way to die inside one, and none
+	// exists. Grace is deliberately *not* torn down here -- it protects nobody once you are dead,
+	// and expiring on its own clock is one fewer special case.
+	CloseParryWindow(ETDParryCloseReason::Death);
 
 	// Server-only, and deliberately outside ApplyDeathState. Cancelling abilities is an
 	// authority decision that replicates through GAS on its own; running it again from a
