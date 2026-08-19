@@ -7,7 +7,10 @@ picks this up.** Implementation deliberately did not occur in the planning sessi
 
 ---
 
-## Status, 2026-08-18 — A, B, C and D shipped; E and part of F remain
+## Status, 2026-08-19 — everything shipped except one human step in E, plus part of F
+
+**E's code is in and verified; `AM_Parry` and its marker are the only things outstanding in the
+whole slice.** The 08-18 status below is kept for the A–D record.
 
 **Greenlit A→F straight through**, the un-ruled gating question below answered: B–F do **not** wait
 on A being felt.
@@ -21,14 +24,30 @@ on A being felt.
   blocking is the only spender that authors no displacement — and the attacker dummy was re-placed,
   clearing all three stale overrides and gaining a `BeginPlay` warning so the next one announces
   itself. It is `BP_TrainingDummy_C_2` now.
-- **E — outstanding, and it is the human step.** The clip's root-motion pair is already set
-  (`bEnableRootMotion` false, `bForceRootLock` true on
-  `AS_SwordSwordAnimV3_Block1_Parry_RM`). **`AM_Parry` itself still needs creating from that clip**
-  — montage-from-clip, never by duplicating an attack montage. **Nothing plays a montage yet
-  either**: `GA_Parry` deliberately has no montage property, so wiring one is a second step and
-  carries a real design question — *what mechanical duration does the parry clip play across?* The
-  window is 300 ms and the clip is 0.800 s, so "fit the clip to the duration" needs a duration
-  choosing. Parry ships felt-not-seen until then, exactly as blockstun did.
+- **E — the design question is answered and all the code is in. One human step remains.**
+
+  *Updated 2026-08-19.* The clip is confirmed: `AS_SwordSwordAnimV3_Block1_Parry_RM`, 0.800 s, its
+  root-motion pair already correct, **chosen by the designer's eye after an exhaustive recon** that
+  enumerated every distinct `SwordShield` move and every defence-shaped clip in the other ten
+  archetypes. Nothing was hiding under another name; all 19 candidates were already migrated.
+
+  **The design question is ruled: the clip plays across window *and* recovery, in two segments.**
+  A `Parry Gesture` notify marks where the gesture reads; clip-start-to-marker is fitted to
+  `ParryWindowSeconds` and marker-to-clip-end to `ParryWhiffRecoverySeconds`, at two derived rates.
+  *"The animation always conforms to the authored values, never the other way around."* Shipped:
+  `ParryMontage` on `UTDParryAbility`, `UAnimNotify_ParryGesture`, the two-rate fit, the
+  missing-marker warning and fallback, and `s5-parry`'s gesture assertion.
+
+  **The one human step: create `AM_Parry` from the clip and place the marker on it.** Montage-from-
+  clip, never by duplicating an attack montage. *Re-checked 2026-08-19 rather than assumed* —
+  `AssetTools` has no create-from-class, and the only non-attack montage available to duplicate is
+  `AM_Dodge`, which is multi-section and whose `compositeSections` is neither readable nor writable.
+  So this is genuinely a human job, as this plan always said.
+
+  ***E also grew a behavioural half that was not in this plan***, and it is shipped and verified:
+  a whiffed parry now refuses every ability and holds the movement lock, the lockout/recovery
+  vocabulary split, and `State.DodgeRecovery` separating the post-dodge gap. See
+  `Docs/Combat-Decisions.md`, 2026-08-19.
 - **F — partly done.** Everything the shipped code *falsified* moved with it: the ladder table and
   feel-goals line, the spec's heavy and parry sections, the stamina rule, six tuning-map rows, the
   vocabulary's **initiative** and **flinch**, and two new traps. **Still owed: the Netcode brief's
@@ -58,8 +77,8 @@ attempts unless marked derived.
 | Heavy authored total (elapsed band) | 1.150 | **1.000** | 0.35 + 0.15 + 0.50 |
 | Light, charged: all values | — | unchanged | 200/750 arrivals, boundaries 150/—, recoveries 0.60/0.60 |
 | `ParryWindowSeconds` | (spec: 0.40) | **0.30** | ruled; ceiling < fast↔charged gap 0.40; floor ≥ longest `ReleaseSeconds` 0.15 — **both are tuning-map invariants** |
-| `ParryWhiffLockoutSeconds` | (spec: 1.00) | **0.60** | floor constraint: a fast-timed whiff (press ≥ ~150) must stay locked through the charged's 750 |
-| `PostDodgeParryLockoutSeconds` | — | **0.15** | derived: dodge-end + gap + window must overshoot 750 for the worst predictive dodge |
+| `ParryWhiffRecoverySeconds` (renamed 08-19) | (spec: 1.00) | **0.60** | floor constraint: a fast-timed whiff (press ≥ ~150) must stay locked through the charged's 750 |
+| `DodgeRecoverySeconds` (renamed 08-19) | — | **0.15** | derived: dodge-end + gap + window must overshoot 750 for the worst predictive dodge |
 | Parry success stamina reward | — | **+25**, and the regen pause clears instantly | ruled |
 | Parry activation cost | — | **0** | ruled — the pricing symmetry: dodge stamina-priced, block both, parry time-priced |
 | Parry success offensive lock | (spec: 0.50) | **deleted** | subsumed: the attacker's own recovery is the lock, per-tier |
@@ -95,14 +114,14 @@ against `ReleaseStartSeconds`); trust the warnings over arithmetic here.
 - Parrier on success: +25 stamina (server, clamped by the existing three-layer clamp),
   `RegenSuppressedUntil` cleared, free instantly (no success recovery — "retrigger without
   impeding" survives).
-- Whiff: window closes, `State.ParryLockout` for `ParryWhiffLockoutSeconds` — refuses defensive
+- Whiff: window closes, `State.ParryRecovery` for `ParryWhiffRecoverySeconds` — **widened 08-19 to refuse every ability**, was: refuses defensive
   activations via the shared base, same tag pattern as the other ability-applied states.
 - Gates: `ShouldBufferFailedInput = false` (**a replayed parry is a mistimed parry**);
   `ActivationBlockedTags` includes `State.Blocking` (can't parry while blocking — the guard's
   property), the base's dead/exhausted/guard-break/hitstun refusals; `bBlockedWhileAirborne =
   true`; **not** `State.Blockstun` (blockstun and parry never know about each other). Post-dodge
   gap: timestamp on the character (dodge end + 0.15), checked in `CanActivateAbility`.
-- Tags: `State.Parrying`, `State.ParryLockout` — native, beside the existing family.
+- Tags: `State.Parrying`, `State.ParryRecovery`, `State.DodgeRecovery` — native, beside the existing family. `State.ParryLockout` is reserved, unused.
 
 ## Sub-slice C — the on-hit waiver
 
@@ -128,7 +147,7 @@ now, filed against Netcode.
   - `s5-parry` — every `PARRY SUCCESS` pairs with +25 on the stamina ledger, zero `DAMAGED` for
     that swing, **zero `STRING` continuation after a parried swing**, attacker `ABILITY END`
     elapsed at full authored total.
-  - `s5-parry-whiff` — `REFUSED` naming `State.ParryLockout` inside the lockout span; span band
+  - `s5-parry-whiff` — `REFUSED` naming `parry recovery` inside the recovery span; span band
     0.60 ±25 ms.
   - `s5-cancel` — attack press → block inside 150 ms: no `RELEASE BEGIN`, `BLOCK cost` exactly
     once, zero damage dealt.
