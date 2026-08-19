@@ -619,8 +619,8 @@ kept in their own notes. What belongs here is only what to move once a verdict a
 | The window to chain feels too generous | `StringLinkWindowSeconds` for the post-recovery half, `ChainOpenAfterRecoverySeconds` for when the in-swing half opens | The buffer. The chain-out span is the whole of recovery by construction — it is gated on `bInRecovery` — so tightening the *input* window is not what shortens it; `RecoverySeconds` is, and that is the punish window. |
 | The string's cadence feels wrong | **`ChainOpenAfterRecoverySeconds`, but it is derived and not free.** 0.133 comes from `cadence = 0.200 + 0.150 + ChainOpen + one frame` against a **500 ms cadence tapped by the designer**, the one number in the project measured off a human rather than chosen. Moving it moves the cadence away from that measurement, so re-derive rather than nudge — and `HitstunSeconds` must stay above the resulting gap or the string's guarantee silently stops being true | The montage rates or `RecoverySeconds`. Pressing earlier buys no cadence at all: chain-out fires when recovery opens, not when the press arrived. |
 | The parry window feels too tight, or too forgiving | **Nothing, without re-deriving both fences.** `ParryWindowSeconds` is bounded above by the anti-option-select ceiling — one press must not cover two read-classes, so it must stay under the fast↔charged gap, 750 − 350 = **400 ms** — and below by the longest authored `ReleaseSeconds`, **0.150**, or a damaging phase can span the whole window and come out unparried. 300 is legal *only because of the re-pole*; under the old ladder the ceiling was 250 | Widening it toward the gap "because there is room". The room is the whole margin protecting the read from becoming an option-select, and spending it converts parry from a read into a timing test — which is the identity the entire input scheme was chosen to protect |
-| A whiffed parry is punished too hard, or too cheaply | `ParryWhiffLockoutSeconds`, above its floor. The floor is a constraint, not a feel: a whiff timed against the **fast** layer must stay locked through the charged's 750 ms arrival, or reading "fast" wrongly costs nothing and the charged can never collect on it. That is what re-derived it down from the spec's 1000 | Adding a stamina cost to the parry. It is **time**-priced by design, and pricing it in both ledgers makes it block with extra steps — the pricing symmetry (dodge stamina, block both, parry time) is the thing being protected |
-| Dodging into a parry feels like it covers too much | `PostDodgeParryLockoutSeconds`, **derived**: dodge-end + gap + window must overshoot the charged's 750 for the worst-timed predictive dodge. Re-derive it whenever `DodgeSeconds`, the parry window, or the charged's arrival moves | Shortening the parry window to compensate. That fixes one option-select by tightening a fence that is already load-bearing for a different one, and does it everywhere rather than where the problem is |
+| A whiffed parry is punished too hard, or too cheaply | `ParryWhiffRecoverySeconds`, above its floor. **Re-derive before tuning: 2026-08-19 widened what it buys from "you cannot defend" to "you cannot act", so the number now prices a materially harsher punish than when it was chosen.** The floor is a constraint, not a feel: a whiff timed against the **fast** layer must stay locked through the charged's 750 ms arrival, or reading "fast" wrongly costs nothing and the charged can never collect on it. That is what re-derived it down from the spec's 1000 | Adding a stamina cost to the parry. It is **time**-priced by design, and pricing it in both ledgers makes it block with extra steps — the pricing symmetry (dodge stamina, block both, parry time) is the thing being protected |
+| Dodging into a parry feels like it covers too much | `DodgeRecoverySeconds` (`State.DodgeRecovery`, its own tag since 2026-08-19), **derived**: dodge-end + gap + window must overshoot the charged's 750 for the worst-timed predictive dodge. Re-derive it whenever `DodgeSeconds`, the parry window, or the charged's arrival moves | Shortening the parry window to compensate. That fixes one option-select by tightening a fence that is already load-bearing for a different one, and does it everywhere rather than where the problem is |
 | Movement comes back too early or too late after landing a hit | **Nothing — it is derived.** The on-hit waiver returns movement at contact + *that swing's* `HitstunSeconds`. Earlier lets the attacker erode the authored spacing the fixed-destination knockback just paid for; later is dead freedom, since the victim is out of hitstun and the exchange has restarted | A separate waiver duration. Authoring it apart immediately allows the pair that makes no sense — movement returning while the victim is still stunned for it, or staying locked after they can act |
 | A parried attacker gets away with too much | **Nothing — the reward is derived and already per-tier.** Recovery *is* the punish window, so a parried charged pays more than a parried light without anyone authoring it; the string reset is what compensates at the light end | A per-branch parry bonus. Raised 2026-08-18 and rejected: the derived model pays by the victim's commitment rather than by the read's difficulty, and an authored bonus exists only if play demands read-difficulty compensation |
 | The charged feels unreactable, or trivially reactable | **Nothing, without re-deriving it.** It must arrive at or after coil + reaction + dodge duration — 750 = 150 + 200 + 400, exactly on the line today, so it has no slack downward at all | Moving it for feel. Below the derived value the slow layer stops being answerable by the defence it exists to reward, and the ladder loses the pole that makes the fast layer mean anything |
@@ -700,6 +700,11 @@ concludes the log is wrong rather than merely old. Add a row whenever a name cha
 | `TickBlockingMoveSpeed()` | **`TickMoveSpeedClamps()`**, renamed 2026-08-14 when exhaustion became a second speed clamp. It takes the slowest applicable cap rather than the guard's alone. |
 | `bSnapFacingWhileMoving` | Never shipped. A temporary A/B switch for the facing pass, deleted with the snap branch it selected. |
 | `RecoveryPlayRate` | **`FTDAttackBranch::RecoverySeconds`**, 2026-08-12. Recovery is authored as a duration per branch and its rate is derived, as windup and release already were. A rate could only set the punish window indirectly, through however long the clip's tail happened to be. |
+| `ParryWhiffLockoutSeconds` | **`ParryWhiffRecoverySeconds`**, 2026-08-19. A whiffed parry is self-inflicted, so "lockout" was the wrong half of the schema. The value is unchanged at 0.60; what it *buys* widened from refusing defensive activations to refusing everything. |
+| `State.ParryLockout` (the whiff tail) | **`State.ParryRecovery`**, 2026-08-19. **The old name is now RESERVED for a different meaning** — the state a *parried attacker* would carry — so an entry naming it before 08-19 means the whiff tail and one after may not. Check the date. |
+| `State.ParryLockout` (the post-dodge gap) | **`State.DodgeRecovery`**, 2026-08-19. The gap shared the whiff's tag until the whiff widened to refuse everything; it kept the old narrow behaviour and took its own tag. |
+| `PostDodgeParryLockoutSeconds` | **`DodgeRecoverySeconds`**, 2026-08-19, with the tag split above. Same 0.15, same derivation, same behaviour. |
+| `ApplyParryLockout()`, `EndParryLockout()`, `bParryLockedOut`, `IsParryLockedOut()` | `ApplyParryRecovery()`, `EndParryRecovery()`, `bInParryRecovery`, `IsInParryRecovery()` — 2026-08-19, and each gained a `*DodgeRecovery*` sibling for the gap. |
 
 ---
 
@@ -718,7 +723,7 @@ reading the file front to back found it.** An index nobody has to read front to 
 
 Generated from the archive rather than maintained by hand, so it goes stale rather than wrong —
 a missing row means the entry is newer than the index, never that the symbol is absent.
-Current through **2026-08-18** — update the date when regenerating, and `docs-check` turns
+Current through **2026-08-19** — update the date when regenerating, and `docs-check` turns
 staleness into a red row by comparing it against the newest entry. The rule for reading it is the standing one,
 that **a search finding nothing proves only that the filter did not match.**
 
@@ -747,7 +752,7 @@ long.
 | `ATheDreamCharacter` | 08-12, 08-13 |
 | `ATheDreamCharacter::ApplyCameraCollisionExemption` | 08-13 |
 | `ActivateAbility` | 08-10, 08-12 |
-| `ActivationBlockedTags` | 08-10, 08-11, 08-12 |
+| `ActivationBlockedTags` | 08-10, 08-11, 08-12, 08-19 |
 | `ActorsHitThisWindow` | 08-18 |
 | `AddMovementInput` | 08-12, 08-16 |
 | `AimAssistWedge` | 08-16 |
@@ -789,6 +794,7 @@ long.
 | `DodgeSeconds` | 08-10, 08-11 |
 | `DodgeTargetDistanceCm` | 08-11, 08-12, 08-13 |
 | `ECC_Camera` | 08-12, 08-13 |
+| `EndParryRecovery` | 08-19 |
 | `ETriggerEvent::Started` | 08-11 |
 | `EffectOnEnd` | 08-10 |
 | `EffectOnStart` | 08-10 |
@@ -824,6 +830,7 @@ long.
 | `GA_Attack` | 08-09, 08-10, 08-11, 08-12, 08-14 |
 | `GA_Block` | 08-14 |
 | `GA_Dodge` | 08-10, 08-11, 08-13, 08-14 |
+| `GA_Parry` | 08-19 |
 | `GetActorForwardVector` | 08-12 |
 | `GetAimYawDegrees` | 08-13 |
 | `GetLastInputVector` | 08-10, 08-16 |
@@ -870,6 +877,8 @@ long.
 | `OnRep` | 08-11, 08-16 |
 | `OnRep_PlayerState` | 08-15 |
 | `OverlapsCapsule` | 08-14 |
+| `ParryWhiffRecoverySeconds` | 08-19 |
+| `ParryWindowSeconds` | 08-19 |
 | `PeriodicDodge` | 08-15 |
 | `PhysicsRotation` | 08-12 |
 | `PreAttributeBaseChange` | 08-10 |
@@ -880,7 +889,7 @@ long.
 | `RecoverySeconds` | 08-12, 08-13, 08-16, 08-18 |
 | `RegenSuppressedUntil` | 08-10 |
 | `ReleaseAtSeconds` | 08-09, 08-11, 08-12 |
-| `ReleaseSeconds` | 08-09, 08-12, 08-13, 08-18 |
+| `ReleaseSeconds` | 08-09, 08-12, 08-13, 08-18, 08-19 |
 | `ReleaseStartSeconds` | 08-09, 08-10, 08-11, 08-12 |
 | `RemoveRootMotionSourceByID` | 08-14 |
 | `ResolveDodgeDirection` | 08-10, 08-12, 08-16 |
@@ -903,8 +912,11 @@ long.
 | `StartAttackMontage` | 08-13 |
 | `StartLunge` | 08-14, 08-16 |
 | `State.Blocking.Committed` | 08-14 |
+| `State.DodgeRecovery` | 08-19 |
 | `State.GuardBroken` | 08-14 |
 | `State.Hitstun` | 08-16 |
+| `State.ParryLockout` | 08-19 |
+| `State.ParryRecovery` | 08-19 |
 | `StopLunge` | 08-14 |
 | `StopRagdoll` | 08-13 |
 | `StrengthOverTime` | 08-12 |
@@ -925,6 +937,7 @@ long.
 | `UTDChargedAttackAbility` | 08-09, 08-10, 08-12 |
 | `UTDDodgeAbility` | 08-10 |
 | `UTDGameplayAbility` | 08-12, 08-14 |
+| `UTDGameplayAbility::CanActivateAbility` | 08-19 |
 | `UTDGameplayAbility::InputTag` | 08-09 |
 | `UTDGameplayAbility::StartLunge` | 08-13 |
 | `UTDMeleeAttackAbility` | 08-10 |
@@ -964,6 +977,104 @@ long.
 | `gEComponents` | 08-10, 08-11 |
 
 ---
+
+## 2026-08-19 — The parry recovery commits you, and lockout/recovery becomes a schema
+
+Sub-slice E opened as "the animation, which is all that is left of it" and did not stay that way.
+Three rulings came out of it, and only one is about animation.
+
+### Recovery is self-inflicted, a lockout is externally inflicted
+
+**The designer's vocabulary, coined mid-session.** The axis is *who caused it*, not what it forbids
+— which matters because the two parry tails forbid very different things and are both recoveries.
+The attacker/defender asymmetry was raised and dismissed as splitting hairs: a parry lockout would
+be inflicted by a defender and is still externally inflicted.
+
+It graduated to `CLAUDE.md`'s vocabulary rather than staying here, because it governs naming
+everywhere and **Recovery was already defined there as an attack phase only**. The entry now reads
+the general sense first and the attack phase as its named instance, which keeps **Coil** parsing —
+that entry defines itself against the three phases.
+
+**`State.ParryLockout` is reserved and deliberately not declared.** It named the whiff tail until
+this session; under the schema that was wrong, because a whiffed parry is self-inflicted. The name
+is being kept free rather than recycled: the designer has used it in an earlier project for the
+state inflicted on an attacker who **has been parried**, carrying its own authored properties, and
+reads a significant chance that this project's derived reward proves under-authored and that form
+returns. Recording it is the cheap half of a decision that would otherwise be rediscovered.
+
+### A whiffed parry now prevents acting, and that split the shared tag
+
+**The ruling:** *"if you can act during parry recovery, you shouldn't be able to"*, qualified the
+same evening to *"assuming the parry never makes contact"* — which is exactly the whiff path, since
+a catch charges no recovery at all. The reasoning is the pricing symmetry: the parry is **time**-
+priced, and time you can act during is not a price.
+
+Mechanically `GA_Parry` now stays alive across the 600 ms instead of being cancelled at window
+close, so its existing movement lock spans the recovery, and `State.ParryRecovery` is refused in
+`UTDGameplayAbility::CanActivateAbility` for every ability. The cancel that used to fire
+unconditionally now fires at window close **only on a catch**; the whiff's moved to
+`EndParryRecovery`.
+
+**The consequence nobody planned for, and it is the one worth recording.** The whiff tail and the
+post-dodge parry gap deliberately shared one tag, on the argument that both said only *"you may not
+put a parry window here"* — one sentence, two causes. Widening one to refuse everything would have
+silently committed the player for 150 ms after **every dodge**, a feel regression arriving as a
+side effect of a ruling about something else, and one that would have been blamed on the dodge.
+They split: `State.DodgeRecovery` keeps the old narrow behaviour exactly.
+
+**A stale tag string survived the rename inside a Blueprint CDO.** `GA_Parry`'s
+`ActivationBlockedTags` still held `"State.ParryLockout"` after the native tag was gone — it
+matches nothing, so the post-dodge gap would have been **silently unenforced**. Renaming a native
+gameplay tag does not touch the containers that reference it by name, and nothing warns. Rewritten
+empty-then-whole and verified against the binary rather than the read-back.
+
+### The animation conforms to the authored values, never the reverse
+
+The designer's line, and it settles what the plan left open — *what mechanical duration does the
+clip play across?* The answer is **both**, in two segments. A **Parry Gesture** notify marks the
+instant the gesture reads; clip-start-to-marker is fitted to `ParryWindowSeconds` and
+marker-to-clip-end to `ParryWhiffRecoverySeconds`, at two separately derived play rates.
+
+**Two rates rather than one, and the arithmetic is why.** A single uniform rate aligns both halves
+only if the marker sits at exactly `window / (window + recovery)` of the clip — **1/3** at today's
+numbers. Anywhere else and one segment stretches while the other compresses. Solving
+`f × L / 0.300 = (1 − f) × L / 0.600` gives f = 1/3 and nothing else.
+
+**The notify declares geometry and authors nothing mechanical.** Same relationship `Release Window`
+has with `ReleaseSeconds`: the marker says where the clip's boundary is, the code says how long the
+mechanic lasts, the rate reconciles them. The window stays a Tick-checked timestamp, so moving the
+marker or deleting the montage changes how the parry *looks* and cannot change what it *does*.
+
+**Fitting the clip to the window alone was the alternative and it lost to a preview.** The reading
+before anyone looked at the clip was that 300 ms was the obvious span. The designer then watched it
+and reported *"a parry plus its recovery animation"*, which is a claim about the clip that no
+property exposes and no arithmetic recovers. **The window could not have moved to meet the clip
+anyway** — 0.800 s is double the 400 ms ceiling the fast↔charged gap fences — so "change the
+number" was unavailable here and the two-segment fit is what replaced it.
+
+**Success and whiff read the same clip, and success truncates nothing but the rate switch.** A
+catch ends the ability, so the gesture handler is gone and the tail plays out at the window rate
+rather than the recovery rate. Accepted rather than overlooked: on success there is no recovery for
+the tail to be fitted to, and the designer's expectation is that the player's next action overrides
+the clip almost every time — *"which they almost always will"*.
+
+### What was left open
+
+**Whether a press refused during parry recovery should buffer.** It does today, inheriting
+hitstun's behaviour rather than the guard break's exemption. Buffering does not let you *act*
+during the recovery, so it satisfies the ruling as stated, but it softens the punish — a press made
+during the tail fires the instant it ends. Guard break refuses to buffer for exactly that reason.
+Not settled here because nothing has been felt; raised so the choice is visible rather than
+inherited.
+
+**Whether 0.60 is still the right number.** Its floor is untouched — a whiff timed against the fast
+layer must stay locked through the charged's 750 ms arrival, and a stricter refusal cannot violate
+a floor. But the number was chosen when it bought *"you cannot defend"* and now buys *"you cannot
+act"*, so it prices a materially harsher punish than when it was picked. The tuning map carries the
+warning.
+
+---
+
 
 ## 2026-08-18 — Parry ships: three rulings the plan left open, and a disagreement inside it
 

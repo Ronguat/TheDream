@@ -57,7 +57,12 @@ numbers per tier, needed to read a commit message or a trace line in any session
 - **Windup** — everything before the attack can deal damage.
 - **Release** — the period during which the attack deals damage. Marked on a montage by the
   `Release Window` notify state (`UAnimNotifyState_MeleeWindow`).
-- **Recovery** — from the end of the damaging phase to the end of the attack.
+- **Recovery** — a tail you inflicted on yourself, during which you owe time. For an attack, the
+  third phase: from the end of the damaging phase to the end of the attack. A whiffed parry's
+  600 ms is the same idea off an attack. Say *attack recovery* only where context leaves it open.
+- **Lockout** — a tail someone else inflicted on you: blockstun, hitstun, a guard break. **The axis
+  is who caused it, not what it forbids** — a recovery can refuse more than a lockout does. Whether
+  the inflicter was the attacker or the defender is immaterial.
 - **Coil** — *not* a fourth phase: the sub-state of windup slowed while waiting for the commit
   checkpoint, existing as visual feedback. Its tuning values are named `Coil*` rather than after a
   phase.

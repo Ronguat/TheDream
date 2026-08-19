@@ -77,15 +77,16 @@ BAND_BLOCKSTUN_TOL=0.020
 # S2 -- GuardBreakStunSeconds, break to GUARD END. Measured 1.004..1.007.
 BAND_GUARDSTUN=1.000; BAND_GUARDSTUN_TOL=0.025
 
-# S5 -- the parry window and the lockout a whiff leaves behind.
-# Source: GA_Parry's CDO (ParryWindowSeconds, ParryWhiffLockoutSeconds), read 2026-08-18.
+# S5 -- the parry window and the recovery a whiff leaves behind.
+# Source: GA_Parry's CDO (ParryWindowSeconds, ParryWhiffRecoverySeconds), read 2026-08-18;
+# renamed 2026-08-19 with the recovery/lockout split, values unchanged.
 # Neither is a free number. The window is fenced above by the anti-option-select ceiling -- one
 # press must not cover two read-classes, so it must stay under the fast-to-charged gap of 400 ms --
 # and below by the longest authored ReleaseSeconds, 0.150, or a damaging phase could span the whole
-# window and come out unparried. The lockout is floored by the constraint that a whiff timed against
+# window and come out unparried. The recovery is floored by the constraint that a whiff timed against
 # the fast layer stays locked through the charged's 750 ms arrival.
 BAND_PARRY_WINDOW=0.300
-BAND_PARRY_LOCKOUT=0.600
+BAND_PARRY_RECOVERY=0.600
 BAND_PARRY_SPAN_TOL=0.025
 
 # S5 -- the credited stamina reward, as seen by s5-parry, whose parrier never spends. A parry costs
@@ -269,17 +270,35 @@ parry_window_spans() { # until= minus the timestamp it was printed at; blockstun
 		}' "$SLICE"
 }
 
-parry_lockout_spans() { # same, for State.ParryLockout -- **both** of its causes
-	# Deliberately not filtered to whiffs. The tag has two sources, a whiffed parry (0.600) and a
-	# dodge ending (0.150), so a log containing dodges yields both lengths and a band expecting one
-	# will fail on the other. That is correct rather than a flaw -- s5-parry-whiff's fixture never
-	# dodges, so its samples are all whiffs -- but it is why this must not be pointed at an
-	# arbitrary log. Proven the day it was written: run against s5-waiver's log it returns
-	# seventeen 0.150s, which are the post-dodge gaps and nothing to do with a parry whiff.
+parry_recovery_spans() { # same, for State.ParryRecovery
+	# ***One cause since 2026-08-19, where this had two.*** The tag used to carry the post-dodge gap
+	# as well, so a log containing dodges yielded both 0.600 and 0.150 and a band expecting one
+	# failed on the other -- run against s5-waiver's log it returned seventeen 0.150s that had
+	# nothing to do with a parry whiff. The dodge's gap is State.DodgeRecovery now and prints
+	# DODGE RECOVERY, so this pattern cannot pick it up and the hazard is gone by construction
+	# rather than by keeping the fixture free of dodges.
 	awk '
-		/^\[[0-9.]+\] PARRY LOCKOUT [^E]/ {
+		/^\[[0-9.]+\] PARRY RECOVERY [^E]/ {
 			t=$1; gsub(/[\[\]]/,"",t)
 			for (i=1;i<=NF;i++) if ($i ~ /^until=/) { split($i,a,"="); printf "%.3f\n", a[2]-t }
+		}' "$SLICE"
+}
+
+acts_during_parry_recovery() { # anything that activated while a recovery was running
+	# **The assertion the 2026-08-19 ruling actually needs.** "You can't act during parry recovery"
+	# is a claim about what did *not* happen, so counting refusals is not enough -- a refusal proves
+	# one press was stopped, never that none got through. This walks the span instead and reports
+	# any ability that started inside it, which is the thing that must be empty.
+	awk '
+		/^\[[0-9.]+\] PARRY RECOVERY [^E]/ {
+			t=$1; gsub(/[\[\]]/,"",t)
+			for (i=1;i<=NF;i++) if ($i ~ /^until=/) { split($i,a,"="); until_t=a[2] }
+			in_rec=1; next
+		}
+		/^\[[0-9.]+\] PARRY RECOVERY END/ { in_rec=0; next }
+		in_rec && /^\[[0-9.]+\] (ATTACK|DODGE|BLOCK cost|PARRY WINDOW open)/ {
+			t=$1; gsub(/[\[\]]/,"",t)
+			if (t+0 < until_t+0) print $0
 		}' "$SLICE"
 }
 
@@ -546,6 +565,8 @@ run_s5_parry() {
 	assert_all_in_band "parry reward within clamp" "parry_success_gained" \
 		"$BAND_PARRY_GAINED_MIN" "$BAND_PARRY_GAINED_MAX"
 
+	assert_gesture_inside_window
+
 	# "No more games": a parried swing takes the string with it, so no link window may follow one.
 	violations=$(parried_string_violations | grep -c '[0-9]' || true)
 	assert_count "no STRING continuation after a parry" "$violations" 0
@@ -574,17 +595,81 @@ run_s5_parry_reward() {
 run_s5_parry_whiff() {
 	local refusals
 
-	assert_all_in_band "PARRY LOCKOUT span" "parry_lockout_spans" \
-		"$(awk -v v="$BAND_PARRY_LOCKOUT" -v t="$BAND_PARRY_SPAN_TOL" 'BEGIN{printf "%.3f", v-t}')" \
-		"$(awk -v v="$BAND_PARRY_LOCKOUT" -v t="$BAND_PARRY_SPAN_TOL" 'BEGIN{printf "%.3f", v+t}')" "s"
+	assert_all_in_band "PARRY RECOVERY span" "parry_recovery_spans" \
+		"$(awk -v v="$BAND_PARRY_RECOVERY" -v t="$BAND_PARRY_SPAN_TOL" 'BEGIN{printf "%.3f", v-t}')" \
+		"$(awk -v v="$BAND_PARRY_RECOVERY" -v t="$BAND_PARRY_SPAN_TOL" 'BEGIN{printf "%.3f", v+t}')" "s"
 
-	# The lockout has to actually refuse something, or it is a tag nobody reads. The parry fixture
-	# presses on its own schedule, so presses land inside a running lockout by construction.
-	refusals=$(grep "^\[[0-9.]*\] REFUSED" "$SLICE" | grep -c "State.ParryLockout" || true)
+	# The recovery has to actually refuse something, or it is a tag nobody reads. The parry fixture
+	# presses on its own schedule, so presses land inside a running recovery by construction.
+	#
+	# **Matched on the reason string, not the tag name.** State.ParryRecovery is refused in
+	# UTDGameplayAbility::CanActivateAbility rather than through ActivationBlockedTags, so it never
+	# reaches the tag-filter path that prints tag names -- it prints its own reason, the way "dead"
+	# and "guard broken" do. Grepping for the tag here would return zero forever and read as the
+	# refusal being broken.
+	refusals=$(grep "^\[[0-9.]*\] REFUSED" "$SLICE" | grep -c "parry recovery" || true)
 	if [ "$refusals" -gt 0 ]; then
-		check "REFUSED names State.ParryLockout" 0 "$refusals"
+		check "REFUSED names parry recovery" 0 "$refusals"
 	else
-		check "REFUSED names State.ParryLockout" 1 "none -- the lockout refused nothing"
+		check "REFUSED names parry recovery" 1 "none -- the recovery refused nothing"
+	fi
+
+	# **The ruling itself, asserted as an absence** (2026-08-19). The refusal count above proves the
+	# recovery stopped *a* press; this proves nothing got through. An attack, dodge, block or second
+	# parry starting inside the span is the failure this scenario exists to catch, and it is the
+	# behaviour that shipped before the ruling -- so it is also the regression guard for it.
+	assert_nothing_acts_during_parry_recovery
+}
+
+gesture_outside_window() { # PARRY GESTURE lines that fall outside their own window's span
+	# The clip's read moment must land while the parry is actually live. If it drifts past the
+	# close, the character is seen catching a blow after the window it could have caught it in has
+	# already gone -- the fit silently wrong in the one way play would blame on the mechanic.
+	awk '
+		/^\[[0-9.]+\] PARRY WINDOW open/ {
+			t=$1; gsub(/[\[\]]/,"",t); open_t=t; open_seen=1
+			for (i=1;i<=NF;i++) if ($i ~ /^until=/) { split($i,a,"="); close_t=a[2] }
+			next
+		}
+		/^\[[0-9.]+\] PARRY GESTURE/ {
+			t=$1; gsub(/[\[\]]/,"",t)
+			if (!open_seen || t+0 < open_t+0 || t+0 > close_t+0) print $0
+		}' "$SLICE"
+}
+
+assert_gesture_inside_window() {
+	local bad n
+	bad=$(gesture_outside_window)
+	n=$(grep -c "^\[[0-9.]*\] PARRY GESTURE" "$SLICE" || true)
+	# **n=0 fails, and the message says which of two causes it is**, because both are real and they
+	# need different fixes: the montage may not be assigned to GA_Parry, or it may be assigned with
+	# no Parry Gesture marker placed on it. Notify placement cannot be read off the asset by any
+	# tool, so this line and the ungated warning in UTDParryAbility::PlayParryMontage are between
+	# them the only things that can report a missing marker at all.
+	if [ "$n" -eq 0 ]; then
+		check "parry gesture reads inside the window" 1 \
+			"no PARRY GESTURE lines -- AM_Parry is unassigned, or carries no Parry Gesture marker"
+	elif [ -z "$bad" ]; then
+		check "parry gesture reads inside the window" 0 "n=$n, every gesture inside its own window"
+	else
+		check "parry gesture reads inside the window" 1 "$(echo "$bad" | head -3 | tr '\n' ' ')"
+	fi
+}
+
+assert_nothing_acts_during_parry_recovery() {
+	local bad n
+	bad=$(acts_during_parry_recovery)
+	n=$(parry_recovery_spans | grep -c . || true)
+	# n=0 must FAIL rather than pass on an empty set, exactly as assert_never_inward does. A build
+	# where the recovery stopped being charged at all would otherwise report "nothing acted during
+	# it" as green while asserting nothing whatsoever -- and that build is precisely the regression
+	# this scenario exists to catch, so the vacuous pass would hide its own target.
+	if [ "$n" -eq 0 ]; then
+		check "nothing acts during parry recovery" 1 "no PARRY RECOVERY spans at all -- nothing was asserted"
+	elif [ -z "$bad" ]; then
+		check "nothing acts during parry recovery" 0 "n=$n spans, no ability started inside any of them"
+	else
+		check "nothing acts during parry recovery" 1 "$(echo "$bad" | head -3 | tr '\n' ' ')"
 	fi
 }
 

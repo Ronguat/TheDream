@@ -195,12 +195,30 @@ beside it means the guard broke instead**, which is correct and supersedes it; `
 *neither* is the failure to watch for. **Nothing will ever print it for a charged** — its stamina
 damage empties any bar, so it always breaks. That is a filed trap, not a bug.
 
-**Parry adds five, and the pairing to read is window → outcome** *(2026-08-18)*. `PARRY WINDOW
-open` carries `until=`, so its span is read the way `BLOCKSTUN`'s is — the end time, not a duration.
-Exactly one of two lines follows it: `PARRY SUCCESS`, naming the attacker it caught, or `PARRY
-WHIFF` with the lockout it just bought. `PARRY LOCKOUT` / `PARRY LOCKOUT END` then bracket the
-refusal, and **that pair has two causes** — a whiffed parry and a dodge ending — so a `PARRY
-LOCKOUT` with no `PARRY WHIFF` beside it is the post-dodge gap, not a missing line.
+**Parry adds nine, and the pairing to read is window → outcome** *(2026-08-18, extended
+2026-08-19)*. `PARRY WINDOW open` carries `until=`, so its span is read the way `BLOCKSTUN`'s is —
+the end time, not a duration. Exactly one of two lines follows it: `PARRY SUCCESS`, naming the
+attacker it caught, or `PARRY WHIFF` with the `recovery=` it just bought. `PARRY RECOVERY` /
+`PARRY RECOVERY END` then bracket the refusal.
+
+***That pair had two causes until 2026-08-19 and now has one.*** A `PARRY RECOVERY` used to appear
+with no `PARRY WHIFF` beside it whenever a dodge had just ended, which was the post-dodge gap rather
+than a missing line. The dodge's gap is its own state now and prints **`DODGE RECOVERY` /
+`DODGE RECOVERY END`**, so the two are separable by tag and a `PARRY RECOVERY` without a whiff is
+once again a real anomaly. What changed underneath: a whiffed parry now refuses **every** ability
+and holds the movement lock, while the dodge's gap still refuses only a parry.
+
+**The animation adds three, all cosmetic** *(2026-08-19)*. `PARRY MONTAGE` prints once per parry
+with the clip length, the marker's trigger time as `gesture=`, and the derived `windowRate=`;
+`PARRY GESTURE` fires when the marker passes, carrying the montage `pos=` and `rate=`; `PARRY RATE`
+records the switch to the recovery segment's rate.
+
+**`PARRY GESTURE` is ungated, unlike `RELEASE BEGIN`/`END`**, and deliberately: a montage's
+notifies cannot be read off the asset by any tool we have, so this line is the only evidence the
+marker was ever placed. `gesture=-1.0000` on `PARRY MONTAGE` means no marker was found — the clip
+then plays at one rate across window + recovery and an **ungated warning** says so. A missing
+`PARRY GESTURE` with `PARRY MONTAGE` present is a marker that was never placed; no `PARRY MONTAGE`
+at all means the montage is unassigned on `GA_Parry`.
 
 **`PARRY SUCCESS`'s `gained=` is the *credited* stamina, not the authored reward**, and the two
 differ whenever the bar is near full. Today every sample reads `gained=0.0`: a parry costs nothing,
@@ -403,21 +421,35 @@ looks ignored.
 | `s4-guarantee` | 0.1, **taps 3** | `PeriodicDodge` | `REFUSED` lines attributed to `State.Hitstun`; **zero `DODGE` between `HITSTUN` and `HITSTUN END`** — the string's guarantee, observable; `HITSTUN` spans as above |
 | `s4-block` | 0.1, **taps 3** | `HoldBlock` | `BLOCKED` staminaDamage exactly 5; `BLOCKSTUN` spans 0.350 ±20 ms; knockback never inward |
 | `s4-360` | 0.1, **taps 3**, `FacingMode` **Never**, **`bDebugSuppressLunge`** | `Off`, plus the player spawned at (200, 150) opposite the defender | **first burst only**: attacks 1–2 damage **zero** distinct targets, attack 3 damages **two** |
-| `s5-parry` | 0.1, **taps 3** | `PeriodicParry` | `PARRY WINDOW` span 0.300 ±25 ms; at least one `PARRY SUCCESS` (**n=0 fails**); credited reward inside [0, 25]; **zero `STRING` link window after a parried swing** |
+| `s5-parry` | 0.1, **taps 3** | `PeriodicParry` | `PARRY WINDOW` span 0.300 ±25 ms; at least one `PARRY SUCCESS` (**n=0 fails**); credited reward inside [0, 25]; **zero `STRING` link window after a parried swing**; **every `PARRY GESTURE` inside its own window (n=0 fails)** |
 | `s5-parry-reward` | 0.1, **taps 3** | `PeriodicParry`, `DebugParryPreBlockSeconds` **4.0**, `DebugParryIntervalSeconds` **5.3** | at least one `PARRY SUCCESS`; `gained` **exactly 25** on every one |
-| `s5-parry-whiff` | 0.1, **taps 3** | `PeriodicParry`, `DebugParryIntervalSeconds` **0.5** | `PARRY LOCKOUT` span 0.600 ±25 ms; `REFUSED` naming `State.ParryLockout` at least once |
+| `s5-parry-whiff` | 0.1, **taps 3** | `PeriodicParry`, `DebugParryIntervalSeconds` **0.5**, **and the defender also auto-attacks** (`bDebugAutoAttack`, interval **0.7**, `bDebugSuppressLunge`) | `PARRY RECOVERY` span 0.600 ±25 ms; `REFUSED` naming **`parry recovery`** at least once; **nothing activates inside a recovery span (n=0 fails)** |
 | `s5-cancel` | 0.1, **`bDebugCancelAttackIntoBlock`** | `Off` | zero `RELEASE BEGIN`; zero `DAMAGED`; `BLOCK cost` at least once |
 | `s5-waiver` | 0.1, **`bDebugDodgeAfterHit`** | `Off` | attacker `DODGE` within 100 ms of its own `DAMAGED`; `MOVE UNLOCK` present |
 
 **`s5-parry-whiff` needs its own interval, and finding out why cost a run** *(2026-08-18)*. At the
-default 1.7 the lockout is **never exercised**: a whiff closes 0.3 s after the press and its lockout
-expires 0.6 s later, so the next press arrives 800 ms after the refusal window has already gone.
-That run produced 10 whiffs and **zero** `REFUSED` lines naming `State.ParryLockout` — a lockout
+default 1.7 the recovery is **never exercised**: a whiff closes 0.3 s after the press and its
+recovery expires 0.6 s later, so the next press arrives 800 ms after the refusal window has already gone.
+That run produced 10 whiffs and **zero** `REFUSED` lines naming the recovery — a refusal
 that had never once refused anything, while every span assertion passed. At **0.5** the presses land
 inside it and roughly every other one is refused.
 
+***And from 2026-08-19 the interval alone is no longer enough — the defender must also attack.***
+A parry re-pressed during its own recovery is now **silently dropped with no `REFUSED` line at
+all**: `GA_Parry` stays alive across the recovery, so GAS short-circuits re-activating an already
+active `InstancedPerActor` ability *before* `CanActivateAbility` runs, and the refusal never
+traces. Confirmed by a run where 26 recovery spans and 26 in-span presses produced **zero**
+refusals while the behaviour was entirely correct.
+
+**So the fixture presses something else.** `bDebugAutoAttack` on the *defender*, interval 0.7
+against the parry's 0.5 to sweep phases, with `bDebugSuppressLunge` to keep it planted. Its attack
+presses land inside its own parry recoveries and are refused there — 138 of 139 refusals in the
+verifying run were `GA_Attack`. **That is not a workaround, it is the correct test**: the 2026-08-19
+ruling is that you cannot *act* during parry recovery, and a fixture that only ever presses parry
+cannot observe the rule at all.
+
 **The general form is worth keeping: a span assertion and a refusal assertion need different
-fixtures.** Measuring how long a lockout *lasts* only requires it to exist; proving it *does*
+fixtures.** Measuring how long a recovery *lasts* only requires it to exist; proving it *does*
 anything requires something to arrive while it is up, and a co-prime sweep is specifically designed
 to avoid that collision.
 
