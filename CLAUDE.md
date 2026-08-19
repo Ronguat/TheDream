@@ -58,8 +58,8 @@ numbers per tier, needed to read a commit message or a trace line in any session
 - **Release** — the period during which the attack deals damage. Marked on a montage by the
   `Release Window` notify state (`UAnimNotifyState_MeleeWindow`).
 - **Recovery** — a tail you inflicted on yourself, during which you owe time. For an attack, the
-  third phase: from the end of the damaging phase to the end of the attack. A whiffed parry's
-  600 ms is the same idea off an attack. Say *attack recovery* only where context leaves it open.
+  third phase: from the end of the damaging phase to the end of the attack. A whiffed parry's is
+  the same idea off an attack. Say *attack recovery* only where context leaves it open.
 - **Lockout** — a tail someone else inflicted on you: blockstun, hitstun, a guard break. **The axis
   is who caused it, not what it forbids** — a recovery can refuse more than a lockout does. Whether
   the inflicter was the attacker or the defender is immaterial.
@@ -246,11 +246,10 @@ plainly.
 
 Execution order, the only line that changes when the order does:
 
-> **~~Attack Ladder~~ → ~~Dodge~~ → ~~Sword & Shield~~ → ~~Input Buffer~~ → ~~Death~~ → ~~Dodge Distance~~ → ~~Attack Swap~~ → ~~[hover bug]~~ → ~~[facing pass]~~ → ~~Recovery~~ + ~~Lunge~~ → ~~Target Lock~~ → ~~Block~~ → ~~Light String~~ → Parry → Knockdown → Polish → Death-full → Settings → Netcode → Tuning Rig → Interplay**
+> **~~Attack Ladder~~ → ~~Dodge~~ → ~~Sword & Shield~~ → ~~Input Buffer~~ → ~~Death~~ → ~~Dodge Distance~~ → ~~Attack Swap~~ → ~~[hover bug]~~ → ~~[facing pass]~~ → ~~Recovery~~ + ~~Lunge~~ → ~~Target Lock~~ → ~~Block~~ → ~~Light String~~ → ~~Parry~~ → Knockdown → Polish → Death-full → Settings → Netcode → Tuning Rig → Interplay**
 
-**Pick up at Parry's sub-slice E — the animation, which is all that is left of it.** Everything
-else shipped and is verified. `Docs/Plan-Parry.md` carries the status, what E still needs and the
-one design question it opens; the slice brief in `Docs/Combat-Decisions.md` still applies.
+**Pick up at Knockdown.** Read its brief first: `SwordShield` has **no get-up content whatsoever**,
+so the slice needs a cross-archetype migration raised before it starts.
 
 **Structure Audit has no roster position and keeps a trigger**; its brief is in the same section.
 
