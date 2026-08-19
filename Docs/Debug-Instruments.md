@@ -158,7 +158,18 @@ enumerated from the source 2026-08-14 rather than remembered — `ACTIVATE`, `CO
 `DAMAGED` and `ASC RESOLVE` joined 2026-08-15; **`HITSTUN`/`HITSTUN END`, `STRING` and
 `KNOCKBACK` joined 2026-08-16**, and all three went live when sitting 2 authored the values that
 arm them — they are no longer silent. **`ROTATE` joined 2026-08-18** and fires only while `bDebugAutoAttackRotateTargets` is set;
-**`LUNGE SKIP`** the same day, only under `bDebugSuppressLunge`. **`FACING LOCK` gained `camDelta`
+**`LUNGE SKIP`** the same day, only under `bDebugSuppressLunge`.
+
+***`ACTIVATE` gained its avatar's name on 2026-08-19 and the format changed: `ACTIVATE   <Actor>
+swing=N ...`.*** Anything parsing it with fixed spacing before `swing=` breaks silently.
+**The reason is worth generalising:** attack abilities are `InstancedPerActor`, so every combatant
+owns one and the line was unattributable in any fixture where more than one of them attacks — an
+assertion about the defender counted the attacker's swings. That is exactly why `REFUSED` gained an
+avatar name on 2026-08-12, and **the fix had simply never been carried across to the other tags**.
+`DODGE` still carries none; `BLOCK`, `PARRY *`, `REFUSED` and `DAMAGED` do. Worth checking before
+writing any assertion that has to know *whose* event it is.
+
+**`FACING LOCK` gained `camDelta`
 and `since press`** — the camera yaw moved between the press and the commit, which is what
 separates an aim bug from a flick finished late; `err` alone cannot. Turn the trace off with `TD.DebugCombatTiming 0` when
 combat is not under test.
@@ -423,7 +434,7 @@ looks ignored.
 | `s4-360` | 0.1, **taps 3**, `FacingMode` **Never**, **`bDebugSuppressLunge`** | `Off`, plus the player spawned at (200, 150) opposite the defender | **first burst only**: attacks 1–2 damage **zero** distinct targets, attack 3 damages **two** |
 | `s5-parry` | 0.1, **taps 3** | `PeriodicParry` | `PARRY WINDOW` span 0.300 ±25 ms; at least one `PARRY SUCCESS` (**n=0 fails**); credited reward inside [0, 25]; **zero `STRING` link window after a parried swing**; **every `PARRY GESTURE` inside its own window (n=0 fails)** |
 | `s5-parry-reward` | 0.1, **taps 3** | `PeriodicParry`, `DebugParryPreBlockSeconds` **4.0**, `DebugParryIntervalSeconds` **5.3** | at least one `PARRY SUCCESS`; `gained` **exactly 25** on every one |
-| `s5-parry-whiff` | 0.1, **taps 3** | `PeriodicParry`, `DebugParryIntervalSeconds` **0.5**, **and the defender also auto-attacks** (`bDebugAutoAttack`, interval **0.7**, `bDebugSuppressLunge`) | `PARRY RECOVERY` span 0.600 ±25 ms; `REFUSED` naming **`parry recovery`** at least once; **nothing activates inside a recovery span (n=0 fails)** |
+| `s5-parry-whiff` | 0.1, **taps 3** | `PeriodicParry`, `DebugParryIntervalSeconds` **0.5**, **and the defender also auto-attacks** (`bDebugAutoAttack`, interval **0.7**, `bDebugSuppressLunge`) | `PARRY RECOVERY` span 0.600 ±25 ms; `REFUSED` naming **`parry recovery`** at least once; **nothing activates inside a recovery span (n=0 fails)**; **nothing activates inside a parry window either (n=0 fails)** |
 | `s5-cancel` | 0.1, **`bDebugCancelAttackIntoBlock`** | `Off` | zero `RELEASE BEGIN`; zero `DAMAGED`; `BLOCK cost` at least once |
 | `s5-waiver` | 0.1, **`bDebugDodgeAfterHit`** | `Off` | attacker `DODGE` within 100 ms of its own `DAMAGED`; `MOVE UNLOCK` present |
 

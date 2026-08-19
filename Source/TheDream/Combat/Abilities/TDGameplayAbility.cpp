@@ -120,7 +120,31 @@ bool UTDGameplayAbility::CanActivateAbility(const FGameplayAbilitySpecHandle Han
 		return false;
 	}
 
-	// **A whiffed parry's recovery, refusing everything, from 2026-08-19.** The designer's ruling:
+	// **The parry jail, first half: the window itself** (the designer, 2026-08-19, widening the
+	// ruling below later the same evening). *"Once a parry has been initiated, you are jailed and
+	// unable to do anything until parry recovery ends, or an attacker overrides it via inflicting
+	// punishment, OR you parry something successfully during the window."*
+	//
+	// So the commitment runs from **activation**, not from window close. Before this, movement was
+	// locked through the window but no ability was refused during it -- State.Parrying appears in
+	// nobody's ActivationBlockedTags -- so a parry could be attacked, blocked or dodged out of at
+	// any point in its own active window. That made the read free: throw one, and if the tell says
+	// you guessed wrong, cancel into something else before it costs you.
+	//
+	// The other two exits need no code here, because both already remove this tag: a success ends
+	// the ability at the catch, and an attacker's punishment cancels it. See CloseParryWindow.
+	if (ActorInfo && ActorInfo->AbilitySystemComponent.IsValid()
+		&& ActorInfo->AbilitySystemComponent->HasMatchingGameplayTag(TDTags::State_Parrying))
+	{
+		TD_TIMING_LOG(TEXT("[%.3f] REFUSED    %s on %s: parrying"),
+			ActorInfo->AvatarActor.IsValid() && ActorInfo->AvatarActor->GetWorld()
+				? ActorInfo->AvatarActor->GetWorld()->GetTimeSeconds() : 0.0f,
+			*GetName(),
+			*GetNameSafe(ActorInfo->AvatarActor.Get()));
+		return false;
+	}
+
+	// **The jail's second half: a whiffed parry's recovery.** The designer's ruling:
 	// "if you can act during parry recovery, you shouldn't be able to" -- qualified the same
 	// evening to "assuming the parry never makes contact", which is precisely this state, since a
 	// parry that *did* connect charges no recovery at all.

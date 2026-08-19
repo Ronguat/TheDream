@@ -284,6 +284,65 @@ parry_recovery_spans() { # same, for State.ParryRecovery
 		}' "$SLICE"
 }
 
+acts_during_parry_window() { # anything that activated while a parry window was live
+	# **The jail's first half** (the designer, 2026-08-19). Throwing a parry commits you from
+	# activation, not from window close, so an attack, dodge or block starting inside a live window
+	# is the failure -- and it is the behaviour that shipped before the ruling, when State.Parrying
+	# appeared in nobody's ActivationBlockedTags.
+	#
+	# The window ends on any of the three exits: a catch (PARRY SUCCESS), the whiff charging
+	# (PARRY WHIFF), or an attacker's punishment cancelling it (HITSTUN / GUARD BREAK). Disarming
+	# on all of them matters -- after a punishment the parrier is legitimately in someone else's
+	# state, and anything they do then belongs to that state's rules rather than to this one.
+	# **Scoped to the parrier by name**, which is the whole reason ACTIVATE gained an avatar on
+	# 2026-08-19. Without it the attacker's swings land inside the defender's windows on every
+	# fixture where both act, and every one of them reads as a violation.
+	awk '
+		/^\[[0-9.]+\] PARRY WINDOW open/ {
+			who=""
+			for (i=1;i<=NF;i++) if ($i=="on") { who=$(i+1); break }
+			in_win=1; next
+		}
+		/^\[[0-9.]+\] (PARRY SUCCESS|PARRY WHIFF|HITSTUN|GUARD BREAK)/ { in_win=0; next }
+		in_win && who != "" && $0 ~ ("ACTIVATE +" who " +swing=") { print $0; next }
+		in_win && who != "" && $0 ~ ("BLOCK +cost .* on " who) { print $0; next }
+		# DODGE carries no avatar name, so it cannot be scoped. Left in deliberately: this
+		# scenario has neither combatant dodging, so any DODGE at all is a regression worth
+		# seeing, and a fixture that adds one must revisit this line.
+		in_win && /^\[[0-9.]+\] DODGE +dir=/ { print $0 }' "$SLICE"
+}
+
+# --- what "an ability started" actually looks like in this trace ----------------
+# Learned the expensive way on 2026-08-19, and it is the reason both helpers here
+# name their markers explicitly rather than guessing:
+#
+#   attack  ->  "ACTIVATE   swing=0 pos=... windupRate ..."   (there is NO "ATTACK" tag)
+#   dodge   ->  "DODGE      dir=Bw section=..."               ("DODGE END" is not a start)
+#   block   ->  "BLOCK      cost 10 on ...  remaining=..."    (multiple spaces, not one)
+#   parry   ->  "PARRY WINDOW open ...  until=..."
+#
+# The first version of these assertions matched /ATTACK|DODGE |BLOCK cost/ and so
+# matched **nothing a real log contains** -- while reporting PASS on 32 recovery
+# spans, because the n=0 guard counts *spans* and not detectable events. The
+# fail-on-purpose ritual did not catch it either: the synthetic logs used to
+# prove the assertions could fail were written from the same wrong assumption, so
+# they confirmed a format that does not exist. **A hand-written fixture inherits
+# the author's misconceptions; prove an extractor against a real log slice too.**
+
+assert_nothing_acts_during_parry_window() {
+	local bad n
+	bad=$(acts_during_parry_window)
+	n=$(grep -c "^\[[0-9.]*\] PARRY WINDOW open" "$SLICE" || true)
+	# n=0 fails rather than passing vacuously, for the reason assert_never_inward gives.
+	if [ "$n" -eq 0 ]; then
+		check "nothing acts during a parry window" 1 "no PARRY WINDOW lines at all -- nothing was asserted"
+	elif [ -z "$bad" ]; then
+		check "nothing acts during a parry window" 0 "n=$n windows, no ability started inside any of them"
+	else
+		check "nothing acts during a parry window" 1 "$(echo "$bad" | head -3 | tr '\n' ' ')"
+	fi
+}
+
 acts_during_parry_recovery() { # anything that activated while a recovery was running
 	# **The assertion the 2026-08-19 ruling actually needs.** "You can't act during parry recovery"
 	# is a claim about what did *not* happen, so counting refusals is not enough -- a refusal proves
@@ -292,13 +351,19 @@ acts_during_parry_recovery() { # anything that activated while a recovery was ru
 	awk '
 		/^\[[0-9.]+\] PARRY RECOVERY [^E]/ {
 			t=$1; gsub(/[\[\]]/,"",t)
+			who=$4
 			for (i=1;i<=NF;i++) if ($i ~ /^until=/) { split($i,a,"="); until_t=a[2] }
 			in_rec=1; next
 		}
 		/^\[[0-9.]+\] PARRY RECOVERY END/ { in_rec=0; next }
-		in_rec && /^\[[0-9.]+\] (ATTACK|DODGE|BLOCK cost|PARRY WINDOW open)/ {
+		in_rec {
 			t=$1; gsub(/[\[\]]/,"",t)
-			if (t+0 < until_t+0) print $0
+			if (t+0 >= until_t+0) next
+			# Scoped to the recovering character, for the reason acts_during_parry_window gives.
+			if (who != "" && $0 ~ ("ACTIVATE +" who " +swing=")) { print $0; next }
+			if (who != "" && $0 ~ ("BLOCK +cost .* on " who)) { print $0; next }
+			if ($0 ~ /^\[[0-9.]+\] DODGE +dir=/) { print $0; next }
+			if ($0 ~ ("PARRY WINDOW open on " who)) { print $0; next }
 		}' "$SLICE"
 }
 
@@ -328,7 +393,7 @@ waiver_dodge_latency_ms() { # ms from each DAMAGED to the next DODGE, the waiver
 }
 
 swing_index_counts() { # "<count> <swing index>" per index, so a burst shows equal counts
-	grep -o "ACTIVATE   swing=[0-9]*" "$SLICE" | cut -d= -f2 | sort | uniq -c
+	grep -oE "ACTIVATE +[A-Za-z_0-9]+ +swing=[0-9]+" "$SLICE" | cut -d= -f2 | sort | uniq -c
 }
 
 chain_gaps() { # seconds between an ACTIVATE and the chained ACTIVATE after it
@@ -619,6 +684,7 @@ run_s5_parry_whiff() {
 	# parry starting inside the span is the failure this scenario exists to catch, and it is the
 	# behaviour that shipped before the ruling -- so it is also the regression guard for it.
 	assert_nothing_acts_during_parry_recovery
+	assert_nothing_acts_during_parry_window
 }
 
 gesture_outside_window() { # PARRY GESTURE lines that fall outside their own window's span

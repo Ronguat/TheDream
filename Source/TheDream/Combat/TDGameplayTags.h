@@ -109,6 +109,26 @@ namespace TDTags
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Blocking_Committed);
 
 	/**
+	 *  A parry window is live. Refuses **every** ability for as long as it is up.
+	 *
+	 *  **The jail's first half** (the designer, 2026-08-19): *"once a parry has been initiated, you
+	 *  are jailed and unable to do anything until parry recovery ends, or an attacker overrides it
+	 *  via inflicting punishment, OR you parry something successfully during the window."* So the
+	 *  commitment starts at **activation**, not at window close, and this tag plus
+	 *  State_ParryRecovery span it between them.
+	 *
+	 *  Until then this was an ini tag that nothing refused on, so a parry could be attacked,
+	 *  blocked or dodged out of mid-window -- which made the read free, since the tell arrives in
+	 *  time to cancel. GA_Parry still carries it in ActivationOwnedTags exactly as before; what
+	 *  changed is that the shared base now reads it.
+	 *
+	 *  **Declared natively *and* left in DefaultGameplayTags.ini**, following State_Hitstun, which
+	 *  has been in both since it shipped. The ini entry is now redundant rather than wrong, and
+	 *  removing it would be a project-settings edit for no behavioural gain.
+	 */
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Parrying);
+
+	/**
 	 *  Your own whiffed parry. Refuses **every** ability for ParryWhiffRecoverySeconds.
 	 *
 	 *  **A recovery, not a lockout, and the distinction is the schema** (the designer, 2026-08-19):

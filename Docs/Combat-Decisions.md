@@ -1058,14 +1058,68 @@ rather than the recovery rate. Accepted rather than overlooked: on success there
 the tail to be fitted to, and the designer's expectation is that the player's next action overrides
 the clip almost every time — *"which they almost always will"*.
 
+### Later the same day: the jail starts at the press, not at the window's close
+
+**The designer, widening the ruling above:** *"Once a parry has been initiated, you are 'jailed' and
+unable to do anything until parry recovery ends, or an attacker overrides it via inflicting
+punishment, OR you parry something successfully during the window."*
+
+The earlier ruling had only reached the recovery, so the window still refused nothing: `State.Parrying`
+appeared in no ability's `ActivationBlockedTags`, and movement was locked only because
+`bLocksMovement` happens to span the ability. **So a parry could be attacked, blocked or dodged out
+of at any point in its own active window** — throw one, and when the tell says you guessed wrong,
+cancel into something else before the whiff is ever charged. *A read you can withdraw once you have
+seen the answer is not a read*, which is the counterfeit-call argument the whole input scheme was
+picked on, arriving from a direction nobody had checked.
+
+`State.Parrying` becomes native and the shared base refuses every ability on it, beside
+`State.ParryRecovery`. The two tags span the jail between them. The other two exits need no code:
+a catch ends the ability at once, and an attacker's punishment cancels it.
+
+**The buffering question the previous session left open is settled and the principle is better than
+the question was:** *"the punishment is that you must wait, not that your inputs feel worse."* A
+press refused during the jail still buffers. The parry itself remains the standing exception.
+
+**Also acknowledged rather than fixed:** attacking out of your own parry *window* was possible
+before this, and the designer already knew — it was news to the project, not to them.
+
+### The instrument was wrong in a way the fail-on-purpose ritual could not catch
+
+Worth more than the feature. The first version of *"nothing acts during parry recovery"* matched
+`/ATTACK|DODGE |BLOCK cost/` and **reported PASS on 32 spans while matching nothing a real log
+contains.** There is no `ATTACK` tag at all; an attack start is `ACTIVATE`, a block raise is
+`BLOCK` followed by *several* spaces then `cost`.
+
+**Both guards that should have caught it failed for the same reason.** The n=0 vacuous-pass guard
+counts *spans*, not detectable events, so it was satisfied. And the fail-on-purpose test passed —
+because the synthetic log proving the assertion *could* fail was written from the same wrong
+assumption about the format. **A hand-written fixture inherits its author's misconceptions, so
+proving an extractor against one proves only that it is self-consistent.** The rule that follows:
+**prove an extractor against a slice of a real log**, by injecting the violation into a captured
+session rather than by composing a clean one.
+
+That is how the second version was checked, and the check was sharper for it — injecting the same
+`ACTIVATE` line under the *parrier's* name and under the *attacker's* name, at the identical
+instant, and requiring the first to fail and the second to pass.
+
+**Which surfaced the deeper defect: `ACTIVATE` carried no avatar name.** Every combatant owns an
+`InstancedPerActor` attack ability, so the line was unattributable, and an assertion about the
+defender's jail counted the attacker's swings as violations. Fixed the same way `REFUSED` was fixed
+on 2026-08-12 for the identical reason — **that entry's lesson had simply never been carried to the
+other trace lines**, and it is worth asking which of the rest still lack one.
+
 ### What was left open
 
-**Whether a press refused during parry recovery should buffer.** It does today, inheriting
-hitstun's behaviour rather than the guard break's exemption. Buffering does not let you *act*
-during the recovery, so it satisfies the ruling as stated, but it softens the punish — a press made
-during the tail fires the instant it ends. Guard break refuses to buffer for exactly that reason.
-Not settled here because nothing has been felt; raised so the choice is visible rather than
-inherited.
+**~~Whether a press refused during parry recovery should buffer.~~ — SETTLED the same day**, and
+the designer's phrasing states the principle better than the question did: ***"the punishment is
+that you must wait, not that your inputs feel worse."*** Buffering stays, inheriting hitstun's
+behaviour rather than the guard break's exemption; the parry itself remains the standing exception,
+because a replayed parry is a mistimed one.
+
+*Kept rather than deleted because the reasoning generalises*: the question was whether buffering
+softens the punish, since a press made during the tail fires the instant it ends. The answer is
+that a punish is measured in time taken away, not in inputs discarded — which is a rule for every
+future lockout and recovery, not a verdict about this one.
 
 **Whether 0.60 is still the right number.** Its floor is untouched — a whiff timed against the fast
 layer must stay locked through the charged's 750 ms arrival, and a stricter refusal cannot violate

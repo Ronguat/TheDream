@@ -77,8 +77,15 @@ void UTDChargedAttackAbility::ActivateAbility(const FGameplayAbilitySpecHandle H
 
 	// applied should match wanted. If it reads 1.000 the montage task did not honour the
 	// rate it was given, and the whole windup is running at the wrong speed.
-	TD_TIMING_LOG(TEXT("[%.3f] ACTIVATE   swing=%d pos=%.4f windupRate wanted=%.3f applied=%.3f"),
-		World->GetTimeSeconds(), CurrentSwingIndex, GetMontagePosition(), WindupRate,
+	//
+	// **Names its avatar, added 2026-08-19 for the reason REFUSED gained one in 2026-08-12**:
+	// abilities are InstancedPerActor, so every combatant owns an instance and this line was
+	// unattributable in any fixture where more than one of them attacks. That made it useless for
+	// asserting *whose* attack started -- an assertion about the defender's parry jail counted the
+	// attacker's swings as violations, and there was no way to tell them apart after the fact.
+	TD_TIMING_LOG(TEXT("[%.3f] ACTIVATE   %s swing=%d pos=%.4f windupRate wanted=%.3f applied=%.3f"),
+		World->GetTimeSeconds(), *GetNameSafe(GetAvatarActorFromActorInfo()),
+		CurrentSwingIndex, GetMontagePosition(), WindupRate,
 		ActualMontageRate(GetCurrentActorInfo(), GetActiveAttackMontage()));
 
 	// The base lunge, shared by every tier and identical in wall-clock length whichever branch

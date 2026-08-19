@@ -42,6 +42,25 @@ class UAnimMontage;
  *  Deliberately **not** refused by State.Blockstun -- blockstun and parry never know about each
  *  other (the designer, 2026-08-15). It *is* refused while blocking, which is a property of the
  *  guard rather than of blockstun: you cannot call a read you are already hiding from.
+ *
+ *  **Throwing one jails you, and the jail is the whole point** (the designer, 2026-08-19):
+ *  *"once a parry has been initiated, you are jailed and unable to do anything until parry recovery
+ *  ends, or an attacker overrides it via inflicting punishment, OR you parry something successfully
+ *  during the window."* Two tags span it -- State.Parrying across the window, State.ParryRecovery
+ *  across the whiff's 600 ms -- and the shared base refuses every ability on both. Movement is
+ *  locked across the same span by bLocksMovement, which is a separate mechanism because WASD is
+ *  not an ability.
+ *
+ *  **That is what makes the read cost something.** Until 2026-08-19 the window refused nothing:
+ *  you could throw a parry and, when the tell said you had guessed wrong, attack or block or dodge
+ *  out of it before the whiff was ever charged. A read you can withdraw once you see the answer is
+ *  not a read, which is the same counterfeit-call argument the input scheme was chosen on.
+ *
+ *  The three exits are the three ways the tags come off, and only one needs code: the recovery
+ *  expiring (EndParryRecovery), a catch (NotifyParrySuccess ends the ability at once), and an
+ *  attacker's punishment cancelling it. **The third is where a question still sits** -- see
+ *  Docs/Combat-Decisions.md, 2026-08-19, on whether punishment replaces the recovery or runs
+ *  concurrently with it.
  */
 UCLASS(abstract)
 class UTDParryAbility : public UTDGameplayAbility
