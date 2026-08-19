@@ -57,6 +57,19 @@ scopes gesture lines to the parrier by name, which covers the times somebody for
 noise is still in the log for anyone reading it by eye. **Any notify on an open asset does this,
 not just this one.**
 
+**An apostrophe in a comment inside a single-quoted `awk` program silently truncates it**
+*(2026-08-19)*. The checker writes its extractors as `awk '...'`, so a `'` anywhere inside —
+including in an explanatory comment like *"the montage's first advance"* — closes the shell string,
+and everything after it never reaches awk. **`bash -n` does not catch it**: the result is still
+valid shell, it just means something else. The symptom is an extractor that returns nothing, which
+presents as an assertion passing on a healthy sample count while examining none of it. It cost an
+afternoon of `parry gesture reads inside the window` reporting PASS on 30 samples.
+
+**The reliable protection is not a linter, it is the injection rule below** — an extractor proven
+by injecting a violation into a real log cannot be silently truncated, whatever the cause. A scan
+for stray apostrophes was tried and abandoned as unreliable: distinguishing a quote inside an awk
+program from one in the shell comment two lines later needs a real parser.
+
 **Count samples within the current PIE session, not across the log** *(2026-08-19)*. The log
 accumulates across PIE sessions for as long as the editor stays up, so a wait-loop counting the
 whole file stops a run on samples an *earlier* session produced — a sweep waited for 8 parry

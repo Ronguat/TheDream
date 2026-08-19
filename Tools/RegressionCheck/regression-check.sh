@@ -760,7 +760,7 @@ gesture_outside_window() { # PARRY GESTURE lines that fall outside their own win
 	# the real defender -- every preview one falling outside any window, so an unscoped assertion
 	# reports a montage fault that does not exist. **Close the animation editor before measuring**,
 	# and let this filter cover the times somebody forgets.
-	awk '
+	awk -v TOL="$BAND_PARRY_SPAN_TOL" '
 		/^\[[0-9.]+\] PARRY WINDOW open/ {
 			t=$1; gsub(/[\[\]]/,"",t); open_t=t; open_seen=1
 			who=""
@@ -769,9 +769,26 @@ gesture_outside_window() { # PARRY GESTURE lines that fall outside their own win
 			next
 		}
 		/^\[[0-9.]+\] PARRY GESTURE/ {
-			if (who == "" || $3 != who) next
+			# **$4, not $3.** The actor is the fourth field -- "[t] PARRY GESTURE <Actor> pos=..."
+			# -- and comparing $3 skips every line, which is exactly what it did on first writing:
+			# the assertion passed on 30 samples while examining none of them.
+			if (who == "" || $4 != who) next
 			t=$1; gsub(/[\[\]]/,"",t)
-			if (!open_seen || t+0 < open_t+0 || t+0 > close_t+0) print $0
+			# **The late tolerance is structural, not slop.** The gesture fires when the montage
+			# reaches the marker, and the window rate is derived so that happens at exactly
+			# ParryWindowSeconds -- but Montage_Play is called during ActivateAbility and the
+			# first montage advance lands a tick later, while until= was stamped immediately.
+			# So the gesture reliably trails the close by about a frame: measured 1-14 ms across
+			# 13 samples, never early. Asserting a hard boundary would fail forever on a correct
+			# clip; widening past the shared span tolerance would not, and that is the point at
+			# which a marker really is misplaced.
+			#
+			# NOTE: no apostrophes anywhere in this awk program. A single quote inside a
+			# single-quoted shell string closes it, and the rest of the program silently stops
+			# reaching awk -- which is exactly how this assertion spent an afternoon passing
+			# while examining nothing. bash -n does not catch it: the result is still valid
+			# shell, it just means something else.
+			if (!open_seen || t+0 < open_t+0 || t+0 > close_t+0 + TOL) print $0
 		}' "$SLICE"
 }
 
