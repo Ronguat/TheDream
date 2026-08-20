@@ -58,7 +58,16 @@ void UTDDodgeAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, c
 		return;
 	}
 
-	DodgeDirection = ResolveDodgeDirection();
+	// Resolved once, before the direction is, because a kip-up does not consult held input at all.
+	// Read off the *character's* grade rather than stored on the ability, so a kip-up cannot be
+	// left armed on the next ordinary dodge.
+	bIsKnockdownKipUp = false;
+	if (const ATDCombatCharacter* Downed = Cast<ATDCombatCharacter>(GetAvatarActorFromActorInfo()))
+	{
+		bIsKnockdownKipUp = Downed->IsKnockedDown() && Downed->GetKnockdownGrade() == ETDKnockdownGrade::Hard;
+	}
+
+	DodgeDirection = bIsKnockdownKipUp ? ETDDodgeDirection::Bw : ResolveDodgeDirection();
 
 	// Facing freezes for the whole dodge, so the direction resolved a line ago is the direction
 	// travelled. Root motion carries the character along the montage's authored path *relative to
@@ -94,13 +103,20 @@ void UTDDodgeAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, c
 	//
 	// Standoff is deliberately 0: Target Lock's gate belongs to attacks. An evade has to be able
 	// to travel *past* people, and gating it on pawns would break dodging through a crowd.
+	// **Kip-up: the same ability, stationary.** From a hard knockdown the directional dodge is
+	// removed and this replaces it -- i-framed and 50-stamina like any dodge, but travelling
+	// nothing and ignoring held direction, so hard's narrow choice window cannot also buy
+	// repositioning. It is the one deliberate exception to the authored-displacement rule above:
+	// the kip-up clip keeps its own gentle root motion, by ruling, which is why the authored
+	// distance here is zero rather than small.
+	const bool bKipUp = bIsKnockdownKipUp;
+
 	StartLunge(
-		DodgeTargetDistanceCm,
+		bKipUp ? 0.0f : DodgeTargetDistanceCm,
 		DodgeSeconds,
 		/*StrengthCurve=*/nullptr,
 		/*StandoffCm=*/0.0f,
-		static_cast<uint8>(DodgeDirection) * 45.0f);
-
+		bKipUp ? 0.0f : static_cast<uint8>(DodgeDirection) * 45.0f);
 	if (ATDCombatCharacter* Character = Cast<ATDCombatCharacter>(GetAvatarActorFromActorInfo()))
 	{
 		Character->DebugStatusLine = FString::Printf(TEXT("Dodge %s  %.2fs  invulnerable"),
@@ -326,4 +342,14 @@ void UTDDodgeAbility::EndAbility(const FGameplayAbilitySpecHandle Handle, const 
 	}
 
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
+}
+
+const TCHAR* UTDDodgeAbility::GetKnockdownRiseLabel(const ATDCombatCharacter* Character) const
+{
+	// Two labels from one ability, which is why the base asks rather than storing a constant: the
+	// scenarios assert kip-up travel is about zero and dodge travel is not, and they need to know
+	// which one they are looking at.
+	return (Character && Character->GetKnockdownGrade() == ETDKnockdownGrade::Hard)
+		? TEXT("kipup")
+		: TEXT("dodge");
 }

@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Combat/Abilities/TDGameplayAbility.h"
 #include "Combat/TDAttackHitbox.h"
+#include "Combat/TDKnockdownTypes.h"
 #include "TDMeleeAttackAbility.generated.h"
 
 class ATheDreamCharacter;
@@ -116,6 +117,19 @@ protected:
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Damage", meta=(ClampMin="0.0"))
 	float HitstunSeconds = 0.0f;
+
+	/**
+	 *  Whether a clean hit from this attack knocks its victim down, and how hard.
+	 *
+	 *  **None -- the default -- means the hit hitstuns instead**, which is what every attack did
+	 *  before knockdown existed. A graded hit knocks down and *never* hitstuns: the two are
+	 *  alternatives resolved at the hit, not layers.
+	 *
+	 *  The ability-level fallback, in the same position HitstunSeconds holds; branches and string
+	 *  swings override it, and the charged ability resolves which one applies.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Attack")
+	ETDKnockdownGrade KnockdownGrade = ETDKnockdownGrade::None;
 
 	/**
 	 *  The spacing reset: where a clean non-final string hit parks its target, in centimetres from
@@ -308,6 +322,26 @@ protected:
 
 	/** Hitstun for the swing currently being thrown, imposed on a clean hit. Zero means none. */
 	virtual float GetAttackHitstunSeconds() const { return HitstunSeconds; }
+
+	/** Knockdown grade for the swing being resolved. See ETDKnockdownGrade. */
+	virtual ETDKnockdownGrade GetAttackKnockdownGrade() const { return KnockdownGrade; }
+
+	/**
+	 *  The swing's **planned authored total** -- windup plus release plus recovery, as authored.
+	 *
+	 *  Not measured, not read off a montage: pure arithmetic over the values the designer set. It
+	 *  exists so a parry can derive its lockout as "what was left of this swing" without anyone
+	 *  authoring a per-tier number, which is what preserves the punish-scales-with-commitment
+	 *  property the derived reward model is built on.
+	 *
+	 *  **0 on the base means "no authored phases here"**, which is the honest answer: the ladder's
+	 *  phase structure lives on the charged subclass, and a lockout derived from 0 correctly comes
+	 *  out at nothing rather than at a number nobody chose.
+	 */
+	virtual float GetPlannedTotalSeconds() const { return 0.0f; }
+
+	/** Real seconds since this activation. 0 where a subclass does not track one. */
+	virtual float GetElapsedSeconds() const { return 0.0f; }
 
 	/**
 	 *  How far from the attacker this swing parks a target it touches, or 0 for no knockback.

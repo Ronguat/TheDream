@@ -66,9 +66,20 @@ class UTDDodgeAbility : public UTDGameplayAbility
 public:
 
 	virtual void ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData) override;
+
+	/**
+	 *  **The dodge is knockdown's directional get-up, and its kip-up.** Which one is decided at
+	 *  activation from the character's grade: normal knockdown gives the ordinary directional
+	 *  dodge, hard gives a stationary i-framed kip-up. Both cost the full 50 -- the exhausted are
+	 *  refused either way, as ordinary defensive actions.
+	 */
+	virtual const TCHAR* GetKnockdownRiseLabel(const class ATDCombatCharacter* Character) const override;
 	virtual void EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled) override;
 
 protected:
+
+	/** Whether this activation is a hard knockdown's kip-up rather than a directional dodge. */
+	bool bIsKnockdownKipUp = false;
 
 	/**
 	 *  How long the dodge lasts end to end, including the part you can be punished in.

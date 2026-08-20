@@ -112,6 +112,27 @@ void ATDCombatCharacter::Tick(float DeltaSeconds)
 			}
 		}
 
+		// The ninth of the family, and the only one that is a small state machine rather than a
+		// deadline: jail, choice window, rise and stand are four boundaries under one tag.
+		TickKnockdown();
+
+		// **Server-side, so the turn replicates as ordinary actor rotation.** Unlike the facing
+		// *lock*, which is local input suppression and deliberately ungated by role, this is a real
+		// rotation of a real body -- driving it on both machines would have the client fighting the
+		// correction it is being sent.
+		TickForcedFacing(DeltaSeconds);
+
+		// The tenth of the family. Externally inflicted and total; it composes with a recovery by
+		// the standing schema, in which a lockout overrides one.
+		if (bInParryLockout)
+		{
+			const UWorld* World = GetWorld();
+			if (World && World->GetTimeSeconds() >= ParryLockoutEndsAt)
+			{
+				EndParryLockout();
+			}
+		}
+
 		// The parry window, same timestamp shape as the three above. Its close is *not* a plain
 		// expiry, though: closing charges the whiff recovery, so this is where a missed read starts
 		// paying for itself. See CloseParryWindow.
@@ -270,6 +291,25 @@ void ATDCombatCharacter::TickStaminaRegen(float DeltaSeconds)
 	// length) is the whole trick: while the stun is live the resume time keeps moving to
 	// "half a second from now", so the pause begins measuring from the instant the stun ends.
 	if (bGuardBroken)
+	{
+		RegenSuppressedUntil = FMath::Max(RegenSuppressedUntil, Now + StaminaRegenPauseSeconds);
+		bSuppressorActive = true;
+	}
+
+	// **Knockdown suppresses regen -- unless you are already exhausted.**
+	//
+	// The carve-out is the schema pricing a vortex out (2026-08-19). Every other suppressor here is
+	// *bounded*: an action pause is self-inflicted and ends, and the guard break's holds only until
+	// the stun does -- an opponent cannot renew it, because every break exhausts you and an
+	// exhausted player cannot raise a guard to be broken again. Knockdown is the first suppressor
+	// an opponent can refresh **indefinitely**, and a player who can neither act nor recover is not
+	// in a combat state, they are in a cutscene.
+	//
+	// So the rule is narrow and by class rather than by name: refreshable suppression does not bind
+	// the exhausted. Self-inflicted pauses still bind, and so does the break's bounded one -- a
+	// broken-then-floored player serves the break's clock, then regenerates. Knocked down while
+	// exhausted the 25/s runs, and one full down-cycle returns roughly 62 stamina.
+	if (bKnockedDown && !bExhausted)
 	{
 		RegenSuppressedUntil = FMath::Max(RegenSuppressedUntil, Now + StaminaRegenPauseSeconds);
 		bSuppressorActive = true;
@@ -933,6 +973,397 @@ void ATDCombatCharacter::OnRep_Hitstun()
 	}
 }
 
+float ATDCombatCharacter::GetKnockdownJailSeconds() const
+{
+	return KnockdownGrade == ETDKnockdownGrade::Hard ? KnockdownJailSecondsHard : KnockdownJailSecondsNormal;
+}
+
+float ATDCombatCharacter::GetKnockdownChoiceSeconds() const
+{
+	return KnockdownGrade == ETDKnockdownGrade::Hard ? KnockdownChoiceSecondsHard : KnockdownChoiceSecondsNormal;
+}
+
+bool ATDCombatCharacter::IsInKnockdownChoiceWindow() const
+{
+	const UWorld* World = GetWorld();
+	if (!World || !bKnockedDown || bKnockdownRising)
+	{
+		return false;
+	}
+	return World->GetTimeSeconds() >= KnockdownJailEndsAt;
+}
+
+void ATDCombatCharacter::EnterKnockdown(ETDKnockdownGrade Grade, AActor* Attacker)
+{
+	UWorld* World = GetWorld();
+	if (!World || !HasAuthority() || Grade == ETDKnockdownGrade::None || bDead)
+	{
+		return;
+	}
+
+	const float Now = World->GetTimeSeconds();
+
+	// **Last hit wins, exactly as the knockback slide already ruled.** A knockdown landing on a
+	// body already down restarts the whole clock at the new grade rather than extending the old
+	// one -- unlike hitstun, which max-extends. The difference is that hitstun is a duration and
+	// this is a *state machine*: extending it would leave a body in a jail whose choice window had
+	// already been computed against a different grade.
+	KnockdownGrade = Grade;
+	bKnockdownRising = false;
+	KnockdownJailEndsAt = Now + GetKnockdownJailSeconds();
+	KnockdownChoiceEndsAt = KnockdownJailEndsAt + GetKnockdownChoiceSeconds();
+	KnockdownRiseEndsAt = 0.0f;
+
+	// **Cancels through the death path's funnel, and for the same reason.** Server-only and outside
+	// the Apply half: a client's OnRep must not cancel predicted copies out from under a
+	// correction. Cancelling runs each ability's EndAbility, which restores facing, tears down
+	// lunges and clears the committed tags -- nothing below repeats that work.
+	if (AbilitySystem)
+	{
+		AbilitySystem->CancelAllAbilities();
+	}
+
+	// A stale link window must not survive being floored: a mid-string attacker stands up to swing
+	// 0. Idempotent beside whatever the cancel path already reset.
+	ResetString(TEXT("knocked down"));
+
+	// **After the cancel, deliberately** -- the cancel is what closes an open parry window and
+	// bills its whiff, so overriding first would leave a recovery to be charged a line later and
+	// outlive the punishment meant to supersede it. Same ordering EnterHitstun uses.
+	OverrideParryRecovery(TEXT("knockdown"));
+
+	// **Carry first, then the tag.** ApplyKnockdownState prints the bearing, and the bearing
+	// is a product of the carry -- so the trace line has to come after the geometry it
+	// reports, not before it.
+	ApplyKnockdownCarry(Attacker);
+	BeginForcedFacing(Attacker);
+
+	if (!bKnockedDown)
+	{
+		bKnockedDown = true;
+		ApplyKnockdownState();
+	}
+	else
+	{
+		// Already down and re-floored: the tag is present and correct, but the trace still owes a
+		// line or the new grade's clock would start invisibly.
+		TD_TIMING_LOG(TEXT("[%.3f] KNOCKDOWN  %s regraded  grade=%s"),
+			Now, *GetName(), KnockdownGrade == ETDKnockdownGrade::Hard ? TEXT("hard") : TEXT("normal"));
+	}
+
+}
+
+void ATDCombatCharacter::ApplyKnockdownState()
+{
+	if (AbilitySystem)
+	{
+		AbilitySystem->AddLooseGameplayTag(TDTags::State_KnockedDown);
+	}
+
+	// Bearing is the assertable half: the angle of the radial axis off the attacker's facing. In a
+	// 1v1 the two coincide at roughly zero; in the ender's 360-degree finish the two victims
+	// diverge to about plus and minus ninety, which is what makes "the axis radiates" observable
+	// rather than merely intended.
+	TD_TIMING_LOG(TEXT("[%.3f] KNOCKDOWN  %s  grade=%s jail=%.3f choice=%.3f rise=%.3f spacing=%.0f bearing=%.1f"),
+		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f,
+		*GetName(),
+		KnockdownGrade == ETDKnockdownGrade::Hard ? TEXT("hard") : TEXT("normal"),
+		GetKnockdownJailSeconds(),
+		GetKnockdownChoiceSeconds(),
+		KnockdownRiseSeconds,
+		KnockdownSpacingCm,
+		LastKnockdownBearingDegrees);
+}
+
+void ATDCombatCharacter::ClearKnockdownState()
+{
+	if (AbilitySystem)
+	{
+		AbilitySystem->RemoveLooseGameplayTag(TDTags::State_KnockedDown);
+	}
+
+	TD_TIMING_LOG(TEXT("[%.3f] KNOCKDOWN STAND  %s"),
+		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f,
+		*GetName());
+}
+
+void ATDCombatCharacter::OnRep_KnockedDown()
+{
+	if (bKnockedDown)
+	{
+		ApplyKnockdownState();
+	}
+	else
+	{
+		ClearKnockdownState();
+	}
+}
+
+void ATDCombatCharacter::BeginKnockdownRise(const TCHAR* By)
+{
+	UWorld* World = GetWorld();
+	if (!World || !HasAuthority() || !bKnockedDown || bKnockdownRising)
+	{
+		return;
+	}
+
+	// **Invincibility ends on this line**, before anything else happens, because every get-up
+	// option prices its own rise from here on: the dodge brings i-frames, block brings a guard,
+	// the attack brings a threat, and the plain stand brings nothing at all.
+	bKnockdownRising = true;
+	KnockdownRiseEndsAt = World->GetTimeSeconds() + KnockdownRiseSeconds;
+
+	TD_TIMING_LOG(TEXT("[%.3f] KNOCKDOWN RISE  %s  by=%s  stands=%.3f"),
+		World->GetTimeSeconds(), *GetName(), By, KnockdownRiseEndsAt);
+}
+
+void ATDCombatCharacter::EndKnockdown()
+{
+	if (!bKnockedDown)
+	{
+		return;
+	}
+
+	bKnockedDown = false;
+	bKnockdownRising = false;
+	KnockdownGrade = ETDKnockdownGrade::None;
+	ClearKnockdownState();
+}
+
+void ATDCombatCharacter::EnterParryLockout(float RemainingSeconds)
+{
+	UWorld* World = GetWorld();
+	if (!World || !HasAuthority() || bDead)
+	{
+		return;
+	}
+
+	const float Duration = FMath::Max(RemainingSeconds, ParryLockoutFloorSeconds);
+	if (Duration <= 0.0f)
+	{
+		// A catch landing at or past the swing's planned end owes nothing: the attacker has already
+		// spent every frame this would have taken from them. Silent rather than clamped to a
+		// minimum, because inventing one here would be authoring the reward this model derives.
+		return;
+	}
+
+	// Max-extended like every other lockout on this character: a second parry landing inside a
+	// running one lengthens the sentence and can never shorten it.
+	ParryLockoutEndsAt = FMath::Max(ParryLockoutEndsAt, World->GetTimeSeconds() + Duration);
+
+	// **The string dies explicitly, and stays explicit.** bParried's chain gate is subsumed by the
+	// ability no longer existing -- there is nothing left to chain out of -- so this is now the
+	// only thing keeping "no more games" true.
+	ResetString(TEXT("parried"));
+
+	if (!bInParryLockout)
+	{
+		bInParryLockout = true;
+		ApplyParryLockoutState();
+	}
+}
+
+void ATDCombatCharacter::EndParryLockout()
+{
+	if (!bInParryLockout)
+	{
+		return;
+	}
+
+	bInParryLockout = false;
+	ClearParryLockoutState();
+}
+
+void ATDCombatCharacter::ApplyParryLockoutState()
+{
+	if (AbilitySystem)
+	{
+		AbilitySystem->AddLooseGameplayTag(TDTags::State_ParryLockout);
+	}
+
+	// Movement goes too, and through the ability-side lock rather than a third mechanism: this is
+	// externally inflicted, total, and lasts exactly as long as the tag.
+	SetAbilityMovementLocked(true);
+
+	TD_TIMING_LOG(TEXT("[%.3f] PARRY LOCKOUT  %s  until=%.3f"),
+		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f,
+		*GetName(),
+		ParryLockoutEndsAt);
+}
+
+void ATDCombatCharacter::ClearParryLockoutState()
+{
+	if (AbilitySystem)
+	{
+		AbilitySystem->RemoveLooseGameplayTag(TDTags::State_ParryLockout);
+	}
+
+	SetAbilityMovementLocked(false);
+
+	TD_TIMING_LOG(TEXT("[%.3f] PARRY LOCKOUT END  %s"),
+		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f,
+		*GetName());
+}
+
+void ATDCombatCharacter::OnRep_ParryLockout()
+{
+	if (bInParryLockout)
+	{
+		ApplyParryLockoutState();
+	}
+	else
+	{
+		ClearParryLockoutState();
+	}
+}
+
+void ATDCombatCharacter::TickKnockdown()
+{
+	UWorld* World = GetWorld();
+	if (!World || !bKnockedDown)
+	{
+		return;
+	}
+
+	const float Now = World->GetTimeSeconds();
+
+	if (bKnockdownRising)
+	{
+		// The stand. **The rise is the lockout's time to the last frame** -- no tail, because a
+		// tail is what a self-inflicted action pause leaves behind and nobody chose to be here.
+		if (Now >= KnockdownRiseEndsAt)
+		{
+			EndKnockdown();
+		}
+		return;
+	}
+
+	// The auto-rise: the choice window closed without anything being chosen. Committed, vulnerable
+	// and locked from here, exactly like a chosen stand -- the difference is only who decided.
+	if (Now >= KnockdownChoiceEndsAt)
+	{
+		BeginKnockdownRise(TEXT("auto"));
+	}
+}
+
+void ATDCombatCharacter::BeginForcedFacing(AActor* Toward)
+{
+	if (!Toward || Toward == this)
+	{
+		return;
+	}
+
+	bForcedFacingActive = true;
+	ForcedFacingTarget = Toward;
+	ForcedFacingStartYaw = GetActorRotation().Yaw;
+}
+
+void ATDCombatCharacter::TickForcedFacing(float DeltaSeconds)
+{
+	if (!bForcedFacingActive)
+	{
+		return;
+	}
+
+	const AActor* Target = ForcedFacingTarget.Get();
+	if (!Target || bDead)
+	{
+		bForcedFacingActive = false;
+		return;
+	}
+
+	FVector ToAttacker = Target->GetActorLocation() - GetActorLocation();
+	ToAttacker.Z = 0.0f;
+	if (!ToAttacker.Normalize())
+	{
+		// Exactly co-located: there is no bearing to turn toward and any answer would be invented.
+		bForcedFacingActive = false;
+		return;
+	}
+
+	const float DesiredYaw = ToAttacker.Rotation().Yaw;
+	const FRotator Current = GetActorRotation();
+	const float Remaining = FMath::FindDeltaAngleDegrees(Current.Yaw, DesiredYaw);
+	const float StepDegrees = ForcedFacingTurnRateDegrees * DeltaSeconds;
+
+	if (FMath::Abs(Remaining) <= StepDegrees)
+	{
+		SetActorRotation(FRotator(Current.Pitch, DesiredYaw, Current.Roll));
+		bForcedFacingActive = false;
+
+		// One line per hit, at the end, carrying the span actually covered -- which is what the
+		// derivation needs checking against. A rate that cannot finish 180 degrees inside the
+		// shortest felt hitstun is a body still turning when it regains control.
+		TD_TIMING_LOG(TEXT("[%.3f] FACING FORCED  %s toward %s  span=%.1f rate=%.0f"),
+			GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f,
+			*GetName(),
+			*GetNameSafe(Target),
+			FMath::Abs(FMath::FindDeltaAngleDegrees(ForcedFacingStartYaw, DesiredYaw)),
+			ForcedFacingTurnRateDegrees);
+		return;
+	}
+
+	SetActorRotation(FRotator(Current.Pitch, Current.Yaw + FMath::Sign(Remaining) * StepDegrees, Current.Roll));
+}
+
+void ATDCombatCharacter::ApplyKnockdownCarry(AActor* Attacker)
+{
+	if (!Attacker || KnockdownSpacingCm <= 0.0f)
+	{
+		return;
+	}
+
+	const FVector AttackerLoc = Attacker->GetActorLocation();
+	FVector Radial = GetActorLocation() - AttackerLoc;
+	Radial.Z = 0.0f;
+
+	if (!Radial.Normalize())
+	{
+		// **Degenerate: exactly co-located, so there is no bearing.** Falls back to the attacker's
+		// facing, which is the only axis still meaningful when the victim has none of their own.
+		// Reachable in principle by two capsules resolved to the same XY; it has never been seen.
+		Radial = Attacker->GetActorForwardVector();
+		Radial.Z = 0.0f;
+		if (!Radial.Normalize())
+		{
+			return;
+		}
+	}
+
+	// The bearing, recorded for the trace before the clamp touches anything: the angle between the
+	// radial axis and the attacker's facing. Roughly zero when the victim was in front, roughly
+	// plus or minus ninety for the two victims of a 360-degree finisher.
+	FVector AttackerFacing = Attacker->GetActorForwardVector();
+	AttackerFacing.Z = 0.0f;
+	if (AttackerFacing.Normalize())
+	{
+		const float Dot = FMath::Clamp(FVector::DotProduct(AttackerFacing, Radial), -1.0f, 1.0f);
+		const float Signed = FMath::Atan2(
+			FVector::DotProduct(FVector::CrossProduct(AttackerFacing, Radial), FVector::UpVector),
+			Dot);
+		LastKnockdownBearingDegrees = FMath::RadiansToDegrees(Signed);
+	}
+	else
+	{
+		LastKnockdownBearingDegrees = 0.0f;
+	}
+
+	// **Never inward**, the same clamp the knockback carries and for the same reason: a contact
+	// already beyond the authored spacing keeps its distance rather than being pulled toward the
+	// sword. Deleting this max() is the whole change if a pull-in is ever wanted.
+	const float CurrentCm = static_cast<float>(FVector::Dist2D(GetActorLocation(), AttackerLoc));
+	const float FinalSpacingCm = FMath::Max(KnockdownSpacingCm, CurrentCm);
+
+	FVector Destination = AttackerLoc + Radial * FinalSpacingCm;
+
+	// **Z is natural, not snapped.** An airborne victim is knocked down mid-air: the carry's XY
+	// applies and gravity keeps the rest, so a body hit off a ledge falls rather than sliding
+	// along an invisible plane at the attacker's feet.
+	Destination.Z = GetActorLocation().Z;
+
+	ReceiveKnockback(Destination, KnockdownCarrySeconds, KnockdownCarryTimeMappingCurve);
+}
+
 void ATDCombatCharacter::OpenParryWindow(float DurationSeconds, float WhiffRecoverySeconds)
 {
 	UWorld* World = GetWorld();
@@ -1590,6 +2021,9 @@ void ATDCombatCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& O
 	DOREPLIFETIME(ATDCombatCharacter, bGuardBroken);
 	DOREPLIFETIME(ATDCombatCharacter, bInBlockstun);
 	DOREPLIFETIME(ATDCombatCharacter, bInHitstun);
+	DOREPLIFETIME(ATDCombatCharacter, bKnockedDown);
+	DOREPLIFETIME(ATDCombatCharacter, KnockdownGrade);
+	DOREPLIFETIME(ATDCombatCharacter, bInParryLockout);
 	DOREPLIFETIME(ATDCombatCharacter, bParryWindowOpen);
 	DOREPLIFETIME(ATDCombatCharacter, bInParryRecovery);
 	DOREPLIFETIME(ATDCombatCharacter, bInDodgeRecovery);
@@ -1904,29 +2338,17 @@ void ATDCombatCharacter::ClearExhaustionState()
 
 void ATDCombatCharacter::Jump()
 {
-	// Deliberately silent. Exhaustion is communicated by the tag and the empty bar; a
-	// failed jump that plays nothing reads as the lockout it is. Jump is not a
-	// GameplayAbility, so the dead check in UTDGameplayAbility does not cover it and has
-	// to be repeated here -- the one place that rule is not centralised.
+	// **Every gate this function used to hold moved to UTDJumpAbility on 2026-08-20, and none of
+	// them came back here.** It restated exhaustion, death, hitstun, the movement lock and the
+	// guard's commitment by hand -- five copies of rules the shared ability base already enforced,
+	// kept only because jump was not an ability. Its own comment called itself "the only place that
+	// can be forgotten", and it was: a broken guard refuses every ability and jump walked through
+	// it for six days. See the "Before Stun" trap in Docs/Combat-Decisions.md.
 	//
-	// The movement lock, the guard's minimum duration and hitstun are the third, fourth and
-	// *fifth* rules this function has had to copy. Each strengthens the standing argument for
-	// jump eventually becoming an ability -- every lockout the abilities get for free has to be
-	// restated here, and this is the only place that can be forgotten. That call rides
-	// Knockdown & Oki, which owns the full-lockout treatment the guard-break gap below waits on.
-	//
-	// Hitstun *is* checked, unlike the broken guard, because the string guarantee depends on it:
-	// a jump out of hitstun is an escape between chained hits exactly as a dodge would be, and
-	// refusing the dodge while permitting the jump would move the leak rather than close it.
-	//
-	// A broken guard is deliberately *not* checked here, and that is a known gap rather than an
-	// oversight: full loss of control during a guard break belongs to Stun, which owns the
-	// hit-reaction plumbing it needs.
-	if (bExhausted || bDead || bInHitstun || IsMovementLocked() || IsBlockCommitted())
-	{
-		return;
-	}
-
+	// So this is now reachable only through GA_Jump, which has already answered every one of those
+	// questions before calling it -- and death, the one check whose removal looks riskiest, is inert
+	// twice over: the base refuses every ability to a corpse, and dying calls DisableMovement, so
+	// CanJump() is false regardless of what records a press.
 	Super::Jump();
 
 	// **The guard does not survive the jump, and is dropped here rather than on becoming airborne.**
@@ -1935,7 +2357,7 @@ void ATDCombatCharacter::Jump()
 	// deliberate: this one is for the look, the Tick one is for the rule.
 	//
 	// After Super::Jump() so a refused jump -- one the movement component itself declines, having
-	// passed the checks above -- does not silently cost the player their guard.
+	// passed every check above it -- does not silently cost the player their guard.
 	CancelBlockAbility();
 }
 
@@ -2218,6 +2640,21 @@ void ATDCombatCharacter::SeedAbilitySystemDefaults()
 	default:
 		break;
 	}
+
+	// **Outside the switch, because it is not a defend mode.** A defender has exactly one defensive
+	// policy at a time and that exclusivity is deliberate, but the jump is a second *input* rather
+	// than a second policy -- and the rule it exists to observe needs a pawn that blocks and jumps
+	// at once. See bDebugPeriodicJump.
+	if (bDebugPeriodicJump && DebugJumpInputTag.IsValid())
+	{
+		GetWorldTimerManager().SetTimer(
+			DebugAutoJumpTimerHandle,
+			this,
+			&ATDCombatCharacter::DebugAutoJumpPress,
+			DebugJumpIntervalSeconds,
+			true,
+			DebugJumpIntervalSeconds);
+	}
 }
 
 void ATDCombatCharacter::WarnOnStaleInstanceOverrides() const
@@ -2274,6 +2711,13 @@ void ATDCombatCharacter::WarnOnStaleInstanceOverrides() const
 		UE_LOG(LogTDCombatTiming, Warning,
 			TEXT("Stale placed-actor override on %s: DebugDefendDodgeInputTag is unset while the class default is %s. No dodge will be pressed."),
 			*GetName(), *CDO->DebugDefendDodgeInputTag.ToString());
+	}
+
+	if (bDebugPeriodicJump && !DebugJumpInputTag.IsValid() && CDO->DebugJumpInputTag.IsValid())
+	{
+		UE_LOG(LogTDCombatTiming, Warning,
+			TEXT("Stale placed-actor override on %s: DebugJumpInputTag is unset while the class default is %s. No jump will be pressed."),
+			*GetName(), *CDO->DebugJumpInputTag.ToString());
 	}
 
 	const bool bWantsParryTag = (DebugAutoDefendMode == ETDDebugDefendMode::PeriodicParry);
@@ -2726,6 +3170,31 @@ void ATDCombatCharacter::DebugAutoDodgePress()
 void ATDCombatCharacter::DebugAutoDodgeRelease()
 {
 	OnAbilityInputReleased(DebugDefendDodgeInputTag);
+}
+
+void ATDCombatCharacter::DebugAutoJumpPress()
+{
+	// No ReturnToDebugAutoAttackHome() here, unlike the dodge's press. This fixture's pawn is
+	// usually the *defender*, standing where the attacker needs it, and re-homing it every cycle
+	// would move the body mid-exchange -- the contamination Docs/Working-In-Unreal.md warns about.
+	// A jump also authors no travel of its own, so there is nothing to reset.
+	OnAbilityInputPressed(DebugJumpInputTag);
+
+	// Released a frame later for the reason the dodge is: GA_Jump ends on the release, and a press
+	// that never comes up would hold the ability open across the whole run -- so the second cycle
+	// would find it already active and GAS would refuse it before CanActivateAbility ran, which is
+	// exactly the silent-drop shape that cost s5-parry-whiff a session.
+	GetWorldTimerManager().SetTimer(
+		DebugAutoJumpReleaseTimerHandle,
+		this,
+		&ATDCombatCharacter::DebugAutoJumpRelease,
+		0.05f,
+		false);
+}
+
+void ATDCombatCharacter::DebugAutoJumpRelease()
+{
+	OnAbilityInputReleased(DebugJumpInputTag);
 }
 
 void ATDCombatCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)

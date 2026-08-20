@@ -177,6 +177,50 @@ namespace TDTags
 	 */
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_DodgeRecovery);
 
+	/**
+	 *  On the floor. Refuses **every** ability for the jail, then only some of them for the choice
+	 *  window; supersedes hitstun outright and takes movement for the whole span.
+	 *
+	 *  **The ninth member of the state family**, and it follows the same contract as the eight
+	 *  before it: the server decides, a replicated bool carries the decision, and OnRep applies
+	 *  this tag locally. Native for the reason State_Hitstun is -- C++ applies it, refuses on it,
+	 *  and reads it in the regen tick -- and an EditDefaultsOnly equivalent can go silently stale
+	 *  on a placed actor.
+	 *
+	 *  **It marks the whole down-state, not the jail.** The jail and the choice window are
+	 *  timestamps underneath it, exactly as the parry window and its recovery sit under separate
+	 *  tags -- but here one tag spans both, because what the tag *means* to everyone outside the
+	 *  character is "this body is on the floor", and that is true for all of it. What differs
+	 *  between the phases is which activations the character itself refuses, which is a question
+	 *  the timestamps answer and a tag cannot.
+	 *
+	 *  It clears at the **stand boundary**, not when a rise begins: the rise is committed,
+	 *  vulnerable and unactionable, so it is still the floor for every purpose except invincibility.
+	 */
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_KnockedDown);
+
+	/**
+	 *  You were parried. Refuses **every** ability and takes the full movement lock.
+	 *
+	 *  **The tenth member of the state family, and the name's reservation resolves here**
+	 *  (2026-08-20). It was held free rather than recycled because the designer had used it before,
+	 *  in an earlier project, for exactly this: the state inflicted on an attacker who *has been*
+	 *  parried, carrying its own authored properties. That is externally inflicted and so a lockout
+	 *  under the recovery/lockout schema; the attacker/defender asymmetry is immaterial.
+	 *
+	 *  **Its duration is derived, not authored**: the swing's planned authored total minus the time
+	 *  already elapsed at the catch. That is pure arithmetic over values the designer already set,
+	 *  and it preserves every per-tier punish window for free -- a parried charged pays more than a
+	 *  parried light because it had more attack left to lose. ParryLockoutFloorSeconds is the
+	 *  authored half, reserved at 0 and spent only if play asks for one.
+	 *
+	 *  **What it replaced**: the attacker used to ride their own recovery to the end, because a
+	 *  parry ended nothing. Now the catch ends the swing through the ordinary funnel -- facing,
+	 *  lunge, homing and tags all restored, and the hitbox dead for *everyone*, which matters in a
+	 *  crowd -- and this holds them for what remained. Same total, honest cause.
+	 */
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_ParryLockout);
+
 	/*
 	 *  **There is deliberately no Event.Parry.Gesture tag.** One existed briefly on 2026-08-19,
 	 *  when the marker's rate switch was handled inside GA_Parry and needed an event to reach it.
@@ -186,19 +230,15 @@ namespace TDTags
 	 */
 
 	/*
-	 *  **State.ParryLockout is RESERVED and deliberately not declared here.**
+	 *  **State.ParryLockout's reservation resolved on 2026-08-20** -- it is declared above now, for
+	 *  exactly the job it was being held for. The reservation stood from 2026-08-19, when the
+	 *  recovery/lockout schema arrived and the name turned out to be wrong for this file's
+	 *  parry-whiff tail (self-inflicted, so a recovery). It was kept free rather than recycled
+	 *  because the designer had used it before for the state inflicted on an attacker who *has
+	 *  been* parried, and that is what it now names.
 	 *
-	 *  It named this file's parry-whiff tail until 2026-08-19, when the recovery/lockout schema
-	 *  arrived and the name turned out to be wrong for that job -- a whiffed parry is
-	 *  self-inflicted. The name is being kept free rather than recycled because the designer has
-	 *  used it before, in an earlier project, for the state inflicted on an attacker who *has been*
-	 *  parried, carrying its own authored properties. That is externally inflicted and so a
-	 *  lockout under the schema; the attacker/defender asymmetry is immaterial.
-	 *
-	 *  This project's parry currently authors nothing on the parried attacker at all -- the reward
-	 *  is *derived*, from their being planted at zero distance and riding their own recovery. The
-	 *  designer's read is that the lean version has a significant chance of proving under-authored,
-	 *  in which case the authored form returns and this is its name. See Docs/Combat-Decisions.md,
-	 *  2026-08-19. Do not reuse it for anything else.
+	 *  The prediction it was filed on is worth keeping: the lean, fully-derived reward "has a
+	 *  significant chance of proving under-authored". ParryLockoutFloorSeconds is the authored half
+	 *  held in reserve at 0 against exactly that. See Docs/Combat-Decisions.md, 2026-08-19.
 	 */
 }

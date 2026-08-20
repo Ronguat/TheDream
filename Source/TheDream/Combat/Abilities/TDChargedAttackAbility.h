@@ -223,6 +223,16 @@ struct FTDAttackBranch
 	float HitstunSeconds = 0.0f;
 
 	/**
+	 *  Whether this branch's clean hit knocks down, and how hard. **None means hitstun instead.**
+	 *
+	 *  The shipped pairing is light None, heavy Hard, charged Hard: a committed hit floors you
+	 *  hard, because the commitment is what bought the oki. The light stays a hitstun so the string
+	 *  it opens can still chain -- a knockdown mid-string would end the string it belongs to.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Attack")
+	ETDKnockdownGrade KnockdownGrade = ETDKnockdownGrade::None;
+
+	/**
 	 *  Whether committing this branch keeps the string alive. **The DKO/New World flip in data.**
 	 *
 	 *  True on the light alone expresses the current model: lights chain and a heavy or charged
@@ -307,6 +317,17 @@ struct FTDStringSwing
 	/** Hitstun this position imposes on a clean hit. 0 means none; see FTDAttackBranch's field. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Swing", meta=(ClampMin="0.0"))
 	float HitstunSeconds = 0.0f;
+
+	/**
+	 *  Whether this position's clean hit knocks down. **The ender authors Normal; the rest None.**
+	 *
+	 *  The string's volume finisher knocks down on the gentle grade -- generous escape is what the
+	 *  string trades for having already extracted its damage. It is also the kit's only 360-degree
+	 *  knockdown, so pairing it with the gentle grade is what stops a crowd ever being hard-floored;
+	 *  that pairing is authored here rather than structural, and a future weapon may differ.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Swing")
+	ETDKnockdownGrade KnockdownGrade = ETDKnockdownGrade::None;
 
 	/**
 	 *  This position's recovery -- commitment and punish window both, exactly as on the branch.
@@ -486,6 +507,8 @@ protected:
 	virtual float GetAttackStaminaDamage() const override;
 	virtual float GetAttackBlockstunSeconds() const override;
 	virtual float GetAttackHitstunSeconds() const override;
+	virtual ETDKnockdownGrade GetAttackKnockdownGrade() const override;
+	virtual float GetPlannedTotalSeconds() const override;
 	virtual float GetKnockbackSpacingCm(bool bBlocked) const override;
 
 	/**
@@ -592,7 +615,7 @@ private:
 	float GetBlendOutStartSeconds(float PlayRate) const;
 
 	/** Real seconds since this activation. */
-	float GetElapsedSeconds() const;
+	virtual float GetElapsedSeconds() const override;
 
 	/** Montage playhead position in seconds, or -1 if there is nothing to read. */
 	float GetMontagePosition() const;

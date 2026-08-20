@@ -692,6 +692,42 @@ float UTDChargedAttackAbility::GetAttackHitstunSeconds() const
 	return Branches.IsValidIndex(SelectedBranchIndex) ? Branches[SelectedBranchIndex].HitstunSeconds : HitstunSeconds;
 }
 
+ETDKnockdownGrade UTDChargedAttackAbility::GetAttackKnockdownGrade() const
+{
+	// Same resolution as the stun values above: swing value for a mid-string light, branch value
+	// for the tiers, ability fallback on an invalid index. None everywhere means hitstun instead,
+	// which is what every attack did before knockdown existed.
+	if (SelectedBranchIndex == 0 && StringSwings.IsValidIndex(CurrentSwingIndex - 1))
+	{
+		return StringSwings[CurrentSwingIndex - 1].KnockdownGrade;
+	}
+	return Branches.IsValidIndex(SelectedBranchIndex) ? Branches[SelectedBranchIndex].KnockdownGrade : KnockdownGrade;
+}
+
+float UTDChargedAttackAbility::GetPlannedTotalSeconds() const
+{
+	// Same resolution the stun values use: swing values for a mid-string light, branch values for
+	// the tiers. **Authored numbers only** -- no montage reads, no measured spans -- so a parry's
+	// lockout is arithmetic over what the designer set and cannot drift with a clip swap.
+	const bool bStringSwing = (SelectedBranchIndex == 0 && StringSwings.IsValidIndex(CurrentSwingIndex - 1));
+
+	if (bStringSwing)
+	{
+		const int32 SwingIndex = CurrentSwingIndex - 1;
+		return GetSwingReleaseStartSeconds(SwingIndex)
+			+ GetSwingReleaseSeconds(SwingIndex, SelectedBranchIndex)
+			+ StringSwings[SwingIndex].RecoverySeconds;
+	}
+
+	if (Branches.IsValidIndex(SelectedBranchIndex))
+	{
+		const FTDAttackBranch& Branch = Branches[SelectedBranchIndex];
+		return Branch.ReleaseAtSeconds + Branch.ReleaseSeconds + Branch.RecoverySeconds;
+	}
+
+	return 0.0f;
+}
+
 float UTDChargedAttackAbility::GetKnockbackSpacingCm(bool bBlocked) const
 {
 	// The spacing reset belongs to non-final string lights alone: the ender, the heavies and the

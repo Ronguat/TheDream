@@ -318,6 +318,26 @@ void UTDMeleeAttackAbility::HandleTraceHit(const FHitResult& Hit)
 		return;
 	}
 
+	// **Floor invincibility, checked beside the i-frames and for the same reason** -- this is the
+	// only place that knows a hit resolved at all. A body on the ground is untouchable until *any*
+	// rise begins, auto or chosen; from that frame each get-up option prices its own vulnerability.
+	//
+	// **The rise-begin frame resolves to the defender.** IsKnockdownInvulnerable() goes false the
+	// instant BeginKnockdownRise runs, and a hit arriving on that same frame has already been
+	// refused by the check above it in tick order -- ties at a protective boundary go to the
+	// protected, so the one place engine tick order could coin-flip an outcome is ruled instead.
+	//
+	// Deliberately *not* an i-frame tag: the plan's rule is that the floor is not a dodge, and
+	// borrowing State.Dodging here would make every attack's TargetImmunityTags decide knockdown's
+	// invincibility as a side effect of tuning the dodge.
+	if (const ATDCombatCharacter* Downed = Cast<ATDCombatCharacter>(HitActor))
+	{
+		if (Downed->IsKnockdownInvulnerable())
+		{
+			return;
+		}
+	}
+
 	// Parry, resolved here for the same reason i-frames are, and ordered between them and the block.
 	//
 	// **In practice none of the three can co-occur**: GA_Parry refuses activation while
@@ -361,7 +381,29 @@ void UTDMeleeAttackAbility::HandleTraceHit(const FHitResult& Hit)
 			// scales the punish by the victim's commitment, so a parried *light* has the shortest
 			// recovery and pays least, and taking the string compensates exactly there without
 			// authoring the per-branch bonus that was raised and rejected.
+			// **The duration is captured before anything ends**, because both halves of it are
+			// properties of a swing that is about to stop existing. Planned authored total minus
+			// elapsed is what this attacker had left to spend; that is what the parry takes.
+			const float RemainingSeconds = GetPlannedTotalSeconds() - GetElapsedSeconds();
+			ATDCombatCharacter* ParriedAttacker = Cast<ATDCombatCharacter>(GetAvatarActorFromActorInfo());
+
 			Parrier->NotifyParrySuccess(GetAvatarActorFromActorInfo());
+
+			// **The catch ends the swing through the ordinary funnel** (2026-08-20). Facing, lunge,
+			// homing and tags all clean up exactly as on a natural end, and -- the half that only
+			// matters in a crowd -- the hitbox goes dead for *everyone*, so a caught swing cannot
+			// keep killing bystanders on its way out.
+			EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, /*bWasCancelled=*/true);
+
+			// **After EndAbility, and the order is load-bearing.** The lockout takes the movement
+			// lock; the ending attack *releases* the movement lock it took at activation. Locking
+			// first would have the attack's own teardown hand movement straight back, leaving an
+			// attacker refused every ability while free to walk -- which is not a lockout, it is a
+			// stroll. This is the same bTookMovementLock ordering hazard the shared base documents.
+			if (ParriedAttacker)
+			{
+				ParriedAttacker->EnterParryLockout(RemainingSeconds);
+			}
 			return;
 		}
 	}
@@ -457,14 +499,32 @@ void UTDMeleeAttackAbility::HandleTraceHit(const FHitResult& Hit)
 			TargetASC->GetNumericAttribute(UTDAttributeSet::GetHealthAttribute()));
 	}
 
-	// The hit's effect on the victim beyond the bar: hitstun, then the spacing reset. After the
-	// damage deliberately, so a killing blow resolves death first -- both calls no-op on the dead,
-	// whose ragdoll is under physics no root motion source could move anyway. Both are inert at
-	// their C++ defaults (0 hitstun, 0 spacing); the CDO is what arms them.
+	// The hit's effect on the victim beyond the bar. After the damage deliberately, so a killing
+	// blow resolves death first -- every call below no-ops on the dead.
+	//
+	// **Knockdown and hitstun are alternatives, not layers** (2026-08-20). A swing that authored a
+	// grade replaces both of the old consequences at once: the victim is floored instead of stunned,
+	// and carried radially instead of pushed along the facing axis. That leaves this swing's
+	// HitstunSeconds with exactly one remaining job on a graded attack -- keying the *attacker's*
+	// movement return through the waiver below, which is why it is still read there.
 	if (ATDCombatCharacter* Victim = Cast<ATDCombatCharacter>(HitActor))
 	{
-		Victim->EnterHitstun(GetAttackHitstunSeconds());
-		ApplyKnockbackToTarget(Victim, /*bBlocked=*/false);
+		if (GetAttackKnockdownGrade() != ETDKnockdownGrade::None)
+		{
+			Victim->EnterKnockdown(GetAttackKnockdownGrade(), GetAvatarActorFromActorInfo());
+		}
+		else
+		{
+			Victim->EnterHitstun(GetAttackHitstunSeconds());
+
+			// **Every clean hit turns the victim's body toward its attacker**, knockdown or not.
+			// The camera never moves; this is the model, and taking someone's aim away is a much
+			// larger thing than turning them to face what hit them. Knockdown's own entry starts
+			// the same turn, which is why this sits on the hitstun branch alone.
+			Victim->BeginForcedFacing(GetAvatarActorFromActorInfo());
+
+			ApplyKnockbackToTarget(Victim, /*bBlocked=*/false);
+		}
 	}
 
 	// **The on-hit waiver: punishment attaches to failure, and a hit is not failure.** The first

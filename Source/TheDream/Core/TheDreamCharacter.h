@@ -275,8 +275,14 @@ public:
 	 */
 	void SetAbilityMovementLocked(bool bLocked);
 
-	/** Whether an ability currently owns movement input. Read by DoMove and by the jump gate. */
-	bool IsMovementLocked() const { return bAbilityMovementLocked; }
+	/**
+	 *  Whether movement input is currently taken away. Read by DoMove and by GA_Jump's refusal.
+	 *
+	 *  **Virtual because an ability owning movement is only one of the reasons** (2026-08-20).
+	 *  ATDCombatCharacter adds the externally-inflicted ones -- hitstun and a broken guard -- which
+	 *  are states rather than abilities and so have nothing to call SetAbilityMovementLocked.
+	 */
+	virtual bool IsMovementLocked() const { return bAbilityMovementLocked; }
 
 
 	/**

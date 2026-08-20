@@ -62,6 +62,16 @@ public:
 	virtual void ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData) override;
 
 	/**
+	 *  **The guard is knockdown's protected get-up**, and it is the ordinary guard throughout: full
+	 *  cost, full commitment, standard drain. All blocks are created equal.
+	 *
+	 *  The trade it buys, priced: half a second guarded-and-committed instead of naked, for about
+	 *  15 stamina plus the guard's regen-pause tail -- front arc only, and a meaty heavy against a
+	 *  sub-50 bar breaks the guard on the way up.
+	 */
+	virtual const TCHAR* GetKnockdownRiseLabel(const class ATDCombatCharacter* Character) const override { return TEXT("block"); }
+
+	/**
 	 *  Never. **Buffer actions, not states** -- and this is the rule the whole input model was
 	 *  missing.
 	 *

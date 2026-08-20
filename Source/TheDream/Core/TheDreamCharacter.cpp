@@ -299,9 +299,11 @@ void ATheDreamCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputC
 	// Set up action bindings
 	if (UEnhancedInputComponent* EnhancedInputComponent = Cast<UEnhancedInputComponent>(PlayerInputComponent)) {
 		
-		// Jumping
-		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Started, this, &ACharacter::Jump);
-		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Completed, this, &ACharacter::StopJumping);
+		// **Jump is deliberately not bound here any more (2026-08-20).** It became a GameplayAbility,
+		// so its press and release both arrive through ATDCombatCharacter's AbilityInputActions map
+		// like every other combat input, and binding it twice would launch a jump that GA_Jump had
+		// just refused. JumpAction itself is kept -- the Blueprint sets it, and removing a UPROPERTY
+		// orphans every CDO override of it -- but nothing in C++ reads it now.
 
 		// Moving
 		EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Triggered, this, &ATheDreamCharacter::Move);

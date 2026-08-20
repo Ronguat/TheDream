@@ -9,6 +9,7 @@
 #include "GameplayAbilitySpec.h"
 #include "Engine/TimerHandle.h"
 #include "Combat/TDAttackHitbox.h"
+#include "Combat/TDKnockdownTypes.h"
 #include "TDCombatCharacter.generated.h"
 
 class UAbilitySystemComponent;
@@ -310,6 +311,74 @@ public:
 	 */
 	void EnterHitstun(float DurationSeconds);
 
+	/** Whether this body is on the floor -- jail, choice window or rise. */
+	bool IsKnockedDown() const { return bKnockedDown; }
+
+	/** Which grade put it there. None whenever IsKnockedDown() is false. */
+	ETDKnockdownGrade GetKnockdownGrade() const { return KnockdownGrade; }
+
+	/**
+	 *  Whether hits should pass straight through this body.
+	 *
+	 *  True from the moment of the knockdown until **any** rise begins, auto or chosen. Each
+	 *  get-up option then prices its own rise: the dodge brings i-frames, block brings a guard,
+	 *  the get-up attack is naked but threatening, and doing nothing is plainly hittable.
+	 *
+	 *  **The rise-begin frame resolves to the defender.** Ties at a protective boundary go to the
+	 *  protected, so the one place engine tick order could coin-flip an outcome is ruled instead of
+	 *  left to chance.
+	 */
+	bool IsKnockdownInvulnerable() const { return bKnockedDown && !bKnockdownRising; }
+
+	/** Whether get-up options are currently legal -- past the jail, before any rise. */
+	bool IsInKnockdownChoiceWindow() const;
+
+	/**
+	 *  Put this character on the floor. **Supersedes hitstun rather than joining it.**
+	 *
+	 *  Replaces EnterHitstun for any hit whose swing authored a grade: cancels through the same
+	 *  funnel death uses, resets the victim's string, overrides a whiffed parry's recovery, starts
+	 *  the radial carry and begins forced facing. Server-only, like every other state entry here.
+	 *
+	 *  @param Grade     Which split to run. None returns without doing anything.
+	 *  @param Attacker  Who did it -- the carry's radial origin and the facing target.
+	 */
+	void EnterKnockdown(ETDKnockdownGrade Grade, AActor* Attacker);
+
+	/** Whether a parried attacker is serving their lockout. */
+	bool IsInParryLockout() const { return bInParryLockout; }
+
+	/**
+	 *  Lock this attacker out for what remained of the swing a parrier just caught.
+	 *
+	 *  **Externally inflicted, so a lockout rather than a recovery**, and it composes with
+	 *  recoveries by the standing schema: a lockout overrides one. Takes the full movement lock,
+	 *  refuses every ability from the shared base, and ends the string explicitly.
+	 *
+	 *  @param RemainingSeconds  Planned authored total minus elapsed at the catch. Floored at
+	 *                           ParryLockoutFloorSeconds, which is 0 unless play asks otherwise.
+	 */
+	void EnterParryLockout(float RemainingSeconds);
+
+	/**
+	 *  Start the rise. **Ends invincibility on the frame it is called**, and commits: from here
+	 *  there are no options, no movement and no way back to the floor.
+	 *
+	 *  Called by the auto-rise at the choice window's close and by every get-up option, which is
+	 *  what makes "the action is the exit" true -- there is no shared pre-rise for an option to
+	 *  wait through.
+	 *
+	 *  @param By  Trace label: auto, dodge, block, attack, kipup or stand.
+	 */
+	void BeginKnockdownRise(const TCHAR* By);
+
+	/**
+	 *  Turn this body toward an attacker at the derived rate. Applies to every clean hit, not only
+	 *  knockdowns. **The camera never moves** -- this is the body, and taking someone's aim away is
+	 *  a different and much larger thing than turning their model.
+	 */
+	void BeginForcedFacing(AActor* Toward);
+
 	/**
 	 *  True while a parry window is open and has not yet caught anything.
 	 *
@@ -507,7 +576,13 @@ protected:
 	virtual void Tick(float DeltaSeconds) override;
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
-	/** Blocked while exhausted, per the design: no defensive actions and no jump. */
+	/**
+	 *  Drops the guard and defers to the base. **Every permission check moved to UTDJumpAbility.**
+	 *
+	 *  Kept as an override only for the guard drop, which is presentation rather than permission.
+	 *  Reached solely through GA_Jump now, so anything asking "may I jump" belongs in that class or
+	 *  in the shared ability base, never here -- that split is what the "Before Stun" trap cost.
+	 */
 	virtual void Jump() override;
 
 	/**
@@ -518,6 +593,26 @@ protected:
 	 *  their own release window and drag an actor-frame hitbox around with them.
 	 */
 	virtual bool IsFacingLocked() const override { return bDead || Super::IsFacingLocked(); }
+
+	/**
+	 *  **Lockouts take movement, not just abilities** (2026-08-20, discharging the "Before Stun" trap).
+	 *
+	 *  ORed with Super rather than replacing it, following IsFacingLocked directly above: the base
+	 *  holds the ability-side lock, so returning only these two would let an attack's own
+	 *  commitment be walked out of.
+	 *
+	 *  **Hitstun and the guard break, and deliberately not blockstun.** The pair is the one the
+	 *  schema already draws: a guard that *fails* costs you everything for a fixed stun, a guard
+	 *  that *works* costs you initiative only -- so blockstun keeps refusing offense while leaving
+	 *  the defender free to walk, which is the behaviour it shipped with and the reason it is not
+	 *  named here. A knockdown does not appear either: it takes movement through the same seam,
+	 *  but by the jail's own lock rather than by being a third name in this list.
+	 *
+	 *  What this closes is not theoretical. `State.GuardBroken` refused every GameplayAbility from
+	 *  the shared base while the broken player could still walk and jump away from the punish
+	 *  window the break exists to create.
+	 */
+	virtual bool IsMovementLocked() const override { return bInHitstun || bGuardBroken || Super::IsMovementLocked(); }
 
 	/**
 	 *  Idle additionally means no ability running and no press waiting to be answered.
@@ -659,6 +754,109 @@ protected:
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Stamina", meta=(ClampMin="0.0"))
 	float JumpRegenPauseSeconds = 0.5f;
+
+	// ---- Knockdown ------------------------------------------------------------------------
+	//
+	// **Both grades total 2.5 s and begin their forced rise at 2.0.** The split between jail and
+	// choice is what the grade decides; the total is deliberately invariant, because everything
+	// derived from it -- the exhausted player's stamina return, the netcode window -- would
+	// otherwise need re-deriving per grade. Each grade's split is its own dial if either misreads
+	// in play; the total is not.
+
+	/**
+	 *  Normal grade: seconds of jail, in which every action is refused and presses buffer.
+	 *
+	 *  Held to the minimum a knockdown can be and still read as one. The light string's ender is
+	 *  the only source of this grade, and it has already extracted 45 damage on the way here.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Knockdown", meta=(ClampMin="0.0"))
+	float KnockdownJailSecondsNormal = 1.0f;
+
+	/**
+	 *  Normal grade: seconds of choice window, in which get-up options are legal.
+	 *
+	 *  Doubled against the lockout deliberately -- the fast layer's knockdowns are escape-rich, and
+	 *  boundary oki against them is light-only.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Knockdown", meta=(ClampMin="0.0"))
+	float KnockdownChoiceSecondsNormal = 1.0f;
+
+	/**
+	 *  Hard grade: seconds of jail. **The meaner half of the same total.**
+	 *
+	 *  1.5 against normal's 1.0 holds every exit back far enough that a committed follow-up's
+	 *  arrival window overlaps the forced rise -- a delayed heavy or a charged both reach it. That
+	 *  overlap is the whole of hard oki, and it is bought by landing a committed hit.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Knockdown", meta=(ClampMin="0.0"))
+	float KnockdownJailSecondsHard = 1.5f;
+
+	/** Hard grade: seconds of choice window. Narrow by design; see KnockdownJailSecondsHard. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Knockdown", meta=(ClampMin="0.0"))
+	float KnockdownChoiceSecondsHard = 0.5f;
+
+	/**
+	 *  Seconds a rise takes, shared by both grades and by every way of starting one.
+	 *
+	 *  **Shared deliberately**: the clips are rate-fitted to this, and keeping it grade-invariant
+	 *  is what keeps both grades standing at 2.5. A rise is fully committed once started -- no
+	 *  options, no movement, hittable -- so this is also the width of the meaty window a chosen
+	 *  stand is choosing *when* to open.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Knockdown", meta=(ClampMin="0.01"))
+	float KnockdownRiseSeconds = 0.5f;
+
+	/**
+	 *  How far from the attacker a knocked-down body is carried, along the attacker->victim bearing.
+	 *
+	 *  **Radial, not along the attacker's facing, and the two axes are never to be unified.** The
+	 *  string's forward knockback centres on the facing axis because the next hit needs its target
+	 *  in front; a knockdown radiates, so a side target flies to its own side and a crowd scatters
+	 *  outward. Both are correct for their own job and the axis follows the volume's purpose.
+	 *
+	 *  450 is farther than the re-authored knockback's 350 by design -- a full light's coverage of
+	 *  separation, so re-engaging the riser costs real travel rather than a step. **Coupled to
+	 *  MaxReachCm**: pushing it below a branch's reach would let a standing attacker touch the
+	 *  floor, and that is the meaty this design does not want to be free.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Knockdown", meta=(ClampMin="0.0"))
+	float KnockdownSpacingCm = 450.0f;
+
+	/** Seconds the carry takes. Sits inside the fall; knockback's contract, same root motion source. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Knockdown", meta=(ClampMin="0.01"))
+	float KnockdownCarrySeconds = 0.35f;
+
+	/** Optional shape for the carry, exactly as the knockback's curve. **Must average 1.0.** */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Knockdown")
+	TObjectPtr<UCurveFloat> KnockdownCarryTimeMappingCurve;
+
+	/**
+	 *  Degrees per second the body turns to face its attacker after **any** clean hit.
+	 *
+	 *  **Derived, not free.** 180 degrees must complete well inside the shortest hitstun anyone can
+	 *  actually feel, or a victim is still turning when they regain control -- which reads as the
+	 *  hit having spun them rather than faced them. The floor is 180 / that hitstun.
+	 *
+	 *  **The basis moved on 2026-08-20 and the number did not.** It was derived against the heavy's
+	 *  0.50, giving a floor near 655; knockdown then repurposed the heavy's and charged's
+	 *  HitstunSeconds into attacker-side oki knobs that no victim ever feels, so the shortest *felt*
+	 *  hitstun is now the light's 0.55 and the floor is nearer 330. 720 clears both, which is why
+	 *  this is a note rather than a retune -- but the derivation to re-run if any *felt*
+	 *  HitstunSeconds drops is the light's, not the ladder's minimum.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Knockdown", meta=(ClampMin="1.0"))
+	float ForcedFacingTurnRateDegrees = 720.0f;
+
+	/**
+	 *  Authored floor under the derived lockout. **Reserved at 0 and deliberately unused.**
+	 *
+	 *  The duration is the swing's planned total minus elapsed, which preserves per-tier punish for
+	 *  free. This is the authored half held against the designer's own prediction that the fully
+	 *  derived reward may prove under-authored -- spend it only if play asks, and record the number
+	 *  when you do.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Parry", meta=(ClampMin="0.0"))
+	float ParryLockoutFloorSeconds = 0.0f;
 
 	/**
 	 *  Present while an action that suppresses regen is running, via that ability's owned tags.
@@ -1127,6 +1325,35 @@ protected:
 	FGameplayTag DebugDefendParryInputTag;
 
 	/**
+	 *  Tap the jump input on DebugJumpIntervalSeconds. Debug only.
+	 *
+	 *  **Orthogonal to DebugAutoDefendMode rather than a member of it**, and that is the whole
+	 *  reason it exists as a separate flag. The rule it was built to observe -- a broken guard can
+	 *  no longer jump -- needs a defender that is *blocking* (to get broken) and *jumping* (to be
+	 *  refused) at the same time, which a one-mode-at-a-time enum cannot express. The enum's
+	 *  comment defends that exclusivity for defensive policy, and this is not a defensive policy:
+	 *  it is a second input arriving on a schedule.
+	 *
+	 *  Reused by knockdown's neutral stand, which is also the jump input.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat|Debug")
+	bool bDebugPeriodicJump = false;
+
+	/**
+	 *  Seconds between one auto-jump and the next. Debug only.
+	 *
+	 *  **Co-prime with the attacker's cycle for the reason the parry's interval is**: a period that
+	 *  divided the attacker's would sample one phase of the exchange forever, and the question here
+	 *  is whether presses land inside a lockout -- which only some of them will.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat|Debug", meta=(ClampMin="0.1"))
+	float DebugJumpIntervalSeconds = 1.3f;
+
+	/** Input the periodic jump taps, normally InputTag.Jump. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat|Debug")
+	FGameplayTag DebugJumpInputTag;
+
+	/**
 	 *  Seconds between one auto-parry and the next. Debug only.
 	 *
 	 *  **Default 1.7 for the reason the dodger's is 1.9**: it must not alias against the attacker's
@@ -1395,6 +1622,9 @@ private:
 	 */
 	void DebugAutoDodgePress();
 	void DebugAutoDodgeRelease();
+	/** Taps the jump input, then releases it a frame later. See bDebugPeriodicJump. */
+	void DebugAutoJumpPress();
+	void DebugAutoJumpRelease();
 
 	/**
 	 *  PeriodicParry's tap. Unlike the dodge's, it does **not** re-home the pawn first.
@@ -1551,6 +1781,29 @@ private:
 	 *  half carries no cancel -- EnterHitstun cancels on the server once; a client's OnRep must
 	 *  not cancel predicted copies out from under a correction, the death path's exact reasoning.
 	 */
+	void EndParryLockout();
+	void ApplyParryLockoutState();
+	void ClearParryLockoutState();
+
+	void EndKnockdown();
+	void ApplyKnockdownState();
+	void ClearKnockdownState();
+
+	/** Advances the jail -> choice -> rise -> stand boundaries. Authority only, called from Tick. */
+	void TickKnockdown();
+
+	/** Turns the body toward ForcedFacingTarget at the derived rate. Called from Tick. */
+	void TickForcedFacing(float DeltaSeconds);
+
+	/** The radial carry: attacker + (attacker->victim bearing) * KnockdownSpacingCm, Z natural. */
+	void ApplyKnockdownCarry(AActor* Attacker);
+
+	/** Jail seconds for the grade currently held. */
+	float GetKnockdownJailSeconds() const;
+
+	/** Choice-window seconds for the grade currently held. */
+	float GetKnockdownChoiceSeconds() const;
+
 	void EndHitstun();
 	void ApplyHitstunState();
 	void ClearHitstunState();
@@ -1614,6 +1867,12 @@ private:
 
 	UFUNCTION()
 	void OnRep_Hitstun();
+
+	UFUNCTION()
+	void OnRep_KnockedDown();
+
+	UFUNCTION()
+	void OnRep_ParryLockout();
 
 	UFUNCTION()
 	void OnRep_ParryRecovery();
@@ -1712,6 +1971,65 @@ private:
 
 	/** When hitstun expires, in world seconds. A Tick-checked timestamp like its two siblings. */
 	float HitstunEndsAt = 0.0f;
+
+	/**
+	 *  On the floor. **Ninth member of the replicated state family**, same contract as the eight
+	 *  before it: the server decides, this replicates, OnRep applies the tag locally.
+	 */
+	UPROPERTY(ReplicatedUsing = OnRep_KnockedDown)
+	bool bKnockedDown = false;
+
+	/**
+	 *  Which grade is running. Replicated beside the bool rather than derived, because the split it
+	 *  selects decides which get-up options a *client* may predict, and a client that guessed
+	 *  would mispredict a refusal.
+	 */
+	UPROPERTY(Replicated)
+	ETDKnockdownGrade KnockdownGrade = ETDKnockdownGrade::None;
+
+	/** Authority-side boundary: when everything stops being refused. */
+	float KnockdownJailEndsAt = 0.0f;
+
+	/** Authority-side boundary: when the auto-rise takes the choice away. */
+	float KnockdownChoiceEndsAt = 0.0f;
+
+	/** Authority-side boundary: the stand. Set when a rise begins, not at entry. */
+	float KnockdownRiseEndsAt = 0.0f;
+
+	/**
+	 *  Whether a rise has begun. **The invincibility switch**, and the reason it is separate from
+	 *  the tag: the tag spans the rise too, because the body is still on the floor for every
+	 *  purpose except being hittable.
+	 */
+	bool bKnockdownRising = false;
+
+	/** Whether a forced turn is running, and what it is turning toward. */
+	bool bForcedFacingActive = false;
+
+	/** Weak, because the attacker can die, despawn or be destroyed mid-turn. */
+	TWeakObjectPtr<AActor> ForcedFacingTarget;
+
+	/** Yaw the turn started from, so FACING FORCED can report the span it actually covered. */
+	float ForcedFacingStartYaw = 0.0f;
+
+	/**
+	 *  The last carry's bearing: the radial axis's angle off the attacker's facing, in degrees.
+	 *
+	 *  Trace-only, and server-only like BLOCKSTUN's `until=`. It exists so an assertion can tell
+	 *  the two carry axes apart -- roughly zero in a 1v1, roughly plus or minus ninety for the
+	 *  ender's two victims -- which is the difference between "the axis radiates" being designed
+	 *  and being observed.
+	 */
+	float LastKnockdownBearingDegrees = 0.0f;
+
+	/**
+	 *  Serving a parry lockout. **Tenth member of the replicated state family**, same contract.
+	 */
+	UPROPERTY(ReplicatedUsing = OnRep_ParryLockout)
+	bool bInParryLockout = false;
+
+	/** Authority-side deadline. Derived at the catch; see EnterParryLockout. */
+	float ParryLockoutEndsAt = 0.0f;
 
 	/**
 	 *  A parry window is open. The sixth of the replicated-state family, same contract.
@@ -1894,6 +2212,9 @@ private:
 	FTimerHandle DebugAutoParryPreBlockTimerHandle;
 	FTimerHandle DebugCancelIntoBlockTimerHandle;
 	FTimerHandle DebugAutoDodgeReleaseTimerHandle;
+
+	FTimerHandle DebugAutoJumpTimerHandle;
+	FTimerHandle DebugAutoJumpReleaseTimerHandle;
 
 	/**
 	 *  Where a debug fixture started, captured once, so each swing or dodge begins from the same

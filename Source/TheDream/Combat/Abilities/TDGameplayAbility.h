@@ -95,6 +95,16 @@ public:
 	 */
 	virtual bool TryChainOutForBufferedPress() { return false; }
 
+	/**
+	 *  Trace label for the rise this ability starts when used as a get-up. See BeginKnockdownRise.
+	 *
+	 *  Asked of the ability rather than switched on in the character, because the character
+	 *  deliberately does not know which ability means what -- the same reasoning that keeps it from
+	 *  knowing which tag means attack. The dodge answers with two labels depending on grade, which
+	 *  is exactly why this takes the character rather than being a constant.
+	 */
+	virtual const TCHAR* GetKnockdownRiseLabel(const class ATDCombatCharacter* Character) const { return TEXT("unknown"); }
+
 protected:
 
 	/**
@@ -121,6 +131,49 @@ protected:
 	bool bBlockedWhileAirborne = false;
 
 	/**
+	 *  Refuse activation while an ability owns movement input.
+	 *
+	 *  **The counterpart to bLocksMovement below, and the pair is deliberately asymmetric**: that
+	 *  flag says "I take movement while I run", this one says "I may not start while someone else
+	 *  has it". Most abilities want neither, an attack and a dodge want the first, and jump is the
+	 *  first thing in the project to want the second.
+	 *
+	 *  It reads ATheDreamCharacter's bAbilityMovementLocked directly rather than going through a
+	 *  State.MovementLocked tag, which this header used to offer as the alternative. **The bool is
+	 *  the better half of that choice for a reason that outlives the convenience**: CLAUDE.md's
+	 *  network rule is that new state is a replicated property or an attribute and never a loose
+	 *  tag, and the lock is already a bool -- minting a tag to mirror it would create a second
+	 *  source of truth for one fact, which is the thing that goes stale.
+	 *
+	 *  Off by default, following bBlockedWhileAirborne above: an ability that can be started out of
+	 *  someone else's commitment is a legitimate thing to want, and this should not quietly forbid
+	 *  one.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Activation")
+	bool bBlockedWhileMovementLocked = false;
+
+	/**
+	 *  Whether this ability may be started from the floor, during the knockdown's choice window.
+	 *
+	 *  **Three phases, two answers.** The jail refuses everything regardless of this flag; the rise
+	 *  refuses everything too, because a rise is committed once started. Only the choice window
+	 *  between them consults it, which is what makes "the action is the exit" true -- a get-up
+	 *  option is the ordinary ability, activated from an unusual place, with no shared pre-rise for
+	 *  it to wait through.
+	 *
+	 *  Off by default, so the down state refuses anything nobody has thought about. The four that
+	 *  take it are the dodge, the guard, the jump (the neutral stand) and the get-up attack; each
+	 *  then prices its own rise, which is the whole design of the choice.
+	 *
+	 *  **Grade restrictions are not here.** Hard knockdown removes the directional dodge and the
+	 *  free stand, but that is a question about *which* option, answered by the option itself
+	 *  against the grade it can read off the character. A second flag here would spread one ruling
+	 *  across two files.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Activation")
+	bool bAllowedFromKnockdown = false;
+
+	/**
 	 *  Suppress movement input -- WASD and jump -- for as long as this ability runs.
 	 *
 	 *  **Input, not movement.** The ability's own displacement is unaffected: a lunge, a dash or
@@ -132,10 +185,11 @@ protected:
 	 *  path converges. Off by default: an ability that leaves you mobile is a legitimate thing to
 	 *  want, and this should not quietly forbid one.
 	 *
-	 *  **This is the seam a movement-ability category plugs into later.** When jump and crouch
-	 *  become abilities, they are blocked by the same lock rather than by a second mechanism --
-	 *  or by a State.MovementLocked tag in their ActivationBlockedTags, which is the same rule
-	 *  expressed in GAS's own vocabulary. Neither requires undoing this.
+	 *  **This was the seam a movement-ability category plugs into, and jump took it 2026-08-20.**
+	 *  The prediction offered two forms -- the same lock, or a State.MovementLocked tag in
+	 *  ActivationBlockedTags -- and the lock won: see bBlockedWhileMovementLocked above for why a
+	 *  mirrored tag would have been a second source of truth for one fact. Crouch, if it ever
+	 *  arrives, has the route already built.
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Activation")
 	bool bLocksMovement = false;

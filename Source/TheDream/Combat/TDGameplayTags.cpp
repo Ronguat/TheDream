@@ -16,4 +16,6 @@ namespace TDTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Parrying, "State.Parrying", "A parry window is live. Refuses every ability while it is up.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_ParryRecovery, "State.ParryRecovery", "Your own parry whiffed. Refuses every ability for its duration.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_DodgeRecovery, "State.DodgeRecovery", "Your own dodge just ended. Refuses parry only.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_KnockedDown, "State.KnockedDown", "On the floor. Refuses everything for the jail, some of it for the choice window, and takes movement throughout.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_ParryLockout, "State.ParryLockout", "You were parried. Refuses every ability and locks movement for the swing time you had left.");
 }

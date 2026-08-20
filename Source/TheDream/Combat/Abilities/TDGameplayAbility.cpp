@@ -167,6 +167,25 @@ bool UTDGameplayAbility::CanActivateAbility(const FGameplayAbilitySpecHandle Han
 		return false;
 	}
 
+	// Being parried refuses everything, from the shared base like death, the guard break, hitstun
+	// and the knockdown jail -- and for the reason all of them give: a lockout any one ability
+	// could be granted without is one that will eventually be missed by one.
+	//
+	// **The refusal is what makes the punish window real.** Before this the parried attacker merely
+	// rode their own recovery, which recovery already forbade acting through; the difference now is
+	// that the *swing* ended at the catch, so without this the attacker would be free the instant
+	// it did -- and a parry would shorten their commitment instead of lengthening it.
+	if (ActorInfo && ActorInfo->AbilitySystemComponent.IsValid()
+		&& ActorInfo->AbilitySystemComponent->HasMatchingGameplayTag(TDTags::State_ParryLockout))
+	{
+		TD_TIMING_LOG(TEXT("[%.3f] REFUSED    %s on %s: parry lockout"),
+			ActorInfo->AvatarActor.IsValid() && ActorInfo->AvatarActor->GetWorld()
+				? ActorInfo->AvatarActor->GetWorld()->GetTimeSeconds() : 0.0f,
+			*GetName(),
+			*GetNameSafe(ActorInfo->AvatarActor.Get()));
+		return false;
+	}
+
 	// Hitstun refuses everything, from the shared base like death and the guard break, and for the
 	// same reason: a stun any one ability could be granted without is a stun that will eventually
 	// be missed by one. Refusing *defense* here is not a side effect -- it is the entire mechanism
@@ -186,6 +205,49 @@ bool UTDGameplayAbility::CanActivateAbility(const FGameplayAbilitySpecHandle Han
 			*GetName(),
 			*GetNameSafe(ActorInfo->AvatarActor.Get()));
 		return false;
+	}
+
+	// The fifth of the five rules ATDCombatCharacter::Jump() used to restate by hand, and the only
+	// one with no tag to express it -- so it is a flag rather than an ActivationBlockedTags entry.
+	// Opt-in like the airborne check below, and traced for the same reason: a refused activation is
+	// otherwise indistinguishable from a dropped input.
+	//
+	// Reads the character's bAbilityMovementLocked, which is *someone else's* lock by construction
+	// -- an ability holding it is already running, and a second activation of the same ability is
+	// refused by GAS before this is reached.
+	// **The knockdown jail, and the choice window that follows it.** Sited here rather than in each
+	// ability's ActivationBlockedTags for the reason death and the guard break give: a refusal any
+	// one ability could be granted without is one that will eventually be missed by one.
+	//
+	// Three phases, two answers. The jail refuses everything -- and the rise refuses everything
+	// too, because a rise is committed the moment it starts. Between them the choice window admits
+	// exactly the abilities that opted in as get-up options. Deliberately *not* exempted from the
+	// input buffer: a press made in the jail is the defender asking for their get-up, and firing it
+	// on the frame the jail ends is the design rather than a leak.
+	if (const ATDCombatCharacter* Downed = Cast<ATDCombatCharacter>(ActorInfo ? ActorInfo->AvatarActor.Get() : nullptr))
+	{
+		if (Downed->IsKnockedDown() && !(bAllowedFromKnockdown && Downed->IsInKnockdownChoiceWindow()))
+		{
+			TD_TIMING_LOG(TEXT("[%.3f] REFUSED    %s on %s: knocked down (%s)"),
+				Downed->GetWorld() ? Downed->GetWorld()->GetTimeSeconds() : 0.0f,
+				*GetName(),
+				*GetNameSafe(Downed),
+				Downed->IsInKnockdownChoiceWindow() ? TEXT("not a get-up option") : TEXT("jail"));
+			return false;
+		}
+	}
+
+	if (bBlockedWhileMovementLocked)
+	{
+		const ATheDreamCharacter* Character = ActorInfo ? Cast<ATheDreamCharacter>(ActorInfo->AvatarActor.Get()) : nullptr;
+		if (Character && Character->IsMovementLocked())
+		{
+			TD_TIMING_LOG(TEXT("[%.3f] REFUSED    %s on %s: movement locked"),
+				Character->GetWorld() ? Character->GetWorld()->GetTimeSeconds() : 0.0f,
+				*GetName(),
+				*GetNameSafe(Character));
+			return false;
+		}
 	}
 
 	if (bBlockedWhileAirborne)
@@ -261,6 +323,21 @@ void UTDGameplayAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle
 	// Reset first: an ability instanced per actor outlives its activation, so a flag left true by
 	// the previous run would make this one release a lock it never took.
 	bTookMovementLock = false;
+
+	// **The action is the exit.** A get-up option starting from the floor *is* the rise -- there is
+	// no shared pre-rise for it to wait through, which is what makes the option's own timing the
+	// thing the defender is choosing. Invincibility ends on this line; from here the ability's own
+	// protection, or lack of it, is the whole of what the defender bought.
+	if (bAllowedFromKnockdown)
+	{
+		if (ATDCombatCharacter* Downed = Cast<ATDCombatCharacter>(GetAvatarActorFromActorInfo()))
+		{
+			if (Downed->IsKnockedDown())
+			{
+				Downed->BeginKnockdownRise(GetKnockdownRiseLabel(Downed));
+			}
+		}
+	}
 
 	// Ungated by role, like the facing lock and for the same reason: this is local input
 	// suppression, and the machine that owns the input is the one that has to honour it. See the
