@@ -248,8 +248,8 @@ Execution order, the only line that changes when the order does:
 
 > **~~Attack Ladder~~ → ~~Dodge~~ → ~~Sword & Shield~~ → ~~Input Buffer~~ → ~~Death~~ → ~~Dodge Distance~~ → ~~Attack Swap~~ → ~~[hover bug]~~ → ~~[facing pass]~~ → ~~Recovery~~ + ~~Lunge~~ → ~~Target Lock~~ → ~~Block~~ → ~~Light String~~ → ~~Parry~~ → Knockdown → Polish → Death-full → Settings → Netcode → Tuning Rig → Interplay**
 
-**Pick up at Knockdown.** Read its brief first: `SwordShield` has **no get-up content whatsoever**,
-so the slice needs a cross-archetype migration raised before it starts.
+**Pick up at Knockdown: the execution greenlight of `Docs/Plan-Knockdown.md`** — designer-signed
+2026-08-19, sub-slices A→I. The cross-archetype migration its brief demanded is done (`97f4acb`).
 
 **Structure Audit has no roster position and keeps a trigger**; its brief is in the same section.
 
