@@ -1031,6 +1031,234 @@ long.
 
 ---
 
+## 2026-08-19 — Knockdown's plan session: the down-state anatomy, forced facing, and the exhausted carve-out
+
+The slice's design surface closed in one sitting — an animation triage the designer ran eyes-on,
+a rapid-fire ruling round, and one economy problem solved by the schema. The *how* is
+`Docs/Plan-Knockdown.md`, work-in-flight and deleted on delivery; this entry is the record that
+outlives it. The migration that fed it is `97f4acb`, verified byte-level, and the recon method is
+worth one line: **the triage read durations and additive flags off 58 in-project clips through
+the live editor before anyone previewed anything** — which disqualified the entire stock
+hit-react set (all additive) for free and reduced the eyes-on work to ~15 distinct motions.
+
+### The anatomy: jail, choice, auto-rise — and why the minimum exists
+
+**Jail 1.5 s → choice 0.5 s → auto-rise 0.5 s; 2.5 total, options fire at exactly 1.5.** The
+designer's first sketch allowed action across the whole down-time, and the argument that killed
+it is this project's own input rule: **a buffered press fires at the first legal frame**, so a
+knockdown with options legal from contact exits on frame one against anyone already pressing —
+the state would exist only for players who weren't. Two supporting arguments, weaker but real:
+without a minimum, the charged — the game's biggest commitment — buys *less* guaranteed
+advantage than a light poke (whose hitstun guarantees the string); and the attacker's meaty needs
+a known earliest-rise moment to aim at, or oki is a guess across a uniform 1.5 s and both sides
+lose the read. The old spec's "1.5 s default get-up" survives as the *jail*, which is closer to
+what that number always wanted to mean. *"Being knocked down is a bespoke, noteworthy event"* —
+the designer, sizing the total at 2.5 against the original 1.5.
+
+**The auto-rise is fully committed: no options, no movement, hittable the whole way up.** Missing
+the window has to mean something; the rise is the attacker's one stable meaty target; and it is
+the passive path's baked vulnerability — everyone who *chose* an exit got their protection priced.
+**A meaty timed onto it is a guaranteed hit, and a purely passive player can be looped — accepted
+eyes-open**, because the loop is escapable every cycle by any choice-window press, and even at
+zero stamina the get-up attack remains. Interplay judges.
+
+**Invincibility covers the floor and ends the moment any rise begins.** Ruled after the designer's
+own instinct that "maybe not all of it is invincible" — the boundary satisfies that without
+reopening the on-the-ground-hits question (parked to Interplay): dodge rises i-framed, block rises
+guarded, attack rises naked-but-threatening, do-nothing rises plainly hittable.
+
+### Forced facing: every clean hit turns the victim to face its attacker
+
+Proposed by the designer during the fall triage, because it collapses the fall problem to **one
+universal clip**: snap-to-attacker means every knockdown is "knocked straight back, lands on
+their back" — `V3_Death_Bw`, already in-project — and commits the design to a face-up ground
+state and supine rises. Extended to **all hitstun** the same hour: if you get hit, your body
+faces whoever hit you. The camera is untouched (facing and camera are separate systems), the
+victim can't act on the forced yaw (hitstun refuses everything), and player facing re-converges
+to camera afterward automatically. It quietly buffs post-hit guarding for victims hit from
+off-camera — a guard raised out of hitstun now faces its threat — which is the intuition wanted,
+recorded as a gameplay change rather than cosmetics. **Rate-limited, not snapped** (the designer):
+the turn completes well inside the shortest hitstun so it carries no gameplay implication — the
+rate is therefore *derived* (180° ÷ half the shortest `HitstunSeconds`, floor ≈ 655°/s), and the
+plan re-anchors the buffered dodge's stored heading so a mid-buffer turn cannot skew it.
+
+### The exhausted carve-out: the schema prices the vortex out
+
+B8 ruled regen paused while down. Composed with exhaustion, that built a vortex: exhaustion's
+only exit is regen, knockdown denies regen, and consecutive knockdowns deny it indefinitely —
+the one place the losing player's escalation path (law 9) could be denied forever by the winner's
+repetition. The designer proposed "exhausted regen is unpausable" — **which was tried 2026-08-14
+and thrown out by play**, and that precedent was surfaced rather than re-litigated: it refunded
+the cost of the very action that emptied the bar. The fix is the lockout/recovery schema drawing
+the line it already owns: **a lockout's regen pause does not apply to the exhausted; a recovery's
+(any self-inflicted pause) still does.** Knockdown is today's only lockout-class pause, so the
+08-14 ruling binds exactly as before. Arithmetic: 2.5 s down × 25/s ≈ 62 stamina — one exhausted
+knockdown nearly cures the exhaustion, matching the designer's "one guaranteed loop at worst"
+intent. **The exhausted downed player's whole economy in one line: lying down recovers you,
+acting taxes you, and the only action offered is the read** — block and dodge get-ups are refused
+by exhaustion itself, the get-up attack carries the standard regen tax (a priced gamble: ~1.5 s
+of pause against the separation a landed hit buys), and *"it's not guaranteed loops; it's heavily
+biased in the attacker's favor, and arguably should be"* (the designer).
+
+### The rest of the rulings, compactly
+
+- **The charged on block stays a guard break** — a standing stun, now with the full lockout its
+  trap always intended, never a knockdown. The break keeps its identity.
+- **Hard knockdown: same clock, fewer options.** Removes the directional dodge; the **kip-up**
+  replaces it as a stationary i-framed dodge ("prototype ideology" — ship it, scrap it later).
+  A longer jail was considered and declined — not obviously more rewarding to the attacker — and
+  jail length is the deliberately reserved dial if Interplay finds hard underwhelming.
+- **Displacement is a fixed destination, notably farther than knockback's.** Knockback's shipped
+  150 "underwhelmed — it needs to be farther" (the designer, a live tuning verdict on
+  `HitSpacingCm` recorded here); the knockdown spacing must not inherit the mistake. First
+  attempt 300.
+- **Airborne victims are knocked down mid-air and the Z axis follows gravity** — no ground snap;
+  the interaction plays out naturally.
+- **Knockdown supersedes hitstun**, which repurposes `HitstunSeconds` on knockdown-inflicting
+  swings: the victim never feels it, but the on-hit waiver still keys the attacker's movement
+  return on it — those values are now pure oki-tempo knobs, not dead data. No special case for
+  the attacker: control returns exactly as on any other hit, and oki pressure is *"emergent, but
+  very intended."*
+- **Get-up attack: initiative, never a confirm.** Fast (release ~0.30 from press — unreactable or
+  it is unthreatening), 360°, significant hitstun and knockback, long recovery, never holdable,
+  no chain, no string. Composed from a rise front-half blended into an existing swing — the
+  eyes-on triage confirmed **no aggressive rise exists anywhere in the bundle** (2026-08-19,
+  designer's eyes across the full rise pool).
+- **The dodge get-up is one forward roll, mechanically directional.** The vendor's rolls all
+  orient-then-roll-forward — including the `_FacingFw` variants, which merely re-face at the end —
+  so the designer's own idea ships instead: yaw-snap to the held direction, one `Roll_Fw` clip,
+  authored travel, camera re-convergence at `EndAbility` doing the vendor's "feature" for free.
+  **Mid-roll the body faces its travel direction — a deliberate exception to the strafe-always
+  convention**, defensible because a rolling body has no stance to read and the span is i-framed.
+- **The kip-up keeps its own gentle root motion** — the one deliberate exception to the migrated
+  flag pair; authoring an equivalent displacement was judged overengineering.
+- **Regen resumes sharp at stand-up** — no tail; tails belong to self-inflicted action pauses.
+- **Clip roles**: `Dagger_Rise1_V2` default rise (no left arm used — no shield-floor clipping),
+  `Resurrection2` hard rise (pushing off the ground reads heavier and buys the longer feel
+  honestly), kip-up reserved to hard's dodge.
+
+### What Interplay inherits, by the designer's own pattern
+
+Floor vulnerability ("start with no"), regen-paused-while-down, parry-as-get-up (starts refused),
+the hard-grade experiment and its reserved jail dial, the meaty loop, and the carve-out's
+generosity — every one ruled "start here, judge there" explicitly. **When play and rationale
+disagree, play wins**; none of these entries is a commitment.
+
+### The plan's line-by-line review, same day: what reviewing a concrete draft caught
+
+The plan was drafted first and greenlit line-by-line after — the designer's process call, and it
+outperformed the abstract pre-approval it replaced: **every finding below existed to be caught
+only because a concrete number or mechanism was on a page to object to.** Anchoring is the mode's
+named cost; the mitigations were flagging which choices were the assistant's versus the
+designer's, and recording every rejected shape beside its dial.
+
+- **The carry axis follows the volume's purpose.** The draft gave knockdown the knockback's
+  facing-axis carry; the designer's s4-360 walk-through exposed it vacuuming side targets around
+  to the front — and the facing-axis clamp would drag a target standing *behind* a 360° attacker
+  through their body. Ruled: the string's forward knockback centres (the next hit needs them in
+  front); 360° hits — the ender's knockdown, the get-up attack's knockback — **radiate** along
+  the attacker→victim bearing. Two axes by design, never to be unified. The 360° finisher
+  thereby scatters a crowd outward: an unplanned, welcome 1vX disengage.
+- **A correct read is never checkmated.** A recovery floor on the get-up attack's waiver was
+  designed and deleted within the hour: it checkmated the successful read in 1vX. Replaced by
+  the standard instant waiver plus one line — **the waiver sets `bResumePending`** — so a guard
+  *held* through the read rises the frame the hit lands. **Global by ruling**: every attack's
+  clean hit honors held intent; parry is structurally immune (it neither buffers nor resumes),
+  so no option-select emerges. The Grace-shaped fallback (i-frames to a floor) is recorded
+  unbuilt.
+- **The parried attacker ends and locks out — the rework locked** (the reserved
+  `State.ParryLockout` returning exactly as its 2026-08-19 comment predicted). The convicting
+  edge: a parried swing's release stayed **live against bystanders** — the dedup covered the
+  parrier alone. Catch → the ability ends through the funnel, hitbox dead for everyone →
+  `EnterParryLockout(planned total − elapsed at catch)`, derived so every per-tier punish
+  survives byte-identical; `ParryLockoutFloorSeconds` reserved at 0 as the authored half.
+  Supersedes the ride-your-own-recovery model in the 2026-08-18 parry entries; the recoil tell
+  Polish is owed gains its natural home.
+- **The window≥release floor retires** — the designer's prior-art argument, sustained after two
+  rounds: the floor bought *tell-timing sufficiency* (a forgiveness guarantee, not correctness)
+  at the price of capping every release in the game. An earlier title shipped parries shorter
+  than every release, with traveling attacks, no issues — because parry ended the attack, which
+  the rework now does here. For stationary volumes the parry question anyway collapses to one
+  boundary test at release-open (dedup consumes a hit target; the movement lock forbids walking
+  an open window in). The window keeps only the anti-option-select ceiling. The designer also
+  corrected the fence's stated guarantee en route: **first contact, no prior catch** — a catch
+  collapses cover to Grace, deliberately.
+- **The get-up attack emerged fully fenced**, its numbers re-derived three times as inputs moved
+  and landing stably: hitstun 1.00 (floor: victim frees after the riser, or no initiative;
+  ceiling: the fastest follow-up meets a buffered guard, or it is a confirm), blockstun 0.65
+  (derived from *which punish is guaranteed* — light yes, heavy a 50 ms-margined read),
+  committed from activation with no startup cancel, release **eats recovery, never the total**
+  (0.30/0.35/0.60 in a fixed 1.25 — the designer's trade, which made hitstun and blockstun
+  invariant to the split), stamina damage 10 by ruling. Its long release deters lunging
+  hitboxes, never parries.
+- **The neutral stand** (jump input): a free, unprotected, committed early rise anywhere in the
+  choice window — ruled with the 1vX rationale (a teammate's intervention buys a window; this is
+  the autonomy to use it) and the ethos stated generally enough to be a **law candidate**:
+  *"lockouts and recoveries are there, but they're all as minimal as they possibly can be, in
+  every single instance."* Hard knockdown removes it — "no early rise for you" — making hard's
+  subtraction two-axis (where *and* when) and exhausted-plus-hard the game's maximum funnel,
+  named and accepted.
+- **The exhausted carve-out refined by collision**: the designer's edge sweep caught that every
+  guard break exhausts by construction, so "lockouts don't pause exhausted regen" would have
+  silently killed the break's suppression half everywhere — repealing the 2026-08-14 one-number
+  design. Restated as the principle: **suppression the opponent can renew indefinitely does not
+  bind the exhausted** — knockdown qualifies (re-knockdown loops), the break cannot (no guard
+  can rise while exhausted to be re-broken). Broken-then-floored serves the break's clock, then
+  regens; knockdown is no one's salvation.
+- Smaller catches, each the designer's: the brief's stale "ender displaces" clause; a
+  knocked-down mid-string attacker (four consequences, all inherited — the reset rides
+  hitstun's own rule); the `KNOCKDOWN` trace gaining a bearing field so the radial geometry is
+  asserted, not trusted.
+
+**The blocked-get-up-attack punish tree, walked as an instance** (the designer's closing
+verification, kept for Interplay): the guaranteed light is the whole string — 45, ender's
+knockdown, oki restarts — and against a healthy bar it is simply correct. The escalations
+activate as the riser's bar wears: sub-50, the heavy on their block converts to break → free
+charged → 40, **hard** knockdown, zero bar, exhausted — the maximum funnel, manufactured; the
+heavy loses to the parry read (a parried punish-heavy now hands the riser a 0.65 point-blank
+lockout); and the charged beats the heavy-timed parry — its arrival at 1.40 post-contact lands
+inside the whiff jail of a window opened for the heavy's 1.00 — while losing to the calm
+react-dodge. **Law 7 relocated intact to punish position, composed rather than designed** —
+the ladder, the string guarantee, the break coupling and the rework producing the jaws in a
+position none of them was authored for. The whiff-side sibling, walked at the review's close:
+the **charge-bait** — approach selling light-oki (the run-in is intention-identical and the
+shared windup hides the tier for 150 ms more), stop just outside the get-up attack's reach,
+and the baited whiff is charge-punishable *on reaction* with ~0.35 s of margin, converting to
+a hard knockdown. It beats attack-rise and block-rise (the charged breaks a rising guard) and
+loses to dodge-rise and the patient stand — the calm answers, as the laws demand. The same
+close also surfaced a payoff inversion for the DKO verdict to weigh: **a clean heavy is
+dominated by a clean light** (25 + normal knockdown against the string guarantee's 45 + the
+same knockdown) — DKO's standing texture, conspicuous once knockdown equalized the enders;
+the heavy's clean-hit compensations are the single-packet commitment and range, its real
+identity being the guard transaction. **Resolved within the same sitting, by the designer,
+hiding in plain sight: the heavy also knocks down hard.** The grade axis restates cleanly —
+*committed single hits knock down hard; the string's volume finisher knocks down normal* —
+which converts every comparison the inversion poisoned into a priced choice: the rise-catch
+ladder becomes damage-versus-grade (45+normal by reaction, 25+hard by read, 40+hard by
+callout), and the mid-string hold-conversion becomes guarantee-versus-grade (an escapable
+55+hard against the ender's guaranteed 45+normal) — a gamble ladder that did not previously
+exist. Amends the 2026-08-16 "the charged's knockdown is hard" dispensation by its own author;
+the charged's clean-hit exclusivity narrows to damage plus the break, which was always its
+identity. Interplay judges the pricing, not the structure. Two textures noted at the close:
+the grade rule holds **geometrically** for SwordShield — the kit's one AoE knockdown (the 360°
+ender) carries the gentle grade, so a crowd can never be hard-floored — authored per swing
+rather than structural, deliberately open to future weapons pairing it differently. And the
+hold-conversion's blocked-string vise, walked by the designer with evident delight: the
+defender expecting 1-2-3 must respect the conversion, blocking the converted heavy survives
+but pays the transaction, so the profitable answers are dodge or parry — both of which the
+*charged* conversion exists to catch, whiff-jailing the heavy-timed parry into a hard
+knockdown. The recursion priced at every layer, now with a floor at the bottom of it.
+
+**The designer's crystallization, closing the session** — kept verbatim-near because it is the
+game's thesis stated in one breath, and the verdict day should have it to compare against:
+*"Three lights is the obvious choice, which invites complacency; the heavy acts as the greedy
+alternative; we shouldn't let this greedy attacker get away with it, so we punish — which
+invites the leviathan. The charged is the level-3 mixup: you bait the defender into thinking
+you'd be greedy, but they don't know the half of it."* Called, in the moment, a landed moment
+for the design hypotheses — **a paper result, explicitly**: every number in the chain is
+authored or derived and none of it has met a human opponent. Implementation and Interplay hold
+the burden of proof; this entry holds what the design believed the day the plan closed.
+
 ## 2026-08-19 — The parry recovery commits you, and lockout/recovery becomes a schema
 
 Sub-slice E opened as "the animation, which is all that is left of it" and did not stay that way.
