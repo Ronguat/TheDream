@@ -20,16 +20,15 @@
  *    present. No montage.
  *  - *Breaking* is ApplyStaminaDamage on the defender, which cancels this ability by tag.
  *
- *  What is left is ending when the button comes up.
- *
- *  Cancellability is the tag, not this class: State.Attacking.Committed in ActivationBlockedTags.
+ *  What is left is ending when the button comes up. Cancellability is the tag, not this class:
+ *  State.Attacking.Committed in ActivationBlockedTags.
  *
  *  GA_Block also blocks on its own State.Blocking, which reads like a mistake. Three mechanisms can
- *  raise the guard -- a direct press, the input buffer replaying a refused press, and
+ *  raise the guard -- a direct press, the buffer replaying a refused press, and
  *  bResumeWhileInputHeld -- and two succeeding in one frame activates the ability twice, leaking
  *  the spec's activeCount so the guard sticks up permanently. Blocking on the tag the ability
- *  itself grants makes a second activation unrepresentable. A cancelled guard drops the tag with
- *  the ability, so a resume still activates normally.
+ *  grants makes a second activation unrepresentable; a cancelled guard drops the tag with the
+ *  ability, so a resume still activates normally.
  *
  *  Movement is deliberately not locked, unlike an attack: bLocksMovement exists on the shared base
  *  and this is the first ability that could take it and does not.
@@ -52,11 +51,10 @@ public:
 	virtual const TCHAR* GetKnockdownRiseLabel(const class ATDCombatCharacter* Character) const override { return TEXT("block"); }
 
 	/**
-	 *  Never. Buffer actions, not states: a stale request to enter a state is meaningless, since the
-	 *  button either is or is not down now and bResumeWhileInputHeld already answers that.
-	 *
-	 *  Attacks deliberately keep buffering through the guard's commitment, which is why this belongs
-	 *  here rather than in the shared base.
+	 *  Never. Buffer actions, not states: a stale request to enter a state is meaningless, the
+	 *  button either being down now or not, and bResumeWhileInputHeld already answers that. Attacks
+	 *  deliberately keep buffering through the guard's commitment, which is why this belongs here
+	 *  rather than in the shared base.
 	 */
 	virtual bool ShouldBufferFailedInput(const FGameplayAbilityActorInfo* ActorInfo) const override;
 	virtual void InputReleased(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo) override;

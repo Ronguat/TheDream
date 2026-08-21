@@ -67,10 +67,9 @@ private:
 	bool bDrawDebugTrace = false;
 
 	/**
-	 *  Only window events carrying this montage open the test.
-	 *
-	 *  The events are broadcast to the whole ASC and carry no ownership of their own, so without
-	 *  this any montage carrying the notify opens every listening trace. Null means accept any.
+	 *  Only window events carrying this montage open the test. The events are broadcast to the whole
+	 *  ASC and carry no ownership, so without this any montage carrying the notify opens every
+	 *  listening trace. Null means accept any.
 	 */
 	TWeakObjectPtr<const UAnimMontage> ExpectedMontage;
 

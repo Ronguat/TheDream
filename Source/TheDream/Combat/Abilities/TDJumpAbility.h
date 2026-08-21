@@ -14,12 +14,11 @@
  *  exhaustion and the guard's commitment from ActivationBlockedTags on the CDO; the movement lock
  *  from bBlockedWhileMovementLocked.
  *
- *  Not a movement ability in GAS's sense: it does not take bLocksMovement and authors no
- *  displacement of its own -- the launch is the character movement component's, driven by
- *  JumpZVelocity. This class owns permission and the button's lifecycle, nothing else.
- *
- *  Costs no stamina. The regen pause stays on the character, keyed to OnJumped rather than to this
- *  activation, so a press held against a ceiling does not pause regen.
+ *  Not a movement ability in GAS's sense: it takes no bLocksMovement and authors no displacement --
+ *  the launch is the character movement component's, driven by JumpZVelocity. This class owns
+ *  permission and the button's lifecycle, nothing else. Costs no stamina; the regen pause stays on
+ *  the character, keyed to OnJumped rather than to this activation, so a press held against a
+ *  ceiling does not pause regen.
  */
 UCLASS()
 class UTDJumpAbility : public UTDGameplayAbility
@@ -36,10 +35,9 @@ public:
 	 *  The button came up. Ends the ability, which is what releases the engine's pressed flag.
 	 *
 	 *  The ability must outlive the launch: ACharacter::Jump() records bPressedJump rather than
-	 *  launching and only StopJumping() clears it, so an ability ending at activation would strand
-	 *  a flag that re-fires on the next landing.
-	 *
-	 *  No WaitInputRelease task -- the character forwards both input edges to live instances.
+	 *  launching, and only StopJumping() clears it, so an ability ending at activation would strand
+	 *  a flag that re-fires on the next landing. No WaitInputRelease task -- the character forwards
+	 *  both input edges to live instances.
 	 */
 	virtual void InputReleased(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo) override;
 

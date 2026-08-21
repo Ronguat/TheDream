@@ -35,9 +35,7 @@ FORCEINLINE bool TDShouldTraceCombatTiming()
  *  **This is the only way an FTDAttackHitbox can be judged at all**: the editor has no hitbox
  *  preview, and a volume that is merely *wrong* resolves hits perfectly happily. Drawn during the
  *  windup as well as the release, dimmed, so a volume can be looked at before the instant it is
- *  already deciding a hit.
- *
- *  The per-ability property still works and is OR'd with this.
+ *  already deciding a hit. The per-ability property still works and is OR'd with this.
  */
 extern TAutoConsoleVariable<int32> CVarTDDebugMeleeTrace;
 
@@ -48,9 +46,8 @@ FORCEINLINE bool TDShouldDrawMeleeTrace()
 
 /**
  *  One line of per-attack trace. Skipped entirely -- arguments included -- unless the cvar is set,
- *  so gathering montage positions costs nothing when it is off.
- *
- *  Requires at least one format argument.
+ *  so gathering montage positions costs nothing when it is off. Requires at least one format
+ *  argument.
  */
 #define TD_TIMING_LOG(Format, ...) \
 	do { if (TDShouldTraceCombatTiming()) { UE_LOG(LogTDCombatTiming, Log, Format, __VA_ARGS__); } } while (0)

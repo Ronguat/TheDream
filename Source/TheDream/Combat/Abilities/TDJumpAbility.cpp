@@ -39,10 +39,9 @@ bool UTDJumpAbility::CanActivateAbility(const FGameplayAbilitySpecHandle Handle,
 
 	// **Hard knockdown removes the free stand.** The grade's whole shape is a narrower, meaner
 	// split, and a costless exit would give back exactly the timing pressure the 1.5/0.5 buys. Hard
-	// keeps the kip-up, the guard and the get-up attack -- all of them priced -- plus waiting.
-	//
-	// Sited here rather than on the base's flag because it is a question about *this* option, and
-	// splitting one ruling across two files is how the pair drifts apart. See bAllowedFromKnockdown.
+	// keeps the kip-up, the guard and the get-up attack -- all priced -- plus waiting. Sited here
+	// rather than on the base's flag because it is a question about *this* option, and splitting
+	// one ruling across two files is how the pair drifts apart. See bAllowedFromKnockdown.
 	if (const ATDCombatCharacter* Downed = Cast<ATDCombatCharacter>(ActorInfo ? ActorInfo->AvatarActor.Get() : nullptr))
 	{
 		if (Downed->IsKnockedDown() && Downed->GetKnockdownGrade() == ETDKnockdownGrade::Hard)

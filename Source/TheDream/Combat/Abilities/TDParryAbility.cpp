@@ -94,9 +94,8 @@ void UTDParryAbility::PlayParryMontage()
 	{
 		// Ungated. A missing marker is an authoring omission no readable property can reveal --
 		// notify placement is invisible to every tool we have -- and its symptom in play is merely
-		// "the parry animation looks a bit off", which nobody would report as a fault. The fallback
-		// is legible rather than correct: one rate across the whole span, so the clip at least
-		// starts and ends where the mechanic does.
+		// "the parry animation looks a bit off", which nobody reports as a fault. The fallback is
+		// legible rather than correct: one rate across the whole span.
 		UE_LOG(LogTDCombatTiming, Warning,
 			TEXT("%s has no Parry Gesture notify; playing the whole clip across %.3fs at one rate. "
 			     "The window/recovery split cannot be honoured without the marker."),
@@ -104,15 +103,13 @@ void UTDParryAbility::PlayParryMontage()
 	}
 
 	// **Both rates are fully determined here, which is what lets the recovery rate outlive this
-	// ability.** A catch ends GA_Parry at the instant it lands, so anything that waited for the
-	// marker at runtime would be gone before the marker arrived and the tail would play at the
-	// window's rate. Nothing here needs the playhead: the marker's trigger time *is* the position it
-	// will be at.
+	// ability.** A catch ends GA_Parry at the instant it lands, so anything waiting for the marker
+	// at runtime would be gone before it arrived and the tail would play at the window's rate.
+	// Nothing here needs the playhead: the marker's trigger time *is* the position it will be at.
 	//
 	// **The blend-out boundary is why this is not (Length - Gesture) / Recovery.** UE begins the
 	// automatic blend-out before the montage's end, so a naive rate runs the segment long. Same
-	// arithmetic UTDChargedAttackAbility::ComputeRecoveryPlayRate derives at length; only the choice
-	// of boundary differs.
+	// arithmetic UTDChargedAttackAbility::ComputeRecoveryPlayRate derives; only the boundary differs.
 	float RecoveryRate = -1.0f;
 	if (GestureTime > KINDA_SMALL_NUMBER && ParryWhiffRecoverySeconds > 0.0f)
 	{
@@ -191,14 +188,12 @@ void UTDParryAbility::EndAbility(
 		// says can never happen: the only ways out are expiry, a catch, and death, and death closes
 		// the window itself before cancelling.
 		//
-		// **The window is left running rather than torn down**, because the protection lives on the
-		// character and survives its ability perfectly well. Tick expires it on schedule and bills
-		// the whiff as usual, so the parry still resolves honestly; what is lost is the jail, which
-		// is the lesser harm and the one that fails visibly.
+		// **The window is left running rather than torn down**, the protection living on the
+		// character and surviving its ability perfectly well. Tick expires it on schedule and bills
+		// the whiff as usual, so the parry still resolves honestly; what is lost is the jail, the
+		// lesser harm and the one that fails visibly.
 		//
-		// Ungated, because this is the sacredness violation detector and there is nothing else. If
-		// it ever fires, something new is cancelling abilities without routing through the parry
-		// check.
+		// Ungated, because this is the sacredness violation detector and there is nothing else.
 		if (Character->IsParryWindowOpen())
 		{
 			UE_LOG(LogTDCombatTiming, Warning,

@@ -60,12 +60,10 @@ void FTDRootMotionSource_FacingForce::PrepareRootMotion(
 	RootMotionParams.Clear();
 
 	// The line this whole struct exists for. Facing is sampled now rather than baked in at
-	// creation, so the lunge curves with the player instead of sliding past them.
-	//
-	// Flattened because a lunge is a ground move: the actor is yaw-only today, so Z is already
-	// zero, and flattening means a future pitched avatar cannot drive itself into the floor.
-	// GetSafeNormal returns zero for a degenerate vector, which produces no motion rather than
-	// a NaN.
+	// creation, so the lunge curves with the player instead of sliding past them. Flattened because
+	// a lunge is a ground move: the actor is yaw-only today, so Z is already zero, and flattening
+	// means a future pitched avatar cannot drive itself into the floor. GetSafeNormal returns zero
+	// for a degenerate vector, which produces no motion rather than a NaN.
 	FVector Direction = Character.GetActorForwardVector();
 	Direction.Z = 0.0f;
 	Direction = Direction.GetSafeNormal();

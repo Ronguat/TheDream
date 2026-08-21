@@ -35,10 +35,8 @@ protected:
 	float BarHeight = 16.0f;
 
 	/**
-	 *  Offset of the local player's panel, which is anchored bottom-centre.
-	 *
-	 *  X nudges it sideways from the centre and is normally 0; Y is the gap above the
-	 *  bottom edge.
+	 *  Offset of the local player's panel, which is anchored bottom-centre. X nudges it sideways
+	 *  from the centre and is normally 0; Y is the gap above the bottom edge.
 	 */
 	UPROPERTY(EditDefaultsOnly, Category="Debug|Layout")
 	FVector2D ScreenPadding = FVector2D(0.0f, 40.0f);
@@ -60,21 +58,18 @@ protected:
 	bool bShowRemoteCharacters = true;
 
 	/**
-	 *  List each combatant's owned gameplay tags.
-	 *
-	 *  Worth keeping on: "is the tag actually applied right now" is a question the state slices
-	 *  need answered directly rather than inferred from animation.
+	 *  List each combatant's owned gameplay tags. Worth keeping on: "is the tag actually applied
+	 *  right now" is a question the state slices need answered directly rather than inferred from
+	 *  animation.
 	 */
 	UPROPERTY(EditDefaultsOnly, Category="Debug|Content")
 	bool bShowGameplayTags = true;
 
 	/**
-	 *  Show how far facing trails the camera, live and as sampled at the last facing lock.
-	 *
-	 *  The "lock" figure is the one that matters: an attack's wedge freezes at the commit
-	 *  checkpoint, so that error is the angle between where the player was aiming and where the
-	 *  attack actually points. Local player only -- it reads the controller, which a remote
-	 *  character does not have here.
+	 *  Show how far facing trails the camera, live and as sampled at the last facing lock. The
+	 *  "lock" figure is the one that matters: an attack's wedge freezes at the commit checkpoint, so
+	 *  that error is the angle between where the player was aiming and where the attack actually
+	 *  points. Local player only -- it reads the controller, which a remote character does not have.
 	 */
 	UPROPERTY(EditDefaultsOnly, Category="Debug|Content")
 	bool bShowFacingError = true;
@@ -86,19 +81,17 @@ protected:
 	FLinearColor StaminaColor = FLinearColor(0.9f, 0.75f, 0.1f, 1.0f);
 
 	/**
-	 *  Fill colour for the stamina bar while State.Exhausted is applied.
-	 *
-	 *  Draining the colour out of the bar says "this resource is not yours right now" without
-	 *  needing to be read, where spotting State.Exhausted in the tag line does not.
+	 *  Fill colour for the stamina bar while State.Exhausted is applied. Draining the colour out
+	 *  says "this resource is not yours right now" without needing to be read, where spotting
+	 *  State.Exhausted in the tag line does not.
 	 */
 	UPROPERTY(EditDefaultsOnly, Category="Debug|Colours")
 	FLinearColor ExhaustedStaminaColor = FLinearColor(0.45f, 0.45f, 0.45f, 1.0f);
 
 	/**
-	 *  Fill colour for the health bar while State.Dead is applied.
-	 *
-	 *  An empty bar and a dead character look identical at a glance, both sitting at zero. This
-	 *  distinguishes "at 0 health" from "dead and refusing everything".
+	 *  Fill colour for the health bar while State.Dead is applied. An empty bar and a dead character
+	 *  look identical at a glance, both at zero; this distinguishes "at 0 health" from "dead and
+	 *  refusing everything".
 	 */
 	UPROPERTY(EditDefaultsOnly, Category="Debug|Colours")
 	FLinearColor DeadHealthColor = FLinearColor(0.35f, 0.05f, 0.05f, 1.0f);

@@ -32,11 +32,10 @@ struct FTDRootMotionSource_FacingForce : public FRootMotionSource
 	virtual ~FTDRootMotionSource_FacingForce() = default;
 
 	/**
-	 *  Speed along facing, in cm/s.
-	 *
-	 *  Distance travelled is Strength * Duration * the mean of StrengthOverTime, so authoring a
-	 *  distance means dividing it by the duration. This is distance along the *path*: if the
-	 *  character turns while it runs, the path curves and straight-line displacement is shorter.
+	 *  Speed along facing, in cm/s. Distance travelled is Strength * Duration * the mean of
+	 *  StrengthOverTime, so authoring a distance means dividing it by the duration. This is distance
+	 *  along the *path*: if the character turns while it runs, the path curves and straight-line
+	 *  displacement is shorter.
 	 */
 	UPROPERTY()
 	float Strength;
@@ -62,23 +61,21 @@ struct FTDRootMotionSource_FacingForce : public FRootMotionSource
 	float StandoffCm;
 
 	/**
-	 *  Direction relative to facing, in degrees clockwise. 0 is straight ahead.
+	 *  Direction relative to facing, in degrees clockwise. 0 is straight ahead. Every attack passes
+	 *  0. The dodge passes its direction, the eight values coming out of ETDDodgeDirection's own
+	 *  order at 45 degrees a step rather than from a table.
 	 *
-	 *  Every attack passes 0. The dodge passes its direction, and the eight values come out of
-	 *  ETDDodgeDirection's own order at 45 degrees a step rather than from a table.
-	 *
-	 *  Applied to a direction still read from facing every tick, which is what keeps this cheap on
-	 *  the wire: an offset is one float, where a world-space direction would be a vector that has to
-	 *  travel and then disagree with a rotation which already replicates.
+	 *  Applied to a direction still read from facing every tick, which keeps this cheap on the wire:
+	 *  an offset is one float, where a world-space direction would be a vector that has to travel
+	 *  and then disagree with a rotation which already replicates.
 	 */
 	UPROPERTY()
 	float YawOffsetDegrees;
 
 	/**
-	 *  Whether a pawn sits within StandoffCm ahead, so this tick should contribute nothing.
-	 *
-	 *  Swept with the avatar's own capsule on ECC_Pawn, which makes this the movement component's
-	 *  own collision test asked one tick early rather than an approximation of it.
+	 *  Whether a pawn sits within StandoffCm ahead, so this tick should contribute nothing. Swept
+	 *  with the avatar's own capsule on ECC_Pawn, making this the movement component's own collision
+	 *  test asked one tick early rather than an approximation of it.
 	 */
 	bool IsWithinStandoff(const ACharacter& Character, const FVector& Direction) const;
 

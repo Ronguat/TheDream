@@ -117,8 +117,7 @@ void UTDBlockAbility::EndAbility(
 	//
 	// **Guarded on IsActive, because UGameplayAbility::EndAbility silently no-ops otherwise.**
 	// Logging before that check reports events that did not happen -- twenty "down" lines after the
-	// last "up", every one a call that ended nothing -- which is worse than no trace, because it is
-	// evidence *against* the bug actually present.
+	// last "up" -- which is worse than no trace, being evidence *against* the bug actually present.
 	if (IsActive())
 	{
 		TD_TIMING_LOG(TEXT("[%.3f] BLOCK      down on %s (%s)"),

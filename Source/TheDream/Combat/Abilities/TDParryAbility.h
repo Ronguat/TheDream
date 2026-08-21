@@ -9,9 +9,8 @@
 class UAnimMontage;
 
 /**
- *  A read. Opens a short window in which any incoming melee hit is negated outright.
- *
- *  A standalone input, not a modifier on block, and never buffered.
+ *  A read. Opens a short window in which any incoming melee hit is negated outright. A standalone
+ *  input, not a modifier on block, and never buffered. No facing test -- 360 degrees.
  *
  *  Success is derived rather than authored: a parried attacker is planted at zero distance by the
  *  lunge stop and rides their own attack into recovery, so the reward scales with the victim's
@@ -21,16 +20,14 @@ class UAnimMontage;
  *  The window is mechanical, never a notify: a timestamp on the character checked in Tick, so the
  *  montage is purely visual and can be swapped, retimed or removed without changing behaviour.
  *
- *  No facing test -- 360 degrees.
- *
  *  Not refused by State.Blockstun; blockstun and parry never know about each other. It *is* refused
  *  while blocking, which is a property of the guard rather than of blockstun.
  *
- *  Throwing one jails you until it resolves. State.Parrying spans the window and State.ParryRecovery
- *  the whiff tail, and the shared base refuses every ability on both; movement is locked across the
- *  same span by bLocksMovement, separately, because WASD is not an ability. The three exits are the
- *  recovery expiring, a catch (NotifyParrySuccess ends the ability at once), and an attacker's
- *  punishment cancelling it.
+ *  Throwing one jails you until it resolves. State.Parrying spans the window and
+ *  State.ParryRecovery the whiff tail, and the shared base refuses every ability on both; movement
+ *  is locked across the same span by bLocksMovement, separately, because WASD is not an ability.
+ *  The three exits are the recovery expiring, a catch (NotifyParrySuccess ends the ability at
+ *  once), and an attacker's punishment cancelling it.
  */
 UCLASS(abstract)
 class UTDParryAbility : public UTDGameplayAbility
@@ -50,10 +47,9 @@ public:
 protected:
 
 	/**
-	 *  How long the negation window stays open, from activation.
-	 *
-	 *  Fenced at both ends and not freely tunable; both bounds are tuning-map invariants. Covering
-	 *  [t, t+300] catches both members of the fast layer, 200 and 350, under a single read.
+	 *  How long the negation window stays open, from activation. Fenced at both ends and not freely
+	 *  tunable; both bounds are tuning-map invariants. Covering [t, t+300] catches both members of
+	 *  the fast layer, 200 and 350, under a single read.
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Parry", meta=(ClampMin="0.0"))
 	float ParryWindowSeconds = 0.30f;
@@ -81,18 +77,15 @@ private:
 
 	/**
 	 *  Starts the clip at the window segment's rate and parks the recovery segment's on the
-	 *  character. Silent and harmless with no montage.
-	 *
-	 *  Both rates are computed here rather than when the marker fires, so the recovery rate survives
-	 *  a catch ending this ability before the marker arrives.
+	 *  character. Silent and harmless with no montage. Both rates are computed here rather than when
+	 *  the marker fires, so the recovery rate survives a catch ending this ability first.
 	 */
 	void PlayParryMontage();
 
 	/**
-	 *  Trigger time of the Parry Gesture marker on ParryMontage, or -1 if there is none.
-	 *
-	 *  Read straight off UAnimMontage::Notifies, which is what lets both rates be derived at
-	 *  activation rather than discovered when the notify fires.
+	 *  Trigger time of the Parry Gesture marker on ParryMontage, or -1 if there is none. Read
+	 *  straight off UAnimMontage::Notifies, which lets both rates be derived at activation rather
+	 *  than discovered when the notify fires.
 	 */
 	float FindGestureTime() const;
 };

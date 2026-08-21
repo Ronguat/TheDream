@@ -16,11 +16,9 @@
 namespace
 {
 	/**
-	 *  The upright cylinder a hitbox is tested against.
-	 *
-	 *  A Character's own capsule is the honest answer and is what every combatant has. Anything
-	 *  else falls back to its bounds rather than being skipped, so a future prop or destructible
-	 *  is hit rather than silently ignored -- the failure mode this project files traps about.
+	 *  The upright cylinder a hitbox is tested against. A Character's own capsule is the honest
+	 *  answer and is what every combatant has. Anything else falls back to its bounds rather than
+	 *  being skipped, so a future prop or destructible is hit rather than silently ignored.
 	 */
 	bool GetTargetCylinder(const AActor* Actor, FVector& OutCentre, float& OutRadiusCm, float& OutHalfHeightCm)
 	{
@@ -172,13 +170,11 @@ void UAbilityTask_MeleeTrace::TickTask(float DeltaTime)
 	}
 
 	// Hit detection is the server's alone. Abilities are LocalPredicted, so without this the test
-	// also runs on the owning client -- from a *different* position, because the two machines are
-	// a round trip apart in the swing. That client result can never apply damage
-	// (UTDMeleeAttackAbility gates on authority), so at best it is wasted work, and at worst it is
-	// a second opinion about what was hit that nothing reconciles.
-	//
-	// Prediction, when it arrives, does not change this: what a client predicts is its *own*
-	// action, never whether that action connected with someone else.
+	// also runs on the owning client -- from a *different* position, the two machines being a round
+	// trip apart in the swing. That client result can never apply damage (UTDMeleeAttackAbility
+	// gates on authority), so at best it is wasted work and at worst a second opinion about what
+	// was hit that nothing reconciles. Prediction, when it arrives, does not change this: what a
+	// client predicts is its *own* action, never whether it connected with someone else.
 	if (!Avatar->HasAuthority())
 	{
 		return;
