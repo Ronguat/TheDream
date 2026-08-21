@@ -147,6 +147,20 @@ check_ratio() { # $@=files -> prints files over RATIO_MAX (never fails hard)
   done | { grep . && return 1 || return 0; }
 }
 
+# --- C6 (FAIL): orphaned doc blocks ------------------------------------------
+# Incident: TDCombatCharacter.h carried ETDDebugFacingMode's doc block stranded
+# above ETDParryCloseReason's, leaving one enum undocumented and a stray comment
+# above the wrong declaration; a second pair sat above DebugAutoParryCycle, and a
+# third block described EndHitstun while sitting on EndParryLockout. Each was an
+# insertion that landed between a comment and the thing it described. A doc block
+# immediately followed by another doc block documents nothing.
+check_orphans() { # $@=files -> prints offending sites, rc 1 if any
+  awk 'prev ~ /^[[:space:]]*\*\/[[:space:]]*$/ && /^[[:space:]]*\/\*\*/ {
+         printf "  %s:%d  doc block follows a doc block\n", FILENAME, FNR
+       }
+       { prev = $0 }' "$@" | { grep . && return 1 || return 0; }
+}
+
 # ==== self-test ===============================================================
 self_test() {
   local t; t=$(mktemp -d) || exit 2
@@ -170,6 +184,8 @@ self_test() {
   printf '/**\n *  Two lines only.\n */\nint h;\n'                          > "$t/short.cpp"
   printf '// This turned out to be wrong.\nint i;\n'                        > "$t/narr.cpp"
   printf '// Refuses offense only.\nint j;\n'                               > "$t/nonarr.cpp"
+  printf '/**\n *  one\n */\n/**\n *  two\n */\nint k;\n'                   > "$t/orphan.cpp"
+  printf '/**\n *  one\n */\nint m;\n\n/**\n *  two\n */\nint n;\n'         > "$t/noorphan.cpp"
   { printf '/**
  *  a
  *  b
@@ -209,9 +225,11 @@ self_test() {
   expect "C5: file under the floor is exempt"    0 check_ratio     "$t/clean.cpp"
   expect "C5: comment-heavy file warns"          1 check_ratio     "$t/long.cpp"
   expect "C5: lean file over the floor passes"   0 check_ratio     "$t/lean.cpp"
+  expect "C6: doc block after doc block fails"    1 check_orphans   "$t/orphan.cpp"
+  expect "C6: doc blocks with code between pass"  0 check_orphans   "$t/noorphan.cpp"
 
   rm -rf "$t"
-  if [ "$bad" -eq 0 ]; then echo "SELF-TEST PASSED (16 assertions)"; exit 0; fi
+  if [ "$bad" -eq 0 ]; then echo "SELF-TEST PASSED (18 assertions)"; exit 0; fi
   exit 1
 }
 
@@ -224,7 +242,8 @@ case "${1:-}" in
       C3) check_blocks    $(sources) ;;
       C4) check_narrative $(sources) ;;
       C5) check_ratio     $(sources) ;;
-      *) echo "usage: comment-check.sh --list C1|C2|C3|C4|C5"; exit 2 ;;
+      C6) check_orphans   $(sources) ;;
+      *) echo "usage: comment-check.sh --list C1|C2|C3|C4|C5|C6"; exit 2 ;;
     esac; exit 0 ;;
   "") ;;
   *) echo "usage: comment-check.sh [--self-test|--list Cn]"; exit 2 ;;
@@ -255,6 +274,9 @@ out=$(check_narrative $FILES) && ok "C4 narrative"   "no narrative connectives" 
 
 out=$(check_ratio     $FILES) && ok "C5 ratio"       "every file inside $RATIO_MAX per 100" \
   || { warn "C5 ratio" "over backstop:"; printf '%s\n' "$out"; }
+
+out=$(check_orphans   $FILES) && ok "C6 orphans"     "no doc block documents another doc block" \
+  || { fail "C6 orphans" "a doc block is orphaned:"; printf '%s\n' "$out" | head -12; }
 
 echo
 printf 'corpus: %d files, %d comment lines, %d code lines (%d per 100)\n' \
