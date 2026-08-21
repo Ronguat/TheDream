@@ -1128,6 +1128,29 @@ void ATDCombatCharacter::EndKnockdown()
 	bKnockdownRising = false;
 	KnockdownGrade = ETDKnockdownGrade::None;
 	ClearKnockdownState();
+
+	// **The fixture's way back into the fight, and it has to be here** (2026-08-20).
+	//
+	// A knockdown carries its victim to KnockdownSpacingCm -- 450 -- and the light's whole covered
+	// range is 410, so a body that does not walk is permanently 40 cm outside anything the ladder
+	// can reach. That gap is deliberate (the heavy and charged lunge it; the light walks it), and a
+	// human simply walks back in. **A stationary dummy never does**, so after its first knockdown a
+	// defensive fixture is out of the exchange for the rest of the session -- windows opening
+	// against attacks that can never arrive, which reads as the defence failing rather than as the
+	// pawn having left.
+	//
+	// Measured before it was fixed: the auto-parrier sat at a median 507 cm from its attacker
+	// across 365 commits, plateauing near 453.
+	//
+	// **The stand is the only safe moment.** The dodge fixture re-homes on its press because that
+	// press precedes the attack; a parry's press is timed *into* one, and teleporting mid-swing
+	// would resolve the hit at a distance nobody aimed at. Hitstun's end will not serve either --
+	// a graded hit knocks down instead of stunning, so that hook never fires. Here the body is
+	// upright, unlocked, and nothing is in flight.
+	//
+	// Self-guarding: ReturnToDebugAutoAttackHome does nothing without a debug fixture, so a real
+	// player standing up is untouched.
+	ReturnToDebugAutoAttackHome();
 }
 
 void ATDCombatCharacter::EnterParryLockout(float RemainingSeconds)
@@ -2571,7 +2594,11 @@ void ATDCombatCharacter::SeedAbilitySystemDefaults()
 	// root motion has since carried us. Taken for either fixture: a dodger needs it as much as an
 	// attacker, because with no movement input every dodge resolves *backward*, so an unattended
 	// defender reverses out of the exchange at DodgeTargetDistanceCm a time.
-	if (bDebugAttacker || bDebugDefender)
+	// A jump-only fixture is a fixture as well (2026-08-20), and it MUST be included here if it is
+	// included in ReturnToDebugAutoAttackHome's guard -- the two conditions are one rule written
+	// twice, and a pawn that can be sent home without having recorded a home goes to the world
+	// origin. That is the failure the guard's own comment warns about.
+	if (bDebugAttacker || bDebugDefender || bDebugPeriodicJump)
 	{
 		DebugAutoAttackHomeTransform = GetActorTransform();
 	}
@@ -2821,8 +2848,12 @@ void ATDCombatCharacter::ReturnToDebugAutoAttackHome()
 	// Guarded on there being a debug fixture at all, as well as on the reset flag, because
 	// HomeTransform is only captured for one. Without this, calling it on anything else -- the
 	// player, on revive -- teleports to an identity transform, i.e. the world origin.
+	// bDebugPeriodicJump counts as a fixture too (2026-08-20). It is orthogonal to
+	// DebugAutoDefendMode by design -- the guard-break and knockdown rules need a pawn that
+	// blocks *and* jumps -- so a jump-only defender would otherwise fall through this guard and
+	// never be brought home, which is exactly the drift the stand-boundary reset exists to undo.
 	if (!bDebugAutoAttackResetPosition
-		|| (!bDebugAutoAttack && DebugAutoDefendMode == ETDDebugDefendMode::Off))
+		|| (!bDebugAutoAttack && !bDebugPeriodicJump && DebugAutoDefendMode == ETDDebugDefendMode::Off))
 	{
 		return;
 	}

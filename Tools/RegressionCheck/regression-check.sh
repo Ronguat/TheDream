@@ -157,6 +157,18 @@ BAND_CHAIN_LATENCY_MIN_MS=125; BAND_CHAIN_LATENCY_MAX_MS=175
 # spacing >= authored, never equality: a hit landing beyond the reset keeps its distance.
 BAND_SPACING_SLACK=0.5
 
+# --- S6: knockdown ----------------------------------------------------------
+# Both grades total 2.5s and begin their forced rise at 2.0 -- the split between
+# jail and choice is what the grade changes, not the total. Sources: the
+# Knockdown* properties on ATDCombatCharacter, read off the CDO at build time.
+BAND_KD_ENTRY_TO_RISE=2.000     # jail + choice, grade-invariant by design
+BAND_KD_RISE=0.500              # KnockdownRiseSeconds, shared
+BAND_KD_SPAN_TOL=0.025
+# The jail is only observable through a press: refusals name their phase, and a
+# stand fires the frame the choice window opens. Normal 1.0, hard 1.5.
+BAND_KD_JAIL_NORMAL=1.000
+BAND_KD_JAIL_HARD=1.500
+
 # ---------------------------------------------------------------------------
 
 PASSES=0; FAILS=0; ROWS=""
@@ -510,6 +522,60 @@ guardstun_spans() { # GUARD BREAK to the next GUARD END
 		have && /^\[[0-9.]+\] GUARD END/ {
 			t=$1; gsub(/[\[\]]/,"",t); printf "%.3f\n", t-b; have=0
 		}' "$SLICE"
+}
+
+
+# --- knockdown extractors ---------------------------------------------------
+# Keyed per victim, because two bodies can be down at once and pairing the wrong
+# entry with the wrong rise yields a plausible number that means nothing -- the
+# same trap two-player logs set for the whole checker.
+
+kd_entry_to_rise_by() { # seconds from KNOCKDOWN to that victim's RISE; $1 filters on by=
+	awk -v want="$1" '
+		/^\[[0-9.]+\] KNOCKDOWN  / {
+			t=$1; gsub(/[\[\]]/,"",t); down[$3]=t+0; next
+		}
+		/^\[[0-9.]+\] KNOCKDOWN RISE/ {
+			t=$1; gsub(/[\[\]]/,"",t);
+			reason=$5; sub(/^by=/,"",reason);
+			if ($4 in down) {
+				if (want=="" || reason==want) printf "%.3f\n", (t+0)-down[$4];
+				delete down[$4]
+			}
+		}
+	' "$SLICE"
+}
+
+
+kd_entry_to_rise() { kd_entry_to_rise_by ""; }
+
+kd_rise_to_stand() { # seconds from each RISE to that victim's STAND
+	awk '
+		/^\[[0-9.]+\] KNOCKDOWN RISE/ {
+			t=$1; gsub(/[\[\]]/,"",t); rise[$4]=t+0; next
+		}
+		/^\[[0-9.]+\] KNOCKDOWN STAND/ {
+			t=$1; gsub(/[\[\]]/,"",t);
+			if ($4 in rise) { printf "%.3f\n", (t+0)-rise[$4]; delete rise[$4] }
+		}
+	' "$SLICE"
+}
+
+kd_grades() { # one grade token per KNOCKDOWN entry
+	grep '^\[[0-9.]*\] KNOCKDOWN  ' "$SLICE" | grep -oE 'grade=[a-z]+' | sed 's/grade=//'
+}
+
+kd_rise_reasons() { # one by= token per RISE
+	grep '^\[[0-9.]*\] KNOCKDOWN RISE' "$SLICE" | grep -oE 'by=[a-z]+' | sed 's/by=//'
+}
+
+kd_damage_while_down() { # count of DAMAGED landing between a victim's KNOCKDOWN and its RISE
+	awk '
+		/^\[[0-9.]+\] KNOCKDOWN  / { down[$3]=1; next }
+		/^\[[0-9.]+\] KNOCKDOWN RISE/ { delete down[$4]; next }
+		/^\[[0-9.]+\] DAMAGED/ { if ($3 in down) n++ }
+		END { print n+0 }
+	' "$SLICE"
 }
 
 # --- assertion helpers ------------------------------------------------------
@@ -1058,6 +1124,91 @@ exhaust_exit_stamina() {
 	grep "^\[[0-9.]*\] EXHAUSTION END" "$SLICE" | grep -o "stamina=[0-9.]*" | cut -d= -f2
 }
 
+
+# --- S6: knockdown ----------------------------------------------------------
+# The spans are grade-invariant on purpose: both grades total 2.5s and rise at
+# 2.0. What the grade changes is the jail/choice split inside that, and the jail
+# is only observable through a press -- see run_s6_stand.
+
+run_s6() { # run_s6 <grade>
+	local want="$1" grades wrong dmg kdn
+	grades=$(kd_grades)
+	kdn=$(printf '%s\n' "$grades" | grep -c . || true)
+
+	# **Fails on n=0 rather than passing vacuously.** A run where nothing was
+	# floored would otherwise report a clean sheet on every assertion below while
+	# exercising none of them -- the class --self-test exists to rule out.
+	if [ "$kdn" -eq 0 ]; then
+		check "KNOCKDOWN fires" 1 "no KNOCKDOWN lines -- the swing's grade is None, or nothing connected"
+	else
+		wrong=$(printf '%s\n' "$grades" | grep -vc "^${want}$" || true)
+		if [ "$wrong" -eq 0 ]; then
+			check "KNOCKDOWN grade" 0 "n=$kdn all grade=$want"
+		else
+			check "KNOCKDOWN grade" 1 \
+				"expected $want, saw:$(printf '%s\n' "$grades" | sort | uniq -c | tr -s ' \n' ' ')"
+		fi
+	fi
+
+	assert_all_in_band "entry -> auto-rise" kd_entry_to_rise \
+		"$(awk -v v="$BAND_KD_ENTRY_TO_RISE" -v t="$BAND_KD_SPAN_TOL" 'BEGIN{printf "%.3f", v-t}')" \
+		"$(awk -v v="$BAND_KD_ENTRY_TO_RISE" -v t="$BAND_KD_SPAN_TOL" 'BEGIN{printf "%.3f", v+t}')" "s"
+
+	assert_all_in_band "rise -> stand" kd_rise_to_stand \
+		"$(awk -v v="$BAND_KD_RISE" -v t="$BAND_KD_SPAN_TOL" 'BEGIN{printf "%.3f", v-t}')" \
+		"$(awk -v v="$BAND_KD_RISE" -v t="$BAND_KD_SPAN_TOL" 'BEGIN{printf "%.3f", v+t}')" "s"
+
+	# Floor invincibility. Gated on kdn for the reason above: zero damage across
+	# zero knockdowns is not evidence of anything.
+	dmg=$(kd_damage_while_down)
+	if [ "$kdn" -eq 0 ]; then
+		check "zero DAMAGED while down" 1 "no knockdowns -- nothing was ever invincible to test"
+	else
+		check "zero DAMAGED while down" "$([ "$dmg" -eq 0 ] && echo 0 || echo 1)" \
+			"$dmg DAMAGED across $kdn knockdowns"
+	fi
+}
+
+run_s6_knockdown() {
+	local reasons n wrong
+	run_s6 normal
+	# Nothing presses, so every exit must be the forced one. A stray by=stand here
+	# means the fixture is pressing something it was not configured to press.
+	reasons=$(kd_rise_reasons)
+	n=$(printf '%s\n' "$reasons" | grep -c . || true)
+	if [ "$n" -eq 0 ]; then
+		check "every rise is by=auto" 1 "no rises at all"
+	else
+		wrong=$(printf '%s\n' "$reasons" | grep -vc '^auto$' || true)
+		check "every rise is by=auto" "$([ "$wrong" -eq 0 ] && echo 0 || echo 1)" \
+			"n=$n rises, $wrong not auto"
+	fi
+}
+
+run_s6_hard() {
+	run_s6 hard
+}
+
+run_s6_stand() {
+	# The jail made observable: a jump press inside it is refused and names the
+	# phase, and the first press *after* it fires the neutral stand. So the stand's
+	# arrival is a lower bound on the jail and an upper bound below the auto-rise.
+	local jail_refusals stands
+	jail_refusals=$(grep -c "knocked down (jail)" "$SLICE" || true)
+	check "REFUSED names the jail" "$([ "$jail_refusals" -gt 0 ] && echo 0 || echo 1)" \
+		"$jail_refusals presses refused inside the jail"
+
+	stands=$(kd_rise_reasons | grep -c '^stand$' || true)
+	check "stand fires as a get-up" "$([ "$stands" -gt 0 ] && echo 0 || echo 1)" \
+		"$stands rises by=stand"
+
+	# A chosen stand must land inside the choice window: at or after the jail's end
+	# and strictly before the auto-rise would have taken it.
+	assert_all_in_band "stand inside choice window" \
+		"kd_entry_to_rise_by stand" "$BAND_KD_JAIL_NORMAL" \
+		"$(awk -v v="$BAND_KD_ENTRY_TO_RISE" -v t="$BAND_KD_SPAN_TOL" 'BEGIN{printf "%.3f", v-t}')" "s"
+}
+
 # --- self-test: the checker must be seen to fail ----------------------------
 self_test() {
 	echo "Self-test: asserting the checker reports FAIL on a band it cannot meet."
@@ -1129,6 +1280,9 @@ case "$SCENARIO" in
 	s5-parry-whiff) run_s5_parry_whiff ;;
 	s5-cancel)      run_s5_cancel ;;
 	s5-waiver)      run_s5_waiver ;;
+	s6-knockdown)   run_s6_knockdown ;;
+	s6-hard)        run_s6_hard ;;
+	s6-stand)       run_s6_stand ;;
 	*) echo "regression-check: unknown scenario '$SCENARIO'" >&2; usage ;;
 esac
 
