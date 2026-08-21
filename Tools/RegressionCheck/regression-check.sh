@@ -20,32 +20,24 @@ set -uo pipefail
 # ---------------------------------------------------------------------------
 # Bands. A retune is a one-line change here.
 #
-# Sources: authored values from GA_Attack's Branches and the character CDOs;
-# tolerances from the spreads measured 2026-08-15 across this fixture.
+# Sources: authored values from GA_Attack's Branches and the character CDOs; tolerances from the
+# spreads measured across this fixture.
 # ---------------------------------------------------------------------------
 
 # S1 -- press to RELEASE BEGIN, milliseconds. Authored hitbox-live times.
-# Heavy 500 -> 350 on 2026-08-18, the ladder re-pole: the heavy becomes *rapid*, which is what
-# kills the reaction-dodge answer that had solved defense (block until the coil, then dodge in
-# [350, 500], covering both arrivals at no read). The ladder now poles as a fast layer -- light
-# 200, heavy 350, read "they pressed" -- against a slow layer, charged 750, read "they're
-# charging". Authored truth moved and the band followed it.
+# The ladder poles as a fast layer -- light 200, heavy 350, read "they pressed" -- against a slow
+# layer, charged 750, read "they're charging".
 BAND_RELEASE_LIGHT=200;   BAND_RELEASE_HEAVY=350;   BAND_RELEASE_CHARGED=750
 BAND_RELEASE_TOL=30
 
 # S1 -- ABILITY END elapsed against the authored total, seconds.
 # Frame quantisation only, and it does not accumulate: measured +15..+31 ms.
-# Light 0.750 -> 0.950 on 2026-08-16 with Light String's long-recovery redesign: branch 0's
-# RecoverySeconds went 0.40 -> 0.60, so the authored total is 0.20 + 0.15 + 0.60. Authored truth
-# moved and the band followed it -- this is not a band patched to green. Heavy and charged are
-# untouched; only the light chains, so only the light's recovery was retuned.
-# Heavy 1.150 -> 1.000 on 2026-08-18 with the ladder re-pole. Its ReleaseAtSeconds went 0.50 ->
-# 0.35, so the authored total is 0.35 + 0.15 + 0.50. RecoverySeconds is untouched at 0.50 --
-# the re-pole moves when the heavy *arrives*, never how long it is punishable for.
+# Each band is HoldUntil + Release + Recovery for its tier: the light 0.20 + 0.15 + 0.60, the
+# heavy 0.35 + 0.15 + 0.50. **Re-derive from the CDO rather than nudging** -- a band moved to make
+# a run green is a band that no longer asserts anything.
 BAND_ELAPSED_LIGHT=0.950; BAND_ELAPSED_HEAVY=1.000; BAND_ELAPSED_CHARGED=1.500
-# Floor 0.010 -> 0.005 on 2026-08-16: a completed heavy measured +9 ms (press->release in-band,
-# every sibling +10..+35). The overhead is frame quantisation, and one frame landing tight is
-# jitter at the sampler, not a combat change -- the floor now admits it.
+# The floor admits a single frame landing tight: the overhead is frame quantisation, and one frame
+# is jitter at the sampler rather than a combat change.
 BAND_ELAPSED_MIN=0.005;   BAND_ELAPSED_MAX=0.035
 
 # S1 -- exact per-attack counts. The light never coils; charged escalates twice.
@@ -56,19 +48,19 @@ BAND_COIL_LIGHT=0;     BAND_COIL_HEAVY=1;     BAND_COIL_CHARGED=1
 BAND_STAMDMG_LIGHT=5; BAND_STAMDMG_HEAVY=50; BAND_STAMDMG_CHARGED=100
 
 # S2 -- authored health damage per tier, for hits landing while the guard is down.
-# Source: GA_Attack's Branches CDO, read 2026-08-15.
+# Source: GA_Attack's Branches CDO.
 BAND_HEALTHDMG_LIGHT=15; BAND_HEALTHDMG_HEAVY=25; BAND_HEALTHDMG_CHARGED=40
 
 # S2 -- blockstun span. Each tier's basis is its own; neither asserted tier is its RecoverySeconds
 # any more, so do not re-derive one from the other.
 # The charged has none reachable: its stamina damage empties any bar, so it
 # always breaks instead. That is a filed trap, asserted here as a standing fact.
-# Light 0.400 -> 0.350 on 2026-08-16, derived rather than felt: after blocking, the defender must
-# be able to *start* an attack before the next chained hit lands, but never land first. At a 500 ms
-# chain cadence the hit arrives at T+200 and the next at T+700, so blockstun B must satisfy
-# 400 + B > 700 (never first) -- B > 300. 350 is that floor plus the 50 ms margin used elsewhere.
-# Heavy 0.500 -> 0.600 on 2026-08-18. This is a *basis change*, not a nudge: the heavy landing on
-# a guard is now the intended paid transaction -- 50 stamina bitten, initiative retained -- so it
+# **The light's is derived, not felt**: after blocking, the defender must be able to *start* an
+# attack before the next chained hit lands, but never land first. At a 500 ms chain cadence the hit
+# arrives at T+200 and the next at T+700, so blockstun B must satisfy 400 + B > 700 -- B > 300, and
+# 0.350 is that floor plus the 50 ms margin used elsewhere.
+# **The heavy's basis is different**: a heavy landing on a guard is the intended paid
+# transaction -- 50 stamina bitten, initiative retained -- so it
 # is plus on block by design. Basis is recovery (0.50) + 0.10 of advantage, the advantage being
 # the only felt number in it. It is no longer "neutral minus 50 ms" like the tier it left behind.
 BAND_BLOCKSTUN_LIGHT=0.350; BAND_BLOCKSTUN_HEAVY=0.600
@@ -78,8 +70,7 @@ BAND_BLOCKSTUN_TOL=0.020
 BAND_GUARDSTUN=1.000; BAND_GUARDSTUN_TOL=0.025
 
 # S5 -- the parry window and the recovery a whiff leaves behind.
-# Source: GA_Parry's CDO (ParryWindowSeconds, ParryWhiffRecoverySeconds), read 2026-08-18;
-# renamed 2026-08-19 with the recovery/lockout split, values unchanged.
+# Source: GA_Parry's CDO (ParryWindowSeconds, ParryWhiffRecoverySeconds).
 # Neither is a free number. The window is fenced above by the anti-option-select ceiling -- one
 # press must not cover two read-classes, so it must stay under the fast-to-charged gap of 400 ms --
 # and below by the longest authored ReleaseSeconds, 0.150, or a damaging phase could span the whole
@@ -89,15 +80,15 @@ BAND_PARRY_WINDOW=0.300
 BAND_PARRY_RECOVERY=0.600
 BAND_PARRY_SPAN_TOL=0.025
 
-# S5 -- Parry Grace, the tail a *successful* parry leaves behind (2026-08-19). Source:
-# ParryGraceSeconds on the character CDO.
+# S5 -- Parry Grace, the tail a *successful* parry leaves behind. Source: ParryGraceSeconds on the
+# character CDO.
 # **Derived, not chosen**: 150 ms is roughly the interval humans cannot beat, about seven inputs a
 # second, which is what makes two attacks inside it unanswerable by a second press. Re-derive it
 # against that ceiling, never against feel. It exists so a successful parry lasts longer than 0 ms
 # -- a catch closes the window, so without it one press can only ever answer one attack.
 BAND_PARRY_GRACE=0.150
-# The parry lockout is **authored** per branch and per swing as of 2026-08-20, not derived from
-# what remained of the swing -- so this is the value off the CDO, not an arithmetic result.
+# The parry lockout is **authored** per branch and per swing rather than derived, so this is the
+# value off the CDO and not an arithmetic result.
 # s5-parry's attacker throws the string, whose first swing is the light branch.
 BAND_PARRY_LOCKOUT_LIGHT=0.750
 
@@ -136,14 +127,13 @@ BAND_EXHAUST_ENTER=0.0; BAND_EXHAUST_EXIT=100.0
 BAND_STAMINA_TOL=0.5
 
 # S4 -- the light string. Fixture is DebugAutoAttackStringTaps 3, so each cycle is a burst of
-# three swings rather than one. Every band here is derived from GA_Attack's CDO read 2026-08-18,
-# NOT from the plan session's proposals -- three of those went stale when the cadence was
-# measured off the designer and hitstun and blockstun were re-derived against it.
+# three swings rather than one. **Every band here is derived from GA_Attack's CDO, never from a
+# plan's proposals** -- proposals go stale as soon as anything downstream is re-derived.
 BAND_STRING_SWINGS=3
 
 # ACTIVATE to the next ACTIVATE. 0.200 release-at + 0.150 release + ChainOpenAfterRecoverySeconds
-# 0.133 + the buffer tick that notices recovery opened = ~0.500, which is the cadence the designer
-# tapped on 2026-08-16. The tolerance is the tick landing either side of a frame.
+# 0.133 + the buffer tick that notices recovery opened = ~0.500, the tapped cadence. The tolerance
+# is the tick landing either side of a frame.
 BAND_CHAIN_GAP=0.500; BAND_CHAIN_GAP_TOL=0.045
 
 # HitstunSeconds on branch 0. It must outlast the chain gap or "any hit guarantees the rest"
@@ -220,15 +210,13 @@ press_to_release() { # ms from each attack press to the following RELEASE BEGIN
 
 # Cancelled ends are excluded: a swing StopPIE (or anything else) tears down mid-flight logs
 # "(cancelled)" and its elapsed is not an attack total. The dodge sampler has carried the same
-# end-of-run guard since 2026-08-15; this one got phase-lucky until 2026-08-16, when a session
-# stopped mid-swing and a charged read 0.776. The trace marks cancellation for exactly this.
+# end-of-run guard. The trace marks cancellation for exactly this.
 elapsed_values() { grep "elapsed=" "$SLICE" | grep -v "(cancelled)" | grep -o "elapsed=[0-9.]*" | cut -d= -f2; }
 
 count_per_attack() { # count_per_attack <TAG-regex>; count of TAG per COMPLETED attack
 	# Only attacks whose ABILITY END is not "(cancelled)" count. A swing StopPIE truncates
 	# mid-windup has an ACTIVATE and legitimately zero escalations or coils -- it was cut before
-	# its first checkpoint, not thrown wrong. Same end-of-run class as the elapsed guard above,
-	# caught 2026-08-16 when a heavy session stopped 0.1s into its final windup.
+	# its first checkpoint, not thrown wrong. Same end-of-run class as the elapsed guard above.
 	local tag="$1"
 	awk -v tag="$tag" '
 		/^\[[0-9.]+\] ACTIVATE/ { started=1; n=0; next }
@@ -246,9 +234,8 @@ damaged_values() { grep "^\[[0-9.]*\] DAMAGED" "$SLICE" | grep -o " damage=[0-9.
 damaged_ledger_violations() { # consecutive health= must step by exactly damage=; REVIVE resets
 	# Per TARGET ($3 on both lines), not one global chain: the attacker re-focuses on the nearest
 	# LIVING pawn, so during a dead defender's revive window a swing can land on the player and a
-	# global ledger reads two characters' health as one broken sequence. Found 2026-08-16 when the
-	# 3.0s attack interval aliased against the 3.0s auto-revive and a heavy hit the player 4 ms
-	# before the defender's REVIVE -- a phase race, so it passes most runs and means nothing.
+	# global ledger reads two characters' health as one broken sequence. Reachable whenever the attack
+	# interval aliases against the auto-revive, so it is a phase race that passes most runs.
 	awk '
 		/^\[[0-9.]+\] REVIVE/ { prev[$3]=""; next }
 		/^\[[0-9.]+\] DAMAGED/ {
@@ -295,12 +282,10 @@ parry_window_spans() { # until= minus the timestamp it was printed at; blockstun
 }
 
 parry_recovery_spans() { # same, for State.ParryRecovery
-	# ***One cause since 2026-08-19, where this had two.*** The tag used to carry the post-dodge gap
-	# as well, so a log containing dodges yielded both 0.600 and 0.150 and a band expecting one
-	# failed on the other -- run against s5-waiver's log it returned seventeen 0.150s that had
-	# nothing to do with a parry whiff. The dodge's gap is State.DodgeRecovery now and prints
-	# DODGE RECOVERY, so this pattern cannot pick it up and the hazard is gone by construction
-	# rather than by keeping the fixture free of dodges.
+	# **One cause, and by construction rather than by fixture discipline.** The dodge's gap is
+	# State.DodgeRecovery and prints DODGE RECOVERY, so this pattern cannot pick it up -- were they
+	# to share a tag, a log containing dodges would yield two spans and a band expecting one would
+	# fail on the other.
 	awk '
 		/^\[[0-9.]+\] PARRY RECOVERY [^E]/ {
 			t=$1; gsub(/[\[\]]/,"",t)
@@ -309,18 +294,16 @@ parry_recovery_spans() { # same, for State.ParryRecovery
 }
 
 acts_during_parry_window() { # anything that activated while a parry window was live
-	# **The jail's first half** (the designer, 2026-08-19). Throwing a parry commits you from
-	# activation, not from window close, so an attack, dodge or block starting inside a live window
-	# is the failure -- and it is the behaviour that shipped before the ruling, when State.Parrying
-	# appeared in nobody's ActivationBlockedTags.
+	# **The jail's first half.** Throwing a parry commits you from activation, not from window close,
+	# so an attack, dodge or block starting inside a live window is the failure.
 	#
 	# The window ends on any of the three exits: a catch (PARRY SUCCESS), the whiff charging
 	# (PARRY WHIFF), or an attacker's punishment cancelling it (HITSTUN / GUARD BREAK). Disarming
 	# on all of them matters -- after a punishment the parrier is legitimately in someone else's
 	# state, and anything they do then belongs to that state's rules rather than to this one.
-	# **Scoped to the parrier by name**, which is the whole reason ACTIVATE gained an avatar on
-	# 2026-08-19. Without it the attacker's swings land inside the defender's windows on every
-	# fixture where both act, and every one of them reads as a violation.
+	# **Scoped to the parrier by name**, which is why ACTIVATE carries an avatar. Without it the
+	# attacker's swings land inside the defender's windows on every fixture where both act, and
+	# every one reads as a violation.
 	awk '
 		/^\[[0-9.]+\] PARRY WINDOW open/ {
 			who=""
@@ -337,8 +320,8 @@ acts_during_parry_window() { # anything that activated while a parry window was 
 }
 
 # --- what "an ability started" actually looks like in this trace ----------------
-# Learned the expensive way on 2026-08-19, and it is the reason both helpers here
-# name their markers explicitly rather than guessing:
+# Both helpers here name their markers explicitly rather than guessing, because the trace tags do
+# not read the way their mechanics are named:
 #
 #   attack  ->  "ACTIVATE   swing=0 pos=... windupRate ..."   (there is NO "ATTACK" tag)
 #   dodge   ->  "DODGE      dir=Bw section=..."               ("DODGE END" is not a start)
@@ -368,7 +351,7 @@ assert_nothing_acts_during_parry_window() {
 }
 
 acts_during_parry_recovery() { # anything that activated while a recovery was running
-	# **The assertion the 2026-08-19 ruling actually needs.** "You can't act during parry recovery"
+	# **An absence, which is what the rule actually claims.** "You can't act during parry recovery"
 	# is a claim about what did *not* happen, so counting refusals is not enough -- a refusal proves
 	# one press was stopped, never that none got through. This walks the span instead and reports
 	# any ability that started inside it, which is the thing that must be empty.
@@ -718,7 +701,7 @@ run_s3() {
 	# recovery takes ~5s and StopPIE does not wait for it. That is truncation, not a leak, and is
 	# tolerated only when the unclosed one is the LAST line of the pair-stream; an unclosed
 	# exhaustion anywhere earlier is a genuine stuck state and still fails. Same end-of-run
-	# family as the elapsed and per-attack guards, caught 2026-08-16.
+	# family as the elapsed and per-attack guards.
 	local exh_starts exh_ends exh_expected
 	exh_starts=$(grep -c '^\[[0-9.]*\] EXHAUSTED ' "$SLICE")
 	exh_ends=$(grep -c '^\[[0-9.]*\] EXHAUSTION END' "$SLICE")
@@ -770,11 +753,9 @@ run_s5_parry() {
 	# "No more games": a parried swing takes the string with it, so no link window may follow one.
 	violations=$(parried_string_violations | grep -c '[0-9]' || true)
 	assert_count "no STRING continuation after a parry" "$violations" 0
-	# **The lockout is authored, so this asserts a CDO value rather than an arithmetic result**
-	# (2026-08-20). Under the retired derivation two catches on the same branch produced *different*
-	# spans -- 0.732 and 0.744 in the last run before the change -- because they landed at slightly
-	# different elapsed times. A flat authored number is what removes that wobble, and a span that
-	# starts varying again means something is computing it.
+	# **The lockout is authored, so this asserts a CDO value rather than an arithmetic result.** A
+	# derived one would vary with the elapsed time at the catch, so **a span that starts wobbling
+	# again means something is computing it**.
 	assert_all_in_band "PARRY LOCKOUT span" parry_lockout_spans \
 		"$(awk -v v="$BAND_PARRY_LOCKOUT_LIGHT" -v t="$BAND_PARRY_SPAN_TOL" 'BEGIN{printf "%.3f", v-t}')" \
 		"$(awk -v v="$BAND_PARRY_LOCKOUT_LIGHT" -v t="$BAND_PARRY_SPAN_TOL" 'BEGIN{printf "%.3f", v+t}')" "s"
@@ -824,12 +805,8 @@ run_s5_parry_whiff() {
 	# "dead" and "guard broken" do. Grepping for a tag here would return zero forever and read as
 	# the refusal being broken.
 	#
-	# ***Both halves are asserted separately, and that is the point of the 2026-08-19 fix.*** For a
-	# few hours this had to accept either name: State.Parrying rode in GA_Parry's
-	# ActivationOwnedTags, so a whiffed parry keeping the ability alive across its recovery left the
-	# tag up for the whole 900 ms jail -- 222 "parrying", zero "parry recovery", with the jail
-	# working perfectly throughout. The tag now tracks the window instead of the ability, so each
-	# phase refuses under its own name and asserting them together would hide either one going
+	# **Both halves are asserted separately.** The tag tracks the window rather than the ability, so
+	# each phase refuses under its own name -- and asserting them together would hide either one going
 	# silent. **A single count passing tells you the jail refused something; two tell you which
 	# half.**
 	win_refusals=$(grep "^\[[0-9.]*\] REFUSED" "$SLICE" | grep -c ": parrying" || true)
@@ -847,10 +824,9 @@ run_s5_parry_whiff() {
 		check "REFUSED names parry recovery" 1 "none -- the recovery refused nothing"
 	fi
 
-	# **The ruling itself, asserted as an absence** (2026-08-19). The refusal count above proves the
-	# recovery stopped *a* press; this proves nothing got through. An attack, dodge, block or second
-	# parry starting inside the span is the failure this scenario exists to catch, and it is the
-	# behaviour that shipped before the ruling -- so it is also the regression guard for it.
+	# **The rule itself, asserted as an absence.** The refusal count above proves the recovery stopped
+	# *a* press; this proves nothing got through. An attack, dodge, block or second parry starting
+	# inside the span is the failure this scenario exists to catch.
 	assert_nothing_acts_during_parry_recovery
 	assert_nothing_acts_during_parry_window
 }
@@ -859,11 +835,10 @@ gesture_outside_window() { # PARRY GESTURE lines that fall outside their own win
 	# The clip's read moment must land while the parry is actually live. If it drifts past the
 	# close, the character is seen catching a blow after the window it could have caught it in has
 	# already gone -- the fit silently wrong in the one way play would blame on the mechanic.
-	# **Scoped to the parrier by name, and it is not paranoia** *(2026-08-19)*: an animation editor
-	# left open on AM_Parry fires this notify from its own preview actor, on a loop, into the same
-	# log. A first sweep collected 8 gestures from `AnimationEditorPreviewActor_0` against 6 from
-	# the real defender -- every preview one falling outside any window, so an unscoped assertion
-	# reports a montage fault that does not exist. **Close the animation editor before measuring**,
+	# **Scoped to the parrier by name, and it is not paranoia**: an animation editor left open on
+	# AM_Parry fires this notify from its own preview actor, on a loop, into the same log -- every
+	# preview gesture falling outside any window, so an unscoped assertion reports a montage fault
+	# that does not exist. **Close the animation editor before measuring**,
 	# and let this filter cover the times somebody forgets.
 	awk -v TOL="$BAND_PARRY_SPAN_TOL" '
 		/^\[[0-9.]+\] PARRY WINDOW open/ {
@@ -1123,7 +1098,7 @@ clean_dodge_distances() {
 	# Full-duration, uncontaminated samples only. The lateral gate excludes collisions (the
 	# attacker shoving a mid-dodge body reads as right= drift); the duration gate excludes
 	# dodges truncated by the session itself -- the last dodge before StopPIE ends mid-travel
-	# with zero drift and read as a 141 cm travel failure until this existed (2026-08-15).
+	# with zero drift, which reads as a travel failure.
 	awk -v m="$BAND_DODGE_LATERAL_MAX" -v mind="$BAND_DODGE_MIN_DURATION" '
 		/^\[[0-9.]+\] DODGE      dir=/ { t=$1; gsub(/[\[\]]/,"",t); start=t+0; have=1; next }
 		have && /^\[[0-9.]+\] DODGE END/ {
@@ -1140,9 +1115,8 @@ clean_dodge_distances() {
 dodge_from_full_remaining() {
 	# The first dodge of each full-bar stretch: session start, after every EXHAUSTION END
 	# (which by rule fires at Max), and after every REVIVE (which refills). Selected by
-	# *position*, never by the value under test -- the earlier version filtered samples to the
-	# expected 50 and then asserted 50, so it could only fail via "no samples" (found in
-	# review, 2026-08-15).
+	# *position*, never by the value under test. **Filtering samples to the expected value and then
+	# asserting it can only ever fail via "no samples"** -- the assertion is circular.
 	awk '
 		BEGIN { expect=1 }
 		/^\[[0-9.]+\] EXHAUSTION END/ { expect=1; next }

@@ -1,14 +1,9 @@
 #!/usr/bin/env bash
 # docs-check.sh -- integrity checks for the standing docs, in regression-check's image.
 #
-# WHY: the 2026-08-18 audit found that every serious documentation failure was a
-# maintenance failure at an edit boundary, and that most were mechanically checkable:
-# two file tails mangled by one restructure commit (ef62b17) passed two closedown
-# audits because a content re-read checks fitness, not integrity; eight cross-file
-# pointers went stale when their targets moved; the symbol index silently fell four
-# days behind its own archive; a table row detached from its header rendered as raw
-# text. Each check below carries the incident that earned it, exactly as the
-# regression checker's bands carry their sources. Judgment stays human -- this
+# Every serious documentation failure this project has had was a maintenance failure at
+# an edit boundary, and most are mechanically checkable. Each check below states the
+# invariant it asserts and the failure shape it catches. Judgment stays human -- this
 # script owns only what a grep can own.
 #
 #   ./Tools/DocsCheck/docs-check.sh              # check the repo's standing docs
@@ -32,11 +27,10 @@ fail() { row "$1" "FAIL" "$2"; FAILS=$((FAILS+1)); }
 warn() { row "$1" "WARN" "$2"; WARNS=$((WARNS+1)); }
 
 # --- C1: terminal punctuation ------------------------------------------------
-# Incident: ef62b17 left Combat-Decisions.md ending mid-sentence ("as its") and
-# CLAUDE.md ending in a spliced fragment; both survived two audits (2026-08-18).
-# A standing doc's last non-blank line must end like an ending: sentence
-# punctuation (optionally wrapped in emphasis/quotes), a table row, a fence, or
-# a rule.
+# Catches a truncated or spliced tail, which a content re-read misses because it checks
+# fitness rather than integrity. A standing doc's last non-blank line must end like an
+# ending: sentence punctuation (optionally wrapped in emphasis/quotes), a table row, a
+# fence, or a rule.
 check_terminal() { # $1=file -> 0 ok, 1 fail
   local last
   last=$(awk 'NF{l=$0} END{print l}' "$1")
@@ -44,10 +38,9 @@ check_terminal() { # $1=file -> 0 ok, 1 fail
 }
 
 # --- C2: table integrity -----------------------------------------------------
-# Incident: the s4-360 scenario row sat three paragraphs from its matrix and
-# rendered as a headerless fragment (found 2026-08-18); the tuning map's blank
-# lines split it into runs GFM does not render as tables at all. Every maximal
-# run of '|' lines must be at least two lines with a delimiter row second.
+# Catches a row detached from its header, which renders as raw text, and blank lines
+# splitting a table into runs GFM does not render as tables at all. Every maximal run
+# of '|' lines must be at least two lines with a delimiter row second.
 check_tables() { # $1=file -> prints offending line numbers, rc 1 if any
   awk '
     /^\|/ { if (run==0) start=NR; run++; if (run==2) second=$0; next }
@@ -60,11 +53,9 @@ check_tables() { # $1=file -> prints offending line numbers, rc 1 if any
 }
 
 # --- C3: pointer manifest ----------------------------------------------------
-# Incident: 2026-08-18 found six pointers aimed at sections that had moved
-# (D-I -> "CLAUDE.md's Stamina section", Closing-Down -> a Done section that no
-# longer exists, A-L -> an idea Block took with it when it shipped). Each row
-# asserts a literal a doc points at; a miss means the target moved and the
-# pointer did not. Format: file:::literal:::which pointer relies on it.
+# Catches a cross-file pointer whose target moved. Each row asserts a literal a doc
+# points at; a miss means the target moved and the pointer did not.
+# Format: file:::literal:::which pointer relies on it.
 MANIFEST='
 CLAUDE.md:::| Light | 150 ms | **200 ms** |:::Combat-Spec cedes the ladder table to CLAUDE.md
 CLAUDE.md:::### When a slice ships:::Closing-Down step 5 routes by this section
@@ -98,8 +89,7 @@ EOF
 }
 
 # --- C4: symbol-index freshness ---------------------------------------------
-# Incident: the index carried no entry newer than 08-14 while the archive ran to
-# 08-18 -- four days of entries unindexed, undetectable from inside (2026-08-18).
+# Catches the index falling behind its own archive, which is undetectable from inside it.
 # The index preamble carries "Current through **2026-MM-DD**"; the newest dated
 # entry may not be newer than it. Regeneration updates the line.
 check_index() { # $1=decisions-file -> rc 1 if stale, prints detail
@@ -113,11 +103,10 @@ check_index() { # $1=decisions-file -> rc 1 if stale, prints detail
 }
 
 # --- C5 (WARN): trap-body shortlist ------------------------------------------
-# Incident: a 2026-08-12 Edit replaced a trap's header instead of inserting
-# before it, orphaning the body as prose belonging to the previous trap; caught
-# by luck. Orphans cannot be told from continuation paragraphs mechanically, so
-# this only shortlists paragraphs in the traps section that open unformatted --
-# the closedown eye judges them.
+# Catches an orphaned trap body -- an edit that replaced a header instead of inserting
+# before it leaves the body reading as prose belonging to the previous trap. Orphans
+# cannot be told from continuation paragraphs mechanically, so this only shortlists
+# paragraphs in the traps section that open unformatted; the closedown eye judges them.
 check_trap_shortlist() { # $1=decisions-file -> prints shortlist (never fails)
   sed -n '/^## Known traps/,/^## Tuning map/p' "$1" |
   awk 'prev_blank && /^[A-Za-z]/ && !/^[A-Z][a-z]+:/ {n++; if (n<=8) printf "  line ~%d: %.60s\n", NR, $0}
@@ -125,10 +114,9 @@ check_trap_shortlist() { # $1=decisions-file -> prints shortlist (never fails)
 }
 
 # --- C6: always-read duplication ---------------------------------------------
-# Incident: the manipulate-over-observe sentence sat verbatim in both CLAUDE.md
-# and Working-In-Unreal.md -- both loaded every session, pure double-pay
-# (removed 2026-08-18). Any 10-word normalized shingle shared by the two
-# always-read files fails unless allowlisted here with a reason.
+# Catches text duplicated between the two always-read files, which is pure double-pay
+# every session. Any 10-word normalized shingle shared by both fails unless allowlisted
+# here with a reason.
 NGRAM_ALLOW='
 '
 check_ngrams() { # $1=fileA $2=fileB -> prints shared shingles, rc 1 if any
@@ -160,9 +148,8 @@ check_ngrams() { # $1=fileA $2=fileB -> prints shared shingles, rc 1 if any
 }
 
 # --- C7 (WARN): trailer audit ------------------------------------------------
-# Incident: seven commits on 2026-08-09 shipped without the Co-Authored-By
-# trailer under a harness-only rule; and on 2026-08-18 a string-match audit was
-# defeated by a message that *discussed* the trailer. This parses real trailers.
+# Catches a missing Co-Authored-By trailer. Parses real trailers rather than string-
+# matching, which a message that merely *discusses* the trailer defeats.
 # A flagged commit is not automatically wrong -- one you did not author says so
 # in its message instead (20121e3 is the model) -- so this warns, never fails.
 check_trailers() { # -> prints trailer-less commits since origin/main
@@ -172,8 +159,9 @@ check_trailers() { # -> prints trailer-less commits since origin/main
 }
 
 # --- C8 (WARN): budgets ------------------------------------------------------
-# Backstops, never gates: the criterion is the closedown questions, and six
-# green length audits once passed a damaged file. ~280 / ~500 per Closing-Down.
+# Backstops, never gates: the criterion is the closedown questions. A line count is
+# checkable in a second and fitness is not, so the number crowds out the criterion
+# unless it is explicitly demoted. ~280 / ~500 per Closing-Down.
 check_budget() { # $1=file $2=limit
   local n; n=$(wc -l < "$1")
   [ "$n" -le "$2" ] && return 0

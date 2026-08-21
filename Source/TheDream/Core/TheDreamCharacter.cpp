@@ -57,8 +57,8 @@ ATheDreamCharacter::ATheDreamCharacter()
 	// whole duration of any montage with root motion.
 	//
 	// **This hands rotation back to every root-motion ability, not just attacks**, so anything that
-	// wants a fixed direction must say so through SetAbilityFacingLocked. The dodge had been
-	// getting one for free from a suppression it never asked for.
+	// wants a fixed direction must say so through SetAbilityFacingLocked, rather than inheriting one
+	// from a suppression it never asked for.
 	GetCharacterMovement()->bAllowPhysicsRotationDuringAnimRootMotion = true;
 
 	// **RotationRate.Yaw is rewritten every frame from TurnRateDegrees**, so editing it on a

@@ -510,10 +510,9 @@ void ATDCombatCharacter::TickResumeHeldAbilities()
 		AbilitySystem->TryActivateAbility(Handle);
 	}
 
-	// **Cleared only once nothing is still waiting, which is a fix rather than a tidy-up.** This
-	// used to be assigned false before the attempt above, so a resume that was *refused* consumed
-	// the request and never retried -- and the comment further up promising that "a guard blocked by
-	// exhaustion comes up the instant exhaustion lifts" described behaviour the code did not have.
+	// **Cleared only once nothing is still waiting.** Assigning false before the attempt above would
+	// let a resume that was *refused* consume the request and never retry, so the guard promised
+	// above -- one blocked by exhaustion coming up the instant exhaustion lifts -- would not arrive.
 	//
 	// The ordinary path is the exhausted guard force-ending at its commitment: the forced end
 	// requests a resume, exhaustion refuses it, and the held button would be silently forgotten.
@@ -1438,8 +1437,8 @@ void ATDCombatCharacter::ApplyKnockdownCarry(AActor* Attacker)
 	// **Z is carried across, and gravity overrides it.** The destination needs some Z or the body
 	// would be driven toward the attacker's feet; passing the victim's own contact height makes the
 	// vector purely horizontal. What stops that height being *held* is IgnoreZAccumulate on the
-	// root motion source -- see ReceiveKnockback, where the juggling this used to allow is
-	// explained. An airborne victim is knocked down mid-air and falls while the carry moves them.
+	// root motion source -- see ReceiveKnockback, where the juggling it prevents is explained. An
+	// airborne victim is knocked down mid-air and falls while the carry moves them.
 	Destination.Z = GetActorLocation().Z;
 	ReceiveKnockback(Destination, KnockdownCarrySeconds, KnockdownCarryTimeMappingCurve);
 }
@@ -1802,8 +1801,8 @@ void ATDCombatCharacter::ApplyDodgeRecovery(float DurationSeconds)
 		return;
 	}
 
-	// Max-extended, and here the reason is the concrete one the shared tag used to carry: two
-	// dodges landing close together must not let the second one's gap cut the first one short,
+	// Max-extended: two dodges landing close together must not let the second one's gap cut the
+	// first one short,
 	// which would make chaining dodges the cheap route to the parry this forbids.
 	DodgeRecoveryEndsAt = FMath::Max(DodgeRecoveryEndsAt, World->GetTimeSeconds() + DurationSeconds);
 
@@ -2422,10 +2421,10 @@ void ATDCombatCharacter::ClearExhaustionState()
 
 void ATDCombatCharacter::Jump()
 {
-	// **Every permission gate lives in UTDJumpAbility, and none of them belong here.** This function
-	// used to restate exhaustion, death, hitstun, the movement lock and the guard's commitment by
-	// hand -- five copies of rules the shared ability base already enforced -- which is exactly the
-	// arrangement that lets one be forgotten.
+	// **Every permission gate lives in UTDJumpAbility, and none of them belong here.** Restating
+	// exhaustion, death, hitstun, the movement lock and the guard's commitment by hand would be five
+	// copies of rules the shared ability base already enforces, which is the arrangement that lets
+	// one be forgotten.
 	//
 	// So this is now reachable only through GA_Jump, which has already answered every one of those
 	// questions before calling it -- and death, the one check whose removal looks riskiest, is inert
