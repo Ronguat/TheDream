@@ -350,33 +350,44 @@ standing options are the phase-locked parry mode (successes) beside the co-prime
 assertion about a pawn that is still in reach, and nothing checks that it is.**
 
 
-**Before the next knockdown sitting — *the get-up options are built and none of them is tested.***
-Filed 2026-08-20 at the end of the A–F run, and this is the loop-coverage rule's bill coming due.
+**When the knockdown montages land — *the get-up options are built, and none of them is tested.***
+Filed 2026-08-20 at the end of the A–F run; **deliberately deferred the same day, with the debt
+acknowledged**: *"I'm gonna hold off on the testing options until they are tied to animations
+because it's a bit hard to eyeball the results without them. I acknowledge this inherits testing
+debt, but we'll get there."*
 
-`s6-knockdown`, `s6-hard` and `s6-stand` cover the state machine: grades, the 2.5 s total, the
-0.5 s rise, floor invincibility across 13 knockdowns, and the jail boundary via refusals. **What
-they do not touch is sub-slice D.** The dodge get-up, the kip-up, the block get-up and every
-exhaustion refusal are written, compiled, armed on their CDOs — and have never run. The neutral
-stand is the single exception, because the jump fixture happens to exercise it.
+**The trigger is the animations, not "the next sitting"** — a trigger nobody reaches is how debt
+goes quiet. Sub-slice H's montages are what makes these observable by eye; until then a tester sees
+a character standing still, unable to act, with nothing showing why.
 
-**The reason is fixture shape, and it is nameable**: `DebugGetUpMode` (`Wait` / `DodgeGetUp` /
-`BlockGetUp` / `AttackGetUp` / `StandGetUp`) was specified in the plan and **not built** — only
-`bDebugPeriodicJump` was, which reaches the stand and nothing else. Pressing dodge or block on a
-schedule is not equivalent: those inputs fire outside the down-state too, so the log cannot tell a
-get-up from an ordinary dodge without the mode saying which was intended.
+`s6-knockdown`, `s6-hard` and `s6-stand` cover the state machine: grades, the 2.5 s total, the 0.5 s
+rise, floor invincibility across 13 knockdowns, and the jail boundary via refusals. **What they do
+not touch is sub-slice D.** The dodge get-up, the kip-up, the block get-up and every exhaustion
+refusal are written, compiled, armed on their CDOs — and have never run. The neutral stand is the
+lone exception, because the jump fixture happens to exercise it.
+
+**No fixture reaches the rest**: `DebugGetUpMode` (`Wait` / `DodgeGetUp` / `BlockGetUp` /
+`AttackGetUp` / `StandGetUp`) was specified in the plan and **not built** — only `bDebugPeriodicJump`
+was. Pressing dodge or block on a schedule is not equivalent, because those inputs fire outside the
+down-state too and the log cannot tell a get-up from an ordinary dodge without the mode saying which
+was intended.
 
 **Specifically untested:** that `GA_Dodge` from the floor is i-framed and costs 50; that hard grade
 turns it into a kip-up travelling ≈0; that hard **refuses** the directional dodge and the free
 stand; that `GA_Block` comes up guarded from activation; that exhaustion refuses block, dodge and
 kip-up while leaving the get-up attack and the wait.
 
+**Folded in, same trigger: death while knocked down.** *"Death wins outright over knockdown"* has
+never executed — the one death observed landed 0.49 s *after* a stand, not on the floor.
+
 **Also owed and separate: the guard break's own movement assertion.** Sub-slice B promised a new
 `s2-*` asserting zero movement during break stun. `s6-stand` covers the *jump* half of that trap
 through jail refusals; the *walking* half has no assertion at all, because nothing in the loop
 measures a defender's displacement during a stun.
 
-**And sub-slice F is not built**, so nothing about the get-up attack exists to test — it derives
-its phase rates from `AM_GetUpAttack`'s measured position and that montage is a human step.
+**And sub-slice F is not built**, so nothing about the get-up attack exists to test — it derives its
+phase rates from `AM_GetUpAttack`'s measured position, and that montage is the human step that
+unblocks it.
 
 
 **Whenever a second attacker becomes possible — *knockdown's 1vX half has never been observed
@@ -394,8 +405,8 @@ stand at 125.892, next heavy landing at 126.383 — 0.49 s later, auto-rise into
 press, guaranteed hit, and it killed them. That is the vortex the design accepts and Interplay
 judges, seen once from the receiving end. It is not the 1vX case, because the same attacker did it.
 
-**Also still unexercised: death while knocked down.** *"Death wins outright over knockdown"* is a
-ruling nothing has run — the one death so far happened 0.49 s *after* a stand, not on the floor.
+**Death while knocked down belongs to the montage trap above**, not here — it needs one human
+and no second attacker. Cross-referenced rather than restated, so it has one home.
 
 **Whenever reach or travel move — *the string's connect inequality is unenforced.*** The
 fixed-destination knockback (2026-08-16, discharging the old two-number budget fear) reduced the
