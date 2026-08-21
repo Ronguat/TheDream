@@ -78,11 +78,9 @@ void UTDChargedAttackAbility::ActivateAbility(const FGameplayAbilitySpecHandle H
 	// applied should match wanted. If it reads 1.000 the montage task did not honour the
 	// rate it was given, and the whole windup is running at the wrong speed.
 	//
-	// **Names its avatar, added 2026-08-19 for the reason REFUSED gained one in 2026-08-12**:
-	// abilities are InstancedPerActor, so every combatant owns an instance and this line was
-	// unattributable in any fixture where more than one of them attacks. That made it useless for
-	// asserting *whose* attack started -- an assertion about the defender's parry jail counted the
-	// attacker's swings as violations, and there was no way to tell them apart after the fact.
+	// **Names its avatar**, because abilities are InstancedPerActor: every combatant owns an
+	// instance, so without it this line is unattributable in any fixture where more than one of
+	// them attacks, and an assertion about one character's swings counts the other's.
 	TD_TIMING_LOG(TEXT("[%.3f] ACTIVATE   %s swing=%d pos=%.4f windupRate wanted=%.3f applied=%.3f"),
 		World->GetTimeSeconds(), *GetNameSafe(GetAvatarActorFromActorInfo()),
 		CurrentSwingIndex, GetMontagePosition(), WindupRate,
@@ -106,16 +104,13 @@ void UTDChargedAttackAbility::ActivateAbility(const FGameplayAbilitySpecHandle H
 
 float UTDChargedAttackAbility::GetBaseLungeDurationSeconds() const
 {
-	// **The span is structural; the duration inside it is a feel choice.** This used to return the
-	// boundary outright, which made the light's input timing set how long the approach burst lasted
-	// -- and those answer different questions, exactly as ReleaseSeconds did for the branch lunge.
-	// See FTDAttackBranch::LungeDurationSeconds for the account; the same mistake was here twice.
+	// **The span is structural; the duration inside it is a feel choice**, which is why this clamps
+	// the authored value rather than returning the boundary outright.
 	//
-	// What is *not* free is running past the boundary. The base lunge must be finished before the
-	// branch lunge starts, or a light would have two Override root motion sources live at once at
-	// equal priority, where which one wins is an implementation detail rather than a design. So the
-	// authored value is clamped to the span rather than trusted, and authoring it longer is simply
-	// a request for the whole span.
+	// What is *not* free is running past the boundary: the base lunge must finish before the branch
+	// lunge starts, or a light has two Override root motion sources live at equal priority, where
+	// which one wins is an implementation detail rather than a design. Authoring it longer is
+	// simply a request for the whole span.
 	if (Branches.Num() == 0)
 	{
 		return Super::GetBaseLungeDurationSeconds();
@@ -187,12 +182,10 @@ void UTDChargedAttackAbility::HandleCheckpoint()
 		// light. Before this boundary every tier homes on branch 0's wedge, which is the only span
 		// that has to be indistinguishable.
 		//
-		// It rests on wedges being non-decreasing in reach across the ladder, which is a designer's
-		// commitment rather than something enforced here (2026-08-14, the user's call). A shrinking
-		// wedge does not break anything: the body has already turned, so the worst case is that it
-		// stops tracking or re-picks, reading as a slightly misleading rotation before the lunge.
-		// **A later branch left at MaxReachCm 0 is the sharper case** -- that is *disabled* rather
-		// than narrow, so homing switches off mid-hold and the body stops tracking partway through.
+		// It rests on wedges being non-decreasing in reach across the ladder. A shrinking wedge
+		// breaks nothing -- the body has already turned, so the worst case is a slightly misleading
+		// rotation. **A later branch left at MaxReachCm 0 is the sharper case**: that is *disabled*
+		// rather than narrow, so homing switches off mid-hold and the body stops tracking partway.
 		if (ATDCombatCharacter* CombatCharacter = Cast<ATDCombatCharacter>(GetAvatarActorFromActorInfo()))
 		{
 			CombatCharacter->SetAimAssistHoming(BuildAimAssistWedge(NextIndex), TargetImmunityTags, true, bDrawDebugTrace);
@@ -337,9 +330,9 @@ void UTDChargedAttackAbility::CommitAttack()
 	// pulled further forward than a light would be a tell from the press, which is the property
 	// the whole ladder is built to deny. See FTDAttackBranch::LungeDistanceCm.
 	//
-	// The duration is authored per branch as of 2026-08-13, where it used to run to the end of the
-	// release window. That derivation was elegant and wrong: it let ReleaseSeconds -- a hitbox
-	// liveness number -- set how a movement burst feels. See FTDAttackBranch::LungeDurationSeconds.
+	// The duration is authored per branch rather than derived from the release window, which would
+	// let ReleaseSeconds -- a hitbox liveness number -- set how a movement burst feels. See
+	// FTDAttackBranch::LungeDurationSeconds.
 	StartLunge(
 		GetSwingLungeDistanceCm(CurrentSwingIndex, SelectedBranchIndex),
 		GetSwingLungeDurationSeconds(CurrentSwingIndex, SelectedBranchIndex),
@@ -464,18 +457,14 @@ void UTDChargedAttackAbility::HandleReleaseWindowEnded(FGameplayEventData Payloa
 			RecoveryFrom, GetBlendOutStartSeconds(1.0f), TargetSeconds);
 	}
 
-	// Facing is deliberately *not* released here, and this used to be where it happened, on the
-	// argument that recovery is not part of the commitment. Play disagreed on 2026-08-12: control
-	// snapping back the instant the hitbox expired read as unnatural, and recovery is exactly the
-	// window an attack is supposed to be punishable in -- being committed to a direction through
-	// it is the same commitment, expressed spatially. The lock now runs to EndAbility.
+	// **Facing is deliberately *not* released here; the lock runs to EndAbility.** Recovery is the
+	// window an attack is supposed to be punishable in, and being committed to a direction through
+	// it is the same commitment expressed spatially.
 	//
-	// It costs nothing to the aim guarantee, which lives entirely between the press and the
-	// commit checkpoint and is untouched by where the lock ends. What it does change is that a
-	// chained attack starts its windup with whatever gap accumulated during the whole previous
-	// attack rather than a mostly-closed one -- which is fine, because the windup is sized to
-	// close the full 180 degree ceiling, and it puts a combo's redirection exactly where a player
-	// can see it happen.
+	// It costs nothing to the aim guarantee, which lives entirely between the press and the commit
+	// checkpoint. What it does change is that a chained attack starts its windup with whatever gap
+	// accumulated during the whole previous attack -- fine, because the windup is sized to close the
+	// full 180 degree ceiling.
 
 	TD_TIMING_LOG(TEXT("[%.3f] RELEASE OFF  pos=%.4f rate=%.3f (want %.3fs to blendOut %.4f)"),
 		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f, RecoveryFrom, RecoveryRate,
@@ -574,11 +563,9 @@ float UTDChargedAttackAbility::GetBlendOutStartSeconds(float PlayRate) const
 	// take less than the blend's duration to play. Halve the rate and the blend starts half as
 	// far from the end.
 	//
-	// Found in play on 2026-08-12 and worth stating rather than re-deriving. Treating this as
-	// the fixed position `Length - BlendTime` is right only at rate 1.0, so the error hides at
-	// the rates a first test happens to produce: at 0.94 recovery ran 6% long and looked like
-	// jitter; at 0.50, authored for a charged, it ran 49% long -- 0.744s against an authored
-	// 0.500s.
+	// **Treating this as the fixed position `Length - BlendTime` is right only at rate 1.0**, so the
+	// error hides at rates near it and grows as the recovery is authored slower -- a few percent at
+	// 0.94, about half again at 0.50.
 	return Length - ActiveMontage->BlendOut.GetBlendTime() * FMath::Max(PlayRate, TDMinPlayRate);
 }
 
@@ -708,9 +695,8 @@ ETDKnockdownGrade UTDChargedAttackAbility::GetAttackKnockdownGrade() const
 float UTDChargedAttackAbility::GetAttackParryLockoutSeconds() const
 {
 	// Same resolution as the stun values and the grade: swing value for a mid-string light, branch
-	// value for the tiers, ability fallback on an invalid index. Authored at every level -- this
-	// replaced a derivation on 2026-08-20, and the whole point of the change is that no level of
-	// this ladder computes the number any more.
+	// value for the tiers, ability fallback on an invalid index. **Authored at every level** -- no
+	// level of this ladder computes the number.
 	if (SelectedBranchIndex == 0 && StringSwings.IsValidIndex(CurrentSwingIndex - 1))
 	{
 		return StringSwings[CurrentSwingIndex - 1].ParryLockoutSeconds;
@@ -720,12 +706,10 @@ float UTDChargedAttackAbility::GetAttackParryLockoutSeconds() const
 
 float UTDChargedAttackAbility::GetKnockbackSpacingCm(bool bBlocked) const
 {
-	// The spacing reset belongs to non-final string lights alone -- and as of 2026-08-20 that is a
-	// statement about *this* function rather than a deferral. The ender, the heavies and the charged
-	// all carry a knockdown grade now, so their clean hits never reach ApplyKnockbackToTarget at
-	// all: EnterKnockdown's radial carry replaces it, on a different axis by design. What still
-	// routes through here is the blocked case, where nothing is knocked down and the authored pair
-	// on the ability is correct for the string that uses it.
+	// The spacing reset belongs to non-final string lights alone. The ender, the heavies and the
+	// charged all carry a knockdown grade, so their clean hits never reach ApplyKnockbackToTarget:
+	// EnterKnockdown's radial carry replaces it, on a different axis by design. What still routes
+	// through here is the blocked case, where nothing is knocked down.
 	if (!IsNonFinalStringLight())
 	{
 		return 0.0f;
@@ -961,11 +945,10 @@ void UTDChargedAttackAbility::EndAbility(const FGameplayAbilitySpecHandle Handle
 		}
 		else if (bParried)
 		{
-			// **A parried swing takes the string with it** -- "no more games" (the designer,
-			// 2026-08-18). Gated here rather than only at the moment of the parry because this is
-			// where the link window is *opened*: resetting at contact and then falling through to
-			// the branch below would re-open the very window the reset just closed, which is
-			// exactly what the first build did.
+			// **A parried swing takes the string with it.** Gated here rather than at the moment of
+			// the parry because this is where the link window is *opened*: resetting at contact and
+			// then falling through to the branch below would re-open the very window the reset had
+			// just closed.
 			CombatCharacter->ResetString(TEXT("parried"));
 		}
 		else if (bAttackCommitted && IsNonFinalStringLight())
