@@ -27,10 +27,9 @@
 
 ATDCombatCharacter::ATDCombatCharacter()
 {
-	// The fallback pair, used only when this character has no PlayerState -- the training dummy.
-	// A player builds these too and then ignores them in favour of its PlayerState's; see the
-	// header. The subobject *names* are unchanged from when this was the only ASC, so the two
-	// character Blueprints keep resolving their component templates.
+	// The fallback pair, used only when this character has no PlayerState -- the training dummy. A
+	// player builds these too and ignores them in favour of its PlayerState's. The subobject names
+	// are unchanged from when this was the only ASC, so both Blueprints keep resolving templates.
 	OwnedAbilitySystemComponent = CreateDefaultSubobject<UAbilitySystemComponent>(TEXT("AbilitySystemComponent"));
 	OwnedAbilitySystemComponent->SetIsReplicated(true);
 
@@ -39,19 +38,15 @@ ATDCombatCharacter::ATDCombatCharacter()
 
 	OwnedAttributeSet = CreateDefaultSubobject<UTDAttributeSet>(TEXT("AttributeSet"));
 
-	// The pack's own Sword / Shield sockets, which hang off hand_r and hand_l and carry the
-	// grip rotation and a non-uniform scale (the shield's is 0.25, 0.20, 0.30 -- the mesh is
-	// authored several times too large and the socket is what corrects it). Attach here and
-	// both props are right at identity; anything else means re-deriving what the pack knows.
+	// The pack's own Sword / Shield sockets, on hand_r and hand_l, carrying the grip rotation and a
+	// non-uniform scale that corrects meshes authored several times too large. Attach here and both
+	// props are right at identity.
 	//
-	// Deliberately NOT the weapon_r / weapon_l bones, which look like the obvious choice and
-	// are worse twice over: they are absent from Epic's SKM_Manny_Simple entirely, and only
-	// GDH clips animate them -- so under any Epic animation the props freeze at reference
-	// pose. hand_r / hand_l are driven by every animation there is.
+	// Not the weapon_r / weapon_l bones: absent from Epic's SKM_Manny_Simple, and animated only by
+	// GDH clips, so under any Epic animation the props freeze at reference pose.
 	//
-	// Cosmetic only. Collision is off because the melee trace is UAbilityTask_MeleeTrace's
-	// job -- a prop that could block or overlap would let the mesh quietly decide reach,
-	// which is the thing spacing tests measure.
+	// Cosmetic only. Collision is off because the melee trace is UAbilityTask_MeleeTrace's job -- a
+	// prop that could block or overlap would let the mesh quietly decide reach.
 	WeaponMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("WeaponMesh"));
 	WeaponMesh->SetupAttachment(GetMesh(), TEXT("Sword"));
 	WeaponMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
@@ -116,10 +111,9 @@ void ATDCombatCharacter::Tick(float DeltaSeconds)
 		// deadline: jail, choice window, rise and stand are four boundaries under one tag.
 		TickKnockdown();
 
-		// **Server-side, so the turn replicates as ordinary actor rotation.** Unlike the facing
-		// *lock*, which is local input suppression and deliberately ungated by role, this is a real
-		// rotation of a real body -- driving it on both machines would have the client fighting the
-		// correction it is being sent.
+		// Server-side, so the turn replicates as ordinary actor rotation. Unlike the facing *lock*,
+		// which is local input suppression, this rotates a real body -- driving it on both machines
+		// would have the client fighting the correction it is being sent.
 		TickForcedFacing(DeltaSeconds);
 
 		// The tenth of the family. Externally inflicted and total; it composes with a recovery by
@@ -156,10 +150,9 @@ void ATDCombatCharacter::Tick(float DeltaSeconds)
 			}
 		}
 
-		// And the recovery the close produces. Separate state from the window deliberately -- the
-		// window is 300 ms and the recovery it leaves behind is twice that, so one cannot be
-		// derived from the other. **Its expiry also ends GA_Parry**, which stayed alive across the
-		// recovery to hold the movement lock; see EndParryRecovery.
+		// And the recovery the close produces. Separate state from the window: the window is 300 ms
+		// and the recovery twice that, so neither derives from the other. Its expiry also ends
+		// GA_Parry, which stayed alive across the recovery to hold the movement lock.
 		if (bInParryRecovery)
 		{
 			const UWorld* World = GetWorld();
@@ -197,14 +190,12 @@ void ATDCombatCharacter::Tick(float DeltaSeconds)
 		}
 	}
 
-	// A guard does not survive leaving the ground. Keyed to the *falling state* rather than to
-	// having jumped, so walking off a ledge drops it too -- the user's call, and the opposite of
-	// the jump regen pause beside it, which keys on the action precisely because it is charging
-	// you for a choice. Here the question is what is physically coherent, and holding a shield up
-	// is not something the air supports.
+	// A guard does not survive leaving the ground. Keyed to the falling *state* rather than to
+	// having jumped, so walking off a ledge drops it too -- the opposite of the jump regen pause
+	// beside it, which keys on the action because it charges for a choice.
 	//
-	// bBlockedWhileAirborne on GA_Block covers only *raising* one; ActivationBlockedTags and the
-	// airborne flag both gate activation and neither can end something already running.
+	// bBlockedWhileAirborne on GA_Block covers only raising one: activation gates cannot end
+	// something already running.
 	if (IsBlocking() && GetCharacterMovement() && GetCharacterMovement()->IsFalling())
 	{
 		CancelBlockAbility();
@@ -231,13 +222,11 @@ void ATDCombatCharacter::Tick(float DeltaSeconds)
 	TickInputBuffer();
 
 #if ENABLE_DRAW_DEBUG
-	// Same gate as the damage wedge (bDrawDebugTrace || the cvar), so the two appear together --
-	// they were on different gates and only one showed by default, which is confusing precisely
-	// when you are trying to compare their sizes.
+	// Same gate as the damage wedge (bDrawDebugTrace || the cvar), so the two appear together.
 	//
-	// Drawn from the *aim* yaw, because that is the frame the wedge is actually tested in. Drawing
-	// it on the body would diverge from the tested volume the moment homing turns the body, which
-	// is a debug view lying exactly when the system acts.
+	// Drawn from the aim yaw, the frame the wedge is tested in. Drawing it on the body would
+	// diverge from the tested volume the moment homing turns the body -- a debug view lying exactly
+	// when the system acts.
 	if (bAimAssistHoming && (bAimAssistDrawDebug || TDShouldDrawMeleeTrace()))
 	{
 		AimAssistWedge.DrawDebug(GetWorld(), GetActorLocation(), GetAimYawDegrees(), FColor::Cyan);
@@ -284,30 +273,26 @@ void ATDCombatCharacter::TickStaminaRegen(float DeltaSeconds)
 		bSuppressorActive = true;
 	}
 
-	// A broken guard suppresses regen for the stun, and the ordinary pause then runs on from
-	// there -- which is what the user asked for and falls straight out of the max-push above
-	// rather than needing to be sequenced. Pushing StaminaRegenPauseSeconds (not the stun's own
-	// length) is the whole trick: while the stun is live the resume time keeps moving to
-	// "half a second from now", so the pause begins measuring from the instant the stun ends.
+	// A broken guard suppresses regen for the stun, then the ordinary pause runs on from there --
+	// which falls out of the max-push above rather than needing sequencing. Pushing
+	// StaminaRegenPauseSeconds rather than the stun's length is the trick: while the stun is live
+	// the resume time keeps moving to "half a second from now".
 	if (bGuardBroken)
 	{
 		RegenSuppressedUntil = FMath::Max(RegenSuppressedUntil, Now + StaminaRegenPauseSeconds);
 		bSuppressorActive = true;
 	}
 
-	// **Knockdown suppresses regen -- unless you are already exhausted.**
+	// Knockdown suppresses regen -- unless you are already exhausted.
 	//
-	// The carve-out is the schema pricing a vortex out. Every other suppressor here is
-	// *bounded*: an action pause is self-inflicted and ends, and the guard break's holds only until
-	// the stun does -- an opponent cannot renew it, because every break exhausts you and an
-	// exhausted player cannot raise a guard to be broken again. Knockdown is the first suppressor
-	// an opponent can refresh **indefinitely**, and a player who can neither act nor recover is not
-	// in a combat state, they are in a cutscene.
+	// The carve-out prices a vortex out. Every other suppressor is bounded: an action pause is
+	// self-inflicted and ends, and the guard break's holds only until the stun does, because every
+	// break exhausts you and an exhausted player cannot raise a guard to be broken again. Knockdown
+	// is the first an opponent can refresh indefinitely, and a player who can neither act nor
+	// recover is in a cutscene rather than a combat state.
 	//
-	// So the rule is narrow and by class rather than by name: refreshable suppression does not bind
-	// the exhausted. Self-inflicted pauses still bind, and so does the break's bounded one -- a
-	// broken-then-floored player serves the break's clock, then regenerates. Knocked down while
-	// exhausted the 25/s runs, and one full down-cycle returns roughly 62 stamina.
+	// So the rule is by class, not by name: refreshable suppression does not bind the exhausted.
+	// Self-inflicted pauses still bind, and so does the break's bounded one.
 	if (bKnockedDown && !bExhausted)
 	{
 		RegenSuppressedUntil = FMath::Max(RegenSuppressedUntil, Now + StaminaRegenPauseSeconds);
@@ -319,15 +304,13 @@ void ATDCombatCharacter::TickStaminaRegen(float DeltaSeconds)
 		return;
 	}
 
-	// **Exhaustion does not bypass the pause.** A bypass would close the *bounded* cases along with
-	// the unbounded one, so a dodge that exhausted you would start regenerating during its own
-	// duration. The pause is a cost of acting, and being exhausted is not a refund.
+	// Exhaustion does not bypass the pause. A bypass would close the bounded cases along with the
+	// unbounded one, so a dodge that exhausted you would regenerate during its own duration. The
+	// pause is a cost of acting, and being exhausted is not a refund.
 	//
-	// **The unbounded case stopped being a deadlock by design rather than by code.** A player may
-	// hold block at zero stamina; it accomplishes nothing, since anything actually blocked breaks
-	// the guard, and it suppresses only their own regen. Releasing is always available and always
-	// correct, so this is a state chosen rather than one trapped in -- which is what separates it
-	// from a deadlock and is why nothing here has to defend against it. See Docs/Combat-Decisions.md.
+	// The unbounded case is not a deadlock: a player may hold block at zero, it accomplishes nothing
+	// since anything blocked breaks the guard, and it suppresses only their own regen. Releasing is
+	// always available, so it is a state chosen rather than one trapped in.
 	if (bSuppressorActive || Now < RegenSuppressedUntil)
 	{
 		return;
@@ -346,16 +329,14 @@ void ATDCombatCharacter::TickBlockDrain(float DeltaSeconds)
 		return;
 	}
 
-	// Floors at zero and stays there. **Drain can never break a guard** -- that is the line
-	// between the two stamina mechanisms, and it is enforced here by simply not asking. A guard
-	// held at zero is a guard that has stopped being able to absorb anything, which is a
-	// consequence an attacker has to come and collect rather than one that arrives on its own.
+	// Floors at zero and stays there. Drain can never break a guard -- the line between the two
+	// stamina mechanisms, enforced here by not asking. A guard held at zero has stopped being able
+	// to absorb anything, which an attacker must come and collect.
 	//
-	// The attribute set clamps to [0, Max], so no floor is applied here; doing it in both places
-	// would be a second copy of a rule that already has one home.
+	// The attribute set clamps to [0, Max], so no floor is applied here.
 	//
-	// Flagged across the write so HandleStaminaChanged can tell this apart from every other way
-	// the bar empties. See bApplyingBlockDrain -- drain parks you at zero, it does not exhaust you.
+	// Flagged across the write so HandleStaminaChanged can tell this from every other way the bar
+	// empties. See bApplyingBlockDrain.
 	bApplyingBlockDrain = true;
 	AbilitySystem->ApplyModToAttribute(
 		UTDAttributeSet::GetStaminaAttribute(),
@@ -371,15 +352,13 @@ void ATDCombatCharacter::CancelBlockAbility()
 		return;
 	}
 
-	// **Not CancelAbilities(&BlockingTags).** That was the first version and it silently did
-	// nothing for a day: CancelAbilities matches against the ability's *asset* tags
-	// (Ability.Defend.Block), while BlockingTag is State.Blocking, which the ability grants through
-	// ActivationOwnedTags. The two tag sets are unrelated, so every match failed and every caller --
-	// the guard break, the jump, going airborne -- quietly cancelled nothing while looking correct.
+	// Not CancelAbilities(&BlockingTags): that matches an ability's *asset* tags
+	// (Ability.Defend.Block), while BlockingTag is State.Blocking, granted through
+	// ActivationOwnedTags. The two sets are unrelated, so every match fails silently and every
+	// caller cancels nothing while looking correct.
 	//
-	// Matched on the ability's *type* rather than on a second tag, so there is no third place for
-	// the block's identity to live and drift. The cost, stated: a Blueprint-only guard that does not
-	// derive from UTDBlockAbility would not be caught here.
+	// Matched on the ability's type rather than a second tag, so the block's identity has no third
+	// place to drift. The cost: a Blueprint-only guard not deriving from UTDBlockAbility is missed.
 	TArray<FGameplayAbilitySpecHandle> ToCancel;
 	for (const FGameplayAbilitySpec& Spec : AbilitySystem->GetActivatableAbilities())
 	{
@@ -404,15 +383,13 @@ void ATDCombatCharacter::TickMoveSpeedClamps()
 		return;
 	}
 
-	// Recomputed every tick from the current state rather than set on the ability's edges. An
-	// edge-driven version has to restore on every exit path -- released, cancelled, guard broken,
-	// airborne, interrupted -- and stranding the slow speed is both easy and invisible, since a
-	// character that walks at a quarter speed forever looks like a tuning mistake rather than a bug.
+	// Recomputed every tick from current state rather than on the ability's edges. An edge-driven
+	// version must restore on every exit path, and stranding the slow speed is both easy and
+	// invisible -- a character walking at a quarter speed forever looks like a tuning mistake.
 	//
-	// **The slowest live cap wins, and the overlap is reachable rather than theoretical.** Raising a
-	// guard you cannot afford exhausts you with the guard still up, so both clamps apply at once.
-	// Taking the minimum is the only combination that cannot be gamed by entering the two states in
-	// a particular order, and both are penalties -- neither should ever be a licence to move faster.
+	// The slowest live cap wins, and the overlap is reachable: raising a guard you cannot afford
+	// exhausts you with the guard still up. Taking the minimum is the only combination that cannot
+	// be gamed by entering the states in a particular order.
 	float Target = DefaultMaxWalkSpeed;
 	if (IsBlocking())
 	{
@@ -431,13 +408,12 @@ void ATDCombatCharacter::TickMoveSpeedClamps()
 
 void ATDCombatCharacter::HandleAbilityEndedForResume(const FAbilityEndedData& EndedData)
 {
-	// **Requested, never performed here.** OnAbilityEnded fires *synchronously inside* EndAbility,
-	// and that made this re-entrant in a way that cost a stuck guard: raising a block cancels the
-	// attack, the attack's end re-enters this handler while block is still mid-activation, block's
-	// spec does not read active yet, and so block activates a *second* time. The spec's activeCount
-	// leaks to 2, one release only ever brings it to 1, and the guard is stuck up forever with
-	// State.Blocking applied and no input able to clear it -- which also silently stops block ever
-	// activating again, so it stops cancelling attacks too.
+	// Requested, never performed here. OnAbilityEnded fires synchronously inside EndAbility, which
+	// makes this re-entrant: raising a block cancels the attack, the attack's end re-enters while
+	// block is still mid-activation, block's spec does not read active yet, and block activates a
+	// second time. The spec's activeCount leaks to 2, one release brings it to 1, and the guard is
+	// stuck up forever -- which also stops block ever activating again, so it stops cancelling
+	// attacks too.
 	//
 	// Deferring to the next tick makes the re-entrancy unrepresentable rather than guarded against.
 	bResumePending = true;
@@ -450,19 +426,17 @@ void ATDCombatCharacter::TickResumeHeldAbilities()
 		return;
 	}
 
-	// **Nothing resumes while anything else is running, and this is the whole rule rather than a
-	// safety check.** A guard is displaced by an attack cancelling it, so the attack is still going
-	// when block's end requests the resume. Resuming immediately put the guard back one frame
-	// later, and the guard cancels attacks -- so the swing died a frame after it started, which is
-	// exactly what play reported.
+	// Nothing resumes while anything else is running -- the whole rule, not a safety check. A guard
+	// displaced by an attack means the attack is still going when block's end requests the resume;
+	// resuming immediately puts the guard back a frame later, and the guard cancels attacks, so the
+	// swing dies a frame after it started.
 	//
-	// The user's phrasing is the specification: the guard comes back *after recovery ends*. That is
-	// this condition, because recovery ending is the ability ending.
+	// The specification is that the guard comes back after recovery ends, which is this condition,
+	// because recovery ending is the ability ending.
 	//
-	// Deliberately left pending rather than consumed when skipping. The attack's own end will
-	// request again, but relying on that makes correctness depend on which events happen to fire;
-	// retrying until the character is genuinely free does not. It also means a guard blocked by
-	// exhaustion comes up the instant exhaustion lifts, which is what a held button should do.
+	// Left pending rather than consumed when skipping. The attack's own end will request again, but
+	// relying on that makes correctness depend on which events happen to fire. It also means a guard
+	// blocked by exhaustion comes up the instant exhaustion lifts.
 	for (const FGameplayAbilitySpec& Spec : AbilitySystem->GetActivatableAbilities())
 	{
 		if (Spec.IsActive())
@@ -475,8 +449,7 @@ void ATDCombatCharacter::TickResumeHeldAbilities()
 	// back when whatever interrupted it finishes. Opt-in per ability -- see bResumeWhileInputHeld --
 	// because the general form turns a held attack button into auto-repeat.
 	//
-	// Collected before activating: activating inside the loop can reallocate the ASC's live spec
-	// array. IsActive() is re-checked at the point of use for the same reason.
+	// Collected before activating: activating inside the loop can reallocate the ASC's spec array.
 	TArray<FGameplayAbilitySpecHandle> Resumable;
 	for (const FGameplayAbilitySpec& Spec : AbilitySystem->GetActivatableAbilities())
 	{
@@ -504,19 +477,17 @@ void ATDCombatCharacter::TickResumeHeldAbilities()
 		}
 
 		// Goes through CanActivateAbility like any press, so exhaustion, a broken guard or being
-		// airborne refuse it exactly as they would refuse a fresh one. Nothing here has to know
-		// which of those is currently true.
+		// airborne refuse it as they would a fresh one. Nothing here needs to know which.
 		//
 		AbilitySystem->TryActivateAbility(Handle);
 	}
 
-	// **Cleared only once nothing is still waiting.** Assigning false before the attempt above would
-	// let a resume that was *refused* consume the request and never retry, so the guard promised
-	// above -- one blocked by exhaustion coming up the instant exhaustion lifts -- would not arrive.
+	// Cleared only once nothing is still waiting. Assigning false before the attempt above would let
+	// a refused resume consume the request and never retry, so the guard promised above -- one
+	// blocked by exhaustion coming up the instant exhaustion lifts -- would not arrive.
 	//
-	// The ordinary path is the exhausted guard force-ending at its commitment: the forced end
-	// requests a resume, exhaustion refuses it, and the held button would be silently forgotten.
-	// Retrying costs a refused activation per tick, which is what REFUSED's dedupe was built for.
+	// The ordinary path is the exhausted guard force-ending at its commitment. Retrying costs a
+	// refused activation per tick, which is what REFUSED's dedupe was built for.
 	bool bStillWaiting = false;
 	for (const FGameplayAbilitySpecHandle& Handle : Resumable)
 	{
@@ -549,24 +520,20 @@ void ATDCombatCharacter::BeginBlockCommitment()
 		return;
 	}
 
-	// **A resume is an intended block, and all blocks are created equal.** The user's rule, and it
-	// governs the initial cost as well as this -- see BlockInitialStaminaCost.
+	// A resume is an intended block, and all blocks are created equal -- governing the initial cost
+	// as well as this; see BlockInitialStaminaCost.
 	//
-	// An earlier version exempted resumed guards, reasoning that one the system put back up was not
-	// raised by the player. The log refuted it: durations went bimodal, 250 ms when pressed and
-	// 50-70 ms when resumed, so rapid tapping still produced sub-minimum guards at a slower
-	// cadence. A floor with an exemption is not a floor.
+	// Exempting resumed guards makes durations bimodal: 250 ms when pressed, 50-70 ms when resumed,
+	// so rapid tapping still produces sub-minimum guards at a slower cadence. A floor with an
+	// exemption is not a floor.
 	//
-	// Assigned rather than maxed with any existing value: a guard raised again is a *new* guard and
-	// gets a full commitment, which is what stops a player shortening their own floor by tapping
-	// through it.
+	// Assigned rather than maxed: a guard raised again is a new guard and gets a full commitment,
+	// which stops a player shortening their own floor by tapping through it.
 	BlockCommitEndsAt = World->GetTimeSeconds() + MinimumBlockSeconds;
 
-	// **Applied here rather than left to the next tick, and that is a correctness fix.** The tick
-	// maintains this tag, but a tick away is a frame away, and in that frame an attack could still
-	// activate and cancel the guard -- which is how a guard raised and cancelled in the *same*
-	// instant appeared in the log. A commitment enforced one frame late is not enforced at the one
-	// moment it matters most, which is immediately after the guard goes up.
+	// Applied here rather than left to the next tick. The tick maintains this tag, but a tick is a
+	// frame, and in that frame an attack can still activate and cancel the guard. A commitment
+	// enforced one frame late is not enforced at the moment it matters most.
 	if (AbilitySystem && !AbilitySystem->HasMatchingGameplayTag(TDTags::State_Blocking_Committed))
 	{
 		AbilitySystem->AddLooseGameplayTag(TDTags::State_Blocking_Committed);
@@ -580,10 +547,9 @@ void ATDCombatCharacter::PayBlockInitialCost()
 		return;
 	}
 
-	// **Not flagged as drain**, unlike TickBlockDrain, and the difference is the whole point. Drain
-	// is continuous and deliberately cannot exhaust you; this is a one-off *cost*, and a cost that
-	// empties the bar exhausts you exactly as a dodge's does. So it goes through the stamina
-	// delegate unguarded and reaches EnterExhaustion by the ordinary route.
+	// Not flagged as drain, unlike TickBlockDrain: drain is continuous and cannot exhaust you, while
+	// this is a one-off cost, and a cost that empties the bar exhausts you exactly as a dodge's
+	// does. So it reaches EnterExhaustion by the ordinary route.
 	AbilitySystem->ApplyModToAttribute(
 		UTDAttributeSet::GetStaminaAttribute(),
 		EGameplayModOp::Additive,
@@ -603,10 +569,9 @@ void ATDCombatCharacter::TickBlockCommitment(float Now)
 		return;
 	}
 
-	// The tag is a *description* of the current state, recomputed every frame, so it cannot be
-	// stranded by any exit path. A stuck commit tag would refuse attacking, dodging and jumping
-	// indefinitely with nothing on screen to say why, which is the worst failure this system has
-	// available -- and two earlier bugs in this slice were exactly a state that outlived its cause.
+	// The tag is a description of the current state, recomputed every frame, so no exit path can
+	// strand it. A stuck commit tag refuses attacking, dodging and jumping indefinitely with nothing
+	// on screen to say why.
 	const bool bShouldBeCommitted = IsBlocking() && Now < BlockCommitEndsAt;
 	const bool bIsCommitted = AbilitySystem->HasMatchingGameplayTag(TDTags::State_Blocking_Committed);
 
@@ -624,18 +589,16 @@ void ATDCombatCharacter::TickBlockCommitment(float Now)
 		return;
 	}
 
-	// **An exhausted guard ends the instant its commitment expires, held button or not.** It follows
-	// from two rules already in force rather than being a new one: you cannot block while exhausted,
-	// and all blocks are created equal. Raising a guard you cannot
-	// afford is allowed, charges its cost, exhausts you -- and then owes the full commitment,
-	// because exempting it is exactly the exemption that made the floor bimodal once already.
+	// An exhausted guard ends the instant its commitment expires, held button or not. It follows
+	// from two rules in force: you cannot block while exhausted, and all blocks are created equal.
+	// Raising a guard you cannot afford is allowed, charges its cost, exhausts you -- and then owes
+	// the full commitment, because exempting it is the exemption that made the floor bimodal.
 	//
-	// So the commitment is the *only* thing keeping this guard up, and the moment it lapses the
-	// ordinary refusal takes over. Cancelled rather than released: a release would be the player's,
-	// and this is the system taking something back.
+	// So the commitment is the only thing keeping this guard up, and when it lapses the ordinary
+	// refusal takes over. Cancelled rather than released: a release would be the player's, and this
+	// is the system taking something back.
 	//
-	// Deliberately after the tag maintenance above, so the commit tag is already gone when the
-	// guard drops and nothing sees a committed guard that is not blocking.
+	// After the tag maintenance above, so the commit tag is gone when the guard drops.
 	if (bExhausted && IsBlocking())
 	{
 		TD_TIMING_LOG(TEXT("[%.3f] BLOCK down %s (exhausted)"),
@@ -683,11 +646,9 @@ bool ATDCombatCharacter::IsGuardFacing(const FVector& AttackOriginWorld) const
 		return true;
 	}
 
-	// 180 degrees means the whole forward hemisphere, so the test is simply "not behind me".
-	// Written as a dot product rather than an angle because the spec's number is exactly the
-	// one value where the comparison needs no arc arithmetic at all -- and if the arc ever stops
-	// being 180 this becomes an authored number and should move to a UPROPERTY rather than
-	// growing a constant here.
+	// 180 degrees means the whole forward hemisphere, so the test is "not behind me". A dot product
+	// rather than an angle because that is the one value needing no arc arithmetic -- if the arc
+	// ever stops being 180 this becomes an authored number and should move to a UPROPERTY.
 	FVector Forward = GetActorForwardVector();
 	Forward.Z = 0.0f;
 
@@ -706,10 +667,9 @@ void ATDCombatCharacter::ApplyStaminaDamage(float Amount)
 		EGameplayModOp::Additive,
 		-Amount);
 
-	// **Read the bar back rather than predicting it.** The attribute set clamps to [0, Max] in
-	// both base and current value, so "did this empty them" is a question only the clamped result
-	// can answer -- computing it from Amount would disagree with the bar the moment anything else
-	// touches stamina in the same frame, which the drain above does whenever a guard is held.
+	// Read the bar back rather than predicting it. The attribute set clamps [0, Max] in both base
+	// and current value, so "did this empty them" is a question only the clamped result answers --
+	// computing it from Amount would disagree whenever anything else touches stamina in the frame.
 	if (GetStamina() <= 0.0f)
 	{
 		EnterGuardBreak();
@@ -724,10 +684,9 @@ void ATDCombatCharacter::EnterGuardBreak()
 		return;
 	}
 
-	// Re-entrant deliberately: a second blocked hit landing during a stun extends it rather than
-	// being ignored. Being hit again while your guard is already broken is strictly worse than
-	// being hit once, and the alternative -- an early-out on bGuardBroken -- would make the stun
-	// a window of free hits.
+	// Re-entrant deliberately: a second blocked hit during a stun extends it rather than being
+	// ignored. Being hit again while broken is strictly worse than being hit once, and an early-out
+	// on bGuardBroken would make the stun a window of free hits.
 	GuardBreakEndsAt = World->GetTimeSeconds() + GuardBreakStunSeconds;
 
 	// Unreachable today for the same reason blockstun's is -- breaking a guard needs a guard, and
@@ -759,10 +718,9 @@ void ATDCombatCharacter::ApplyGuardBreakState()
 	{
 		AbilitySystem->AddLooseGameplayTag(TDTags::State_GuardBroken);
 
-		// The guard is gone, so the ability holding it has to go with it -- otherwise BlockingTag
-		// survives the break and the drain keeps running on a guard the player no longer has.
-		// Cancelled rather than left to end on input release, because a broken guard should not
-		// wait for the player to notice.
+		// The guard is gone, so the ability holding it goes too -- otherwise BlockingTag survives
+		// the break and the drain keeps running on a guard the player no longer has. Cancelled
+		// rather than left to end on release, because a broken guard should not wait to be noticed.
 		CancelBlockAbility();
 	}
 
@@ -804,17 +762,14 @@ void ATDCombatCharacter::EnterBlockstun(float DurationSeconds)
 		return;
 	}
 
-	// **Extended by taking the max, never reassigned.** A second blocked hit landing inside a running
-	// lockout can only lengthen it. Assigning would let a light thrown immediately after a heavy
-	// *shorten* the heavy's lockout, making a faster follow-up a favour to the defender -- which is
-	// the same failure the guard break's re-entrancy comment describes, in the other direction.
+	// Extended by taking the max, never reassigned. A second blocked hit inside a running lockout
+	// can only lengthen it; assigning would let a light thrown after a heavy shorten the heavy's
+	// lockout, making a faster follow-up a favour to the defender.
 	BlockstunEndsAt = FMath::Max(BlockstunEndsAt, World->GetTimeSeconds() + DurationSeconds);
 
-	// Unreachable today and hooked anyway: a parrier cannot be holding a guard, since GA_Parry
-	// refuses to activate while State.Blocking is present, so no blocked hit can land during a
-	// parry jail. Hooked because **the rule is about lockouts overriding recoveries in general**,
-	// and a hook that only covers the paths that can fire today is one nobody adds to the paths
-	// that can fire tomorrow.
+	// Unreachable today and hooked anyway: a parrier cannot hold a guard, since GA_Parry refuses to
+	// activate while State.Blocking is present. Hooked because the rule is about lockouts overriding
+	// recoveries in general, and a hook covering only today's paths is one nobody extends.
 	OverrideParryRecovery(TEXT("blockstun"));
 
 	if (!bInBlockstun)
@@ -839,10 +794,9 @@ void ATDCombatCharacter::ApplyBlockstunState()
 {
 	if (AbilitySystem)
 	{
-		// **Nothing is cancelled here, unlike the guard break.** Blockstun refuses activations via
-		// ActivationBlockedTags and lets whatever is already running finish. The defender keeps the
-		// guard they successfully used -- taking it away would punish blocking correctly, and the
-		// player never released the button.
+		// Nothing is cancelled here, unlike the guard break. Blockstun refuses activations via
+		// ActivationBlockedTags and lets whatever is running finish -- the defender keeps the guard
+		// they successfully used, and never released the button.
 		AbilitySystem->AddLooseGameplayTag(TDTags::State_Blockstun);
 	}
 
@@ -884,17 +838,15 @@ void ATDCombatCharacter::EnterHitstun(float DurationSeconds)
 		return;
 	}
 
-	// Max-extended like blockstun, and re-entrant like the guard break, for the same reason both
-	// give: a second hit landing inside a running stun must lengthen the sentence, never shorten
-	// it or be ignored -- that re-extension is the string guarantee's whole arithmetic, each chained
-	// contact refreshing the stun before the last one expires.
+	// Max-extended like blockstun and re-entrant like the guard break: a second hit inside a running
+	// stun lengthens the sentence, never shortens it. That re-extension is the string guarantee's
+	// arithmetic, each chained contact refreshing the stun before the last expires.
 	HitstunEndsAt = FMath::Max(HitstunEndsAt, World->GetTimeSeconds() + DurationSeconds);
 
-	// **Being hit cancels everything, committed or not.**
-	// Server-only and outside the Apply half, exactly as death's cancel is: a client's OnRep must
-	// not cancel predicted copies out from under a correction. Cancelling runs each ability's
-	// EndAbility, which is what clears State.Attacking, restores facing, tears down the lunge, and
-	// resets the victim's own string through the cancelled path -- nothing here does those twice.
+	// Being hit cancels everything, committed or not. Server-only and outside the Apply half, as
+	// death's cancel is: a client's OnRep must not cancel predicted copies out from under a
+	// correction. Cancelling runs each ability's EndAbility, which clears State.Attacking, restores
+	// facing, tears down the lunge and resets the string -- nothing here repeats that.
 	if (AbilitySystem)
 	{
 		AbilitySystem->CancelAllAbilities();
@@ -997,21 +949,20 @@ void ATDCombatCharacter::EnterKnockdown(ETDKnockdownGrade Grade, AActor* Attacke
 
 	const float Now = World->GetTimeSeconds();
 
-	// **Last hit wins, exactly as the knockback slide already ruled.** A knockdown landing on a
-	// body already down restarts the whole clock at the new grade rather than extending the old
-	// one -- unlike hitstun, which max-extends. The difference is that hitstun is a duration and
-	// this is a *state machine*: extending it would leave a body in a jail whose choice window had
-	// already been computed against a different grade.
+	// Last hit wins, as the knockback slide already ruled. A knockdown on a body already down
+	// restarts the clock at the new grade rather than extending -- unlike hitstun, which
+	// max-extends. Hitstun is a duration; this is a state machine, and extending would leave a body
+	// in a jail whose choice window was computed against a different grade.
 	KnockdownGrade = Grade;
 	bKnockdownRising = false;
 	KnockdownJailEndsAt = Now + GetKnockdownJailSeconds();
 	KnockdownChoiceEndsAt = KnockdownJailEndsAt + GetKnockdownChoiceSeconds();
 	KnockdownRiseEndsAt = 0.0f;
 
-	// **Cancels through the death path's funnel, and for the same reason.** Server-only and outside
-	// the Apply half: a client's OnRep must not cancel predicted copies out from under a
-	// correction. Cancelling runs each ability's EndAbility, which restores facing, tears down
-	// lunges and clears the committed tags -- nothing below repeats that work.
+	// Cancels through the death path's funnel, and for the same reason. Server-only and outside the
+	// Apply half: a client's OnRep must not cancel predicted copies out from under a correction.
+	// Cancelling restores facing, tears down lunges and clears committed tags -- nothing below
+	// repeats that.
 	if (AbilitySystem)
 	{
 		AbilitySystem->CancelAllAbilities();
@@ -1059,10 +1010,9 @@ void ATDCombatCharacter::ApplyKnockdownState()
 		AbilitySystem->AddLooseGameplayTag(TDTags::State_KnockedDown);
 	}
 
-	// Bearing is the assertable half: the angle of the radial axis off the attacker's facing. In a
-	// 1v1 the two coincide at roughly zero; in the ender's 360-degree finish the two victims
-	// diverge to about plus and minus ninety, which is what makes "the axis radiates" observable
-	// rather than merely intended.
+	// Bearing is the assertable half: the radial axis's angle off the attacker's facing. In a 1v1
+	// the two coincide near zero; in the ender's 360-degree finish the two victims diverge to about
+	// plus and minus ninety, which makes "the axis radiates" observable rather than intended.
 	TD_TIMING_LOG(TEXT("[%.3f] KNOCKDOWN  %s  grade=%s jail=%.3f choice=%.3f rise=%.3f spacing=%.0f bearing=%.1f z=%.1f airborne=%d"),
 		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f,
 		*GetName(),
@@ -1880,20 +1830,18 @@ void ATDCombatCharacter::BeginOnHitMovementWaiver(float DelaySeconds)
 	OnHitMovementWaiverAt = bOnHitMovementWaiverPending ? FMath::Min(OnHitMovementWaiverAt, ReturnAt) : ReturnAt;
 	bOnHitMovementWaiverPending = true;
 
-	// The fixture that witnesses the waiver, and it rides here because this is the one place that
-	// runs exactly when an attacker has connected. Deduped on a short window rather than on the
-	// attack instance: a swing that hits two bodies calls this twice in one tick, and the intent is
-	// one dodge per connecting attack, not one per victim. The window is well under the shortest
-	// gap between two attacks the fixture can throw.
+	// The fixture that witnesses the waiver, here because this is the one place that runs exactly
+	// when an attacker has connected. Deduped on a short window rather than the attack instance: a
+	// swing hitting two bodies calls this twice in one tick, and the intent is one dodge per
+	// connecting attack, not one per victim.
 	if (bDebugDodgeAfterHit && DebugDefendDodgeInputTag.IsValid()
 		&& World->GetTimeSeconds() - DebugLastDodgeAfterHitAt > 0.25f)
 	{
 		DebugLastDodgeAfterHitAt = World->GetTimeSeconds();
 
-		// The input edges directly rather than DebugAutoDodgePress(), which re-homes the pawn
-		// first. Here the dodger *is* the attacker, mid-recovery, and teleporting it home would
-		// destroy the very thing the scenario measures -- whether the dodge came out at all -- by
-		// moving the body the moment the measurement starts.
+		// The input edges directly rather than DebugAutoDodgePress(), which re-homes the pawn first.
+		// Here the dodger *is* the attacker, mid-recovery, and teleporting it home would destroy the
+		// thing being measured -- whether the dodge came out -- by moving the body as it starts.
 		OnAbilityInputPressed(DebugDefendDodgeInputTag);
 
 		GetWorldTimerManager().SetTimer(
@@ -1921,12 +1869,10 @@ void ATDCombatCharacter::ReceiveKnockback(const FVector& DestinationWorld, float
 		KnockbackRootMotionSourceID = 0;
 	}
 
-	// The engine's own fixed-destination source -- variable magnitude, exact endpoint, which is
-	// the entire design ("the target ends up in the exact same relative location, every time").
-	// The *dynamic* variant, with a static target: only it carries TimeMappingCurve, and the
-	// static MoveToForce does not. Same channel, same priority and same accumulate mode as the
-	// lunge, because this is the lunge's target-side twin and must interact with the movement
-	// stack the same way.
+	// The engine's fixed-destination source: variable magnitude, exact endpoint, which is the whole
+	// design. The *dynamic* variant with a static target, because only it carries TimeMappingCurve.
+	// Same channel, priority and accumulate mode as the lunge, because this is the lunge's
+	// target-side twin and must interact with the movement stack the same way.
 	TSharedPtr<FRootMotionSource_MoveToDynamicForce> MoveTo = MakeShared<FRootMotionSource_MoveToDynamicForce>();
 	MoveTo->InstanceName = FName("TDKnockback");
 	MoveTo->AccumulateMode = ERootMotionAccumulateMode::Override;
@@ -1940,18 +1886,17 @@ void ATDCombatCharacter::ReceiveKnockback(const FVector& DestinationWorld, float
 	MoveTo->FinishVelocityParams.Mode = ERootMotionFinishVelocityMode::ClampVelocity;
 	MoveTo->FinishVelocityParams.ClampVelocity = 0.0f;
 
-	// **Gravity keeps the Z axis. This is what stops juggling.** An Override source overrides
-	// *velocity* -- gravity included -- so a fixed destination whose Z is the target's contact
-	// height pins an airborne body there for the source's whole duration, and ClampVelocity above
-	// then drops them from rest rather than letting them resume their arc. Land a second hit before
-	// they fall clear and the hang re-arms, holding a target in the air indefinitely.
+	// Gravity keeps the Z axis. This is what stops juggling: an Override source overrides velocity,
+	// gravity included, so a fixed destination whose Z is the target's contact height pins an
+	// airborne body there for the source's duration, and ClampVelocity then drops them from rest.
+	// Land a second hit before they fall clear and the hang re-arms indefinitely.
 	//
 	// IgnoreZAccumulate is the engine's own answer: UCharacterMovementComponent tracks override
-	// sources carrying it separately (bHasOverrideSourcesWithIgnoreZAccumulate) so vertical motion
-	// stays with the physics. XY still arrives at the authored destination.
+	// sources carrying it separately (bHasOverrideSourcesWithIgnoreZAccumulate), so vertical motion
+	// stays with the physics while XY still arrives at the authored destination.
 	//
-	// **Applied to both paths deliberately** -- the knockdown carry and the knockback share this
-	// function, and a rule holding for one of two displacement paths would be rediscovered as a bug.
+	// Applied to both paths: the knockdown carry and the knockback share this function, and a rule
+	// holding for one of two displacement paths would be rediscovered as a bug.
 	MoveTo->Settings.SetFlag(ERootMotionSourceSettingsFlags::IgnoreZAccumulate);
 
 	KnockbackRootMotionSourceID = Movement->ApplyRootMotionSource(MoveTo);
@@ -2064,10 +2009,9 @@ void ATDCombatCharacter::HandleStaminaChanged(const FOnAttributeChangeData& Data
 {
 	if (!bExhausted)
 	{
-		// **Drain never exhausts.** Holding a guard runs the bar to zero and leaves it there, which
-		// is what converts holding into risk rather than into a countdown: a guard at zero has
-		// stopped being able to absorb anything and breaks to the next blocked hit. Every other
-		// spender still exhausts -- a dodge taken at 30 empties you and locks you out, as designed.
+		// Drain never exhausts. Holding a guard runs the bar to zero and leaves it there, which
+		// converts holding into risk rather than a countdown: a guard at zero breaks to the next
+		// blocked hit. Every other spender still exhausts -- a dodge at 30 empties and locks you out.
 		if (Data.NewValue <= 0.0f && !bApplyingBlockDrain)
 		{
 			EnterExhaustion();
@@ -2122,30 +2066,26 @@ void ATDCombatCharacter::EnterDeath()
 	}
 	bDead = true;
 
-	// **Death is the single carve-out to "parry is sacred", and it is on the house**: the window
-	// closes and no recovery is charged, because dying resets your starting conditions anyway.
+	// Death is the single carve-out to "parry is sacred", on the house: the window closes and no
+	// recovery is charged, because dying resets your starting conditions anyway.
 	//
-	// Explicitly *before* the cancel below -- the cancel runs GA_Parry's
-	// EndAbility, which warns about an open window it is no longer allowed to close, and that
-	// warning should be reserved for a real sacredness violation.
+	// Explicitly before the cancel below -- the cancel runs GA_Parry's EndAbility, which warns about
+	// an open window it may no longer close, and that warning is for a real violation.
 	//
-	// Unreachable today, and the irony is worth keeping: nothing can damage you through an open
-	// parry window, so a damage-over-time effect is the only way to die inside one, and none
-	// exists. Grace is deliberately *not* torn down here -- it protects nobody once you are dead,
-	// and expiring on its own clock is one fewer special case.
+	// Unreachable today: nothing damages you through an open window, so only a damage-over-time
+	// effect could kill you inside one. Grace is deliberately not torn down here -- it protects
+	// nobody once you are dead, and expiring on its own clock is one fewer special case.
 	CloseParryWindow(ETDParryCloseReason::Death);
 
-	// Server-only, and deliberately outside ApplyDeathState. Cancelling abilities is an
-	// authority decision that replicates through GAS on its own; running it again from a
-	// client's OnRep would cancel that client's *predicted* copies out from under a
-	// correction that may never come.
+	// Server-only, and outside ApplyDeathState. Cancelling abilities is an authority decision that
+	// replicates through GAS on its own; running it again from a client's OnRep would cancel that
+	// client's predicted copies out from under a correction that may never come.
 	if (AbilitySystem)
 	{
-		// The tag alone only refuses *new* activations, which is exhaustion's rule and is
-		// visibly wrong here: a killing blow landing mid-swing would otherwise leave a corpse
-		// finishing its attack, hitbox included. Cancelling also clears State.Attacking and
-		// State.Attacking.Committed through the normal ability-end path, so death cannot leak
-		// the tags that would forbid every future defensive action on revive.
+		// The tag alone refuses only *new* activations, which is exhaustion's rule and visibly wrong
+		// here: a killing blow mid-swing would leave a corpse finishing its attack, hitbox included.
+		// Cancelling also clears State.Attacking and State.Attacking.Committed through the normal
+		// end path, so death cannot leak tags that would forbid every defensive action on revive.
 		AbilitySystem->CancelAllAbilities();
 	}
 
@@ -2192,10 +2132,9 @@ void ATDCombatCharacter::OnRep_Dead()
 
 void ATDCombatCharacter::ApplyDeathState()
 {
-	// **Logged here rather than in EnterDeath, and the siting is the point**: the Apply*/Clear* pairs
-	// run on every machine while Enter/Exit run on the server alone, so a log on the transition is
-	// invisible to exactly the client the replicated bool exists for. The server still logs once --
-	// Enter calls this directly.
+	// Logged here rather than in EnterDeath: the Apply*/Clear* pairs run on every machine while
+	// Enter/Exit run on the server alone, so a log on the transition is invisible to exactly the
+	// client the replicated bool exists for. The server still logs once -- Enter calls this directly.
 	TD_TIMING_LOG(TEXT("[%.3f] DEATH      %s"),
 		GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f, *GetName());
 
@@ -2240,16 +2179,14 @@ void ATDCombatCharacter::ClearDeathState()
 	// behind. Order is the whole correctness argument here.
 	StopRagdoll();
 
-	// An auto-attacker revives at the spot it was placed rather than wherever its last root
-	// motion carried it. Without this it stands up displaced and only drifts home on its next
-	// attack cycle -- which is what play reported. No-op for anything that is not an
-	// auto-attacker, so the player revives where they fell.
+	// An auto-attacker revives where it was placed rather than wherever its last root motion carried
+	// it; without this it stands up displaced and only drifts home on its next cycle. No-op for
+	// anything that is not an auto-attacker, so the player revives where they fell.
 	ReturnToDebugAutoAttackHome();
 
-	// Falling rather than Walking, deliberately. The character may have died in mid-air, and
-	// forcing Walking there leaves it hovering with no gravity until something else disturbs
-	// it. Falling is self-correcting in both cases: on the ground the movement component
-	// resolves it to Walking on the next update, in the air it simply resumes the fall.
+	// Falling rather than Walking: the character may have died mid-air, and forcing Walking there
+	// leaves it hovering with no gravity. Falling is self-correcting either way -- on the ground the
+	// movement component resolves it to Walking next update, in the air the fall resumes.
 	if (UCharacterMovementComponent* Movement = GetCharacterMovement())
 	{
 		Movement->SetMovementMode(MOVE_Falling);
@@ -2264,10 +2201,9 @@ void ATDCombatCharacter::StartRagdoll()
 		return;
 	}
 
-	// Physics silently refuses to simulate without one, leaving the character standing dead
-	// with no error anywhere. Warned rather than logged quietly: a mesh swap is exactly how
-	// this would break, and the symptom -- death stops looking like death -- reads as a
-	// gameplay regression rather than a missing asset.
+	// Physics silently refuses to simulate without one, leaving the character standing dead with no
+	// error anywhere. Warned rather than logged quietly: a mesh swap is how this breaks, and the
+	// symptom -- death not looking like death -- reads as a gameplay regression.
 	if (!SkeletalMesh->GetPhysicsAsset())
 	{
 		UE_LOG(LogTDCombatTiming, Warning,
@@ -2286,10 +2222,10 @@ void ATDCombatCharacter::StartRagdoll()
 		Capsule->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	}
 
-	// The profile replaces the whole response table, so it drops the camera-probe exemption the
-	// constructor set on this mesh -- which is why the spring arm starts colliding with corpses.
-	// Re-applied rather than avoided: the Ragdoll profile is genuinely what the simulated body
-	// wants, it just must not be the last word on ECC_Camera.
+	// The profile replaces the whole response table, dropping the camera-probe exemption the
+	// constructor set -- which is why the spring arm starts colliding with corpses. Re-applied
+	// rather than avoided: Ragdoll is what the simulated body wants, just not the last word on
+	// ECC_Camera.
 	SkeletalMesh->SetCollisionProfileName(TEXT("Ragdoll"));
 	ApplyCameraCollisionExemption();
 
@@ -2388,12 +2324,11 @@ void ATDCombatCharacter::OnRep_Exhausted()
 
 void ATDCombatCharacter::ApplyExhaustionState()
 {
-	// Both edges carry the bar because the *rule* is that exhaustion begins at 0 and ends at Max
-	// rather than on a clock: the two numbers are the assertion, and a value here that is neither
-	// says the mechanism has moved. Logged in the state pair rather than Enter/Exit for the reason
-	// ApplyDeathState gives -- these run on every machine and the transitions do not. Fires only on
-	// real transitions:
-	// the server guards in HandleStaminaChanged, clients in OnRep on a changed bool.
+	// Both edges carry the bar because the rule is that exhaustion begins at 0 and ends at Max
+	// rather than on a clock -- the two numbers are the assertion, and a value that is neither says
+	// the mechanism moved. Logged in the state pair rather than Enter/Exit for the reason
+	// ApplyDeathState gives. Fires only on real transitions: the server guards in
+	// HandleStaminaChanged, clients in OnRep on a changed bool.
 	TD_TIMING_LOG(TEXT("[%.3f] EXHAUSTED  %s  stamina=%.1f"),
 		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f,
 		*GetName(),
@@ -2421,24 +2356,21 @@ void ATDCombatCharacter::ClearExhaustionState()
 
 void ATDCombatCharacter::Jump()
 {
-	// **Every permission gate lives in UTDJumpAbility, and none of them belong here.** Restating
-	// exhaustion, death, hitstun, the movement lock and the guard's commitment by hand would be five
-	// copies of rules the shared ability base already enforces, which is the arrangement that lets
-	// one be forgotten.
+	// Every permission gate lives in UTDJumpAbility. Restating exhaustion, death, hitstun, the
+	// movement lock and the guard's commitment here would be five copies of rules the shared base
+	// already enforces, which is the arrangement that lets one be forgotten.
 	//
-	// So this is now reachable only through GA_Jump, which has already answered every one of those
-	// questions before calling it -- and death, the one check whose removal looks riskiest, is inert
-	// twice over: the base refuses every ability to a corpse, and dying calls DisableMovement, so
-	// CanJump() is false regardless of what records a press.
+	// Reachable only through GA_Jump, which has answered all of them before calling. Death, the
+	// check whose removal looks riskiest, is inert twice over: the base refuses every ability to a
+	// corpse, and dying calls DisableMovement, so CanJump() is false regardless.
 	Super::Jump();
 
-	// **The guard does not survive the jump, and is dropped here rather than on becoming airborne.**
-	// Tick already drops it on the falling state, which covers walking off a ledge -- but that is a
-	// frame or more away, and a jump that begins with the shield still up is visible. Doing both is
-	// deliberate: this one is for the look, the Tick one is for the rule.
+	// The guard does not survive the jump, and is dropped here rather than on becoming airborne.
+	// Tick already drops it on the falling state, which covers walking off a ledge, but that is a
+	// frame away and a jump beginning with the shield still up is visible. This one is for the
+	// look, the Tick one for the rule.
 	//
-	// After Super::Jump() so a refused jump -- one the movement component itself declines, having
-	// passed every check above it -- does not silently cost the player their guard.
+	// After Super::Jump(), so a jump the movement component itself declines does not cost the guard.
 	CancelBlockAbility();
 }
 
@@ -2461,11 +2393,10 @@ void ATDCombatCharacter::Landed(const FHitResult& Hit)
 	// Landing after walking off a ledge clears a flag that was never set, which is the point.
 	bJumpRegenPauseActive = false;
 
-	// **Landing is a resume opportunity, and it is the one that is not an ability ending.**
-	// Going airborne cancels a guard, and the resume that follows is refused *because* we are
-	// airborne -- correctly. Nothing then fires again when we touch down, so a held button stayed
-	// unanswered until the next unrelated ability happened to end. Requested rather than done
-	// inline for the same re-entrancy reason as the ability path; see bResumePending.
+	// Landing is a resume opportunity, and the one that is not an ability ending. Going airborne
+	// cancels a guard, and the resume that follows is correctly refused for being airborne --
+	// nothing then fires on touchdown, so a held button stayed unanswered until the next unrelated
+	// ability ended. Requested rather than done inline for the re-entrancy reason; see bResumePending.
 	bResumePending = true;
 }
 
@@ -2549,11 +2480,10 @@ void ATDCombatCharacter::InitialiseAbilitySystem()
 		AttributeSet = OwnedAttributeSet;
 	}
 
-	// **Nothing else can say which ASC a client resolved**: the toolset cannot see the client world,
-	// and an unseeded fallback reads the same 100/100 on the HUD as the real thing, because the
+	// Nothing else can say which ASC a client resolved: the toolset cannot see the client world, and
+	// an unseeded fallback reads the same 100/100 on the HUD as the real thing, because the
 	// attribute constructor inits to 100. Logged on every resolution path -- BeginPlay, PossessedBy,
-	// OnRep_PlayerState -- so the swap a client makes when its PlayerState arrives is visible in
-	// its own log.
+	// OnRep_PlayerState -- so a client's swap when its PlayerState arrives is visible in its own log.
 	TD_TIMING_LOG(TEXT("[%.3f] ASC RESOLVE %s -> %s (%s)"),
 		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f,
 		*GetName(),
@@ -2574,15 +2504,14 @@ void ATDCombatCharacter::InitialiseAbilitySystem()
 
 void ATDCombatCharacter::SeedAbilitySystemDefaults()
 {
-	// Guarded per *ASC*, not per call and not per character. Actor info is rebound on every
-	// possession but seeding must happen once, or a pawn possessed after BeginPlay is granted
-	// every ability a second time and stacks a second copy of every DefaultEffect -- and for an
-	// infinite effect that is a permanently doubled magnitude rather than a visible one-off.
+	// Guarded per ASC, not per call and not per character. Actor info is rebound on every possession
+	// but seeding must happen once, or a pawn possessed after BeginPlay is granted every ability a
+	// second time and stacks a second copy of every DefaultEffect -- for an infinite effect, a
+	// permanently doubled magnitude rather than a visible one-off.
 	//
-	// Where the flag lives is the subtle half. A player's BeginPlay runs *before* possession, so
-	// a single flag on the character would be spent on the fallback ASC and the PlayerState's
-	// real one would never be seeded -- a player with no attributes and no abilities, while the
-	// never-possessed training dummy worked perfectly.
+	// Where the flag lives is the subtle half. A player's BeginPlay runs before possession, so a
+	// single flag on the character would be spent on the fallback ASC and the PlayerState's real one
+	// never seeded -- a player with no attributes, while the never-possessed dummy worked perfectly.
 	ATDPlayerState* TDPlayerState = GetPlayerState<ATDPlayerState>();
 
 	if (TDPlayerState)
@@ -2649,13 +2578,12 @@ void ATDCombatCharacter::SeedAbilitySystemDefaults()
 	const bool bDebugDefender = DebugAutoDefendMode != ETDDebugDefendMode::Off;
 
 	// Captured before the first swing or dodge, so it is the placed transform rather than wherever
-	// root motion has since carried us. Taken for either fixture: a dodger needs it as much as an
-	// attacker, because with no movement input every dodge resolves *backward*, so an unattended
-	// defender reverses out of the exchange at DodgeTargetDistanceCm a time.
-	// A jump-only fixture is a fixture as well, and it MUST be included here if it is
-	// included in ReturnToDebugAutoAttackHome's guard -- the two conditions are one rule written
-	// twice, and a pawn that can be sent home without having recorded a home goes to the world
-	// origin. That is the failure the guard's own comment warns about.
+	// root motion has carried us. Taken for either fixture: with no movement input every dodge
+	// resolves backward, so an unattended defender reverses out of the exchange.
+	//
+	// A jump-only fixture counts too, and MUST be included here if it is included in
+	// ReturnToDebugAutoAttackHome's guard -- the two conditions are one rule written twice, and a
+	// pawn sent home without having recorded one goes to the world origin.
 	if (bDebugAttacker || bDebugDefender || bDebugPeriodicJump)
 	{
 		DebugAutoAttackHomeTransform = GetActorTransform();
@@ -2681,17 +2609,15 @@ void ATDCombatCharacter::SeedAbilitySystemDefaults()
 	case ETDDebugDefendMode::HoldBlock:
 		if (DebugDefendBlockInputTag.IsValid())
 		{
-			// **One press, never released, and that is the entire mode.** The press marks the
-			// spec InputPressed whether or not this activation succeeds, and GA_Block opts into
-			// resuming while its input is held -- so the guard comes back after every break,
-			// exhaustion and airborne cancel from here on with nothing maintaining it.
+			// One press, never released, and that is the entire mode. The press marks the spec
+			// InputPressed whether or not this activation succeeds, and GA_Block resumes while its
+			// input is held -- so the guard returns after every break, exhaustion and airborne cancel.
 			OnAbilityInputPressed(DebugDefendBlockInputTag);
 
-			// Requested explicitly because nothing has *ended* yet, and the resume tick only
-			// looks when something has. Without it a guard refused at spawn would never retry:
-			// a placed pawn can still be settling onto the floor, and a guard cannot be raised
-			// airborne -- so the fixture would start silently unarmed, which reads as a bug in
-			// block rather than in the fixture. The tick clears this once the guard is really up.
+			// Requested explicitly because nothing has *ended* yet, and the resume tick only looks
+			// when something has. Without it a guard refused at spawn never retries: a placed pawn
+			// can still be settling onto the floor, and a guard cannot be raised airborne, so the
+			// fixture would start silently unarmed. The tick clears this once the guard is up.
 			bResumePending = true;
 		}
 		break;
@@ -2726,10 +2652,9 @@ void ATDCombatCharacter::SeedAbilitySystemDefaults()
 		break;
 	}
 
-	// **Outside the switch, because it is not a defend mode.** A defender has exactly one defensive
-	// policy at a time and that exclusivity is deliberate, but the jump is a second *input* rather
-	// than a second policy -- and the rule it exists to observe needs a pawn that blocks and jumps
-	// at once. See bDebugPeriodicJump.
+	// Outside the switch, because it is not a defend mode. A defender has one defensive policy at a
+	// time and that exclusivity is deliberate, but the jump is a second *input* rather than a second
+	// policy -- and the rule it observes needs a pawn that blocks and jumps at once.
 	if (bDebugPeriodicJump && DebugJumpInputTag.IsValid())
 	{
 		GetWorldTimerManager().SetTimer(
@@ -2753,10 +2678,10 @@ void ATDCombatCharacter::WarnOnStaleInstanceOverrides() const
 		return;
 	}
 
-	// **DefaultAbilities first, because it is the one that disables a character outright.** An
-	// instance short of an ability does not refuse anything or log anything -- the input simply
-	// finds nothing to activate, so it reads as an input bug, a binding bug or a broken fixture.
-	// Compared by content rather than by count: a swap of equal length is the same silence.
+	// DefaultAbilities first, because it is the one that disables a character outright. An instance
+	// short of an ability refuses nothing and logs nothing -- the input finds nothing to activate,
+	// so it reads as an input or binding bug. Compared by content, not count: a swap of equal length
+	// is the same silence.
 	if (DefaultAbilities != CDO->DefaultAbilities)
 	{
 		UE_LOG(LogTDCombatTiming, Warning,
@@ -2840,11 +2765,11 @@ void ATDCombatCharacter::DebugAutoParryDropGuard()
 {
 	OnAbilityInputReleased(DebugDefendBlockInputTag);
 
-	// A frame's grace before the parry, and it is load-bearing rather than defensive. GA_Parry
-	// blocks on State.Blocking, which the guard only drops as its ability ends -- pressing in the
-	// same frame as the release would be refused every single cycle, producing a fixture that looks
-	// active and never once parries. Short enough to stay far inside the drained window: regen does
-	// not even resume for StaminaRegenPauseSeconds after the guard falls.
+	// A frame's grace before the parry, load-bearing rather than defensive. GA_Parry blocks on
+	// State.Blocking, which the guard drops only as its ability ends -- pressing in the same frame
+	// as the release is refused every cycle, producing a fixture that looks active and never parries.
+	// Short enough to stay inside the drained window: regen does not resume for
+	// StaminaRegenPauseSeconds after the guard falls.
 	GetWorldTimerManager().SetTimer(
 		DebugAutoParryPreBlockTimerHandle,
 		this,
@@ -2855,17 +2780,16 @@ void ATDCombatCharacter::DebugAutoParryDropGuard()
 
 void ATDCombatCharacter::DebugAutoParryPress()
 {
-	// Deliberately no ReturnToDebugAutoAttackHome() here, unlike the dodger. A parry does not
-	// travel, so the pawn never walks out of the exchange and there is nothing to correct -- while
-	// a teleport between attempts would move the parrier mid-approach and sever the spacing the
-	// hit is resolved at, which is the contamination the dodge fixture accepts only because a
+	// Deliberately no ReturnToDebugAutoAttackHome() here, unlike the dodger. A parry does not travel,
+	// so the pawn never walks out of the exchange, while a teleport between attempts would sever the
+	// spacing the hit is resolved at -- contamination the dodge fixture accepts only because a
 	// backward dodge genuinely does leave.
 	OnAbilityInputPressed(DebugDefendParryInputTag);
 
 	// Tapped rather than held, for the reason the dodge's tap gives: a press that never comes up is
-	// never stale, so a refused one would sit in the buffer and fire at a moment nobody scheduled.
-	// It matters more here -- GA_Parry refuses to buffer at all, since a replayed parry is a
-	// mistimed parry, so a stuck press would be a permanently held input answering nothing.
+	// never stale, so a refused one would sit in the buffer and fire unscheduled. It matters more
+	// here -- GA_Parry refuses to buffer at all, so a stuck press is a permanently held input
+	// answering nothing.
 	GetWorldTimerManager().SetTimer(
 		DebugAutoParryReleaseTimerHandle,
 		this,
@@ -2883,11 +2807,10 @@ void ATDCombatCharacter::DebugCancelIntoBlockPress()
 {
 	OnAbilityInputPressed(DebugDefendBlockInputTag);
 
-	// 0.40 rather than the dodge fixture's 0.05, because this press has to outlive
-	// MinimumBlockSeconds. Releasing inside the guard's own commitment window is the *feathering*
-	// case GA_Block deliberately defers, so the release would be remembered and applied later --
-	// giving a guard whose duration is set by the floor rather than by this fixture, which is
-	// exactly the bimodal-duration confusion the block slice already paid to remove once.
+	// 0.40 rather than the dodge fixture's 0.05, because this press must outlive MinimumBlockSeconds.
+	// Releasing inside the guard's commitment window is the feathering case GA_Block defers, so the
+	// release would be remembered and applied later -- giving a guard whose duration is set by the
+	// floor rather than by this fixture.
 	GetWorldTimerManager().SetTimer(
 		DebugCancelIntoBlockTimerHandle,
 		this,
@@ -2904,31 +2827,29 @@ void ATDCombatCharacter::DebugCancelIntoBlockRelease()
 void ATDCombatCharacter::ReturnToDebugAutoAttackHome()
 {
 	// Guarded on there being a debug fixture at all, as well as on the reset flag, because
-	// HomeTransform is only captured for one. Without this, calling it on anything else -- the
-	// player, on revive -- teleports to an identity transform, i.e. the world origin.
-	// bDebugPeriodicJump counts as a fixture too. It is orthogonal to
-	// DebugAutoDefendMode by design -- the guard-break and knockdown rules need a pawn that
-	// blocks *and* jumps -- so a jump-only defender would otherwise fall through this guard and
-	// never be brought home, which is exactly the drift the stand-boundary reset exists to undo.
+	// HomeTransform is only captured for one: calling it on anything else -- the player, on revive --
+	// teleports to an identity transform, the world origin.
+	//
+	// bDebugPeriodicJump counts as a fixture. It is orthogonal to DebugAutoDefendMode by design, so
+	// a jump-only defender would otherwise fall through this guard and never be brought home.
 	if (!bDebugAutoAttackResetPosition
 		|| (!bDebugAutoAttack && !bDebugPeriodicJump && DebugAutoDefendMode == ETDDebugDefendMode::Off))
 	{
 		return;
 	}
 
-	// Death cancels the running attack, which fires the ability-ended reset -- so without this
-	// the dummy's corpse teleports home mid-ragdoll, dragging the capsule out from under a mesh
-	// that physics is driving in world space. ReviveFromDebug calls this again once the ragdoll
-	// has been put away, which is what actually gets the body home.
+	// Death cancels the running attack, which fires the ability-ended reset -- so without this the
+	// corpse teleports home mid-ragdoll, dragging the capsule out from under a mesh physics is
+	// driving in world space. ReviveFromDebug calls this again once the ragdoll is put away.
 	if (bDead)
 	{
 		return;
 	}
 
-	// **Traced because "it fires mid-attack and the numbers still look plausible" is otherwise
-	// uncheckable.** The timestamp identifies the path: the delayed timer lands ResetDelay after the
+	// Traced because "it fires mid-attack and the numbers still look plausible" is otherwise
+	// uncheckable. The timestamp identifies the path: the delayed timer lands ResetDelay after the
 	// last swing's ABILITY END, while the burst's belt-and-braces call shares a timestamp with the
-	// ACTIVATE that follows it. Distance moved separates a real reset from a no-op.
+	// ACTIVATE that follows. Distance moved separates a real reset from a no-op.
 	const FVector PreviousLocation = GetActorLocation();
 	TD_TIMING_LOG(TEXT("[%.3f] HOME RESET %s  moved=%.1fcm"),
 		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f,
@@ -2977,10 +2898,9 @@ void ATDCombatCharacter::UpdateDebugFacingFocus(bool bAttacking)
 		return;
 	}
 
-	// Nearest other living pawn, with no probe radius: this is a test level, and inventing a
-	// cutoff here would be a second spacing number nobody authored. Deliberately not "the player
-	// pawn" -- the auto-attacker is on the shared base, so a self-attacking player would
-	// otherwise focus on itself.
+	// Nearest other living pawn, with no probe radius: this is a test level, and a cutoff here would
+	// be a second spacing number nobody authored. Deliberately not "the player pawn" -- the
+	// auto-attacker is on the shared base, so a self-attacking player would focus on itself.
 	TArray<APawn*> Candidates;
 	for (TActorIterator<APawn> It(World); It; ++It)
 	{
