@@ -30,11 +30,10 @@ set -uo pipefail
 BAND_RELEASE_LIGHT=200;   BAND_RELEASE_HEAVY=350;   BAND_RELEASE_CHARGED=750
 BAND_RELEASE_TOL=30
 
-# S1 -- ABILITY END elapsed against the authored total, seconds.
-# Frame quantisation only, and it does not accumulate: measured +15..+31 ms.
-# Each band is HoldUntil + Release + Recovery for its tier: the light 0.20 + 0.15 + 0.60, the
-# heavy 0.35 + 0.15 + 0.50. **Re-derive from the CDO rather than nudging** -- a band moved to make
-# a run green is a band that no longer asserts anything.
+# S1 -- ABILITY END elapsed against the authored total, seconds. Frame quantisation only, and it
+# does not accumulate: measured +15..+31 ms. Each band is HoldUntil + Release + Recovery for its
+# tier: light 0.20 + 0.15 + 0.60, heavy 0.35 + 0.15 + 0.50. **Re-derive from the CDO rather than
+# nudging** -- a band moved to make a run green no longer asserts anything.
 BAND_ELAPSED_LIGHT=0.950; BAND_ELAPSED_HEAVY=1.000; BAND_ELAPSED_CHARGED=1.500
 # The floor admits a single frame landing tight: the overhead is frame quantisation, and one frame
 # is jitter at the sampler rather than a combat change.
@@ -52,17 +51,16 @@ BAND_STAMDMG_LIGHT=5; BAND_STAMDMG_HEAVY=50; BAND_STAMDMG_CHARGED=100
 BAND_HEALTHDMG_LIGHT=15; BAND_HEALTHDMG_HEAVY=25; BAND_HEALTHDMG_CHARGED=40
 
 # S2 -- blockstun span. Each tier's basis is its own; neither asserted tier is its RecoverySeconds
-# any more, so do not re-derive one from the other.
-# The charged has none reachable: its stamina damage empties any bar, so it
-# always breaks instead. That is a filed trap, asserted here as a standing fact.
+# any more, so do not re-derive one from the other. The charged has none reachable: its stamina
+# damage empties any bar, so it always breaks instead -- a filed trap, asserted here as a standing
+# fact.
 # **The light's is derived, not felt**: after blocking, the defender must be able to *start* an
 # attack before the next chained hit lands, but never land first. At a 500 ms chain cadence the hit
 # arrives at T+200 and the next at T+700, so blockstun B must satisfy 400 + B > 700 -- B > 300, and
 # 0.350 is that floor plus the 50 ms margin used elsewhere.
-# **The heavy's basis is different**: a heavy landing on a guard is the intended paid
-# transaction -- 50 stamina bitten, initiative retained -- so it
-# is plus on block by design. Basis is recovery (0.50) + 0.10 of advantage, the advantage being
-# the only felt number in it. It is no longer "neutral minus 50 ms" like the tier it left behind.
+# **The heavy's basis is different**: a heavy landing on a guard is the intended paid transaction
+# -- 50 stamina bitten, initiative retained -- so it is plus on block by design. Basis is recovery
+# (0.50) + 0.10 of advantage, the advantage being the only felt number in it.
 BAND_BLOCKSTUN_LIGHT=0.350; BAND_BLOCKSTUN_HEAVY=0.600
 BAND_BLOCKSTUN_TOL=0.020
 
@@ -81,11 +79,10 @@ BAND_PARRY_RECOVERY=0.600
 BAND_PARRY_SPAN_TOL=0.025
 
 # S5 -- Parry Grace, the tail a *successful* parry leaves behind. Source: ParryGraceSeconds on the
-# character CDO.
-# **Derived, not chosen**: 150 ms is roughly the interval humans cannot beat, about seven inputs a
-# second, which is what makes two attacks inside it unanswerable by a second press. Re-derive it
-# against that ceiling, never against feel. It exists so a successful parry lasts longer than 0 ms
-# -- a catch closes the window, so without it one press can only ever answer one attack.
+# character CDO. **Derived, not chosen**: 150 ms is roughly the interval humans cannot beat, about
+# seven inputs a second, which makes two attacks inside it unanswerable by a second press.
+# Re-derive against that ceiling, never against feel. It exists so a successful parry lasts longer
+# than 0 ms -- a catch closes the window, so without it one press answers only one attack.
 BAND_PARRY_GRACE=0.150
 # The parry lockout is **authored** per branch and per swing rather than derived, so this is the
 # value off the CDO and not an arithmetic result.
@@ -295,15 +292,13 @@ parry_recovery_spans() { # same, for State.ParryRecovery
 
 acts_during_parry_window() { # anything that activated while a parry window was live
 	# **The jail's first half.** Throwing a parry commits you from activation, not from window close,
-	# so an attack, dodge or block starting inside a live window is the failure.
-	#
-	# The window ends on any of the three exits: a catch (PARRY SUCCESS), the whiff charging
-	# (PARRY WHIFF), or an attacker's punishment cancelling it (HITSTUN / GUARD BREAK). Disarming
-	# on all of them matters -- after a punishment the parrier is legitimately in someone else's
-	# state, and anything they do then belongs to that state's rules rather than to this one.
-	# **Scoped to the parrier by name**, which is why ACTIVATE carries an avatar. Without it the
-	# attacker's swings land inside the defender's windows on every fixture where both act, and
-	# every one reads as a violation.
+	# so an attack, dodge or block starting inside a live window is the failure. The window ends on
+	# any of the three exits: a catch (PARRY SUCCESS), the whiff charging (PARRY WHIFF), or an
+	# attacker's punishment cancelling it (HITSTUN / GUARD BREAK). Disarming on all of them matters
+	# -- after a punishment the parrier is legitimately in someone else's state, and what they do
+	# then belongs to that state's rules. **Scoped to the parrier by name**, which is why ACTIVATE
+	# carries an avatar: without it the attacker's swings land inside the defender's windows on
+	# every fixture where both act, and every one reads as a violation.
 	awk '
 		/^\[[0-9.]+\] PARRY WINDOW open/ {
 			who=""
@@ -328,13 +323,10 @@ acts_during_parry_window() { # anything that activated while a parry window was 
 #   block   ->  "BLOCK      cost 10 on ...  remaining=..."    (multiple spaces, not one)
 #   parry   ->  "PARRY WINDOW open ...  until=..."
 #
-# The first version of these assertions matched /ATTACK|DODGE |BLOCK cost/ and so
-# matched **nothing a real log contains** -- while reporting PASS on 32 recovery
-# spans, because the n=0 guard counts *spans* and not detectable events. The
-# fail-on-purpose ritual did not catch it either: the synthetic logs used to
-# prove the assertions could fail were written from the same wrong assumption, so
-# they confirmed a format that does not exist. **A hand-written fixture inherits
-# the author's misconceptions; prove an extractor against a real log slice too.**
+# A pattern matching /ATTACK|DODGE |BLOCK cost/ matches **nothing a real log contains** -- while
+# reporting PASS on 32 recovery spans, because the n=0 guard counts *spans* and not detectable
+# events. **A hand-written fixture inherits the author's misconceptions; prove an extractor
+# against a real log slice too.**
 
 assert_nothing_acts_during_parry_window() {
 	local bad n
@@ -389,10 +381,9 @@ grace_rearm_violations() { # a Grace tail that started from anything other than 
 	# open *window* may start a tail; a catch made by Grace itself pays the full reward and starts
 	# nothing, or "protected from everything" would quietly extend itself through the protection it
 	# grants. So every PARRY GRACE must be immediately preceded by a by=window success, and a
-	# by=grace success must never be followed by one.
-	#
-	# Checked pairwise in log order rather than by counting, because equal totals would also be
-	# produced by one window catch starting two tails while a grace catch started none.
+	# by=grace success must never be followed by one. Checked pairwise in log order rather than by
+	# counting: equal totals would also be produced by one window catch starting two tails while a
+	# grace catch started none.
 	awk '
 		/^\[[0-9.]+\] PARRY SUCCESS/ {
 			last_by = ($0 ~ /by=window/) ? "window" : "grace"
@@ -698,10 +689,9 @@ run_s3() {
 	# Exhaustion brackets, and the two values that say it is not a timer.
 	#
 	# A session that stops mid-exhaustion leaves exactly one trailing EXHAUSTED with no END --
-	# recovery takes ~5s and StopPIE does not wait for it. That is truncation, not a leak, and is
-	# tolerated only when the unclosed one is the LAST line of the pair-stream; an unclosed
-	# exhaustion anywhere earlier is a genuine stuck state and still fails. Same end-of-run
-	# family as the elapsed and per-attack guards.
+	# recovery takes ~5s and StopPIE does not wait for it. That is truncation, not a leak, tolerated
+	# only when the unclosed one is the LAST line of the pair-stream; an unclosed exhaustion earlier
+	# is a genuine stuck state and still fails. Same end-of-run family as the elapsed guard.
 	local exh_starts exh_ends exh_expected
 	exh_starts=$(grep -c '^\[[0-9.]*\] EXHAUSTED ' "$SLICE")
 	exh_ends=$(grep -c '^\[[0-9.]*\] EXHAUSTION END' "$SLICE")
@@ -801,14 +791,13 @@ run_s5_parry_whiff() {
 	#
 	# **Matched on the reason string, not the tag name.** Both halves are refused in
 	# UTDGameplayAbility::CanActivateAbility rather than through ActivationBlockedTags, so neither
-	# reaches the tag-filter path that prints tag names -- they print their own reasons, the way
-	# "dead" and "guard broken" do. Grepping for a tag here would return zero forever and read as
-	# the refusal being broken.
+	# reaches the tag-filter path that prints tag names -- they print their own reasons, as "dead"
+	# and "guard broken" do. Grepping for a tag here returns zero forever and reads as the refusal
+	# being broken.
 	#
-	# **Both halves are asserted separately.** The tag tracks the window rather than the ability, so
-	# each phase refuses under its own name -- and asserting them together would hide either one going
-	# silent. **A single count passing tells you the jail refused something; two tell you which
-	# half.**
+	# **Both halves are asserted separately**, the tag tracking the window rather than the ability,
+	# so each phase refuses under its own name. **A single count passing tells you the jail refused
+	# something; two tell you which half.**
 	win_refusals=$(grep "^\[[0-9.]*\] REFUSED" "$SLICE" | grep -c ": parrying" || true)
 	rec_refusals=$(grep "^\[[0-9.]*\] REFUSED" "$SLICE" | grep -c "parry recovery" || true)
 
@@ -833,13 +822,12 @@ run_s5_parry_whiff() {
 
 gesture_outside_window() { # PARRY GESTURE lines that fall outside their own window's span
 	# The clip's read moment must land while the parry is actually live. If it drifts past the
-	# close, the character is seen catching a blow after the window it could have caught it in has
-	# already gone -- the fit silently wrong in the one way play would blame on the mechanic.
-	# **Scoped to the parrier by name, and it is not paranoia**: an animation editor left open on
-	# AM_Parry fires this notify from its own preview actor, on a loop, into the same log -- every
-	# preview gesture falling outside any window, so an unscoped assertion reports a montage fault
-	# that does not exist. **Close the animation editor before measuring**,
-	# and let this filter cover the times somebody forgets.
+	# close, the character is seen catching a blow after the window has gone -- the fit silently
+	# wrong in the one way play would blame on the mechanic. **Scoped to the parrier by name, and it
+	# is not paranoia**: an animation editor left open on AM_Parry fires this notify from its own
+	# preview actor, on a loop, into the same log, every preview gesture falling outside any window,
+	# so an unscoped assertion reports a montage fault that does not exist. **Close the animation
+	# editor before measuring**, and let this filter cover the times somebody forgets.
 	awk -v TOL="$BAND_PARRY_SPAN_TOL" '
 		/^\[[0-9.]+\] PARRY WINDOW open/ {
 			t=$1; gsub(/[\[\]]/,"",t); open_t=t; open_seen=1
@@ -856,18 +844,17 @@ gesture_outside_window() { # PARRY GESTURE lines that fall outside their own win
 			t=$1; gsub(/[\[\]]/,"",t)
 			# **The late tolerance is structural, not slop.** The gesture fires when the montage
 			# reaches the marker, and the window rate is derived so that happens at exactly
-			# ParryWindowSeconds -- but Montage_Play is called during ActivateAbility and the
-			# first montage advance lands a tick later, while until= was stamped immediately.
-			# So the gesture reliably trails the close by about a frame: measured 1-14 ms across
-			# 13 samples, never early. Asserting a hard boundary would fail forever on a correct
-			# clip; widening past the shared span tolerance would not, and that is the point at
-			# which a marker really is misplaced.
+			# ParryWindowSeconds -- but Montage_Play is called during ActivateAbility and the first
+			# montage advance lands a tick later, while until= was stamped immediately. So the
+			# gesture reliably trails the close by about a frame: measured 1-14 ms across 13 samples,
+			# never early. A hard boundary would fail forever on a correct clip; widening past the
+			# shared span tolerance would not, and that is the point at which a marker really is
+			# misplaced.
 			#
 			# NOTE: no apostrophes anywhere in this awk program. A single quote inside a
 			# single-quoted shell string closes it, and the rest of the program silently stops
-			# reaching awk -- which is exactly how this assertion spent an afternoon passing
-			# while examining nothing. bash -n does not catch it: the result is still valid
-			# shell, it just means something else.
+			# reaching awk. bash -n does not catch it: the result is still valid shell, it just
+			# means something else.
 			if (!open_seen || t+0 < open_t+0 || t+0 > close_t+0 + TOL) print $0
 		}' "$SLICE"
 }
