@@ -1064,7 +1064,7 @@ void ATDCombatCharacter::ApplyKnockdownState()
 	// 1v1 the two coincide at roughly zero; in the ender's 360-degree finish the two victims
 	// diverge to about plus and minus ninety, which is what makes "the axis radiates" observable
 	// rather than merely intended.
-	TD_TIMING_LOG(TEXT("[%.3f] KNOCKDOWN  %s  grade=%s jail=%.3f choice=%.3f rise=%.3f spacing=%.0f bearing=%.1f"),
+	TD_TIMING_LOG(TEXT("[%.3f] KNOCKDOWN  %s  grade=%s jail=%.3f choice=%.3f rise=%.3f spacing=%.0f bearing=%.1f z=%.1f airborne=%d"),
 		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f,
 		*GetName(),
 		KnockdownGrade == ETDKnockdownGrade::Hard ? TEXT("hard") : TEXT("normal"),
@@ -1072,7 +1072,9 @@ void ATDCombatCharacter::ApplyKnockdownState()
 		GetKnockdownChoiceSeconds(),
 		KnockdownRiseSeconds,
 		KnockdownSpacingCm,
-		LastKnockdownBearingDegrees);
+		LastKnockdownBearingDegrees,
+		GetActorLocation().Z,
+		GetCharacterMovement() && GetCharacterMovement()->IsFalling() ? 1 : 0);
 }
 
 void ATDCombatCharacter::ClearKnockdownState()
@@ -1082,9 +1084,14 @@ void ATDCombatCharacter::ClearKnockdownState()
 		AbilitySystem->RemoveLooseGameplayTag(TDTags::State_KnockedDown);
 	}
 
-	TD_TIMING_LOG(TEXT("[%.3f] KNOCKDOWN STAND  %s"),
+	// Height at the stand, against the height at entry: **the two-point measurement that
+	// makes the airborne rule checkable.** Equal heights across a carry mean the body hung
+	// -- the juggling IgnoreZAccumulate exists to prevent -- and nothing else in the trace
+	// could tell you.
+	TD_TIMING_LOG(TEXT("[%.3f] KNOCKDOWN STAND  %s  z=%.1f"),
 		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f,
-		*GetName());
+		*GetName(),
+		GetActorLocation().Z);
 }
 
 void ATDCombatCharacter::OnRep_KnockedDown()
@@ -1379,11 +1386,12 @@ void ATDCombatCharacter::ApplyKnockdownCarry(AActor* Attacker)
 
 	FVector Destination = AttackerLoc + Radial * FinalSpacingCm;
 
-	// **Z is natural, not snapped.** An airborne victim is knocked down mid-air: the carry's XY
-	// applies and gravity keeps the rest, so a body hit off a ledge falls rather than sliding
-	// along an invisible plane at the attacker's feet.
+	// **Z is carried across, and gravity overrides it.** The destination needs some Z or the body
+	// would be driven toward the attacker's feet; passing the victim's own contact height makes the
+	// vector purely horizontal. What stops that height being *held* is IgnoreZAccumulate on the
+	// root motion source -- see ReceiveKnockback, where the juggling this used to allow is
+	// explained. An airborne victim is knocked down mid-air and falls while the carry moves them.
 	Destination.Z = GetActorLocation().Z;
-
 	ReceiveKnockback(Destination, KnockdownCarrySeconds, KnockdownCarryTimeMappingCurve);
 }
 
@@ -1893,6 +1901,24 @@ void ATDCombatCharacter::ReceiveKnockback(const FVector& DestinationWorld, float
 	MoveTo->TimeMappingCurve = TimeMappingCurve;
 	MoveTo->FinishVelocityParams.Mode = ERootMotionFinishVelocityMode::ClampVelocity;
 	MoveTo->FinishVelocityParams.ClampVelocity = 0.0f;
+
+	// **Gravity keeps the Z axis. This is what stops juggling** (the designer, 2026-08-20, found by
+	// eye in play). An Override source overrides *velocity* -- gravity included -- so a fixed
+	// destination whose Z is the target's contact height pins an airborne body at that height for
+	// the source's whole duration, and ClampVelocity above then drops them from rest rather than
+	// letting them resume their arc. Land a second hit before they fall clear and the hang re-arms:
+	// a target could be held in the air indefinitely.
+	//
+	// IgnoreZAccumulate is the engine's own answer -- UCharacterMovementComponent tracks override
+	// sources carrying it separately (bHasOverrideSourcesWithIgnoreZAccumulate) precisely so
+	// vertical motion stays with the physics. XY still arrives at the authored destination, which
+	// is the whole of what either displacement means.
+	//
+	// **Applied to both paths deliberately.** Docs/Plan-Knockdown.md rules it for the knockdown
+	// carry -- "the carry's XY applies, Z follows gravity, no ground snap" -- and the knockback
+	// shares this function; a rule that held for one of two displacement paths would be
+	// rediscovered as a bug later. The designer's call, 2026-08-20.
+	MoveTo->Settings.SetFlag(ERootMotionSourceSettingsFlags::IgnoreZAccumulate);
 
 	KnockbackRootMotionSourceID = Movement->ApplyRootMotionSource(MoveTo);
 }
