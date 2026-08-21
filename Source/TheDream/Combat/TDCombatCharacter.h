@@ -22,17 +22,13 @@ class UTDAttributeSet;
 struct FAbilityEndedData;
 
 /**
- *  A press that nothing was able to answer, kept for a moment in case something can.
+ *  A press nothing could answer, kept for a moment in case something can.
  *
- *  Records **both edges**, because the attack ladder's identity is a consequence of how long the
- *  button was held. A press replayed without knowing whether the button had since come up would
- *  leave the attack believing it was still held, sail past every checkpoint, and turn a tap into a
- *  charged heavy.
+ *  Records both edges: the ladder's identity depends on hold length, so a press replayed without
+ *  knowing the button came up would sail past every checkpoint and turn a tap into a charged heavy.
  *
- *  The release is recorded as a **duration**, and replayed at that same offset from activation.
- *  Storing it as a yes/no and releasing at once is not sufficient: the buffer survives indefinitely
- *  while the button is held, so the recorded hold is bounded by how long the refusal lasted rather
- *  than by the buffer window, and any hold length is reachable.
+ *  The release is a duration, replayed at that offset from activation. A yes/no flag will not do --
+ *  the buffer survives indefinitely while the button is held, so any hold length is reachable.
  */
 struct FTDBufferedInput
 {
@@ -45,28 +41,22 @@ struct FTDBufferedInput
 	/** World time to give up at. Held buttons keep pushing this forward; see TickInputBuffer. */
 	float ExpiryWorldTime = 0.0f;
 
-	/**
-	 *  How long the button was held, valid once bReleased. Replayed at this offset from activation,
-	 *  which is what preserves the tier the player actually asked for.
-	 */
+	/** How long the button was held, valid once bReleased. Replayed at this offset from activation. */
 	float HoldSeconds = 0.0f;
 
 	/** True once the button came up, whether or not the buffer has fired. */
 	bool bReleased = false;
 
 	/**
-	 *  Signed degrees from facing the player was holding when the button went down -- 0 forward,
-	 *  +90 right, 180 back. Valid only while bHadMoveInput.
+	 *  Signed degrees from facing at press -- 0 forward, +90 right, 180 back. Valid only while
+	 *  bHadMoveInput.
 	 *
-	 *  **A directional dodge is one composite input, not two.** The direction buffers with the
-	 *  press rather than being looked up when the press surfaces, so releasing the key inside the
-	 *  buffer window still gives the dodge that was asked for. Resolved at press rather than stored
-	 *  raw because resolution needs the *facing* of that moment too, and the camera can turn while a
-	 *  buffered input waits.
+	 *  A directional dodge is one composite input, so direction buffers with the press: releasing
+	 *  the key inside the window still gives the dodge asked for. Resolved at press rather than
+	 *  stored raw, because resolution needs that moment's facing and the camera can turn since.
 	 *
-	 *  **The dodge is the only input that latches its direction this way.** An attack's direction is
-	 *  read at *commit* instead, so a buffered attack goes where the camera is when it fires. Which
-	 *  policy an attack should use is the buffered-aim trap's open question.
+	 *  The dodge is the only input that latches direction. An attack's is read at commit, so a
+	 *  buffered attack goes where the camera is when it fires -- the buffered-aim trap's question.
 	 */
 	float MoveAngleDegrees = 0.0f;
 
@@ -78,12 +68,11 @@ struct FTDBufferedInput
 };
 
 /**
- *  Why a parry window is closing. **There are exactly three, and that is the mechanic.**
+ *  Why a parry window is closing. Exactly three, and that is the mechanic.
  *
- *  ***Parry is sacred***: the only way out of a committed parry is success, and nothing is ever
- *  designed to beat one while it is active. That promise is deliberately **not** made for block. So
- *  this enum is exhaustive by design rather than by current need -- a fourth reason would be a
- *  design change, not an addition, which is why closing takes a reason instead of a bool.
+ *  Parry is sacred: the only way out of a committed parry is success, and nothing is designed to
+ *  beat one while active -- a promise not made for block. The enum is therefore exhaustive by
+ *  design, a fourth reason would be a design change, and closing takes a reason rather than a bool.
  *
  *  Cancellation is absent on purpose. An ability cancelled mid-window leaves the window running;
  *  see UTDParryAbility::EndAbility, which warns rather than closing.
@@ -98,11 +87,10 @@ enum class ETDParryCloseReason : uint8
 	Caught,
 
 	/**
-	 *  Died. **The single carve-out to "sacred", and it is on the house** -- no recovery charged.
+	 *  Died. The single carve-out to "sacred", on the house -- no recovery charged.
 	 *
-	 *  Unreachable today: nothing can damage you through an open parry window, so a
-	 *  damage-over-time effect is the only way to die inside one, and none exists. It goes live at
-	 *  exactly the moment the deferred ranged/DoT question does.
+	 *  Unreachable today: nothing damages you through an open window, so only a damage-over-time
+	 *  effect could kill you inside one, and none exists. Goes live when the ranged/DoT question does.
 	 */
 	Death,
 };
@@ -110,26 +98,22 @@ enum class ETDParryCloseReason : uint8
 /**
  *  When a debug auto-attacker turns to face what it is swinging at.
  *
- *  A dummy that never turns is a *stable* fixture and a misleading one: every defensive verdict
- *  from Block onward is measured against what it throws, and an attack that cannot follow a
- *  sidestepping player reads as more forgiving than a human opponent would. A dummy that always
- *  faces you is unpleasant to work around when measuring something else, so this is three modes
- *  rather than a bool.
+ *  A dummy that never turns is a stable fixture and a misleading one -- an attack that cannot
+ *  follow a sidestepping player reads as more forgiving than a human would. One that always faces
+ *  you is intrusive when measuring something else, hence three modes rather than a bool.
  *
- *  **Facing is all this does.** The dummy does not approach: the parity rule is "accurate in the
- *  dimension being measured", and Block measures what happens when an attack arrives rather than
- *  how it closed the distance.
+ *  Facing is all it does; the dummy never approaches. The parity rule is "accurate in the dimension
+ *  being measured", and Block measures what an arriving attack does, not how it closed distance.
  */
 UENUM(BlueprintType)
 enum class ETDDebugFacingMode : uint8
 {
-	/** Never turn. Kept because it is a useful control. */
+	/** Never turn. Kept as a control. */
 	Never,
 
 	/**
-	 *  Turn only while an attack is running, and let the position reset restore the placed yaw
-	 *  between swings. The training dummy's default: it aims what it throws without following you
-	 *  around the level when you are measuring something unrelated.
+	 *  Turn only while an attack is running; the position reset restores the placed yaw between
+	 *  swings. The dummy's default -- it aims what it throws without following you around the level.
 	 */
 	WhileAttacking,
 
@@ -140,41 +124,36 @@ enum class ETDDebugFacingMode : uint8
 /**
  *  What a debug auto-defender does with the attacks coming at it.
  *
- *  **Deliberately one behaviour at a time rather than a defensive AI.** A dummy choosing between
- *  blocking and dodging would need a policy, and a policy is a thing to debug on top of the thing
- *  being debugged. One mode does one thing forever, which is what keeps the log readable.
+ *  One behaviour at a time rather than a defensive AI: a dummy choosing between blocking and
+ *  dodging needs a policy, and a policy is one more thing to debug. One mode, one behaviour, so
+ *  the log stays readable.
  */
 UENUM(BlueprintType)
 enum class ETDDebugDefendMode : uint8
 {
-	/** Defend nothing. The training dummy's default: a pure damage target. */
+	/** Defend nothing. The dummy's default: a pure damage target. */
 	Off,
 
 	/**
-	 *  Raise the guard once and never let go.
-	 *
-	 *  One press is the whole implementation. GA_Block opts into bResumeWhileInputHeld, and the
-	 *  press path marks the spec InputPressed whether or not the activation succeeds -- so the
-	 *  resume tick puts the guard back after every break, exhaustion and airborne cancel.
+	 *  Raise the guard once and never let go. One press is the whole implementation: GA_Block opts
+	 *  into bResumeWhileInputHeld and the press path marks the spec InputPressed even when
+	 *  activation fails, so the resume tick puts the guard back after every break and cancel.
 	 */
 	HoldBlock,
 
 	/**
-	 *  Tap the dodge input on DebugDodgeIntervalSeconds.
-	 *
-	 *  With no movement input a dodge always resolves backward, so this both spends stamina on a
-	 *  fixed schedule and travels a known distance in a known direction.
+	 *  Tap the dodge input on DebugDodgeIntervalSeconds. With no movement input a dodge resolves
+	 *  backward, so this spends stamina on a fixed schedule and travels a known distance.
 	 */
 	PeriodicDodge,
 
 	/**
 	 *  Tap the parry input on DebugParryIntervalSeconds.
 	 *
-	 *  **The phase sweep is the whole design.** A parry is a 300 ms window against attacks arriving
-	 *  on their own schedule, so a period co-prime with the attacker's walks the window across
-	 *  windup, release and recovery -- yielding successes *and* whiffs from one unattended run. A
-	 *  period that divided the attacker's would answer one question forever while looking like a
-	 *  working fixture. See DebugParryIntervalSeconds.
+	 *  The phase sweep is the design. A 300 ms window against attacks on their own schedule, at a
+	 *  period co-prime with the attacker's, walks across windup, release and recovery -- yielding
+	 *  successes and whiffs from one run. A dividing period would answer one question forever while
+	 *  looking like a working fixture. See DebugParryIntervalSeconds.
 	 */
 	PeriodicParry
 };
@@ -182,10 +161,10 @@ enum class ETDDebugDefendMode : uint8
 /**
  *  Base class for anything that can fight: the player and the training dummy alike.
  *
- *  Inherits locomotion and the third person camera from ATheDreamCharacter and adds the Ability
- *  System Component plus the core combat attributes on top. Abilities are granted from
- *  DefaultAbilities, so a Blueprint subclass decides what it can do without any graph wiring.
- *  Leaving that list empty produces a valid damage target that cannot act.
+ *  Locomotion and the third person camera come from ATheDreamCharacter; this adds the Ability
+ *  System Component and the core combat attributes. Abilities are granted from DefaultAbilities, so
+ *  a Blueprint subclass decides what it can do without graph wiring -- an empty list is a valid
+ *  damage target that cannot act.
  */
 UCLASS(abstract)
 class ATDCombatCharacter : public ATheDreamCharacter, public IAbilitySystemInterface
@@ -212,15 +191,15 @@ public:
 	UFUNCTION(BlueprintPure, Category="Combat|Attributes")
 	float GetMaxStamina() const;
 
-	/** Health as a 0-1 fraction, for health bars and debug readouts. */
+	/** Health as a 0-1 fraction, for bars and debug readouts. */
 	UFUNCTION(BlueprintPure, Category="Combat|Attributes")
 	float GetHealthPercent() const;
 
-	/** Stamina as a 0-1 fraction, for stamina bars and debug readouts. */
+	/** Stamina as a 0-1 fraction, for bars and debug readouts. */
 	UFUNCTION(BlueprintPure, Category="Combat|Attributes")
 	float GetStaminaPercent() const;
 
-	/** True while stamina regen is suppressed, whether by an action or the tail after one. */
+	/** True while stamina regen is suppressed, by an action or the tail after one. */
 	UFUNCTION(BlueprintPure, Category="Combat|Stamina")
 	bool IsStaminaRegenPaused() const;
 
@@ -231,7 +210,7 @@ public:
 	UFUNCTION(BlueprintPure, Category="Combat|Health")
 	bool IsDead() const { return bDead; }
 
-	/** Fixture-only: this character starts no lunges at all. See bDebugSuppressLunge. */
+	/** Fixture-only: this character starts no lunges. See bDebugSuppressLunge. */
 	UFUNCTION(BlueprintPure, Category="Combat|Debug")
 	bool IsDebugLungeSuppressed() const { return bDebugSuppressLunge; }
 
@@ -244,21 +223,20 @@ public:
 	bool IsGuardBroken() const { return bGuardBroken; }
 
 	/**
-	 *  True while a *successful* block's lockout is running. Refuses offense only.
+	 *  True while a successful block's lockout is running. Refuses offense only.
 	 *
-	 *  Not the same state as IsGuardBroken(), which is the penalty for a guard that failed and
-	 *  refuses everything. A block that worked costs the defender initiative, not their guard.
+	 *  Not IsGuardBroken(): that is the failed-guard penalty and refuses everything. A block that
+	 *  worked costs initiative, not the guard.
 	 */
 	UFUNCTION(BlueprintPure, Category="Combat|Block")
 	bool IsInBlockstun() const { return bInBlockstun; }
 
 	/**
-	 *  The heading the player was holding when the press that activated this ability landed, in
-	 *  signed degrees from facing. Returns false when that press was neutral.
+	 *  Heading held when the press that activated this ability landed, signed degrees from facing.
+	 *  False when that press was neutral.
 	 *
-	 *  **Read this rather than the movement component.** GetLastInputVector() is empty for the whole
-	 *  of any ability that locks movement, so an ability asking it which way the player is holding
-	 *  always hears "nowhere".
+	 *  Read this rather than the movement component: GetLastInputVector() is empty for the whole of
+	 *  any ability that locks movement, so it always answers "nowhere".
 	 */
 	bool GetPressMoveDirection(float& OutAngleDegrees) const
 	{
@@ -267,11 +245,11 @@ public:
 	}
 
 	/**
-	 *  Starts the blockstun lockout, or extends one already running to the later end time.
+	 *  Starts blockstun, or extends a running one to the later end time.
 	 *
-	 *  Called by the attacking ability when its hit is blocked, so the duration travels with the
-	 *  attack rather than being a property of the defender -- a heavy should pin a guard for longer
-	 *  than a light, and only the attack knows which it was.
+	 *  Called by the attacking ability, so the duration travels with the attack rather than being a
+	 *  property of the defender -- a heavy pins a guard longer than a light, and only the attack
+	 *  knows which it was.
 	 */
 	void EnterBlockstun(float DurationSeconds);
 
@@ -280,11 +258,10 @@ public:
 	bool IsInHitstun() const { return bInHitstun; }
 
 	/**
-	 *  Starts hitstun, or extends one already running to the later end time -- blockstun's shape,
-	 *  with one addition: **entry cancels everything the victim was doing, committed or not.** A hit
-	 *  through your swing beats your swing; commitment governs what you may cancel voluntarily, not
-	 *  what being hit does to you. It also resets the victim's own string. Server decides; the state
-	 *  pair applies the tag everywhere. 0 no-ops.
+	 *  Starts hitstun, or extends a running one -- blockstun's shape, plus one addition: entry
+	 *  cancels everything the victim was doing, committed or not. Commitment governs what you may
+	 *  cancel voluntarily, not what being hit does to you. Also resets the victim's string. Server
+	 *  decides; the state pair applies the tag everywhere. 0 no-ops.
 	 */
 	void EnterHitstun(float DurationSeconds);
 
@@ -295,14 +272,11 @@ public:
 	ETDKnockdownGrade GetKnockdownGrade() const { return KnockdownGrade; }
 
 	/**
-	 *  Whether hits should pass straight through this body.
+	 *  Whether hits pass straight through this body. True from the knockdown until any rise begins,
+	 *  auto or chosen; each get-up option then prices its own rise.
 	 *
-	 *  True from the moment of the knockdown until **any** rise begins, auto or chosen. Each get-up
-	 *  option then prices its own rise: the dodge brings i-frames, block brings a guard, the get-up
-	 *  attack is naked but threatening, and doing nothing is plainly hittable.
-	 *
-	 *  **The rise-begin frame resolves to the defender.** Ties at a protective boundary go to the
-	 *  protected, so the one place engine tick order could coin-flip an outcome is ruled instead.
+	 *  The rise-begin frame resolves to the defender -- ties at a protective boundary go to the
+	 *  protected, so tick order cannot coin-flip an outcome.
 	 */
 	bool IsKnockdownInvulnerable() const { return bKnockedDown && !bKnockdownRising; }
 
@@ -310,14 +284,14 @@ public:
 	bool IsInKnockdownChoiceWindow() const;
 
 	/**
-	 *  Put this character on the floor. **Supersedes hitstun rather than joining it.**
+	 *  Put this character on the floor. Supersedes hitstun rather than joining it.
 	 *
 	 *  Replaces EnterHitstun for any hit whose swing authored a grade: cancels through the same
-	 *  funnel death uses, resets the victim's string, overrides a whiffed parry's recovery, starts
-	 *  the radial carry and begins forced facing. Server-only.
+	 *  funnel death uses, resets the string, overrides a whiffed parry's recovery, starts the radial
+	 *  carry and begins forced facing. Server-only.
 	 *
 	 *  @param Grade     Which split to run. None returns without doing anything.
-	 *  @param Attacker  Who did it -- the carry's radial origin and the facing target.
+	 *  @param Attacker  The carry's radial origin and the facing target.
 	 */
 	void EnterKnockdown(ETDKnockdownGrade Grade, AActor* Attacker);
 
@@ -325,21 +299,19 @@ public:
 	bool IsInParryLockout() const { return bInParryLockout; }
 
 	/**
-	 *  Lock this attacker out for the duration the swing a parrier just caught authored.
+	 *  Lock this attacker out for the duration the caught swing authored.
 	 *
-	 *  **Externally inflicted, so a lockout rather than a recovery**, and it composes by the
-	 *  standing schema: a lockout overrides a recovery. Takes the full movement lock, refuses every
-	 *  ability from the shared base, and ends the string explicitly.
+	 *  Externally inflicted, so a lockout rather than a recovery, and a lockout overrides one. Takes
+	 *  the full movement lock, refuses every ability from the shared base, ends the string.
 	 *
-	 *  @param LockoutSeconds  Authored on the swing that was caught -- see
-	 *                         UTDMeleeAttackAbility::ParryLockoutSeconds. Zero is honoured, not
-	 *                         floored.
+	 *  @param LockoutSeconds  Authored on the caught swing -- see
+	 *                         UTDMeleeAttackAbility::ParryLockoutSeconds. Zero is honoured.
 	 */
 	void EnterParryLockout(float LockoutSeconds);
 
 	/**
-	 *  Start the rise. **Ends invincibility on the frame it is called**, and commits: from here
-	 *  there are no options, no movement and no way back to the floor.
+	 *  Start the rise. Ends invincibility on the frame it is called, and commits: no options, no
+	 *  movement, no way back to the floor.
 	 *
 	 *  Called by the auto-rise at the choice window's close and by every get-up option, which is
 	 *  what makes "the action is the exit" true -- there is no shared pre-rise to wait through.
@@ -349,74 +321,65 @@ public:
 	void BeginKnockdownRise(const TCHAR* By, bool bPlayRiseMontage = true);
 
 	/**
-	 *  Turn this body toward an attacker at the derived rate. Applies to every clean hit, not only
-	 *  knockdowns. **The camera never moves** -- this is the body, and taking someone's aim away is
-	 *  a different and much larger thing than turning their model.
+	 *  Turn this body toward an attacker at the derived rate. Every clean hit, not only knockdowns.
+	 *  The camera never moves -- this is the body.
 	 */
 	void BeginForcedFacing(AActor* Toward);
 
 	/**
-	 *  True while a parry window is open and has not yet caught anything.
+	 *  True while a parry window is open and has not caught anything.
 	 *
-	 *  **Asked by the *attacker's* hit path**, which is why this is mechanical state on the
-	 *  character rather than anything owned by GA_Parry. A defender cannot refuse a hit it never
-	 *  sees, exactly as with i-frames and the guard, so the negation is resolved where the hit is
+	 *  Asked by the attacker's hit path, which is why this is state on the character rather than on
+	 *  GA_Parry: a defender cannot refuse a hit it never sees, so negation resolves where the hit is
 	 *  detected -- and that code has a character pointer, not an ability one.
 	 */
 	UFUNCTION(BlueprintPure, Category="Combat|Parry")
 	bool IsParryWindowOpen() const { return bParryWindowOpen; }
 
 	/**
-	 *  Opens the negation window for DurationSeconds. Called by GA_Parry on activation.
-	 *
-	 *  The whiff recovery travels in with it rather than being read back later, so the price of a
-	 *  window is fixed the moment it opens.
+	 *  Opens the negation window for DurationSeconds. Called by GA_Parry on activation. The whiff
+	 *  recovery travels in with it, so a window's price is fixed the moment it opens.
 	 */
 	void OpenParryWindow(float DurationSeconds, float WhiffRecoverySeconds);
 
 	/**
 	 *  Closes the window, charging the whiff recovery unless it caught something. Idempotent.
 	 *
-	 *  **One exit for every way a window can end** -- expiry in Tick, the ability being cancelled,
-	 *  death -- so the recovery cannot be skipped by ending the parry through an unusual path.
+	 *  One exit for every way a window can end -- expiry in Tick, cancellation, death -- so the
+	 *  recovery cannot be skipped by ending the parry through an unusual path.
 	 */
 	void CloseParryWindow(ETDParryCloseReason Reason);
 
 	/**
 	 *  True while a successful parry's Grace tail is still protecting this character.
 	 *
-	 *  **Deliberately carries no gameplay tag**, unlike every other state here. Tags exist to refuse
-	 *  things, and Grace refuses nothing -- it is read by the *attacker's* hit path and by nothing
-	 *  else. A tag would invite something to start blocking on it.
+	 *  Carries no gameplay tag, unlike every other state here: tags exist to refuse things, and
+	 *  Grace refuses nothing. A tag would invite something to start blocking on it.
 	 */
 	UFUNCTION(BlueprintPure, Category="Combat|Parry")
 	bool IsInParryGrace() const { return bInParryGrace; }
 
 	/**
-	 *  The montage rate the parry clip's recovery segment should switch to, or -1 if unset.
+	 *  The rate the parry clip's recovery segment switches to, or -1 if unset.
 	 *
-	 *  Parked here rather than on GA_Parry because **the ability is gone by the time it is needed on
-	 *  a successful parry** -- a catch ends it at once, and the authored recovery rate must be used
-	 *  regardless. Computed once at activation; see UTDParryAbility::PlayParryMontage.
+	 *  Parked here because the ability is gone by the time it is needed on a success -- a catch ends
+	 *  it at once, and the authored recovery rate must be used regardless. Computed once at
+	 *  activation; see UTDParryAbility::PlayParryMontage.
 	 */
 	float GetPendingParryMontageRecoveryRate() const { return PendingParryMontageRecoveryRate; }
 	void SetPendingParryMontageRecoveryRate(float Rate) { PendingParryMontageRecoveryRate = Rate; }
 
 	/**
-	 *  A parry landed: pay the reward and close the window free of charge.
-	 *
-	 *  Called from the attacker's hit path on the server, the only place that knows a hit was
-	 *  resolved at all. Clears the regen pause outright rather than letting it tail off: a *whiff*
-	 *  pays the pause, a *success* discharges it.
+	 *  A parry landed: pay the reward and close the window free of charge. Called from the attacker's
+	 *  hit path on the server, the only place that knows a hit resolved. Clears the regen pause
+	 *  outright -- a whiff pays the pause, a success discharges it.
 	 */
 	void NotifyParrySuccess(AActor* Attacker);
 
 	/**
-	 *  Refuses **every** ability for DurationSeconds after a parry whiffed, or extends a running
-	 *  recovery to the later end time.
-	 *
-	 *  Max-extended rather than reassigned, following blockstun: two overlapping causes must never
-	 *  produce a shorter total than either alone.
+	 *  Refuses every ability for DurationSeconds after a whiffed parry, or extends a running
+	 *  recovery. Max-extended, following blockstun: two overlapping causes must never produce a
+	 *  shorter total than either alone.
 	 */
 	void ApplyParryRecovery(float DurationSeconds);
 
@@ -425,10 +388,8 @@ public:
 	bool IsInParryRecovery() const { return bInParryRecovery; }
 
 	/**
-	 *  Refuses **parry only** for DurationSeconds after a dodge ended, or extends a running gap.
-	 *
-	 *  Separate from ApplyParryRecovery: a whiffed parry refuses everything and commits the
-	 *  character, while this takes nothing but the parry.
+	 *  Refuses parry only for DurationSeconds after a dodge ended, or extends a running gap.
+	 *  Separate from ApplyParryRecovery, which refuses everything and commits the character.
 	 */
 	void ApplyDodgeRecovery(float DurationSeconds);
 
@@ -436,38 +397,31 @@ public:
 	UFUNCTION(BlueprintPure, Category="Combat|Dodge")
 	bool IsInDodgeRecovery() const { return bInDodgeRecovery; }
 
-	/**
-	 *  Ends whatever GA_Parry instance is running. Shared by the catch path, which ends it at once,
-	 *  and by the whiff's recovery expiry, which ends it later.
-	 */
+	/** Ends the running GA_Parry. Shared by the catch path and by the whiff's recovery expiry. */
 	void CancelParryAbility();
 
 	/**
-	 *  Hands movement back DelaySeconds from now, part-way through an attack that connected.
+	 *  Hands movement back DelaySeconds from now, part-way through an attack that connected. The
+	 *  on-hit waiver's movement half; the defensive half is instant, in the ability.
 	 *
-	 *  The on-hit waiver's movement half; the defensive half is instant and happens in the ability,
-	 *  by dropping the commitment tag.
-	 *
-	 *  **A release, never a lock** -- it can only return control early, so a waiver firing against
-	 *  an ability that has already ended is harmless rather than a way to strand movement.
+	 *  A release, never a lock -- it can only return control early, so a waiver firing against an
+	 *  ability that has already ended is harmless.
 	 */
 	void BeginOnHitMovementWaiver(float DelaySeconds);
 
 	/**
 	 *  The knockback's receiving half: carry this character to a fixed world destination over a
 	 *  duration, on the root-motion-source channel. The attacking ability computed the destination
-	 *  and owns the never-inward clamp; this only runs the translation. A re-hit mid-slide replaces
-	 *  the running translation, last hit wins. Server only; no-ops on the dead.
+	 *  and owns the never-inward clamp. A re-hit mid-slide replaces the running translation, last
+	 *  hit wins. Server only; no-ops on the dead.
 	 */
 	void ReceiveKnockback(const FVector& DestinationWorld, float DurationSeconds, UCurveFloat* TimeMappingCurve);
 
 	/**
-	 *  The string's per-activation gate: which swing an attack activating *now* should be.
-	 *
-	 *  Advances the index while the link window is open and a successor exists; resets to the first
-	 *  swing otherwise. Consumes the window either way -- it reopens when the new swing ends, if
-	 *  that swing is itself chainable. Lives here rather than on the ability because the string
-	 *  outlives any one activation.
+	 *  Which swing an attack activating now should be. Advances while the link window is open and a
+	 *  successor exists, resets otherwise, and consumes the window either way -- it reopens when the
+	 *  new swing ends, if that swing is chainable. Lives here because the string outlives any one
+	 *  activation.
 	 */
 	int32 ResolveStringSwingIndexForActivation(int32 SwingCount);
 
@@ -481,20 +435,18 @@ public:
 	bool HasStringLinkWindowOpen() const;
 
 	/**
-	 *  Starts the guard's minimum-duration commitment. Called by the block ability on activation.
-	 *
-	 *  Pushed from the ability rather than detected here as a rising edge on IsBlocking(), because
-	 *  an edge is what goes wrong when a guard is cancelled and resumed inside a frame.
+	 *  Starts the guard's minimum-duration commitment. Pushed from the ability rather than detected
+	 *  as a rising edge on IsBlocking(), because a guard cancelled and resumed inside a frame has no
+	 *  observable edge.
 	 */
 	void BeginBlockCommitment();
 
 	/**
-	 *  Charges BlockInitialStaminaCost. Called by the block ability once it has actually activated.
+	 *  Charges BlockInitialStaminaCost, once the block ability has activated.
 	 *
-	 *  Deliberately *not* EffectOnStart, which is how the dodge pays. That route needs a
-	 *  GameplayEffect asset, and a GameplayEffect's modifier attribute cannot be reliably configured
-	 *  through the toolset -- it accepts the write and leaves the FProperty null, so the effect
-	 *  modifies nothing and says so nowhere.
+	 *  Not EffectOnStart, which is how the dodge pays: that route needs a GameplayEffect asset, and
+	 *  a GameplayEffect's modifier attribute cannot be reliably configured through the toolset -- it
+	 *  accepts the write, leaves the FProperty null, and the effect modifies nothing silently.
 	 */
 	void PayBlockInitialCost();
 
@@ -503,32 +455,28 @@ public:
 	bool IsBlockCommitted() const;
 
 	/**
-	 *  True if this attack's origin lies inside the guard's forward arc.
+	 *  True if this attack's origin lies inside the guard's forward arc -- the spec's 180-degree
+	 *  coverage, asked in the defender's frame when the hit resolves. A hit from behind is not
+	 *  blocked however long the button has been held.
 	 *
-	 *  The spec's "180 degree forward coverage" as a single question, asked in the *defender's*
-	 *  frame at the moment the hit resolves. A hit from behind is not blocked however long the
-	 *  button has been held.
-	 *
-	 *  Measured against facing rather than the camera: the defender's body is what an attacker can
-	 *  see, and defence has to be legible from the outside. Same reason the damage wedge is
-	 *  actor-framed while aim assist is camera-framed.
+	 *  Measured against facing rather than the camera: the body is what an attacker can see, and
+	 *  defence has to be legible from outside. Same reason the damage wedge is actor-framed and aim
+	 *  assist camera-framed.
 	 */
 	UFUNCTION(BlueprintPure, Category="Combat|Block")
 	bool IsGuardFacing(const FVector& AttackOriginWorld) const;
 
 	/**
 	 *  Spends stamina from a blocked hit and breaks the guard if that empties the bar. Returns true
-	 *  if the guard broke.
+	 *  if it broke. This is the only thing that can break a guard: drain runs you to zero and leaves
+	 *  you there, damage punishes you for being there.
 	 *
-	 *  **This is the only thing that can break a guard**: drain runs you to zero and leaves you
-	 *  there, damage is what punishes you for being there.
+	 *  The condition is post-damage stamina at zero, one rule covering both damage exceeding what is
+	 *  left and damage landing on an already-empty bar. The second is why this cannot be driven from
+	 *  the stamina-changed delegate: that fires only on a change, so a hit at exactly zero moves
+	 *  nothing and is silently ignored.
 	 *
-	 *  The break condition is *post-damage stamina is zero*, one rule covering both damage exceeding
-	 *  what is left and damage landing on an already-empty bar. The second is why this cannot be
-	 *  driven from the stamina-changed delegate: that fires only on a *change*, so a hit taken at
-	 *  exactly zero would move nothing and be silently ignored.
-	 *
-	 *  Server only. The bar replicates, and the tag is applied on both sides by the state pair.
+	 *  Server only. The bar replicates; the tag is applied on both sides by the state pair.
 	 */
 	void ApplyStaminaDamage(float Amount);
 
@@ -539,62 +487,50 @@ protected:
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
 	/**
-	 *  Drops the guard and defers to the base. **Every permission check lives in UTDJumpAbility.**
-	 *
-	 *  Kept as an override only for the guard drop, which is presentation rather than permission.
-	 *  Reached solely through GA_Jump now, so anything asking "may I jump" belongs in that class or
-	 *  in the shared ability base, never here.
+	 *  Drops the guard and defers to the base. Every permission check lives in UTDJumpAbility; this
+	 *  override exists only for the guard drop, which is presentation rather than permission.
 	 */
 	virtual void Jump() override;
 
 	/**
-	 *  The dead do not turn to face the camera -- **and neither does a character mid-swing, nor one
-	 *  lying on the floor.**
+	 *  The dead do not turn to face the camera, nor does a character mid-swing or on the floor.
 	 *
-	 *  ORed with Super rather than replacing it. The base holds the attack lock, so returning only
-	 *  bDead here would discard it silently: attacks would keep tracking the camera through their
-	 *  own release window and drag an actor-frame hitbox around with them.
+	 *  ORed with Super, not replacing it: the base holds the attack lock, so returning only bDead
+	 *  would silently discard it and attacks would drag an actor-frame hitbox around with them.
 	 *
-	 *  Knockdown is here because *camera* rotation while down is fine and wanted -- the free camera
-	 *  is the aiming instrument the block get-up's latched call reads from -- while the *body*
-	 *  spinning on its back to match it is not. This gate separates exactly those two.
+	 *  Knockdown is here because camera rotation while down is wanted -- the free camera is the
+	 *  aiming instrument the block get-up reads from -- while the body spinning on its back is not.
 	 *
-	 *  **Forced facing is unaffected and must be.** TickForcedFacing writes rotation directly rather
-	 *  than through the movement component's desired-rotation path, so the rate-limited turn toward
-	 *  the attacker still runs while this refuses camera tracking.
+	 *  Forced facing is unaffected and must be: TickForcedFacing writes rotation directly rather
+	 *  than through the desired-rotation path, so the turn toward the attacker still runs.
 	 *
 	 *  Released at the stand boundary with the tag, symmetric with the movement lock.
 	 */
 	virtual bool IsFacingLocked() const override { return bDead || bKnockedDown || Super::IsFacingLocked(); }
 	/**
-	 *  **Lockouts take movement, not just abilities.**
+	 *  Lockouts take movement, not just abilities.
 	 *
-	 *  ORed with Super rather than replacing it, following IsFacingLocked directly above: the base
-	 *  holds the ability-side lock, so returning only these three would let an attack's own
-	 *  commitment be walked out of.
+	 *  ORed with Super, following IsFacingLocked above: the base holds the ability-side lock, so
+	 *  returning only these three would let an attack's own commitment be walked out of.
 	 *
-	 *  **Hitstun, the guard break and knockdown.** Deliberately not blockstun: a guard that *fails*
-	 *  costs you everything for a fixed stun, a guard that *works* costs you initiative only, so
-	 *  blockstun refuses offense while leaving the defender free to walk.
+	 *  Hitstun, the guard break and knockdown -- not blockstun, which costs initiative only and
+	 *  leaves the defender free to walk.
 	 *
-	 *  Knockdown covers the whole down state -- jail, choice window and rise alike. Movement returns
-	 *  at the stand boundary and nowhere earlier: the choice window buys *options*, not steps, and a
-	 *  rise is committed once started.
+	 *  Knockdown covers the whole down state. Movement returns at the stand boundary and nowhere
+	 *  earlier: the choice window buys options, not steps, and a rise is committed once started.
 	 */
 	virtual bool IsMovementLocked() const override { return bInHitstun || bGuardBroken || bKnockedDown || Super::IsMovementLocked(); }
 
 	/**
-	 *  Idle additionally means no ability running and no press waiting to be answered.
+	 *  Idle additionally means no ability running and no press waiting.
 	 *
-	 *  ANDed with Super rather than replacing it, so movement input and being airborne still count
-	 *  as activity. Keyed on *any* active ability rather than a list of state tags, so every future
-	 *  block, parry and stun is covered without this function being revisited.
-	 *
-	 *  The buffered press counts too: a press that was refused and stored is still a press.
+	 *  ANDed with Super, so movement input and being airborne still count as activity. Keyed on any
+	 *  active ability rather than a tag list, so future states are covered without revisiting this.
+	 *  A buffered press counts too.
 	 */
 	virtual bool IsIdle() const override;
 
-	/** The actual launch, as opposed to Jump() which only records the press. Starts the regen pause. */
+	/** The actual launch, as opposed to Jump() which records the press. Starts the regen pause. */
 	virtual void OnJumped_Implementation() override;
 
 	/** Ends the jump's regen pause, leaving JumpRegenPauseSeconds of tail behind it. */
@@ -602,11 +538,9 @@ protected:
 	virtual void PossessedBy(AController* NewController) override;
 
 	/**
-	 *  A client's PlayerState arrives *after* its pawn, so the ASC has to be resolved again here.
-	 *
-	 *  Without this a client initialises against a null PlayerState, silently falls back to the
-	 *  owned ASC, and has no abilities -- while the server, which possesses before replicating,
-	 *  works perfectly.
+	 *  A client's PlayerState arrives after its pawn, so the ASC is resolved again here. Without it
+	 *  a client initialises against a null PlayerState, falls back to the owned ASC and has no
+	 *  abilities -- while the server, which possesses before replicating, works perfectly.
 	 */
 	virtual void OnRep_PlayerState() override;
 
@@ -617,25 +551,19 @@ protected:
 	TArray<TSubclassOf<UGameplayAbility>> DefaultAbilities;
 
 	/**
-	 *  Applied to self on spawn and never removed -- the always-on effects.
-	 *
-	 *  Stamina regen is deliberately *not* here; it is orchestrated in C++ below, because the
-	 *  economy is a small state machine -- regen, a pause that outlives the action causing it, and a
-	 *  timed exhaustion lockout -- and expressing that across effects needs tag components that
-	 *  cannot be scripted in UE 5.8. Currently empty.
+	 *  Applied on spawn and never removed. Stamina regen is not here: it is orchestrated in C++
+	 *  below, because the economy is a small state machine and expressing it across effects needs
+	 *  tag components that cannot be scripted in UE 5.8. Currently empty.
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Abilities")
 	TArray<TSubclassOf<UGameplayEffect>> DefaultEffects;
 
 	/**
-	 *  Which input action drives which input tag, e.g. IA_LightAttack -> InputTag.Attack.
+	 *  Which input action drives which input tag, e.g. IA_LightAttack -> InputTag.Attack. Matched by
+	 *  tag rather than integer ID, so granting a new ability to a button is a content change.
 	 *
-	 *  Abilities are matched by tag rather than by an integer ID, so granting a new ability to a
-	 *  button is a content change rather than a C++ enum edit and rebuild.
-	 *
-	 *  **Mapped actions must use a Down trigger** (or no trigger at all), never Pressed -- a Pressed
-	 *  trigger completes on the frame after the press, while the button is still held, so the
-	 *  release edge would be lost.
+	 *  Mapped actions must use a Down trigger, or no trigger -- never Pressed, which completes on
+	 *  the frame after the press while the button is still held, losing the release edge.
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Input")
 	TMap<TObjectPtr<UInputAction>, FGameplayTag> AbilityInputActions;
@@ -643,95 +571,79 @@ protected:
 	/**
 	 *  How long a press nothing could answer keeps trying, once the button is back up.
 	 *
-	 *  **It is a window on taps, not on intent.** A button still held is not a stale input, so the
-	 *  buffer does not expire while it is down; this measures from the release. That is what lets a
-	 *  heavy be buffered at all -- its boundary is beyond any window this size, so a tier above
-	 *  light can only come from a hold that outlives the window.
+	 *  A window on taps, not on intent: a held button is not stale, so this measures from the
+	 *  release. That is what lets a heavy be buffered at all -- its boundary is beyond any window
+	 *  this size, so a tier above light can only come from a hold that outlives the window.
 	 *
-	 *  Zero disables buffering entirely, which is the honest way to A/B whether it is helping.
+	 *  Zero disables buffering, which is the honest way to A/B whether it helps.
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Input", meta=(ClampMin="0.0"))
 	float InputBufferSeconds = 0.1f;
 
 	/**
-	 *  Stamina regained per second while *not* exhausted, and while regen is running at all.
+	 *  Stamina regained per second while not exhausted, and while regen is running.
 	 *
 	 *  Driven here rather than by a periodic GameplayEffect because the economy is a small state
-	 *  machine and expressing it across effects means tag components that cannot be scripted.
-	 *  Attributes and tags are still GAS; only the orchestration is here.
+	 *  machine needing tag components that cannot be scripted. Attributes and tags are still GAS.
 	 *
-	 *  This is also how fast a *dodge* becomes affordable again, so it sets the cadence of repeated
-	 *  evasion as directly as DodgeSeconds does.
+	 *  Also how fast a dodge becomes affordable again, so it sets the cadence of repeated evasion.
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Stamina", meta=(ClampMin="0.0"))
 	float StaminaRegenPerSecond = 40.0f;
 
 	/**
-	 *  Stamina regained per second *while exhausted*. Separate from StaminaRegenPerSecond so that
-	 *  being run out of stamina costs more than the bar it emptied.
+	 *  Stamina regained per second while exhausted, so being run dry costs more than the bar it
+	 *  emptied. A rate, not a duration: exhaustion ends when stamina reaches Max and nowhere else,
+	 *  so the bar stays the single source of truth.
 	 *
-	 *  A *rate*, not a duration: exhaustion ends when stamina reaches Max and at no other moment, so
-	 *  the bar remains the single source of truth for how long it lasts.
-	 *
-	 *  **Zero is forbidden.** Regen is the only thing that can end exhaustion, so a rate of zero is
-	 *  not "no recovery" -- it is a character exhausted permanently, with every defensive action
-	 *  locked out for the rest of the match. The clamp is load-bearing. See TickStaminaRegen.
+	 *  Zero is forbidden. Regen is the only thing that ends exhaustion, so a rate of zero is not "no
+	 *  recovery" but permanent exhaustion. The clamp is load-bearing. See TickStaminaRegen.
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Stamina", meta=(ClampMin="0.01"))
 	float ExhaustedStaminaRegenPerSecond = 25.0f;
 
 	/**
-	 *  How long regen stays suppressed *after* the last action carrying StaminaRegenPausedTag ends.
-	 *
-	 *  Measured from the end, not the start, so it is a genuine tax on acting rather than something
-	 *  a long action absorbs for free. Shared by every such ability, attacks included, so an attack
-	 *  is taxed for its whole windup, release and recovery, plus this.
+	 *  How long regen stays suppressed after the last action carrying StaminaRegenPausedTag ends.
+	 *  Measured from the end, so it is a tax on acting rather than something a long action absorbs.
+	 *  Shared by every such ability, attacks included.
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Stamina", meta=(ClampMin="0.0"))
 	float StaminaRegenPauseSeconds = 1.0f;
 
 	/**
-	 *  How long regen stays suppressed after *landing* from a jump.
+	 *  How long regen stays suppressed after landing from a jump. Jumping costs no stamina but is
+	 *  not free -- height and airtime are paid in recovery. Shorter than
+	 *  StaminaRegenPauseSeconds because a jump is a weaker commitment.
 	 *
-	 *  Jumping costs no stamina but is not free: regen is suppressed from the jump until this long
-	 *  after landing, so height and airtime are paid for in recovery rather than in bar. Separate
-	 *  from StaminaRegenPauseSeconds because a jump is a weaker commitment.
-	 *
-	 *  Keyed to the jump *action*, never to being airborne -- walking off a ledge is not something
-	 *  you did, and costs nothing.
+	 *  Keyed to the jump action, never to being airborne: walking off a ledge costs nothing.
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Stamina", meta=(ClampMin="0.0"))
 	float JumpRegenPauseSeconds = 0.5f;
 
 	// ---- Knockdown ------------------------------------------------------------------------
 	//
-	// **Both grades total 2.5 s and begin their forced rise at 2.0.** The split between jail and
-	// choice is what the grade decides; the total is deliberately invariant, because everything
-	// derived from it would otherwise need re-deriving per grade. Each grade's split is its own dial
-	// if either misreads in play; the total is not.
+	// Both grades total 2.5 s and begin their forced rise at 2.0. The grade decides the jail/choice
+	// split; the total is invariant, because everything derived from it would otherwise need
+	// re-deriving per grade. Each split is its own dial; the total is not.
 
 	/**
-	 *  Normal grade: seconds of jail, in which every action is refused and presses buffer.
-	 *
-	 *  Held to the minimum a knockdown can be and still read as one.
+	 *  Normal grade: seconds of jail, in which every action is refused and presses buffer. Held to
+	 *  the minimum a knockdown can be and still read as one.
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Knockdown", meta=(ClampMin="0.0"))
 	float KnockdownJailSecondsNormal = 1.0f;
 
 	/**
-	 *  Normal grade: seconds of choice window, in which get-up options are legal.
-	 *
-	 *  Doubled against the lockout deliberately -- the fast layer's knockdowns are escape-rich, and
-	 *  boundary oki against them is light-only.
+	 *  Normal grade: seconds of choice window. Doubled against the lockout -- the fast layer's
+	 *  knockdowns are escape-rich, and boundary oki against them is light-only.
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Knockdown", meta=(ClampMin="0.0"))
 	float KnockdownChoiceSecondsNormal = 1.0f;
 
 	/**
-	 *  Hard grade: seconds of jail. **The meaner half of the same total.**
-	 *
-	 *  1.5 against normal's 1.0 holds every exit back far enough that a committed follow-up's
-	 *  arrival window overlaps the forced rise. That overlap is the whole of hard oki.
+	 *  Hard grade: seconds of jail. The meaner half of the same total -- 1.5 against normal's 1.0
+	 *  holds every exit back far enough that a committed follow-up's arrival overlaps the forced
+	 *  rise, which is the whole of hard oki.
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Knockdown", meta=(ClampMin="0.0"))
 	float KnockdownJailSecondsHard = 1.5f;
@@ -741,25 +653,23 @@ protected:
 	float KnockdownChoiceSecondsHard = 0.5f;
 
 	/**
-	 *  Seconds a rise takes, shared by both grades and by every way of starting one.
-	 *
-	 *  **Shared deliberately**: the clips are rate-fitted to this, and keeping it grade-invariant is
-	 *  what keeps both grades standing at 2.5. A rise is fully committed once started, so this is
-	 *  also the width of the meaty window a chosen stand is choosing *when* to open.
+	 *  Seconds a rise takes, shared by both grades and every way of starting one. The clips are
+	 *  rate-fitted to it, and keeping it grade-invariant is what keeps both grades standing at 2.5.
+	 *  A rise is committed once started, so this is also the width of the meaty window a chosen
+	 *  stand is choosing when to open.
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Knockdown", meta=(ClampMin="0.01"))
 	float KnockdownRiseSeconds = 0.5f;
 
 	/**
-	 *  How far from the attacker a knocked-down body is carried, along the attacker->victim bearing.
+	 *  How far a knocked-down body is carried, along the attacker->victim bearing.
 	 *
-	 *  **Radial, not along the attacker's facing, and the two axes are never to be unified.** The
-	 *  string's forward knockback centres on the facing axis because the next hit needs its target
-	 *  in front; a knockdown radiates, so a side target flies to its own side and a crowd scatters.
+	 *  Radial, not along the attacker's facing, and the two axes are never unified: the string's
+	 *  knockback centres on facing because the next hit needs its target in front, while a knockdown
+	 *  radiates so a side target flies to its own side and a crowd scatters.
 	 *
-	 *  Farther than the knockback by design -- a full light's coverage of separation, so re-engaging
-	 *  the riser costs real travel. **Coupled to MaxReachCm**: pushing it below a branch's reach
-	 *  would let a standing attacker touch the floor.
+	 *  Farther than the knockback, so re-engaging the riser costs real travel. Coupled to
+	 *  MaxReachCm: below a branch's reach, a standing attacker could touch the floor.
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Knockdown", meta=(ClampMin="0.0"))
 	float KnockdownSpacingCm = 450.0f;
@@ -768,38 +678,35 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Knockdown", meta=(ClampMin="0.01"))
 	float KnockdownCarrySeconds = 0.35f;
 
-	/** Optional shape for the carry, exactly as the knockback's curve. **Must average 1.0.** */
+	/** Optional shape for the carry, as the knockback's curve. Must average 1.0. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Knockdown")
 	TObjectPtr<UCurveFloat> KnockdownCarryTimeMappingCurve;
 
 	/**
-	 *  Degrees per second the body turns to face its attacker after **any** clean hit.
+	 *  Degrees per second the body turns to face its attacker after any clean hit.
 	 *
-	 *  **Derived, not free.** 180 degrees must complete well inside the shortest hitstun anyone can
-	 *  actually feel, or a victim is still turning when they regain control -- which reads as the hit
-	 *  having spun them rather than faced them. The floor is 180 / that hitstun, and the
-	 *  `HitstunSeconds` to derive against is the shortest *felt* one, not the ladder's minimum:
-	 *  knockdown repurposed the heavy's and charged's into attacker-side oki knobs nobody feels.
+	 *  Derived, not free: 180 degrees must complete well inside the shortest hitstun anyone can
+	 *  feel, or a victim is still turning when they regain control. The floor is 180 / that hitstun,
+	 *  and the `HitstunSeconds` to derive against is the shortest *felt* one -- knockdown repurposed
+	 *  the heavy's and charged's into attacker-side oki knobs nobody feels.
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Knockdown", meta=(ClampMin="1.0"))
 	float ForcedFacingTurnRateDegrees = 720.0f;
 
 	/**
-	 *  Played on entering the down state. Rate derived as `length / KnockdownCarrySeconds`, so the
-	 *  fall covers exactly the carry.
+	 *  Played on entering the down state. Rate derived as `length / KnockdownCarrySeconds`.
 	 *
-	 *  **Authored with `bEnableAutoBlendOut` false**, which is what lets the last frame hold as the
-	 *  ground pose for the jail and choice window. A montage that blends itself out here leaves the
-	 *  body standing in idle while the state machine still has it on the floor.
+	 *  Authored with `bEnableAutoBlendOut` false, which lets the last frame hold as the ground pose
+	 *  for the jail and choice window. A montage that blends itself out leaves the body standing in
+	 *  idle while the state machine still has it on the floor.
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Knockdown")
 	TObjectPtr<UAnimMontage> KnockdownMontage;
 
 	/**
 	 *  Played when a normal-grade rise begins. Rate derived as `length / KnockdownRiseSeconds`.
-	 *
-	 *  Covers the auto-rise, the neutral stand and the block get-up -- every exit that does not bring
-	 *  its own animation. The dodge does; see UTDGameplayAbility::BringsOwnRiseMontage.
+	 *  Covers the auto-rise, the neutral stand and the block get-up; the dodge brings its own, see
+	 *  UTDGameplayAbility::BringsOwnRiseMontage.
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Knockdown")
 	TObjectPtr<UAnimMontage> RiseMontage;
@@ -809,11 +716,9 @@ protected:
 	TObjectPtr<UAnimMontage> RiseHardMontage;
 	/**
 	 *  Present while an action that suppresses regen is running, via that ability's owned tags.
-	 *
-	 *  Regen watches for this rather than each ability telling it to stop, so an ability that is
-	 *  cancelled or interrupted cannot leave regen suppressed forever. The assets are authoritative
-	 *  for who suppresses regen; nothing in C++ names them, which is what makes adding a fourth a
-	 *  content change.
+	 *  Regen watches for the tag rather than each ability telling it to stop, so a cancelled ability
+	 *  cannot leave regen suppressed forever. The assets are authoritative for who suppresses; no
+	 *  C++ names them, which makes adding a fourth a content change.
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Stamina")
 	FGameplayTag StaminaRegenPausedTag;
@@ -821,175 +726,147 @@ protected:
 	/**
 	 *  Applied when stamina reaches zero, and what defensive abilities block on.
 	 *
-	 *  **Cleared when stamina reaches Max again, not on a timer.** Recovery is the thing that ends
-	 *  exhaustion, so the punishment scales with how empty you ran yourself, and there is no second
-	 *  number that can disagree with the bar.
+	 *  Cleared when stamina reaches Max, not on a timer: the punishment scales with how empty you
+	 *  ran yourself, and no second number can disagree with the bar. Regen continues while exhausted
+	 *  -- it is a lockout on acting, not on recovering, and regen is the only thing that ends it.
 	 *
-	 *  Regen deliberately continues while exhausted -- exhaustion is a lockout on acting, not on
-	 *  recovering, and regen is the only thing that can end it.
-	 *
-	 *  **The regen pause is the one thing that still suppresses it.** Holding an action at zero can
-	 *  therefore suppress recovery for as long as it is held, which is a choice with an obvious exit
-	 *  rather than a trap: releasing is always available, and a guard held at zero accomplishes
-	 *  nothing anyway since anything it blocks breaks it.
+	 *  The regen pause still suppresses it, so holding an action at zero suppresses recovery for as
+	 *  long as it is held. That is a choice with an obvious exit rather than a trap: releasing is
+	 *  always available, and a guard held at zero accomplishes nothing anyway.
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Stamina")
 	FGameplayTag ExhaustedTag;
 
 	/**
-	 *  Present while a guard is held, via GA_Block's owned tags. Drives the drain below.
-	 *
-	 *  Read from the character rather than the ability draining itself, because every other stamina
-	 *  rule already lives here precisely so they cannot disagree, and a second spender running on an
-	 *  ability's own clock would be the first thing able to.
+	 *  Present while a guard is held, via GA_Block's owned tags. Drives the drain below. Read from
+	 *  the character rather than the ability draining itself, because every other stamina rule lives
+	 *  here so they cannot disagree.
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Block")
 	FGameplayTag BlockingTag;
 
 	/**
-	 *  Stamina spent per second for as long as a guard is held. **Drain, not damage.**
+	 *  Stamina spent per second while a guard is held. Drain, not damage.
 	 *
-	 *  Self-inflicted: it runs the bar down and parks it at zero, harmlessly, for as long as the
-	 *  player cares to hold. What it buys the attacker is that the defender stops being able to
-	 *  *absorb* anything -- a guard at zero breaks to the very next blocked hit.
-	 *
-	 *  So this is not a countdown on how long you may block; it is how fast holding a guard converts
-	 *  into risk, which is why raising it makes blocking more committal without taking the option
-	 *  away.
+	 *  Self-inflicted: it runs the bar to zero and parks there harmlessly. What it buys the attacker
+	 *  is that the defender stops being able to absorb anything -- a guard at zero breaks to the
+	 *  next blocked hit. So it is not a countdown on how long you may block; it is how fast holding
+	 *  a guard converts into risk.
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Block", meta=(ClampMin="0.0"))
 	float BlockDrainPerSecond = 10.0f;
 
 	/**
-	 *  How long a broken guard is stunned for, and how long regen stays suppressed across it.
+	 *  How long a broken guard is stunned, and how long regen stays suppressed across it.
 	 *
-	 *  **One number for both deliberately.** The stun and the suppression are the same event seen
-	 *  from two sides, and authoring them apart would allow the pair that makes no sense -- regen
-	 *  resuming while you are still stunned for it.
+	 *  One number for both: the stun and the suppression are the same event from two sides, and
+	 *  authoring them apart allows regen resuming while you are still stunned for it.
 	 *
-	 *  StaminaRegenPauseSeconds runs *after* this rather than instead of it, because the regen tick
-	 *  takes the max of every live suppressor rather than assigning.
-	 *
-	 *  Bounded, which is what keeps it a cost rather than a deadlock.
+	 *  StaminaRegenPauseSeconds runs after this rather than instead, because the regen tick takes
+	 *  the max of every live suppressor. Bounded, which keeps it a cost rather than a deadlock.
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Block", meta=(ClampMin="0.0"))
 	float GuardBreakStunSeconds = 1.0f;
 
 	/**
-	 *  Ground speed cap while a guard is up. Authored, not derived -- a braced shuffle rather than a
-	 *  walk.
+	 *  Ground speed cap while a guard is up. Authored, not derived -- a braced shuffle.
 	 *
-	 *  **Recorded as a relationship to MaxWalkSpeed, not implemented as one**: it stays a number to
-	 *  tune, so changing MaxWalkSpeed will not move it and should prompt a second look here.
-	 *
-	 *  Restored from the value captured at BeginPlay rather than to a constant, so a Blueprint that
-	 *  authors a different MaxWalkSpeed is not silently overwritten.
+	 *  Recorded as a relationship to MaxWalkSpeed but not implemented as one: changing MaxWalkSpeed
+	 *  will not move it and should prompt a second look here. Restored from the value captured at
+	 *  BeginPlay, so a Blueprint authoring a different MaxWalkSpeed is not overwritten.
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Block", meta=(ClampMin="0.0"))
 	float BlockingMaxWalkSpeed = 125.0f;
 
 	/**
-	 *  Ground speed cap while exhausted. Authored, not derived, exactly as the guard's cap is, and
-	 *  recorded as a relationship to MaxWalkSpeed rather than implemented as one.
+	 *  Ground speed cap while exhausted. Authored, and recorded as a relationship to MaxWalkSpeed
+	 *  rather than implemented as one, exactly as the guard's cap is. Being run dry should read in
+	 *  the body before the player checks a bar.
 	 *
-	 *  Being run dry should read in the body before the player checks a bar.
-	 *
-	 *  **Combines with the guard's cap by taking the slower**, which is reachable rather than
-	 *  theoretical: raising a guard you cannot afford exhausts you with the guard still up. Both are
-	 *  penalties, so the minimum is the only combination that cannot be gamed by entering states in
-	 *  the right order.
+	 *  Combines with the guard's cap by taking the slower, which is reachable: raising a guard you
+	 *  cannot afford exhausts you with the guard still up. Both are penalties, so the minimum is the
+	 *  only combination that cannot be gamed by entering states in the right order.
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Stamina", meta=(ClampMin="0.0"))
 	float ExhaustedMaxWalkSpeed = 400.0f;
 
 	/**
-	 *  How long a raised guard is committed for. **Locking: nothing but movement is allowed.**
+	 *  How long a raised guard is committed for. Locking: nothing but movement is allowed.
 	 *
-	 *  Without a floor the guard can be feathered at input speed, and `attack > block > attack >
-	 *  block` reads as unfinished. **It has to gate the attack to do anything at all** -- a floor
-	 *  that only holds the guard up while attacking still cancels out of it changes nothing. So this
-	 *  is a deliberate narrowing of "whichever comes last wins": that still holds between block,
-	 *  dodge and attack, *except* inside this window, where the guard has already won.
+	 *  Without a floor the guard is featherable at input speed. It must gate the attack to do
+	 *  anything -- narrowing "whichever comes last wins" for this window only, where the guard has
+	 *  already won.
 	 *
-	 *  Releasing inside the window does not lower the guard early; it schedules the drop for the
-	 *  moment the window ends, and the guard defends for the whole of it.
-	 *
-	 *  Responsiveness comes from the input buffer rather than from shortening this: an attack
-	 *  pressed inside the window is refused, buffered, and fires the instant it expires.
+	 *  Releasing inside the window schedules the drop for its end rather than lowering the guard
+	 *  early. Responsiveness comes from the input buffer: an attack pressed inside is refused,
+	 *  buffered, and fires the instant it expires.
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Block", meta=(ClampMin="0.0"))
 	float MinimumBlockSeconds = 0.25f;
 
 	/**
-	 *  Stamina taken once, the moment a guard goes up. Zero by default, so it costs nothing to raise.
+	 *  Stamina taken once as a guard goes up. Zero by default, so raising costs nothing.
 	 *
-	 *  **Paid, never required**, like every cost in this project: raising a guard at 4 stamina with a
-	 *  cost of 5 works, empties the bar and exhausts you. The guard still does everything it would
-	 *  have done, including cancelling an attack -- GAS applies an ability's cancel tags during
-	 *  activation, before this is charged, so the attack is already gone by the time the exhaustion
-	 *  lands.
+	 *  Paid, never required, like every cost here: raising a guard at 4 stamina with a cost of 5
+	 *  works, empties the bar and exhausts you. The guard still does everything it would have,
+	 *  including cancelling an attack -- GAS applies cancel tags during activation, before this is
+	 *  charged.
 	 *
-	 *  **It is not a guard break.** Nothing is broken and there is no stun. Breaking remains the sole
-	 *  preserve of stamina *damage*.
+	 *  Not a guard break: nothing is broken and there is no stun. Breaking is the sole preserve of
+	 *  stamina damage.
 	 *
-	 *  Charged on every activation, including a resume: **a resume is an intended block, and all
-	 *  blocks are created equal.** With a non-zero value, holding a guard through a swing therefore
-	 *  pays twice, because it is two guards.
+	 *  Charged on every activation including a resume -- a resume is an intended block, and all
+	 *  blocks are created equal. With a non-zero value, holding a guard through a swing pays twice,
+	 *  because it is two guards.
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Block", meta=(ClampMin="0.0"))
 	float BlockInitialStaminaCost = 0.0f;
 
 	/**
-	 *  Stamina paid to the parrier when a parry lands. The one *authored* half of the reward.
+	 *  Stamina paid to the parrier when a parry lands -- the one authored half of the reward, and a
+	 *  flat refund that makes a correct read pay rather than merely cost nothing. Per parry, not per
+	 *  tier.
 	 *
-	 *  Everything else a parry pays out is derived, so this is the deliberate exception: a flat
-	 *  refund that makes a correct read *pay* rather than merely cost nothing, paid per parry rather
-	 *  than per tier.
-	 *
-	 *  Lives here rather than on GA_Parry because the stamina economy is orchestrated in one place.
-	 *  Clamped by the attribute set like every other write, so a reward at full stamina is silently
-	 *  free rather than an overflow.
+	 *  Lives here because the stamina economy is orchestrated in one place. Clamped by the attribute
+	 *  set, so a reward at full stamina is silently free rather than an overflow.
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Parry", meta=(ClampMin="0.0"))
 	float ParryStaminaReward = 25.0f;
 
 	/**
-	 *  **Parry Grace** -- how long a successful parry keeps protecting you after it lands.
+	 *  Parry Grace: how long a successful parry keeps protecting you after it lands.
 	 *
-	 *  **The problem it solves is 1vX.** A catch closes the window, so one press answers exactly one
-	 *  attack -- unanswerable when two arrive together, because no human presses twice that fast.
-	 *  Grace waives the second press for *simultaneous* hits only, simultaneous being this value:
-	 *  **one parry per incoming attack, unless the attacks are simultaneous.**
+	 *  Solves 1vX. A catch closes the window, so one press answers exactly one attack -- unanswerable
+	 *  when two arrive together, because no human presses twice that fast. Grace waives the second
+	 *  press for simultaneous hits only, simultaneous being this value: one parry per incoming
+	 *  attack, unless the attacks are simultaneous.
 	 *
-	 *  **Derived, not chosen:** 150 ms is the interval most humans cannot beat. Re-derive it against
-	 *  that, never against feel.
+	 *  Derived, not chosen: 150 ms is the interval most humans cannot beat. Re-derive against that,
+	 *  never against feel.
 	 *
-	 *  Three properties it deliberately does **not** have:
-	 *  - **It does not re-arm.** Only a catch by an open *window* starts a tail; a catch made by
-	 *    Grace itself pays the full reward and starts nothing.
-	 *  - **It gates no input whatsoever, including a fresh parry.** It aids, it never restricts.
-	 *  - **It jails nothing.** A successful parry frees you instantly and Grace does not take that
-	 *    back, so you are mechanically free *and* protected for its duration.
+	 *  Three properties it deliberately lacks:
+	 *  - It does not re-arm. Only a catch by an open window starts a tail; a catch by Grace itself
+	 *    pays the full reward and starts nothing.
+	 *  - It gates no input, including a fresh parry. It aids, never restricts.
+	 *  - It jails nothing. A successful parry frees you instantly and Grace does not take that back.
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Parry", meta=(ClampMin="0.0"))
 	float ParryGraceSeconds = 0.15f;
 
 	/**
-	 *  Collapse into a ragdoll on death.
+	 *  Collapse into a ragdoll on death -- the cheapest unambiguous read, needing no animation
+	 *  content.
 	 *
-	 *  The cheapest unambiguous read that death has happened, and it needs no animation content.
-	 *
-	 *  **Requires a physics asset on the mesh or physics silently does nothing.** Ours has one
+	 *  Requires a physics asset on the mesh or physics silently does nothing. Ours has one
 	 *  (`PA_Mannequin`, on the bundle's `SKM_Manny`); a mesh without one dies standing up.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat|Death")
 	bool bRagdollOnDeath = true;
 
 	/**
-	 *  Debug only: seconds after death before reviving at full. 0 disables the auto-revive.
-	 *
-	 *  Death is deliberately the *minimum*: a state that stops the character acting, so the health
-	 *  bar means something and damage observations after a kill are not garbage.
+	 *  Debug only: seconds after death before reviving at full. 0 disables it. Death is deliberately
+	 *  the minimum -- a state that stops the character acting, so the health bar means something and
+	 *  damage observations after a kill are not garbage.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat|Debug", meta=(ClampMin="0.0"))
 	float DebugAutoReviveSeconds = 3.0f;
@@ -1004,7 +881,6 @@ protected:
 
 	/**
 	 *  Debug only: throw DebugAttackInputTag on a loop, so the dummy can be defended against.
-	 *
 	 *  Defensive work is unjudgeable against a target that never attacks. Off by default.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat|Debug")
@@ -1019,10 +895,8 @@ protected:
 	float DebugAutoAttackInterval = 3.0f;
 
 	/**
-	 *  How long the auto-attack holds the button, which selects the tier it throws.
-	 *
-	 *  The hold thresholds live on GA_Attack's Branches, so this is how you aim the dummy at a
-	 *  light, a heavy or a charged: 0.1 for light, 0.3 for heavy, 0.8 for charged.
+	 *  How long the auto-attack holds the button, which selects the tier. The thresholds live on
+	 *  GA_Attack's Branches: 0.1 for light, 0.3 for heavy, 0.8 for charged.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat|Debug", meta=(ClampMin="0.0"))
 	float DebugAutoAttackHoldSeconds = 0.1f;
@@ -1030,36 +904,33 @@ protected:
 	/**
 	 *  Snap the auto-attacker back to its spawn transform. Debug only.
 	 *
-	 *  Attack montages carry root motion, so an attacker on a loop walks itself across the level.
-	 *  Preferred over zeroing AnimRootMotionTranslationScale: suppressing the lunge would shorten
-	 *  the dummy's effective reach, and reach is what spacing tests measure.
+	 *  Attack montages carry root motion, so an attacker on a loop walks across the level. Preferred
+	 *  over zeroing AnimRootMotionTranslationScale, which would shorten the dummy's reach -- and
+	 *  reach is what spacing tests measure.
 	 *
-	 *  Fires when the swing *ends*, so the attacker spends the gap between attacks where it was
-	 *  placed. It also fires before each swing, normally a no-op but covering an ability that was
-	 *  cancelled and so never ended cleanly.
+	 *  Fires when the swing ends, and again before each swing: normally a no-op, but covering an
+	 *  ability that was cancelled and never ended cleanly.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat|Debug")
 	bool bDebugAutoAttackResetPosition = true;
 
 	/**
-	 *  Extra delay after the attack ability ends before the reset fires. Debug only.
-	 *
-	 *  The ability ends when its montage blends out, which is noticeably earlier than the swing
-	 *  looks finished, so resetting on that edge alone snaps the attacker home mid-follow-through.
+	 *  Extra delay after the attack ends before the reset fires. The ability ends when its montage
+	 *  blends out, noticeably earlier than the swing looks finished, so resetting on that edge alone
+	 *  snaps the attacker home mid-follow-through.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat|Debug", meta=(ClampMin="0.0"))
 	float DebugAutoAttackResetDelaySeconds = 0.35f;
 
 	/**
-	 *  How many attack taps one auto-attack cycle throws, at string cadence. Debug only.
+	 *  How many attack taps one cycle throws, at string cadence. Debug only.
 	 *
-	 *  1 -- the default -- is the pre-string behaviour exactly, which is what keeps every existing
-	 *  scenario's fixture untouched. Above 1, each subsequent tap lands during the previous swing,
-	 *  so the buffer extension and the chain-out are exercised the way a mashing human exercises
-	 *  them. The home-position reset waits for the burst to finish; a teleport mid-string would
-	 *  sever the very spacing chain s4 measures.
+	 *  1 is the pre-string behaviour exactly, which keeps every existing scenario's fixture
+	 *  untouched. Above 1, each tap lands during the previous swing, exercising the buffer extension
+	 *  and the chain-out the way a mashing human does. The home reset waits for the burst; a
+	 *  teleport mid-string would sever the spacing chain s4 measures.
 	 *
-	 *  **The whole burst must fit inside DebugAutoAttackInterval**, exactly as the single attack must.
+	 *  The whole burst must fit inside DebugAutoAttackInterval, as the single attack must.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat|Debug", meta=(ClampMin="1"))
 	int32 DebugAutoAttackStringTaps = 1;
@@ -1071,46 +942,44 @@ protected:
 	/**
 	 *  Whether this auto-attacker turns to face its target, and when. Debug only.
 	 *
-	 *  **The turn itself needs nothing but a focus.** A possessed pawn with no focus has
-	 *  AAIController copying its control rotation *from the pawn* every tick
-	 *  (bSetControlRotationFromPawnOrientation, on by default), so the rotation error is permanently
-	 *  zero and every turn rate multiplies nothing. A focus points the control rotation at the
-	 *  target and CharacterMovementComponent closes the gap at RotationRate.Yaw.
+	 *  The turn needs nothing but a focus. A possessed pawn with no focus has AAIController copying
+	 *  its control rotation from the pawn every tick (bSetControlRotationFromPawnOrientation, on by
+	 *  default), so the rotation error is permanently zero and every turn rate multiplies nothing. A
+	 *  focus points the control rotation at the target and CharacterMovementComponent closes the gap
+	 *  at RotationRate.Yaw.
 	 *
-	 *  Parity is then inherited rather than configured: IsIdle() returns false while any ability is
-	 *  active, so a swinging dummy turns at TurnRateDegrees exactly as a swinging player does.
-	 *  CoilTurnRateDegrees is the one rate it cannot reach while the hold selects the light.
+	 *  Parity is then inherited: IsIdle() is false while any ability is active, so a swinging dummy
+	 *  turns at TurnRateDegrees exactly as a swinging player does. CoilTurnRateDegrees is the one
+	 *  rate it cannot reach while the hold selects the light.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat|Debug")
 	ETDDebugFacingMode DebugAutoAttackFacingMode = ETDDebugFacingMode::Never;
 
 	/**
-	 *  Take the *next* target each swing instead of always the nearest.
+	 *  Take the next target each swing instead of always the nearest. Default false, so existing
+	 *  scenarios are untouched.
 	 *
-	 *  Default false, so every existing scenario is untouched. Nearest-target selection makes the
-	 *  attacker **chase**: it lunges after the victim its own knockback just pushed away, so the
-	 *  pair travel together and any third body is left behind -- harmless in a single-defender
-	 *  fixture and fatal in a multi-target one.
+	 *  Nearest-target selection makes the attacker chase: it lunges after the victim its own
+	 *  knockback pushed away, so the pair travel together and a third body is left behind --
+	 *  harmless in a single-defender fixture, fatal in a multi-target one.
 	 *
-	 *  Rotation advances **per attack, not per burst.** A chained string is three attacks, not one
-	 *  attack in three parts, so a fixture re-targeting only when a burst begins still chases one
-	 *  victim through all three.
+	 *  Rotation advances per attack, not per burst: a chained string is three attacks, so a fixture
+	 *  re-targeting only at burst start still chases one victim through all three.
 	 *
 	 *  Candidates are ordered by name, so the cycle is identical across runs. Ordering by distance
-	 *  would reshuffle as knockback moves bodies about, which is the thing being escaped.
+	 *  would reshuffle as knockback moves bodies about.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat|Debug")
 	bool bDebugAutoAttackRotateTargets = false;
 
 	/**
-	 *  Teleport home after **every** attack rather than only at a burst's end.
+	 *  Teleport home after every attack rather than only at a burst's end. Default false, and
+	 *  load-bearing: `s4-string` measures the spacing chain a connecting string produces, and a
+	 *  teleport between attacks would sever it.
 	 *
-	 *  Default false, and the default is load-bearing: `s4-string` measures the spacing chain a
-	 *  connecting string produces, and a teleport between attacks would sever it.
-	 *
-	 *  What it buys is a **stationary attacker**, the whole requirement for testing a 360-degree
-	 *  volume. An attacker whiffing into empty space has an open standoff gate and travels its full
-	 *  authored lunge, so without this it leaves both targets behind after one attack.
+	 *  What it buys is a stationary attacker, the whole requirement for testing a 360-degree volume.
+	 *  An attacker whiffing into empty space has an open standoff gate and travels its full lunge,
+	 *  so without this it leaves both targets behind after one attack.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat|Debug")
 	bool bDebugAutoAttackHomeBetweenAttacks = false;
@@ -1118,10 +987,9 @@ protected:
 	/**
 	 *  On landing a clean hit, immediately press dodge. Debug only, off by default.
 	 *
-	 *  **The on-hit waiver's only unattended witness.** The waiver frees defensive actions the
-	 *  instant an attack connects, and nothing else in the fixture set ever asks an *attacker* to
-	 *  defend. What it produces is a DODGE line between the attacker's own DAMAGED and the end of
-	 *  its recovery; before the waiver, that press appeared as REFUSED instead.
+	 *  The on-hit waiver's only unattended witness: the waiver frees defensive actions the instant
+	 *  an attack connects, and nothing else in the fixture set asks an attacker to defend. Produces
+	 *  a DODGE line between the attacker's own DAMAGED and the end of its recovery.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat|Debug")
 	bool bDebugDodgeAfterHit = false;
@@ -1129,33 +997,31 @@ protected:
 	/**
 	 *  Press block a fixed delay after each auto-attack press, cancelling the swing. Debug only.
 	 *
-	 *  **The unattended witness for the pre-commit cancel**, which nothing else in the fixture set
-	 *  can produce: the auto-attacker only attacks and the auto-defender never attacks. It matters
-	 *  more since the on-hit waiver, which loosens when defensive actions are permitted -- so the
-	 *  *other* boundary, that a committed swing still cannot be cancelled, wants a standing
-	 *  assertion rather than trust.
+	 *  The unattended witness for the pre-commit cancel, which nothing else can produce: the
+	 *  auto-attacker only attacks and the auto-defender never attacks. It matters more since the
+	 *  on-hit waiver loosened when defensive actions are permitted, so the other boundary -- a
+	 *  committed swing still cannot be cancelled -- wants a standing assertion.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat|Debug")
 	bool bDebugCancelAttackIntoBlock = false;
 
 	/**
-	 *  Delay from the auto-attack press to the cancelling block press, in seconds.
-	 *
-	 *  Default 0.10, inside the light's 0.15 commit boundary with 50 ms to spare -- the cancel must
-	 *  land *before* State.Attacking.Committed or the scenario measures a refusal rather than a
-	 *  cancel. Raise it above the boundary deliberately to assert the opposite.
+	 *  Delay from the auto-attack press to the cancelling block press. Default 0.10, inside the
+	 *  light's 0.15 commit boundary with 50 ms to spare -- the cancel must land before
+	 *  State.Attacking.Committed or the scenario measures a refusal. Raise it above the boundary
+	 *  deliberately to assert the opposite.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat|Debug", meta=(ClampMin="0.0"))
 	float DebugCancelAfterPressSeconds = 0.10f;
 
 	/**
-	 *  Suppress **every** lunge this character would start -- base, per-attack, and the dodge's.
-	 *  Fixture-only, defaulted off, and checked in UTDGameplayAbility::StartLunge because that is
-	 *  the single function they all route through. Logs `LUNGE SKIP` so it is never silently on.
+	 *  Suppress every lunge this character would start -- base, per-attack and the dodge's.
+	 *  Fixture-only, off by default, checked in UTDGameplayAbility::StartLunge because that is the
+	 *  single function they route through. Logs `LUNGE SKIP` so it is never silently on.
 	 *
-	 *  This is what a *stationary* attacker actually requires, and bDebugAutoAttackHomeBetweenAttacks
-	 *  is not a substitute: the lunge and the release window both happen **inside one attack**, so
-	 *  re-homing afterwards leaves the hitbox having already gone live wherever the travel ended.
+	 *  This is what a stationary attacker requires, and bDebugAutoAttackHomeBetweenAttacks is not a
+	 *  substitute: the lunge and the release window both happen inside one attack, so re-homing
+	 *  afterwards leaves the hitbox having gone live wherever the travel ended.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat|Debug")
 	bool bDebugSuppressLunge = false;
@@ -1163,10 +1029,9 @@ protected:
 	/**
 	 *  Debug only: defend on a loop, so the defensive economy can be watched without a human.
 	 *
-	 *  The mirror of bDebugAutoAttack, and pairing it with one is deliberately *two actors' job*. An
-	 *  attacker that also defends is two fixtures interfering -- a guard cancels an attack's startup
-	 *  and the attack's own tags refuse the guard -- so one of each is what produces a readable
-	 *  exchange.
+	 *  The mirror of bDebugAutoAttack, and pairing them is two actors' job: an attacker that also
+	 *  defends is two fixtures interfering -- a guard cancels an attack's startup and the attack's
+	 *  tags refuse the guard.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat|Debug")
 	ETDDebugDefendMode DebugAutoDefendMode = ETDDebugDefendMode::Off;
@@ -1186,10 +1051,9 @@ protected:
 	/**
 	 *  Tap the jump input on DebugJumpIntervalSeconds. Debug only.
 	 *
-	 *  **Orthogonal to DebugAutoDefendMode rather than a member of it.** The rule it was built to
-	 *  observe -- a broken guard can no longer jump -- needs a defender that is *blocking* (to get
-	 *  broken) and *jumping* (to be refused) at the same time, which a one-mode-at-a-time enum
-	 *  cannot express.
+	 *  Orthogonal to DebugAutoDefendMode rather than a member of it: the rule it observes -- a
+	 *  broken guard can no longer jump -- needs a defender that is blocking (to get broken) and
+	 *  jumping (to be refused) at once, which a one-mode enum cannot express.
 	 *
 	 *  Reused by knockdown's neutral stand, which is also the jump input.
 	 */
@@ -1197,11 +1061,9 @@ protected:
 	bool bDebugPeriodicJump = false;
 
 	/**
-	 *  Seconds between one auto-jump and the next. Debug only.
-	 *
-	 *  **Co-prime with the attacker's cycle for the reason the parry's interval is**: a period that
-	 *  divided the attacker's would sample one phase of the exchange forever, and the question here
-	 *  is whether presses land inside a lockout -- which only some of them will.
+	 *  Seconds between one auto-jump and the next. Co-prime with the attacker's cycle, for the
+	 *  reason the parry's interval is: a dividing period samples one phase forever, and the question
+	 *  is whether presses land inside a lockout -- which only some will.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat|Debug", meta=(ClampMin="0.1"))
 	float DebugJumpIntervalSeconds = 1.3f;
@@ -1213,14 +1075,13 @@ protected:
 	/**
 	 *  Seconds between one auto-parry and the next. Debug only.
 	 *
-	 *  **Must not alias against the attacker's DebugAutoAttackInterval**, or the window meets every
-	 *  swing at the same phase and the run answers one question repeatedly while looking thorough.
-	 *  A co-prime period sweeps, which is what makes a single unattended session produce both
-	 *  successes and whiffs.
+	 *  Must not alias against DebugAutoAttackInterval, or the window meets every swing at the same
+	 *  phase and the run answers one question repeatedly while looking thorough. A co-prime period
+	 *  sweeps, producing both successes and whiffs from one session.
 	 *
-	 *  **It also has to clear the recovery**, which the dodger's interval does not: a whiffed parry
-	 *  refuses defensive activations for ParryWhiffRecoverySeconds, so an interval shorter than
-	 *  window + recovery would spend most of the run measuring the fixture rather than the mechanic.
+	 *  It also has to clear the recovery, which the dodger's interval does not: a whiffed parry
+	 *  refuses defensive activations for ParryWhiffRecoverySeconds, so anything shorter than window
+	 *  + recovery spends the run measuring the fixture rather than the mechanic.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat|Debug", meta=(ClampMin="0.1"))
 	float DebugParryIntervalSeconds = 1.7f;
@@ -1228,26 +1089,22 @@ protected:
 	/**
 	 *  Hold a guard this long before each auto-parry, to spend stamina first. 0 disables it.
 	 *
-	 *  **This exists to make the parry's reward observable at all.** A parry costs nothing, so an
-	 *  unattended parrier never spends, its bar never leaves 100, and the attribute set's clamp eats
-	 *  the entire reward -- every credited sample reads `gained=0.0`. Blocking spends stamina and,
-	 *  unlike the dodge, authors **no displacement**, so it drains the parrier without moving it out
-	 *  of the exchange.
+	 *  Makes the parry's reward observable at all: a parry costs nothing, so an unattended parrier
+	 *  never spends, its bar never leaves 100, and the clamp eats the whole reward -- every credited
+	 *  sample reads `gained=0.0`. Blocking spends stamina and, unlike the dodge, authors no
+	 *  displacement, so it drains the parrier without moving it out of the exchange.
 	 *
-	 *  **Do not raise it so far that the guard breaks**: a break refuses every ability, the parry
-	 *  included, and the fixture would then measure its own guard.
+	 *  Do not raise it so far that the guard breaks: a break refuses every ability, the parry
+	 *  included, and the fixture would measure its own guard.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat|Debug", meta=(ClampMin="0.0"))
 	float DebugParryPreBlockSeconds = 0.0f;
 
 	/**
-	 *  Seconds between one auto-dodge and the next. Debug only.
-	 *
-	 *  **Co-prime with the attacker's interval rather than a round number.** A dodger whose period
-	 *  divides or multiplies DebugAutoAttackInterval meets every swing at the same phase and so
-	 *  answers one question forever; co-prime periods sweep the phase across the attack instead, so
-	 *  an unattended run covers dodging into windup, release and recovery without anyone scripting
-	 *  it. See Docs/Working-In-Unreal.md on periodic samplers.
+	 *  Seconds between one auto-dodge and the next. Co-prime with the attacker's interval rather
+	 *  than a round number: a period that divides or multiplies it meets every swing at the same
+	 *  phase and answers one question forever, while a co-prime one sweeps across windup, release
+	 *  and recovery without anyone scripting it. See Docs/Working-In-Unreal.md on periodic samplers.
 	 *
 	 *  Clamped at 0.1 for the reason the attacker's interval is: the tap must fit inside the
 	 *  interval, or the release edge lands in the next cycle.
@@ -1260,9 +1117,9 @@ public:
 	/**
 	 *  Free-form line drawn under this character's bars by ATDDebugHUD. Debug only.
 	 *
-	 *  For per-activation detail that is not worth a gameplay tag -- which way a dodge resolved,
-	 *  which parry window is open. Set it when an ability starts and clear it when the ability ends,
-	 *  or it will outlive what it describes.
+	 *  For per-activation detail not worth a gameplay tag -- which way a dodge resolved, which parry
+	 *  window is open. Set it when an ability starts and clear it when the ability ends, or it will
+	 *  outlive what it describes.
 	 */
 	UPROPERTY(Transient, BlueprintReadWrite, Category="Combat|Debug")
 	FString DebugStatusLine;
@@ -1277,28 +1134,27 @@ public:
 	/**
 	 *  Target Lock: turn the body toward whatever the camera has tagged, for the base lunge's span.
 	 *
-	 *  **Homing runs before the commit checkpoint and stops at it**, which is what stops it being
-	 *  the homing this design rejected. Tracking *after* commit would mean a defender's movement
-	 *  could no longer make an attack whiff; tracking before it costs nothing, because commit is
-	 *  where the defender's reaction window opens in the first place.
+	 *  Homing runs before the commit checkpoint and stops at it, which is what stops it being the
+	 *  homing this design rejected: tracking after commit would mean a defender's movement could no
+	 *  longer make an attack whiff, while tracking before it costs nothing.
 	 *
-	 *  What it buys is that the correction arrives *gradually*. Without it the whole turn lands in
-	 *  one frame at commit, which reads as a pop once the wedge is wide enough to matter.
+	 *  What it buys is that the correction arrives gradually. Without it the whole turn lands in one
+	 *  frame at commit, which reads as a pop once the wedge is wide enough to matter.
 	 *
 	 *  Set at activation with the first branch's wedge, since every tier shares the windup. Cleared
-	 *  at commit **and again in EndAbility**, the one place every exit converges -- a stranded homing
+	 *  at commit and again in EndAbility, the one place every exit converges -- a stranded homing
 	 *  state is a character that turns toward strangers forever.
 	 */
 	void SetAimAssistHoming(const FTDAttackHitbox& InWedge, const FGameplayTagContainer& InImmunityTags, bool bActive, bool bInDrawDebug);
 
 	/**
-	 *  The best Target Lock candidate for a wedge, or null. Shared by homing and the commit snap.
+	 *  The best Target Lock candidate for a wedge, or null. Shared by homing and the commit snap --
+	 *  two implementations would drift, and the one that drifted would decide where attacks point.
 	 *
-	 *  One implementation deliberately, because two would drift -- and the one that drifted would be
-	 *  the one deciding where attacks point. Selection is smallest bearing with distance breaking
-	 *  ties, the tiebreak existing so two machines cannot order equal candidates differently.
+	 *  Selection is smallest bearing, ties broken by distance so two machines cannot order equal
+	 *  candidates differently.
 	 *
-	 *  @param AimYawDegrees  The frame to measure in -- the *camera's*, not the body's. See
+	 *  @param AimYawDegrees  The frame to measure in -- the camera's, not the body's. See
 	 *                        ATheDreamCharacter::GetAimYawDegrees.
 	 */
 	static AActor* FindAimAssistTarget(
@@ -1316,15 +1172,14 @@ protected:
 protected:
 
 	/**
-	 *  Held props, attached to the SwordShield pack's own `Sword` / `Shield` sockets.
+	 *  Held props, on the SwordShield pack's own `Sword` / `Shield` sockets.
 	 *
 	 *  Those sockets carry the grip rotation plus a non-uniform scale correcting for meshes authored
-	 *  several times too large, so **both props are correct at identity and no offset should be
-	 *  authored here.** They exist only on the bundle's `SKM_Manny`, not Epic's `SKM_Manny_Simple`.
+	 *  several times too large, so both props are correct at identity and no offset should be
+	 *  authored here. They exist only on the bundle's `SKM_Manny`, not Epic's `SKM_Manny_Simple`.
 	 *
-	 *  **Not the `weapon_r` / `weapon_l` bones**, which fail twice: absent from Epic's mesh, and
-	 *  animated only by GDH clips, so under any Epic animation a prop parented there freezes at
-	 *  reference pose.
+	 *  Not the `weapon_r` / `weapon_l` bones, which fail twice: absent from Epic's mesh, and animated
+	 *  only by GDH clips, so under any Epic animation a prop parented there freezes at reference pose.
 	 *
 	 *  Cosmetic: collision is off and the melee trace is a separate ability task, so the sword's mesh
 	 *  never decides what the sword hits. Left empty on the CDO, which keeps the dummy unarmed.
@@ -1336,15 +1191,12 @@ protected:
 	TObjectPtr<UStaticMeshComponent> ShieldMesh;
 
 	/**
-	 *  The ASC this character is actually using: its PlayerState's, or OwnedAbilitySystemComponent.
+	 *  The ASC actually in use: the PlayerState's, or OwnedAbilitySystemComponent. Resolved rather
+	 *  than assumed, because only players have a PlayerState. Null until InitialiseAbilitySystem has
+	 *  run -- later than you expect on a client -- so every use is null-checked.
 	 *
-	 *  Resolved rather than assumed, because only *players* have a PlayerState. Null until
-	 *  InitialiseAbilitySystem has run, and on a client that is later than you expect, so every use
-	 *  is null-checked.
-	 *
-	 *  **Never reach past this to OwnedAbilitySystemComponent.** For a player that subobject exists,
-	 *  is registered, and holds nothing -- so using it compiles, runs, and silently reads an empty
-	 *  ASC with no attributes and no abilities.
+	 *  Never reach past this to OwnedAbilitySystemComponent. For a player that subobject exists, is
+	 *  registered, and holds nothing, so using it compiles, runs, and silently reads an empty ASC.
 	 */
 	UPROPERTY(Transient, BlueprintReadOnly, Category="Combat")
 	TObjectPtr<UAbilitySystemComponent> AbilitySystem;
@@ -1354,11 +1206,9 @@ protected:
 	TObjectPtr<UTDAttributeSet> AttributeSet;
 
 	/**
-	 *  The fallback ASC, for characters that have no PlayerState -- i.e. the training dummy.
-	 *
-	 *  A player carries this subobject too and never uses it: the accepted cost of one character
-	 *  class serving both cases. It seeds no attributes and grants no abilities, so it costs
-	 *  registration rather than bandwidth.
+	 *  The fallback ASC, for characters with no PlayerState -- the training dummy. A player carries
+	 *  it too and never uses it: the accepted cost of one class serving both cases. It seeds nothing
+	 *  and grants nothing, so it costs registration rather than bandwidth.
 	 */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Combat")
 	TObjectPtr<UAbilitySystemComponent> OwnedAbilitySystemComponent;
@@ -1369,23 +1219,23 @@ protected:
 private:
 
 	/**
-	 *  Points AbilitySystem at the right ASC, binds actor info, and seeds defaults once.
+	 *  Points AbilitySystem at the right ASC, binds actor info, seeds defaults once.
 	 *
-	 *  Safe -- and expected -- to call repeatedly: from BeginPlay, from every possession, and from
-	 *  OnRep_PlayerState. Actor info is rebound every time because possession changes who owns the
-	 *  ASC; seeding is guarded per-ASC, not per-call and not per-character.
+	 *  Safe and expected to call repeatedly: from BeginPlay, every possession, and OnRep_PlayerState.
+	 *  Actor info is rebound every time because possession changes who owns the ASC; seeding is
+	 *  guarded per-ASC, not per-call and not per-character.
 	 */
 	void InitialiseAbilitySystem();
 
 	/**
-	 *  Which ASC this character should use, and which actor owns it.
+	 *  Which ASC this character should use, and which actor owns it -- the PlayerState's when there
+	 *  is one, the owned component otherwise.
 	 *
-	 *  The PlayerState's when there is one, the owned component when there is not. OutOwner is what
-	 *  InitAbilityActorInfo is given as the *owner*, which is not the avatar: GAS wants the
+	 *  OutOwner is what InitAbilityActorInfo takes as owner, which is not the avatar: GAS wants the
 	 *  PlayerState as owner and the pawn as avatar, so ability state survives a pawn while traces,
-	 *  sockets and montages still resolve against the body.
+	 *  sockets and montages resolve against the body.
 	 *
-	 *  **Never reach past `AbilitySystem` to the owned fallback.** Which one is correct is a question
+	 *  Never reach past `AbilitySystem` to the owned fallback. Which one is correct is a question
 	 *  only this function may answer.
 	 */
 	UAbilitySystemComponent* ResolveAbilitySystem(AActor*& OutOwner) const;
@@ -1400,15 +1250,12 @@ private:
 	void GatherAbilitiesForInput(const FGameplayTag& InputTag, TArray<FGameplayAbilitySpecHandle>& OutHandles) const;
 
 	/**
-	 *  Presses the input at every matching spec and starts whatever is not already running.
+	 *  Presses the input at every matching spec and starts whatever is not already running. Returns
+	 *  whether a *new* activation happened, not whether anything is live -- a press arriving at an
+	 *  already-running ability is the most important thing to buffer.
 	 *
-	 *  Returns whether a *new* activation happened -- deliberately not whether anything is live. A
-	 *  press arriving at an ability that is already running is the single most important thing to
-	 *  buffer, since a committed swing is what refuses most inputs.
-	 *
-	 *  bForwardToActive is false on a buffered retry: the button was pressed once, and a retry is
-	 *  this system trying again rather than the player pressing again. Telling a running ability it
-	 *  was re-pressed every frame is a lie that WaitInputRelease would read.
+	 *  bForwardToActive is false on a buffered retry: the button was pressed once, and telling a
+	 *  running ability it was re-pressed every frame is a lie WaitInputRelease would read.
 	 */
 	bool TryActivateAbilitiesForInput(const FGameplayTag& InputTag, bool bForwardToActive);
 
@@ -1422,9 +1269,9 @@ private:
 	void TickInputBuffer();
 
 	/**
-	 *  Whether the buffered press should outlive its ordinary window: an ability answering it that
-	 *  opted into extension is either running now, or its string link window is still open. The
-	 *  policy is the ability's -- see UTDGameplayAbility::ShouldExtendBufferWhileActive.
+	 *  Whether the buffered press outlives its ordinary window: an ability answering it that opted
+	 *  into extension is running now, or its string link window is open. The policy is the
+	 *  ability's -- see UTDGameplayAbility::ShouldExtendBufferWhileActive.
 	 */
 	bool ShouldExtendBufferedPress(const FGameplayTag& InputTag) const;
 
@@ -1432,11 +1279,9 @@ private:
 	bool TryChainOutActiveAbility(const FGameplayTag& InputTag);
 
 	/**
-	 *  Replays a buffered release, HoldSeconds after the buffered press finally activated.
-	 *
-	 *  Cancelled the moment real input for that tag arrives, because a live edge always beats a
-	 *  recorded one -- otherwise a replay scheduled for a hold the player has since abandoned would
-	 *  land on whatever ability is running by then.
+	 *  Replays a buffered release, HoldSeconds after the buffered press activated. Cancelled the
+	 *  moment real input for that tag arrives, because a live edge beats a recorded one -- otherwise
+	 *  a replay for a hold since abandoned lands on whatever is running by then.
 	 */
 	void ReplayBufferedRelease(FGameplayTag InputTag);
 
@@ -1445,10 +1290,8 @@ private:
 	void DebugAutoAttackRelease();
 
 	/**
-	 *  Presses the debug dodge input, then releases it a tap later. Debug only.
-	 *
-	 *  HoldBlock has no equivalent pair on purpose: it presses once in BeginPlay and never releases,
-	 *  and the resume tick does the rest.
+	 *  Presses the debug dodge input, then releases it a tap later. HoldBlock has no equivalent pair:
+	 *  it presses once in BeginPlay and never releases, and the resume tick does the rest.
 	 */
 	void DebugAutoDodgePress();
 	void DebugAutoDodgeRelease();
@@ -1457,22 +1300,18 @@ private:
 	void DebugAutoJumpRelease();
 
 	/**
-	 *  One PeriodicParry cycle. Raises a guard first when DebugParryPreBlockSeconds is set,
-	 *  otherwise goes straight to the tap.
+	 *  One PeriodicParry cycle. Raises a guard first when DebugParryPreBlockSeconds is set.
 	 *
-	 *  Three steps rather than two because the guard must be *down* before the parry is pressed --
-	 *  GA_Parry refuses activation while State.Blocking is present, so releasing and pressing in the
-	 *  same frame would produce a refusal on every cycle and an assertion that never fires.
+	 *  Three steps rather than two because the guard must be down before the parry is pressed --
+	 *  GA_Parry refuses activation while State.Blocking is present, so releasing and pressing in one
+	 *  frame produces a refusal every cycle and an assertion that never fires.
 	 */
 	void DebugAutoParryCycle();
 	void DebugAutoParryDropGuard();
 
 	/**
-	 *  PeriodicParry's tap. Unlike the dodge's, it does **not** re-home the pawn first.
-	 *
-	 *  A parrier is supposed to stand its ground, so it never leaves the exchange the way a
-	 *  backward-dodging dummy does, and a teleport between attempts would sever the very spacing the
-	 *  parry is meant to be resolved at.
+	 *  PeriodicParry's tap. Unlike the dodge's, it does not re-home the pawn first: a parrier stands
+	 *  its ground, and a teleport between attempts would sever the spacing the parry resolves at.
 	 */
 	void DebugAutoParryPress();
 	void DebugAutoParryRelease();
@@ -1480,25 +1319,21 @@ private:
 	/**
 	 *  Warn when this placed actor's values have drifted from the class they came from.
 	 *
-	 *  **Exists because the failure it catches is completely silent.** A placed actor serialises the
-	 *  values its Blueprint had at the moment it was placed and keeps them as per-instance overrides
-	 *  forever -- so a later-authored ability, input tag or knob never reaches it, and nothing in the
-	 *  editor, the log or the game says so.
+	 *  The failure it catches is completely silent: a placed actor serialises the values its
+	 *  Blueprint had when placed and keeps them as per-instance overrides forever, so a
+	 *  later-authored ability, input tag or knob never reaches it and nothing says so.
 	 *
-	 *  Deliberately a **warning at BeginPlay rather than a fix**: the values cannot be repaired from
-	 *  here, since EditDefaultsOnly properties reject writes on an instance, and a silent repair
-	 *  would hide the divergence from the person who needs to act on it. Ungated on
-	 *  LogTDCombatTiming.
+	 *  A warning at BeginPlay rather than a fix -- the values cannot be repaired from here, since
+	 *  EditDefaultsOnly properties reject writes on an instance, and a silent repair would hide the
+	 *  divergence. Ungated on LogTDCombatTiming.
 	 */
 	void WarnOnStaleInstanceOverrides() const;
 
 	/**
-	 *  The cancelling block press, scheduled by bDebugCancelAttackIntoBlock.
-	 *
-	 *  Released again rather than held, unlike the HoldBlock mode: a guard left up would make BLOCK
-	 *  cost fire once for the whole session instead of once per cancelled swing, and the per-swing
-	 *  count is the assertion. The release is deliberately later than MinimumBlockSeconds so the
-	 *  guard clears its own commitment and ends as a release rather than fighting the floor.
+	 *  The cancelling block press, scheduled by bDebugCancelAttackIntoBlock. Released rather than
+	 *  held, unlike HoldBlock: a guard left up fires BLOCK cost once for the session instead of once
+	 *  per cancelled swing, and the per-swing count is the assertion. Released later than
+	 *  MinimumBlockSeconds so the guard clears its own commitment rather than fighting the floor.
 	 */
 	void DebugCancelIntoBlockPress();
 	void DebugCancelIntoBlockRelease();
@@ -1507,10 +1342,9 @@ private:
 	void ReturnToDebugAutoAttackHome();
 
 	/**
-	 *  Points the AI controller's focus at the nearest other pawn, or clears it. Debug only.
-	 *
-	 *  Re-resolved on every call rather than cached in BeginPlay, because a placed dummy is possessed
-	 *  before the player pawn exists -- a focus taken at BeginPlay would be null forever.
+	 *  Points the AI controller's focus at the nearest other pawn, or clears it. Re-resolved on every
+	 *  call rather than cached in BeginPlay, because a placed dummy is possessed before the player
+	 *  pawn exists -- a focus taken at BeginPlay would be null forever.
 	 */
 	void UpdateDebugFacingFocus(bool bAttacking);
 
@@ -1524,28 +1358,25 @@ private:
 	void TickBlockDrain(float DeltaSeconds);
 
 	/**
-	 *  Ends any running block. Used by the guard break and by becoming airborne.
-	 *
-	 *  One helper because a guard has grown three ways to end that are not the player letting go, and
-	 *  each must also stop the drain -- which happens for free, since the drain reads BlockingTag and
-	 *  the tag leaves with the ability.
+	 *  Ends any running block. Used by the guard break and by becoming airborne. One helper because
+	 *  a guard has three ways to end that are not the player letting go, and each must stop the
+	 *  drain -- which is free, since the drain reads BlockingTag and the tag leaves with the ability.
 	 */
 	void CancelBlockAbility();
 
 	/**
-	 *  Applies whichever authored speed caps are live, and the captured default when none are.
-	 *
-	 *  Takes the *slowest* applicable cap rather than the last one checked, because blocking and
-	 *  exhaustion can overlap.
+	 *  Applies whichever authored speed caps are live, and the captured default when none are. Takes
+	 *  the slowest applicable cap rather than the last checked, because blocking and exhaustion can
+	 *  overlap.
 	 */
 	void TickMoveSpeedClamps();
 
 	/**
-	 *  Maintains State.Blocking.Committed, and finishes a release that was held back by it.
+	 *  Maintains State.Blocking.Committed, and finishes a release held back by it.
 	 *
 	 *  Written as "make the tag match the current state" rather than as edges, for the reason the
-	 *  speed cap is: an edge-driven version has to be right on every entry and exit, and a stranded
-	 *  commit tag would refuse every action forever with nothing on screen to explain it.
+	 *  speed cap is: an edge-driven version must be right on every entry and exit, and a stranded
+	 *  commit tag refuses every action forever with nothing on screen to explain it.
 	 */
 	void TickBlockCommitment(float Now);
 
@@ -1562,13 +1393,12 @@ private:
 	/**
 	 *  The locally-visible half of exhaustion and death, run on every machine.
 	 *
-	 *  **The split is the whole point.** Enter/Exit decide *whether* the state changed and run on the
-	 *  server alone, because the stamina and health delegates that drive them are bound behind the
-	 *  authority gate. Apply/Clear make the state *true on this machine* -- the tag, the ragdoll, the
-	 *  movement stop -- and run on the server directly and on clients from OnRep.
+	 *  Enter/Exit decide whether the state changed and run on the server alone, because the delegates
+	 *  driving them are bound behind the authority gate. Apply/Clear make the state true on this
+	 *  machine -- tag, ragdoll, movement stop -- on the server directly and on clients from OnRep.
 	 *
-	 *  A loose gameplay tag does not replicate, so without this split a client's ASC never has the
-	 *  tag: its own CanActivateAbility would pass, it would predict an action the server had already
+	 *  A loose gameplay tag does not replicate, so without the split a client's ASC never has the
+	 *  tag: its CanActivateAbility would pass, it would predict an action the server already
 	 *  refused, and only a correction would tell it otherwise.
 	 */
 	void ApplyExhaustionState();
@@ -1578,9 +1408,8 @@ private:
 
 	/**
 	 *  Starts and ends the guard-break stun. Server decides; the state pair runs everywhere.
-	 *
-	 *  EndGuardBreak is driven from Tick against GuardBreakEndsAt rather than from a timer, so the
-	 *  stun cannot outlive a pause, a seek or a slow frame in a way nothing observes.
+	 *  EndGuardBreak is driven from Tick against GuardBreakEndsAt rather than a timer, so the stun
+	 *  cannot outlive a pause, a seek or a slow frame unobserved.
 	 */
 	void EnterGuardBreak();
 	void EndGuardBreak();
@@ -1589,10 +1418,9 @@ private:
 
 	/**
 	 *  Ends the blockstun lockout. Driven from Tick against BlockstunEndsAt, as the guard break is.
-	 *
-	 *  There is no ApplyBlockstunState pairing beyond the tag, because blockstun cancels nothing --
-	 *  it refuses activations through ActivationBlockedTags and lets whatever is running finish.
-	 *  That is the deliberate difference from a break, which takes the guard down with it.
+	 *  No Apply pairing beyond the tag, because blockstun cancels nothing -- it refuses activations
+	 *  through ActivationBlockedTags and lets whatever is running finish. That is the difference from
+	 *  a break, which takes the guard down with it.
 	 */
 	void EndBlockstun();
 	void ApplyBlockstunState();
@@ -1616,7 +1444,7 @@ private:
 	/** The radial carry: attacker + (attacker->victim bearing) * KnockdownSpacingCm, Z natural. */
 	void ApplyKnockdownCarry(AActor* Attacker);
 
-	/** Plays a knockdown montage at a rate derived to fit TargetSeconds. Shared by the fall and both rises. */
+	/** Plays a knockdown montage at a rate derived to fit TargetSeconds. The fall and both rises. */
 	void PlayKnockdownMontage(UAnimMontage* Montage, float TargetSeconds, const TCHAR* Label);
 
 	/** Jail seconds for the grade currently held. */
@@ -1626,22 +1454,21 @@ private:
 	float GetKnockdownChoiceSeconds() const;
 
 	/**
-	 *  Ends hitstun. Driven from Tick against HitstunEndsAt, as its two siblings are. The Apply half
-	 *  carries no cancel -- EnterHitstun cancels on the server once; a client's OnRep must not cancel
-	 *  predicted copies out from under a correction, the death path's exact reasoning.
+	 *  Ends hitstun. Driven from Tick against HitstunEndsAt, as its siblings are. The Apply half
+	 *  carries no cancel -- EnterHitstun cancels on the server once, and a client's OnRep must not
+	 *  cancel predicted copies out from under a correction. The death path's exact reasoning.
 	 */
 	void EndHitstun();
 	void ApplyHitstunState();
 	void ClearHitstunState();
 
 	/**
-	 *  Ends the parry recovery. Driven from Tick against ParryRecoveryEndsAt, as the stuns are.
+	 *  Ends the parry recovery. Driven from Tick against ParryRecoveryEndsAt, as the stuns are. No
+	 *  window equivalent: the window's expiry is CloseParryWindow, shared with the cancellation path
+	 *  so a recovery cannot be dodged by ending the parry unusually.
 	 *
-	 *  There is no window equivalent here: the window's expiry is CloseParryWindow, which is shared
-	 *  with the cancellation path so that a recovery cannot be dodged by ending the parry unusually.
-	 *
-	 *  **This one also ends GA_Parry**, which a whiff deliberately leaves running so its movement
-	 *  lock spans the recovery.
+	 *  This one also ends GA_Parry, which a whiff leaves running so its movement lock spans the
+	 *  recovery.
 	 */
 	void EndParryRecovery();
 	void ApplyParryRecoveryState();
@@ -1653,11 +1480,9 @@ private:
 	void ClearDodgeRecoveryState();
 
 	/**
-	 *  State.Parrying, applied and cleared against the window rather than against the ability.
-	 *
-	 *  There is no Begin/End pair here because the window already has one -- OpenParryWindow and
-	 *  CloseParryWindow -- and adding a second would give the tag a lifetime that could drift from
-	 *  the thing it names.
+	 *  State.Parrying, applied and cleared against the window rather than the ability. No Begin/End
+	 *  pair, because the window already has one -- OpenParryWindow and CloseParryWindow -- and a
+	 *  second would give the tag a lifetime that could drift from what it names.
 	 */
 	void ApplyParryWindowState();
 	void ClearParryWindowState();
@@ -1665,10 +1490,9 @@ private:
 	/**
 	 *  Ends a running parry recovery because something was inflicted on this character.
 	 *
-	 *  **The schema doing the work rather than a special case**: a lockout is externally inflicted
-	 *  and a recovery is self-inflicted, so being punished supersedes the price you were paying
-	 *  yourself. **Anything that inflicts a lockout should call this** -- that generality is
-	 *  deliberate and is not to be narrowed to hitstun.
+	 *  The schema does the work: a lockout is externally inflicted and a recovery self-inflicted, so
+	 *  being punished supersedes the price you were paying yourself. Anything that inflicts a lockout
+	 *  should call this -- deliberately not narrowed to hitstun.
 	 */
 	void OverrideParryRecovery(const TCHAR* Cause);
 
@@ -1709,11 +1533,11 @@ private:
 	void OnRep_ParryWindow();
 
 	/**
-	 *  Applies State.Dead, cancels everything running, and stops the character moving.
+	 *  Applies State.Dead, cancels everything running, stops the character moving.
 	 *
-	 *  Cancelling is the deliberate difference from exhaustion, which gates activation and lets a
-	 *  running ability finish. Without it a killing blow landing mid-swing leaves the dead character
-	 *  completing the attack, hitbox and all.
+	 *  Cancelling is the difference from exhaustion, which gates activation and lets a running
+	 *  ability finish. Without it a killing blow mid-swing leaves the dead character completing the
+	 *  attack, hitbox and all.
 	 */
 	void EnterDeath();
 
@@ -1733,12 +1557,10 @@ private:
 	FTDBufferedInput BufferedInput;
 
 	/**
-	 *  The same direction pair for the press an ability is activating from *right now*.
-	 *
-	 *  Written for every ability press rather than only for the dodge, because the character has no
-	 *  business knowing which tag means dodge. A buffered press restores these from the buffer
-	 *  immediately before it retries activation, so an ability reads one field whether it fired live
-	 *  or late.
+	 *  The same direction pair for the press an ability is activating from right now. Written for
+	 *  every ability press rather than only the dodge, because the character has no business knowing
+	 *  which tag means dodge. A buffered press restores these before retrying, so an ability reads
+	 *  one field whether it fired live or late.
 	 */
 	float PressMoveAngleDegrees = 0.0f;
 	bool bPressHadMoveInput = false;
@@ -1756,13 +1578,11 @@ private:
 	bool bJumpRegenPauseActive = false;
 
 	/**
-	 *  Replicated, because the tags they drive are *loose* tags and loose tags do not replicate.
-	 *
-	 *  These bools are the wire format and the tag is the local consequence: the server decides, the
-	 *  bool replicates, and OnRep applies the same tag on each client that the server applied on
-	 *  itself. A GameplayEffect carrying the tag would replicate on its own and is the more usual
-	 *  answer, but UE 5.8 expresses effect-granted tags through gEComponents, which cannot be
-	 *  scripted -- see Docs/Working-In-Unreal.md.
+	 *  Replicated, because the tags they drive are loose tags and loose tags do not replicate. The
+	 *  bool is the wire format and the tag is the local consequence: the server decides, the bool
+	 *  replicates, OnRep applies the tag on each client. A GameplayEffect carrying the tag would
+	 *  replicate on its own, but UE 5.8 expresses effect-granted tags through gEComponents, which
+	 *  cannot be scripted -- see Docs/Working-In-Unreal.md.
 	 */
 	UPROPERTY(ReplicatedUsing = OnRep_Exhausted)
 	bool bExhausted = false;
@@ -1770,20 +1590,20 @@ private:
 	UPROPERTY(ReplicatedUsing = OnRep_Dead)
 	bool bDead = false;
 
-	/** Follows the same server-decides/OnRep-applies contract as the two above. */
+	/** Same server-decides/OnRep-applies contract as the two above. */
 	UPROPERTY(ReplicatedUsing = OnRep_GuardBroken)
 	bool bGuardBroken = false;
 
 	/**
 	 *  When the guard-break stun expires, in world seconds. Server-authoritative.
 	 *
-	 *  A timestamp checked in Tick rather than a SetTimer, deliberately: the two network-unaware
-	 *  SetTimer sites this project already has are filed as a multiplayer trap. A timestamp is also
-	 *  what the regen suppressor beside it uses.
+	 *  A Tick-checked timestamp rather than a SetTimer: the two network-unaware SetTimer sites this
+	 *  project has are filed as a multiplayer trap, and a timestamp is what the regen suppressor
+	 *  beside it uses.
 	 */
 	float GuardBreakEndsAt = 0.0f;
 
-	/** Follows the same server-decides/OnRep-applies contract as the three above. */
+	/** Same server-decides/OnRep-applies contract as the three above. */
 	UPROPERTY(ReplicatedUsing = OnRep_Blockstun)
 	bool bInBlockstun = false;
 
@@ -1794,16 +1614,13 @@ private:
 	/** When hitstun expires, in world seconds. A Tick-checked timestamp like its two siblings. */
 	float HitstunEndsAt = 0.0f;
 
-	/**
-	 *  On the floor. **Ninth member of the replicated state family**, same contract as the eight
-	 *  before it: the server decides, this replicates, OnRep applies the tag locally.
-	 */
+	/** On the floor. Ninth of the replicated state family, same contract. */
 	UPROPERTY(ReplicatedUsing = OnRep_KnockedDown)
 	bool bKnockedDown = false;
 
 	/**
 	 *  Which grade is running. Replicated beside the bool rather than derived, because the split it
-	 *  selects decides which get-up options a *client* may predict, and a client that guessed would
+	 *  selects decides which get-up options a client may predict, and a client that guessed would
 	 *  mispredict a refusal.
 	 */
 	UPROPERTY(Replicated)
@@ -1819,9 +1636,8 @@ private:
 	float KnockdownRiseEndsAt = 0.0f;
 
 	/**
-	 *  Whether a rise has begun. **The invincibility switch**, and the reason it is separate from the
-	 *  tag: the tag spans the rise too, because the body is still on the floor for every purpose
-	 *  except being hittable.
+	 *  Whether a rise has begun -- the invincibility switch, separate from the tag because the tag
+	 *  spans the rise too: the body is still on the floor for every purpose except being hittable.
 	 */
 	bool bKnockdownRising = false;
 
@@ -1836,15 +1652,12 @@ private:
 
 	/**
 	 *  The last carry's bearing: the radial axis's angle off the attacker's facing, in degrees.
-	 *
-	 *  Trace-only, and server-only. It exists so an assertion can tell the two carry axes apart --
-	 *  roughly zero in a 1v1, roughly plus or minus ninety for the ender's two victims.
+	 *  Trace-only and server-only, so an assertion can tell the two carry axes apart -- roughly zero
+	 *  in a 1v1, roughly plus or minus ninety for the ender's two victims.
 	 */
 	float LastKnockdownBearingDegrees = 0.0f;
 
-	/**
-	 *  Serving a parry lockout. **Tenth member of the replicated state family**, same contract.
-	 */
+	/** Serving a parry lockout. Tenth of the replicated state family, same contract. */
 	UPROPERTY(ReplicatedUsing = OnRep_ParryLockout)
 	bool bInParryLockout = false;
 
@@ -1852,18 +1665,16 @@ private:
 	float ParryLockoutEndsAt = 0.0f;
 
 	/**
-	 *  A parry window is open. The sixth of the replicated-state family, same contract.
+	 *  A parry window is open. Sixth of the replicated-state family, same contract.
 	 *
-	 *  **Replicated rather than left as the ability's business**, under the project's own rule that
-	 *  new state is a replicated property and never a loose tag. This bool is the mechanism the
-	 *  attacker's hit path reads; State.Parrying is the tag marking the same span for anything that
-	 *  gates on it. Keeping them apart is what lets the animation and the negation be retimed
-	 *  independently.
+	 *  Replicated rather than left as the ability's business, under the rule that new state is a
+	 *  replicated property and never a loose tag. This bool is what the attacker's hit path reads;
+	 *  State.Parrying is the tag marking the same span for anything gating on it, and keeping them
+	 *  apart lets the animation and the negation be retimed independently.
 	 *
-	 *  **The tag is applied and cleared against *this* bool**, not against GA_Parry's lifetime: a
-	 *  whiffed parry keeps the ability alive across its recovery to hold the movement lock, so a tag
-	 *  riding the ability would stay up for the whole jail. State.Parrying means the window is open
-	 *  and State.ParryRecovery means the recovery is running -- each says what it is named.
+	 *  The tag is applied and cleared against this bool, not GA_Parry's lifetime: a whiffed parry
+	 *  keeps the ability alive across its recovery to hold the movement lock, so a tag riding the
+	 *  ability would stay up for the whole jail.
 	 */
 	UPROPERTY(ReplicatedUsing = OnRep_ParryWindow)
 	bool bParryWindowOpen = false;
@@ -1872,24 +1683,22 @@ private:
 	float ParryWindowEndsAt = 0.0f;
 
 	/**
-	 *  What the currently-open window will charge if it closes without catching anything.
-	 *
-	 *  Captured when the window opens rather than read back off GA_Parry at close time, so the price
-	 *  of a window is fixed the moment it is bought.
+	 *  What the open window will charge if it closes without catching anything. Captured when the
+	 *  window opens rather than read off GA_Parry at close time, so its price is fixed when bought.
 	 */
 	float PendingParryWhiffRecoverySeconds = 0.0f;
 
 	/** Whether the open window has already negated a hit, which is what makes its close free. */
 	bool bParryCaughtThisWindow = false;
 
-	/** Every ability is refused by a whiffed parry. The seventh of the family, same contract. */
+	/** Every ability is refused by a whiffed parry. Seventh of the family, same contract. */
 	UPROPERTY(ReplicatedUsing = OnRep_ParryRecovery)
 	bool bInParryRecovery = false;
 
 	/** When the parry recovery expires, in world seconds. Max-extended, never reassigned. */
 	float ParryRecoveryEndsAt = 0.0f;
 
-	/** A parry is refused by a just-ended dodge. The eighth of the family, same contract. */
+	/** A parry is refused by a just-ended dodge. Eighth of the family, same contract. */
 	UPROPERTY(ReplicatedUsing = OnRep_DodgeRecovery)
 	bool bInDodgeRecovery = false;
 
@@ -1897,17 +1706,17 @@ private:
 	float DodgeRecoveryEndsAt = 0.0f;
 
 	/**
-	 *  A successful parry is still protecting this character. **Replicated but tagless**, which is
-	 *  the one place this breaks the family's pattern: the others carry a gameplay tag because
-	 *  something refuses on them, and nothing refuses on Grace.
+	 *  A successful parry is still protecting this character. Replicated but tagless -- the one place
+	 *  this breaks the family's pattern, because the others carry a tag for something to refuse on
+	 *  and nothing refuses on Grace.
 	 */
 	UPROPERTY(Replicated)
 	bool bInParryGrace = false;
 
 	/**
-	 *  When Grace expires, in world seconds. **Assigned, never max-extended** -- the deliberate
-	 *  opposite of every other timestamp here, and it is the no-re-arm rule expressed in one line.
-	 *  Only BeginParryGrace writes it, and only a window catch calls that.
+	 *  When Grace expires, in world seconds. Assigned, never max-extended -- the opposite of every
+	 *  other timestamp here, and the no-re-arm rule in one line. Only BeginParryGrace writes it, and
+	 *  only a window catch calls that.
 	 */
 	float ParryGraceEndsAt = 0.0f;
 
@@ -1917,23 +1726,23 @@ private:
 	/** A connected attack owes this character its movement back. See BeginOnHitMovementWaiver. */
 	bool bOnHitMovementWaiverPending = false;
 
-	/** When the on-hit waiver hands movement back, in world seconds: contact + that swing's hitstun. */
+	/** When the on-hit waiver hands movement back: contact + that swing's hitstun. */
 	float OnHitMovementWaiverAt = 0.0f;
 
 	/** Dedup clock for bDebugDodgeAfterHit, so a swing hitting two bodies still dodges once. */
 	float DebugLastDodgeAfterHitAt = -1.0f;
 
 	/**
-	 *  Which hit of the light string the *next* chained attack continues from. 0 is a fresh string's
-	 *  first swing. Replicated so remote machines can agree which swing an activation means. See
+	 *  Which hit of the light string the next chained attack continues from. 0 is a fresh string's
+	 *  first swing. Replicated so remote machines agree which swing an activation means. See
 	 *  ResolveStringSwingIndexForActivation.
 	 */
 	UPROPERTY(Replicated)
 	uint8 StringIndex = 0;
 
 	/**
-	 *  When the string's link window closes, in world seconds. Local like BlockstunEndsAt -- the
-	 *  replicated index is the wire truth, this is only its deadline.
+	 *  When the string's link window closes. Local like BlockstunEndsAt -- the replicated index is
+	 *  the wire truth, this is only its deadline.
 	 */
 	float StringWindowEndsAt = 0.0f;
 
@@ -1943,31 +1752,26 @@ private:
 	/** Taps left in the current auto-attack burst. Guards the home reset; see the taps knob. */
 	int32 DebugStringTapsRemaining = 0;
 
-	/** The body the last attack aimed at, excluded from the next selection while rotating. A weak
-	 *  pointer because a target can die and be destroyed between attacks, and a stale raw pointer
-	 *  would then exclude an address rather than a pawn. */
+	/** The body the last attack aimed at, excluded from the next selection while rotating. Weak,
+	 *  because a target can die and be destroyed between attacks, and a stale raw pointer would
+	 *  exclude an address rather than a pawn. */
 	TWeakObjectPtr<APawn> DebugLastFocusTarget;
 
 	/**
-	 *  When the blockstun lockout expires, in world seconds. Server-authoritative.
-	 *
-	 *  A timestamp checked in Tick rather than a SetTimer, for the reason GuardBreakEndsAt gives.
-	 *  Extended by taking the max, never reassigned, so a second blocked hit landing inside an
-	 *  existing lockout can only lengthen it -- blocking two attacks must not be a way to serve a
-	 *  shorter sentence than blocking the slower one alone.
+	 *  When the blockstun lockout expires, in world seconds. Server-authoritative, a Tick-checked
+	 *  timestamp for the reason GuardBreakEndsAt gives. Extended by taking the max, never
+	 *  reassigned: blocking two attacks must not serve a shorter sentence than the slower alone.
 	 */
 	float BlockstunEndsAt = 0.0f;
 
 	/**
-	 *  True only while TickBlockDrain is writing. **This is what stops drain exhausting you.**
+	 *  True only while TickBlockDrain is writing. This is what stops drain exhausting you.
 	 *
-	 *  Exhaustion is decided by the stamina-changed delegate, which sees "the bar reached zero" and
-	 *  cannot see what emptied it. That is correct for every other spender -- a dodge that empties
-	 *  you should exhaust you -- and wrong for the guard's drain, the only *continuous* spend in the
-	 *  game, which is meant to park the bar at zero harmlessly.
+	 *  Exhaustion is decided by the stamina-changed delegate, which sees the bar reach zero and
+	 *  cannot see what emptied it. Correct for every other spender, wrong for the guard's drain --
+	 *  the only continuous spend, meant to park the bar at zero harmlessly.
 	 *
-	 *  The rule it encodes: **exhaustion is a consequence of an action or an attack, never of a state
-	 *  you are holding.**
+	 *  The rule: exhaustion is a consequence of an action or an attack, never of a state you hold.
 	 */
 	bool bApplyingBlockDrain = false;
 
@@ -1975,11 +1779,10 @@ private:
 	float DefaultMaxWalkSpeed = 0.0f;
 
 	/**
-	 *  A resume pass is owed on the next tick. Set by an ability ending and by landing.
-	 *
-	 *  The deferral is the fix, not an optimisation: performing the resume inside OnAbilityEnded
-	 *  re-entered ability activation and double-activated the guard, leaking its spec's activeCount
-	 *  and sticking it up permanently. A flag drained once per tick cannot re-enter anything.
+	 *  A resume pass is owed next tick. Set by an ability ending and by landing. The deferral is the
+	 *  fix, not an optimisation: resuming inside OnAbilityEnded re-entered activation and
+	 *  double-activated the guard, leaking activeCount and sticking it up permanently. A flag
+	 *  drained once per tick cannot re-enter anything.
 	 */
 	bool bResumePending = false;
 
@@ -1988,12 +1791,12 @@ private:
 
 
 	/**
-	 *  The mesh's authored offset from the capsule, captured once before physics ever moves it.
+	 *  The mesh's authored offset from the capsule, captured before physics ever moves it.
 	 *
 	 *  Ragdolling drives the mesh in world space, so the relative transform is meaningless by the
-	 *  time it stops. Restoring from a value read *after* death would bake the ragdoll's final pose
-	 *  in as the new rest offset, and the character would stand up crooked and stay that way.
-	 *  Captured in BeginPlay rather than the constructor so it reflects whatever a Blueprint authored.
+	 *  time it stops. Restoring from a value read after death would bake the ragdoll's final pose in
+	 *  as the new rest offset and the character would stand up crooked. Captured in BeginPlay rather
+	 *  than the constructor, so it reflects whatever a Blueprint authored.
 	 */
 	FTransform MeshRestRelativeTransform;
 
@@ -2002,12 +1805,10 @@ private:
 	FTimerHandle DebugReviveTimerHandle;
 
 	/**
-	 *  Seeded-once flag for the *owned* ASC only -- i.e. the training dummy's.
-	 *
-	 *  A player's flag lives on ATDPlayerState instead, because that is where its ASC lives.
-	 *  Splitting them is not tidiness: a player pawn's BeginPlay runs before possession, so a single
-	 *  flag on the character would be spent seeding the fallback ASC and the real one would never be
-	 *  seeded at all. See ATDPlayerState::HasSeededDefaults.
+	 *  Seeded-once flag for the owned ASC only -- the training dummy's. A player's lives on
+	 *  ATDPlayerState, where its ASC lives. Splitting them is not tidiness: a player pawn's BeginPlay
+	 *  runs before possession, so a single flag would be spent seeding the fallback ASC and the real
+	 *  one would never be seeded. See ATDPlayerState::HasSeededDefaults.
 	 */
 	bool bOwnedDefaultsApplied = false;
 
@@ -2029,7 +1830,7 @@ private:
 	/**
 	 *  Where a debug fixture started, captured once, so each swing or dodge begins from the same
 	 *  spot. Named for the auto-attacker because it shipped with it; the auto-defender shares it
-	 *  rather than carrying a second copy of the same transform.
+	 *  rather than carrying a second copy.
 	 */
 	FTransform DebugAutoAttackHomeTransform;
 };
