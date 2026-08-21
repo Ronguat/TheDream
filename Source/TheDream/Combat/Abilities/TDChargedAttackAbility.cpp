@@ -730,10 +730,12 @@ float UTDChargedAttackAbility::GetPlannedTotalSeconds() const
 
 float UTDChargedAttackAbility::GetKnockbackSpacingCm(bool bBlocked) const
 {
-	// The spacing reset belongs to non-final string lights alone: the ender, the heavies and the
-	// charged knock *down* instead, and until Knockdown & Oki builds that they displace nothing --
-	// the same deferral the terminator already carries. The values themselves stay the shared
-	// authored pair on the ability.
+	// The spacing reset belongs to non-final string lights alone -- and as of 2026-08-20 that is a
+	// statement about *this* function rather than a deferral. The ender, the heavies and the charged
+	// all carry a knockdown grade now, so their clean hits never reach ApplyKnockbackToTarget at
+	// all: EnterKnockdown's radial carry replaces it, on a different axis by design. What still
+	// routes through here is the blocked case, where nothing is knocked down and the authored pair
+	// on the ability is correct for the string that uses it.
 	if (!IsNonFinalStringLight())
 	{
 		return 0.0f;
