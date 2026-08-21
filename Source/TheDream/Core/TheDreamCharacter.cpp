@@ -19,34 +19,26 @@ ATheDreamCharacter::ATheDreamCharacter()
 	// Set size for collision capsule
 	GetCapsuleComponent()->InitCapsuleSize(42.f, 96.0f);
 
-	// The mesh hangs from the capsule's centre, so this number must be the negative of the
-	// half-height directly above it or the feet do not touch the ground. ACharacter defaults it
-	// to -90 and nothing ever reconciled that with the 96 we set ourselves -- the two lived in
-	// different files with no stated relationship -- so the feet floated exactly 6 cm in every
-	// pose, on both characters.
+	// **Change this and InitCapsuleSize together, always.** The mesh hangs from the capsule's
+	// centre, so this must be the negative of the half-height directly above it or the feet do not
+	// touch the ground. A mismatch hovers the character, and ABP_Combat's foot-IK Control Rig
+	// absorbs it silently -- so the hover shows only where that IK does not run: inside montages,
+	// and in mid-air where ShouldDoIKTrace is false.
 	//
-	// It went unnoticed for a long time because ABP_Combat's foot-IK Control Rig spent 6 cm of
-	// correction every frame absorbing it. The hover was therefore only visible wherever that IK
-	// does not run: inside montages, which is why attacks and dodges hovered and locomotion did
-	// not, and in mid-air, where ShouldDoIKTrace is false. Three hypotheses about the animations
-	// were wrong before anyone measured these two numbers.
-	//
-	// Change this and InitCapsuleSize together, always. SKM_Manny's reference pose puts its
-	// lowest point at Z = -0.02, so the mesh origin is the feet and no further offset is owed.
+	// SKM_Manny's reference pose puts its lowest point at Z = -0.02, so the mesh origin is the feet
+	// and no further offset is owed.
 	GetMesh()->SetRelativeLocation(FVector(0.0f, 0.0f, -96.0f));
 
 	// Characters are invisible to the camera boom's collision probe, which sweeps on ECC_Camera.
 	// Without this the spring arm treats another combatant as an obstruction and yanks the camera
-	// forward -- and melee spends all of its time at exactly the range that triggers it, so an
-	// opponent standing where they are supposed to stand is what breaks the shot.
+	// forward -- and melee spends all of its time at exactly the range that triggers it.
 	//
-	// Deliberately narrower than switching off bDoCollisionTest: level geometry must still push
-	// the camera in, or it ends up inside a wall. Only bodies are exempt. The cost is that the
-	// camera may pass through an opponent at very close range, which is the conventional trade
-	// and much less disruptive than the pull-in.
+	// Narrower than switching off bDoCollisionTest: level geometry must still push the camera in,
+	// so only bodies are exempt. The cost is that the camera may pass through an opponent at very
+	// close range, which is much less disruptive than the pull-in.
 	//
-	// Setting it once here is not enough -- see ApplyCameraCollisionExemption, which is why this
-	// is a call rather than the two lines it used to be.
+	// A call rather than two inline lines because setting it once is not enough -- see
+	// ApplyCameraCollisionExemption.
 	ApplyCameraCollisionExemption();
 
 	// Facing is camera-relative, not movement-relative: the character faces where the camera
@@ -61,25 +53,20 @@ ATheDreamCharacter::ATheDreamCharacter()
 	GetCharacterMovement()->bUseControllerDesiredRotation = true;
 
 	// Let the smooth turn keep running while a root-motion montage plays. UE defaults this off,
-	// which silently kills PhysicsRotation -- and therefore bUseControllerDesiredRotation -- for
-	// the whole duration of any montage with root motion. Attacks have root motion, so a player
-	// standing still could not turn during a swing at all, and chaining attacks with the camera
-	// turned meant each one landed nearer the camera without ever reaching it.
+	// which silently kills PhysicsRotation -- and therefore bUseControllerDesiredRotation -- for the
+	// whole duration of any montage with root motion.
 	//
-	// **This hands rotation back to every root-motion ability, not just attacks**, which is the
-	// part to remember: it removed the dodge's committed direction, because the dodge had been
-	// getting that for free from a suppression it never asked for. Anything that wants a fixed
-	// direction must now say so through ATheDreamCharacter::SetAbilityFacingLocked.
+	// **This hands rotation back to every root-motion ability, not just attacks**, so anything that
+	// wants a fixed direction must say so through SetAbilityFacingLocked. The dodge had been
+	// getting one for free from a suppression it never asked for.
 	GetCharacterMovement()->bAllowPhysicsRotationDuringAnimRootMotion = true;
 
-	// RotationRate.Yaw is rewritten every frame from TurnRateDegrees, so editing it
-	// on a Blueprint does nothing and reverts invisibly. Change that property instead. Only
-	// pitch and roll, which nothing drives, are actually authored here.
+	// **RotationRate.Yaw is rewritten every frame from TurnRateDegrees**, so editing it on a
+	// Blueprint does nothing and reverts invisibly. Change that property instead. Only pitch and
+	// roll, which nothing drives, are authored here.
 	//
-	// The yaw seeded here is cosmetic and exists so the value is never garbage on frame zero;
-	// it is deliberately the same number as TurnRateDegrees' default so a reader does not find
-	// two rates and have to work out which one wins. It stayed at 500 for a while after the
-	// real one moved, which is exactly the confusion worth avoiding.
+	// The yaw seeded here is cosmetic, so the value is never garbage on frame zero. Keep it equal to
+	// TurnRateDegrees' default, or a reader finds two rates and has to work out which wins.
 	GetCharacterMovement()->RotationRate = FRotator(0.0f, 1200.0f, 0.0f);
 
 	// Note: For faster iteration times these variables, and many more, can be tweaked in the Character Blueprint
@@ -136,18 +123,14 @@ void ATheDreamCharacter::UpdateCameraRelativeFacing(float DeltaSeconds)
 		return;
 	}
 
-	// Simulated proxies do not decide their own facing; it arrives replicated from the server
-	// with the rest of the movement state. Everyone else runs this -- the owning client because
-	// it predicts, the server because it decides, and the AI-possessed training dummy because it
-	// is an authority pawn whose death still has to stop it turning.
+	// Simulated proxies do not decide their own facing; it arrives replicated with the rest of the
+	// movement state. Everyone else runs this -- the owning client because it predicts, the server
+	// because it decides, and the AI-possessed dummy because it is an authority pawn whose death
+	// still has to stop it turning.
 	//
-	// This was benign before it was guarded, but only by accident: a simulated proxy has no
-	// Controller, so UCharacterMovementComponent::PhysicsRotation returns before
-	// bUseControllerDesiredRotation does anything. That is an engine implementation detail
-	// nobody here chose, and the attack facing lock is the first state to run through this
-	// function that the proxy cannot compute for itself -- it is set by the ability, which a
-	// proxy never runs. Relying on a stranger's early-out to keep that harmless is the shape of
-	// bug this project files traps about.
+	// Guarded explicitly rather than left to UCharacterMovementComponent::PhysicsRotation's own
+	// early-out on a null Controller: that is an engine detail nobody here chose, and the facing
+	// lock is set by an ability, which a proxy never runs.
 	if (!IsLocallyControlled() && !HasAuthority())
 	{
 		return;
@@ -174,15 +157,13 @@ void ATheDreamCharacter::UpdateCameraRelativeFacing(float DeltaSeconds)
 
 	// **Target Lock's homing, and it takes facing outright rather than competing for it.**
 	//
-	// Two rules writing one yaw is not a tie, it is last-writer-wins, which is arbitrary -- and
-	// made to compete at equal rates it would deadlock: turning away raises the bearing and homing
-	// pulls back exactly as hard, so a tagged target could never be left. **The player's authority
-	// moves up a level instead.** The wedge is evaluated from the *camera*, so aiming at a
-	// different target selects it and the body follows there; steering is expressed as choosing,
-	// not as fighting.
+	// Two rules writing one yaw is last-writer-wins, and made to compete at equal rates it would
+	// deadlock: turning away raises the bearing and homing pulls back exactly as hard, so a tagged
+	// target could never be left. **The player's authority moves up a level instead** -- the wedge
+	// is evaluated from the *camera*, so aiming at a different target selects it and the body
+	// follows. Steering is expressed as choosing, not as fighting.
 	//
-	// Runs at TurnRateDegrees, the same rate camera-relative facing uses, so no new number exists
-	// to keep in step with the aim guarantee.
+	// Runs at TurnRateDegrees, so no new number exists to keep in step with the aim guarantee.
 	if (float HomingYaw = 0.0f; GetFacingHomingYaw(HomingYaw))
 	{
 		bUseControllerRotationYaw = false;
@@ -194,30 +175,25 @@ void ATheDreamCharacter::UpdateCameraRelativeFacing(float DeltaSeconds)
 		return;
 	}
 
-	// Written every frame rather than once at construction, so the rate stays live-tunable in
-	// PIE. That is what let it be swept mid-session against the debug HUD's lock readout, and
-	// it is how the 1200 was arrived at rather than guessed.
+	// Written every frame rather than once at construction, so the rate stays live-tunable in PIE.
 	//
-	// Three rates, and only one of them is an aim value. The fast rate resumes on the press and
-	// the whole first 150 ms of every attack runs at it, which is where the guarantee lives --
-	// so both of the others apply only outside that window and cannot affect aim at any value.
-	// The coil rate wins over idle because an attack is being held, which is not idle by any
-	// reading; in practice IsIdle() is already false then, and the order is stated rather than
-	// relied upon. See IdleTurnRateDegrees and CoilTurnRateDegrees.
+	// **Three rates, and only one of them is an aim value.** The fast rate resumes on the press and
+	// the whole first 150 ms of every attack runs at it, which is where the guarantee lives -- so
+	// the other two apply only outside that window and cannot affect aim at any value. The coil rate
+	// wins over idle because holding an attack is not idle; IsIdle() is already false then, and the
+	// order is stated rather than relied upon.
 	Movement->RotationRate.Yaw = bAbilityCoiling
 		? CoilTurnRateDegrees
 		: (IsIdle() ? IdleTurnRateDegrees : TurnRateDegrees);
 
-	// One rotation source, always. bUseControllerRotationYaw is the *snap* -- it assigns yaw
-	// from the controller every frame, ignoring RotationRate entirely -- and it is deliberately
-	// never enabled now. Leaving it on would silently disable the smooth turn below, since it
-	// wins over the movement component's desired-rotation path.
+	// **One rotation source, always.** bUseControllerRotationYaw is the *snap* -- it assigns yaw from
+	// the controller every frame, ignoring RotationRate entirely -- and is never enabled now.
+	// Leaving it on would silently disable the smooth turn below, since it wins over the movement
+	// component's desired-rotation path.
 	//
-	// Nothing scales between the two. Attacks freeze facing through IsFacingLocked() above and
-	// hand it straight back; a version that faded was built and removed the same day, because
-	// any scale below full authority disabled the snap that then existed. That failure mode is
-	// gone with the snap itself, and interpolation proved unnecessary once the lock ran to
-	// EndAbility -- IdleTurnRateDegrees already covers the catch-up it would have smoothed.
+	// Nothing scales between the two. Attacks freeze facing through IsFacingLocked() above and hand
+	// it straight back; IdleTurnRateDegrees covers the catch-up an interpolation would have
+	// smoothed.
 	bUseControllerRotationYaw = false;
 	Movement->bUseControllerDesiredRotation = true;
 }
@@ -257,15 +233,13 @@ void ATheDreamCharacter::SetAbilityFacingLocked(bool bLocked)
 			FacingErrorAtLockDegrees = FMath::FindDeltaAngleDegrees(
 				GetActorRotation().Yaw, FacingController->GetControlRotation().Yaw);
 
-			// Kept past the pass that added it, behind the existing cvar. This number cannot be
-			// read off a HUD by the same person performing the flick, and it is the only way the
-			// aim consequence of TurnRateDegrees is visible at all -- which matters because that
-			// rate is derived from the light's commit time, and Lunge + Recovery moves things
-			// near it. Carries the rate so a sweep cannot be misattributed afterwards.
-			// camDelta is the half this line was missing, and the reason a clean err= is not a
-			// clean bill of health: err answers "is the body aligned with the camera *now*",
-			// while camDelta answers "did the camera move since the player asked for this swing".
-			// A flick made during a buffered press shows err=+0.0 and camDelta=-170.
+			// This number cannot be read off a HUD by the same person performing the flick, and it
+			// is the only way the aim consequence of TurnRateDegrees is visible at all. Carries the
+			// rate so a sweep cannot be misattributed afterwards.
+			//
+			// **A clean err= is not a clean bill of health.** err answers "is the body aligned with
+			// the camera *now*"; camDelta answers "did the camera move since the player asked for
+			// this swing". A flick made during a buffered press reads err=+0.0, camDelta=-170.
 			const float CameraDeltaDegrees = (AimPressWorldTime >= 0.0f)
 				? FMath::FindDeltaAngleDegrees(AimPressControlYawDegrees, FacingController->GetControlRotation().Yaw)
 				: 0.0f;
@@ -299,11 +273,10 @@ void ATheDreamCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputC
 	// Set up action bindings
 	if (UEnhancedInputComponent* EnhancedInputComponent = Cast<UEnhancedInputComponent>(PlayerInputComponent)) {
 		
-		// **Jump is deliberately not bound here any more (2026-08-20).** It became a GameplayAbility,
-		// so its press and release both arrive through ATDCombatCharacter's AbilityInputActions map
-		// like every other combat input, and binding it twice would launch a jump that GA_Jump had
-		// just refused. JumpAction itself is kept -- the Blueprint sets it, and removing a UPROPERTY
-		// orphans every CDO override of it -- but nothing in C++ reads it now.
+		// **Jump is deliberately not bound here.** It is a GameplayAbility, so its press and release
+		// both arrive through ATDCombatCharacter's AbilityInputActions map like every other combat
+		// input, and binding it twice would launch a jump that GA_Jump had just refused. JumpAction
+		// itself is kept -- removing a UPROPERTY orphans every CDO override -- but nothing reads it.
 
 		// Moving
 		EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Triggered, this, &ATheDreamCharacter::Move);
@@ -345,23 +318,15 @@ void ATheDreamCharacter::Look(const FInputActionValue& Value)
 
 void ATheDreamCharacter::DoMove(float Right, float Forward)
 {
-	// An ability owning movement means the player cannot walk out of it. Gated on the *input*
-	// rather than by disabling the movement component, because the ability itself still has to
-	// move: an attack's lunge, a dodge's dash and any future knockback all run through CMC, and
-	// DisableMovement would stop those too.
+	// An ability owning movement means the player cannot walk out of it. Gated on the *input* rather
+	// than by disabling the movement component, because the ability itself still has to move: an
+	// attack's lunge, a dodge's dash and any knockback all run through CMC.
 	//
-	// Returning before AddMovementInput leaves GetLastInputVector() empty, and **that emptiness has
-	// two readers, not one**. IsIdle() was checked in 2026-08-12 and is genuinely unaffected --
-	// ATDCombatCharacter::IsIdle() already returns false while any ability is active. The second
-	// reader was missed: UTDDodgeAbility::ResolveDodgeDirection() read the same vector and saw
-	// nothing, so every dodge cancelling an attack resolved to the standing-still default and went
-	// backward. Found in play 2026-08-16, three days after the note claiming this was harmless.
-	//
-	// **The lesson worth more than the fix: "harmless" was verified against one consumer and
-	// written as though it were a property of the vector.** Grep for the other callers.
-	//
-	// So the input is now recorded before the gate, and only *applying* it is gated. LastRequested-
-	// MoveInput is what anything asking "which way is the player holding" should read.
+	// **The input is recorded before the gate, and only applying it is gated.** Returning before
+	// AddMovementInput leaves GetLastInputVector() empty, and anything asking "which way is the
+	// player holding" must read LastRequestedMoveInput instead -- see
+	// UTDDodgeAbility::ResolveDodgeDirection, which would otherwise resolve every dodge cancelling
+	// an attack to the standing-still default.
 	if (GetController() != nullptr)
 	{
 		// find out which way is forward
