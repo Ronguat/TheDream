@@ -72,12 +72,10 @@ whole fixture after every restart**, and treat a scenario that suddenly measures
 a reverted knob before anything else. The tell is cheap: `ESCALATE` counts say which tier is
 actually being thrown.
 
-**`save_assets` with explicit paths does not sweep the level in** *(2026-08-20)*. `Docs/Working-In-Unreal.md`
-recommends the empty list plus `git status`, which is right for *discovering* what was written and
-wrong right after a CDO session: the empty list saved `L_CombatTest.umap` too and baked a stale
-four-ability `DefaultAbilities` onto both dummies, which `set_properties` and `reset_properties`
-then both refused to repair (re-tested 2026-08-20; the limit held). Naming the assets avoided it
-cleanly on the next pass.
+**After a CDO session, save by naming the assets** — the empty-list form sweeps the level in and
+bakes stale overrides onto placed actors. The rule and both forms live in
+`Docs/Working-In-Unreal.md`; it is recorded there rather than here because it corrected a claim that
+file was already making.
 
 **Close the animation editor before measuring — its preview actor fires notifies into the same
 log** *(2026-08-19)*. An editor left open on `AM_Parry` loops its preview, and every loop emits a

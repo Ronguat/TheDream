@@ -248,8 +248,14 @@ Execution order, the only line that changes when the order does:
 
 > **~~Attack Ladder~~ → ~~Dodge~~ → ~~Sword & Shield~~ → ~~Input Buffer~~ → ~~Death~~ → ~~Dodge Distance~~ → ~~Attack Swap~~ → ~~[hover bug]~~ → ~~[facing pass]~~ → ~~Recovery~~ + ~~Lunge~~ → ~~Target Lock~~ → ~~Block~~ → ~~Light String~~ → ~~Parry~~ → Knockdown → Polish → Death-full → Settings → Netcode → Tuning Rig → Interplay**
 
-**Pick up at Knockdown: the execution greenlight of `Docs/Plan-Knockdown.md`** — designer-signed
-2026-08-19, sub-slices A→I. The cross-archetype migration its brief demanded is done (`97f4acb`).
+**Pick up at Knockdown's sub-slice F, the get-up attack** — `Docs/Plan-Knockdown.md` is still live.
+**A–E shipped 2026-08-20**, the state machine verified in play: grades, the 2.5 s total, the 0.5 s
+rise, floor invincibility, the movement and facing locks, the parried attacker's lockout. **F is
+blocked on `AM_GetUpAttack`** — no clip in the library suits it, and without a montage carrying a
+Release Window notify the ability commits but its hitbox never opens. A placeholder is owed.
+
+**Also owed**: `s4-360`'s first-burst exclusion, sub-slice I's spec rewrite, and the get-up options
+— dodge, kip-up, block, every exhaustion refusal — built and never run, which is a filed trap.
 
 **Structure Audit has no roster position and keeps a trigger**; its brief is in the same section.
 

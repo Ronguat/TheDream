@@ -239,9 +239,15 @@ type** -- a broken one usually looks fine alone.
 - **TMap keys** *(reported once)* — logs `added key ... not found in map` while being correct.
 - **`AssetTools` functions taking an `asset_path` string false-negative on assets that exist** —
   `exists`, `is_dirty`, `get_asset_class` and `save_assets` all rejected `GA_Attack` 2026-08-14 while
-  `find_assets` listed it and `load_asset` returned it. **Use `load_asset` as the existence check**,
-  and **`save_assets` with an empty list**, then `git status` to see what was written. `duplicate`
-  fails with a bare `false`; a plain asset may need a human, though a `CurveFloat` worked 2026-08-13.
+  `find_assets` listed it and `load_asset` returned it. **Use `load_asset` as the existence check.**
+  `duplicate` fails with a bare `false`; a plain asset may need a human, though a `CurveFloat`
+  worked 2026-08-13.
+- **The two `save_assets` forms do different jobs, and picking the wrong one bakes a trap**
+  *(2026-08-20)*. The empty list saves everything dirty **including the level**, which is how the
+  stale-override trap below gets created after a CDO session. **Naming the assets works and scopes
+  the write** — re-tested, contradicting the older advice to always pass an empty list. So: explicit
+  paths to *write*, the empty list only to *discover* what is dirty, and `git status` either way,
+  because seeing the files listed is the check and calling save is not.
 - **`delete` is inconsistent about removing the `.uasset` from disk** *(confirmed both ways)*.
   Always check the directory afterwards; `git rm` only what is still there.
 - **Saving a level while a CDO write is not yet live bakes the stale value into placed actors as
