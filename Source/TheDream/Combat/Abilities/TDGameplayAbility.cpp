@@ -13,21 +13,17 @@
 
 UTDGameplayAbility::UTDGameplayAbility()
 {
-	// One instance per actor: abilities keep state across activations (combo index,
-	// input holds) and per-execution instancing would throw that away every swing.
+	// One instance per actor: abilities keep state across activations (combo index, input holds)
+	// and per-execution instancing would throw that away every swing.
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
 
-	// Stated explicitly even though it is the engine default, because it is the engine default
-	// only by accident -- UGameplayAbility's constructor never assigns NetExecutionPolicy, and
-	// LocalPredicted is simply enum index 0. Every ability in this project was running the most
-	// demanding policy without anyone choosing it.
+	// Stated explicitly even though it is the engine default, because it is the default only by
+	// accident -- UGameplayAbility's constructor never assigns NetExecutionPolicy, and LocalPredicted
+	// is simply enum index 0.
 	//
-	// LocalPredicted *is* the right value for the agreed model (server-authoritative with
-	// client prediction, decided 2026-08-11): the client starts acting immediately and the
-	// server remains the authority. What is still owed is the other half -- prediction windows
-	// so that a mispredicted activation is rolled back rather than left standing. Until that
-	// exists this is a correct declaration of intent and an incomplete implementation of it,
-	// which is deliberately better than an undeclared one.
+	// It is the right value for the agreed model: the client starts acting immediately and the
+	// server remains the authority. What is still owed is the other half -- prediction windows, so
+	// a mispredicted activation is rolled back rather than left standing.
 	NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::LocalPredicted;
 }
 
@@ -35,15 +31,13 @@ bool UTDGameplayAbility::CanActivateAbility(const FGameplayAbilitySpecHandle Han
 {
 	if (!Super::CanActivateAbility(Handle, ActorInfo, SourceTags, TargetTags, OptionalRelevantTags))
 	{
-		// **Tag refusals were invisible, and they are now most refusals.** The three checks below
-		// each trace themselves, but everything expressed as ActivationBlockedTags -- a committed
-		// swing, a committed guard, exhaustion, being mid-dodge -- failed inside Super with nothing
-		// logged. A whole session of Block produced an empty REFUSED list while refusing constantly,
-		// which reads as "nothing was refused" and is the opposite of the truth.
+		// Everything expressed as ActivationBlockedTags -- a committed swing, a committed guard,
+		// exhaustion, being mid-dodge -- fails inside Super with nothing logged, which reads as
+		// "nothing was refused" and is the opposite of the truth.
 		//
-		// Names the offending tags rather than saying "blocked", because "which rule stopped me" is
-		// the only question worth asking here, and an empty set is itself informative: it means the
-		// refusal was a cost, a missing required tag, or the ability already running.
+		// Names the offending tags rather than saying "blocked". An empty set is itself
+		// informative: it means the refusal was a cost, a missing required tag, or the ability
+		// already running.
 		if (ActorInfo && ActorInfo->AbilitySystemComponent.IsValid())
 		{
 			FGameplayTagContainer Owned;
@@ -52,21 +46,15 @@ bool UTDGameplayAbility::CanActivateAbility(const FGameplayAbilitySpecHandle Han
 			// **Owned.Filter(Blocked), never Blocked.Filter(Owned) -- the direction is the whole
 			// correctness of this line.** Filter expands the tags of the container it is called on,
 			// so the reversed form expands each *blocked* tag upward and matches a blocked
-			// State.Blocking.Committed against a merely-owned State.Blocking. That reported a
-			// committed guard on every refusal thrown during any block, three seconds after a 0.25 s
-			// commitment had expired, and it was wrong every time -- caught 2026-08-14 by an attack
-			// that activated while the trace claimed the tag forbidding it was present.
+			// State.Blocking.Committed against a merely-owned State.Blocking.
 			//
-			// This direction expands the *owned* tags instead, which is what
-			// HasAnyMatchingGameplayTags does, so the set named here is the set GAS actually refused
-			// on. It also names the tags the avatar *has*, which is the more useful half of "which
-			// rule stopped me".
+			// This direction expands the *owned* tags, which is what HasAnyMatchingGameplayTags
+			// does, so the set named here is the set GAS actually refused on.
 			const FGameplayTagContainer Offending = Owned.Filter(ActivationBlockedTags);
 
 			// Deduped, because the resume retries every tick while its input is held: without this
 			// a guard waiting on exhaustion would emit sixty identical lines a second and drown
-			// every low-frequency event in the same window -- the exact failure the log-window trap
-			// in Docs/Working-In-Unreal.md describes.
+			// every low-frequency event in the same window.
 			const UWorld* World = ActorInfo->AvatarActor.IsValid() ? ActorInfo->AvatarActor->GetWorld() : nullptr;
 			const float Now = World ? World->GetTimeSeconds() : 0.0f;
 			const FString Reason = Offending.IsEmpty() ? TEXT("(not a tag)") : Offending.ToStringSimple();
@@ -83,17 +71,16 @@ bool UTDGameplayAbility::CanActivateAbility(const FGameplayAbilitySpecHandle Han
 		return false;
 	}
 
-	// Checked here rather than by adding State.Dead to every ability's ActivationBlockedTags,
-	// so a future ability cannot be granted without it. The dead are not a special case any
-	// one ability should have to remember. Unconditional rather than a flag like
-	// bBlockedWhileAirborne -- there is no ability a corpse should be able to use.
+	// The refusals below are sited here rather than in each ability's ActivationBlockedTags under
+	// one rule: **a refusal any single ability could be granted without is one that will eventually
+	// be missed by one.** Each traces the avatar as well as the ability, because instances are per
+	// actor and the player's and the dummy's are both called GA_Attack_C_0.
+	//
+	// Death is unconditional rather than a flag like bBlockedWhileAirborne -- there is no ability a
+	// corpse should be able to use.
 	if (ActorInfo && ActorInfo->AbilitySystemComponent.IsValid()
 		&& ActorInfo->AbilitySystemComponent->HasMatchingGameplayTag(TDTags::State_Dead))
 	{
-		// The avatar's name, not just the ability's. Abilities are InstancedPerActor, so the
-		// player and the training dummy each own an instance and both are legitimately called
-		// GA_Attack_C_0 -- which made a real investigation impossible to finish, because the
-		// trace could not say whose refusal it was. Added 2026-08-12 for exactly that reason.
 		TD_TIMING_LOG(TEXT("[%.3f] REFUSED    %s on %s: dead"),
 			ActorInfo->AvatarActor.IsValid() && ActorInfo->AvatarActor->GetWorld()
 				? ActorInfo->AvatarActor->GetWorld()->GetTimeSeconds() : 0.0f,
@@ -102,13 +89,9 @@ bool UTDGameplayAbility::CanActivateAbility(const FGameplayAbilitySpecHandle Han
 		return false;
 	}
 
-	// Same treatment as death and for the same reason: a stun that any one ability could be
-	// granted without is a stun that will eventually be missed by one. A broken guard forbids
-	// everything for its duration, so there is no per-ability judgement to make.
-	//
-	// Deliberately *not* buffered -- see ShouldBufferFailedInput. A guard break is a punish
-	// window, and replaying every press made during one would hand back the exact seconds the
-	// break exists to take away.
+	// A broken guard forbids everything for its duration. Deliberately *not* buffered -- see
+	// ShouldBufferFailedInput: a guard break is a punish window, and replaying every press made
+	// during one would hand back the exact seconds the break exists to take away.
 	if (ActorInfo && ActorInfo->AbilitySystemComponent.IsValid()
 		&& ActorInfo->AbilitySystemComponent->HasMatchingGameplayTag(TDTags::State_GuardBroken))
 	{
@@ -120,16 +103,9 @@ bool UTDGameplayAbility::CanActivateAbility(const FGameplayAbilitySpecHandle Han
 		return false;
 	}
 
-	// **The parry jail, first half: the window itself** (the designer, 2026-08-19, widening the
-	// ruling below later the same evening). *"Once a parry has been initiated, you are jailed and
-	// unable to do anything until parry recovery ends, or an attacker overrides it via inflicting
-	// punishment, OR you parry something successfully during the window."*
-	//
-	// So the commitment runs from **activation**, not from window close. Before this, movement was
-	// locked through the window but no ability was refused during it -- State.Parrying appears in
-	// nobody's ActivationBlockedTags -- so a parry could be attacked, blocked or dodged out of at
-	// any point in its own active window. That made the read free: throw one, and if the tell says
-	// you guessed wrong, cancel into something else before it costs you.
+	// **The parry jail, first half: the window itself.** The commitment runs from *activation*, not
+	// from window close, so a parry cannot be attacked, blocked or dodged out of once thrown --
+	// which is what stops the read being free.
 	//
 	// The other two exits need no code here, because both already remove this tag: a success ends
 	// the ability at the catch, and an attacker's punishment cancels it. See CloseParryWindow.
@@ -144,18 +120,10 @@ bool UTDGameplayAbility::CanActivateAbility(const FGameplayAbilitySpecHandle Han
 		return false;
 	}
 
-	// **The jail's second half: a whiffed parry's recovery.** The designer's ruling:
-	// "if you can act during parry recovery, you shouldn't be able to" -- qualified the same
-	// evening to "assuming the parry never makes contact", which is precisely this state, since a
-	// parry that *did* connect charges no recovery at all.
-	//
-	// Sited here rather than in each ability's ActivationBlockedTags for the reason death and the
-	// guard break give: a refusal any one ability could be granted without is one that will
-	// eventually be missed by one. It also keeps the CDO tag containers out of it, which is worth
-	// something on its own -- an array edit there is the operation that half-writes.
-	//
-	// This is what makes the recovery a *price* rather than a pause. It costs no stamina, so the
-	// whole cost of a missed read is the time, and time you can act during is not a cost.
+	// **The jail's second half: a whiffed parry's recovery**, which is what makes the recovery a
+	// *price* rather than a pause. A parry costs no stamina, so the whole cost of a missed read is
+	// the time, and time you can act during is not a cost. A parry that connected charges no
+	// recovery at all, so this state never arises for one.
 	if (ActorInfo && ActorInfo->AbilitySystemComponent.IsValid()
 		&& ActorInfo->AbilitySystemComponent->HasMatchingGameplayTag(TDTags::State_ParryRecovery))
 	{
@@ -167,14 +135,9 @@ bool UTDGameplayAbility::CanActivateAbility(const FGameplayAbilitySpecHandle Han
 		return false;
 	}
 
-	// Being parried refuses everything, from the shared base like death, the guard break, hitstun
-	// and the knockdown jail -- and for the reason all of them give: a lockout any one ability
-	// could be granted without is one that will eventually be missed by one.
-	//
-	// **The refusal is what makes the punish window real.** Before this the parried attacker merely
-	// rode their own recovery, which recovery already forbade acting through; the difference now is
-	// that the *swing* ended at the catch, so without this the attacker would be free the instant
-	// it did -- and a parry would shorten their commitment instead of lengthening it.
+	// **Being parried refuses everything, and the refusal is what makes the punish window real.**
+	// The swing ended at the catch, so without this the attacker would be free the instant it did
+	// -- and a parry would shorten their commitment instead of lengthening it.
 	if (ActorInfo && ActorInfo->AbilitySystemComponent.IsValid()
 		&& ActorInfo->AbilitySystemComponent->HasMatchingGameplayTag(TDTags::State_ParryLockout))
 	{
@@ -186,16 +149,13 @@ bool UTDGameplayAbility::CanActivateAbility(const FGameplayAbilitySpecHandle Han
 		return false;
 	}
 
-	// Hitstun refuses everything, from the shared base like death and the guard break, and for the
-	// same reason: a stun any one ability could be granted without is a stun that will eventually
-	// be missed by one. Refusing *defense* here is not a side effect -- it is the entire mechanism
-	// behind "any hit in the string guarantees the rest".
+	// Hitstun refuses everything, defense included -- which is not a side effect but the entire
+	// mechanism behind "any hit in the string guarantees the rest".
 	//
-	// Unlike those two it deliberately DOES buffer (no ShouldBufferFailedInput exemption): hitstun
-	// is brief, and a press made during it is the defender's punish attempt -- the exact input the
-	// string's delay-and-bait game exists to read. While the chain stays tight the re-press is
-	// refused again before it can matter; the moment the attacker delays, it fires. That gap being
-	// escapable by a prompt press is the design, not a leak.
+	// Unlike death and the guard break it deliberately DOES buffer: hitstun is brief, and a press
+	// made during it is the defender's punish attempt, the exact input the string's delay-and-bait
+	// game exists to read. While the chain stays tight the re-press is refused again before it can
+	// matter; the moment the attacker delays, it fires.
 	if (ActorInfo && ActorInfo->AbilitySystemComponent.IsValid()
 		&& ActorInfo->AbilitySystemComponent->HasMatchingGameplayTag(TDTags::State_Hitstun))
 	{
@@ -207,23 +167,13 @@ bool UTDGameplayAbility::CanActivateAbility(const FGameplayAbilitySpecHandle Han
 		return false;
 	}
 
-	// The fifth of the five rules ATDCombatCharacter::Jump() used to restate by hand, and the only
-	// one with no tag to express it -- so it is a flag rather than an ActivationBlockedTags entry.
-	// Opt-in like the airborne check below, and traced for the same reason: a refused activation is
-	// otherwise indistinguishable from a dropped input.
+	// **The knockdown jail, and the choice window that follows it. Three phases, two answers.** The
+	// jail refuses everything, and so does the rise, because a rise is committed the moment it
+	// starts. Between them the choice window admits exactly the abilities that opted in as get-up
+	// options.
 	//
-	// Reads the character's bAbilityMovementLocked, which is *someone else's* lock by construction
-	// -- an ability holding it is already running, and a second activation of the same ability is
-	// refused by GAS before this is reached.
-	// **The knockdown jail, and the choice window that follows it.** Sited here rather than in each
-	// ability's ActivationBlockedTags for the reason death and the guard break give: a refusal any
-	// one ability could be granted without is one that will eventually be missed by one.
-	//
-	// Three phases, two answers. The jail refuses everything -- and the rise refuses everything
-	// too, because a rise is committed the moment it starts. Between them the choice window admits
-	// exactly the abilities that opted in as get-up options. Deliberately *not* exempted from the
-	// input buffer: a press made in the jail is the defender asking for their get-up, and firing it
-	// on the frame the jail ends is the design rather than a leak.
+	// Deliberately *not* exempted from the input buffer: a press made in the jail is the defender
+	// asking for their get-up, and firing it on the frame the jail ends is the design.
 	if (const ATDCombatCharacter* Downed = Cast<ATDCombatCharacter>(ActorInfo ? ActorInfo->AvatarActor.Get() : nullptr))
 	{
 		if (Downed->IsKnockedDown() && !(bAllowedFromKnockdown && Downed->IsInKnockdownChoiceWindow()))
@@ -237,11 +187,15 @@ bool UTDGameplayAbility::CanActivateAbility(const FGameplayAbilitySpecHandle Han
 		}
 	}
 
+	// A flag rather than an ActivationBlockedTags entry, because the movement lock has no tag to
+	// express it. Reads bAbilityMovementLocked, which is *someone else's* lock by construction: an
+	// ability holding it is already running, and a second activation of the same ability is refused
+	// by GAS before this is reached.
+	//
 	// **A get-up is exempt from the floor's own movement lock, and it has to be.** Knockdown locks
-	// movement for the whole down state (2026-08-20), and the neutral stand answers the jump input
-	// -- so without this exemption the lock the floor imposes would refuse the very option that
-	// exists to leave the floor. The knockdown check above has already decided whether this ability
-	// is legal here; if it said yes, this one must not overrule it.
+	// movement for the whole down state and the neutral stand answers the jump input, so without
+	// this exemption the lock the floor imposes would refuse the very option that exists to leave
+	// the floor. The knockdown check above has already decided whether this ability is legal here.
 	if (bBlockedWhileMovementLocked)
 	{
 		const ATheDreamCharacter* Character = ActorInfo ? Cast<ATheDreamCharacter>(ActorInfo->AvatarActor.Get()) : nullptr;
@@ -263,13 +217,8 @@ bool UTDGameplayAbility::CanActivateAbility(const FGameplayAbilitySpecHandle Han
 		const UCharacterMovementComponent* Movement = Character ? Character->GetCharacterMovement() : nullptr;
 		if (Movement && Movement->IsFalling())
 		{
-			// Traced, because a refused activation is otherwise indistinguishable from a
-			// dropped input -- the exact failure this project treats as the worst feedback
-			// available. Fires once per activation attempt, which is once per press while the
-			// ability input is bound to Started; see the IA_Attack note in Combat-Decisions.
-			//
-			// Carries the avatar because the ability's own name cannot identify it: instances are
-			// per actor, so the player's and the dummy's are both GA_Attack_C_0.
+			// Traced, because a refused activation is otherwise indistinguishable from a dropped
+			// input. Fires once per activation attempt.
 			TD_TIMING_LOG(TEXT("[%.3f] REFUSED    %s on %s: airborne (mode=%d)"),
 				Character->GetWorld() ? Character->GetWorld()->GetTimeSeconds() : 0.0f,
 				*GetName(),
@@ -284,10 +233,8 @@ bool UTDGameplayAbility::CanActivateAbility(const FGameplayAbilitySpecHandle Han
 
 bool UTDGameplayAbility::ShouldBufferFailedInput(const FGameplayAbilityActorInfo* ActorInfo) const
 {
-	// Death is the clearest case of a refusal that must not be remembered. It lasts whole
-	// seconds, so a press buffered across it would fire on revive -- an action the player
-	// asked for in a situation that no longer exists, which is precisely the false positive
-	// the window length exists to prevent.
+	// Death lasts whole seconds, so a press buffered across it would fire on revive -- an action
+	// the player asked for in a situation that no longer exists.
 	if (ActorInfo && ActorInfo->AbilitySystemComponent.IsValid()
 		&& ActorInfo->AbilitySystemComponent->HasMatchingGameplayTag(TDTags::State_Dead))
 	{
@@ -296,20 +243,16 @@ bool UTDGameplayAbility::ShouldBufferFailedInput(const FGameplayAbilityActorInfo
 
 	// A broken guard is the same shape as death, one second instead of several. The stun *is* the
 	// punish window, so replaying whatever was mashed during it would refund the opening the break
-	// was supposed to create -- and a player who has just been guard-broken is reacting to that,
-	// not still asking for what they pressed a second ago.
+	// was supposed to create.
 	if (ActorInfo && ActorInfo->AbilitySystemComponent.IsValid()
 		&& ActorInfo->AbilitySystemComponent->HasMatchingGameplayTag(TDTags::State_GuardBroken))
 	{
 		return false;
 	}
 
-	// The airborne refusal is the one kind that must not be remembered. Everything else this
-	// ability can be refused by -- a committed swing, an exhaustion lockout, a live instance --
-	// clears while the player is still standing there meaning it. Being in the air does not:
-	// the thing it clears into is a landing, which is itself not a moment you can act through.
-	// Buffering it would hand back a dodge on the touchdown frame that a landing recovery will
-	// later have to take away again.
+	// Everything else this ability can be refused by -- a committed swing, an exhaustion lockout, a
+	// live instance -- clears while the player is still standing there meaning it. Being in the air
+	// does not: it clears into a landing, which is itself not a moment you can act through.
 	if (bBlockedWhileAirborne)
 	{
 		const ACharacter* Character = ActorInfo ? Cast<ACharacter>(ActorInfo->AvatarActor.Get()) : nullptr;
@@ -333,8 +276,7 @@ void UTDGameplayAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle
 
 	// **The action is the exit.** A get-up option starting from the floor *is* the rise -- there is
 	// no shared pre-rise for it to wait through, which is what makes the option's own timing the
-	// thing the defender is choosing. Invincibility ends on this line; from here the ability's own
-	// protection, or lack of it, is the whole of what the defender bought.
+	// thing the defender is choosing. Invincibility ends on this line.
 	if (bAllowedFromKnockdown)
 	{
 		if (ATDCombatCharacter* Downed = Cast<ATDCombatCharacter>(GetAvatarActorFromActorInfo()))
@@ -346,9 +288,8 @@ void UTDGameplayAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle
 		}
 	}
 
-	// Ungated by role, like the facing lock and for the same reason: this is local input
-	// suppression, and the machine that owns the input is the one that has to honour it. See the
-	// facing-lock trap in Docs/Combat-Decisions.md, which covers both.
+	// Ungated by role, like the facing lock: this is local input suppression, and the machine that
+	// owns the input is the one that has to honour it.
 	if (bLocksMovement)
 	{
 		if (ATheDreamCharacter* Character = Cast<ATheDreamCharacter>(GetAvatarActorFromActorInfo()))
@@ -375,12 +316,11 @@ void UTDGameplayAbility::EndAbility(const FGameplayAbilitySpecHandle Handle, con
 {
 	// Before Super, which tears down the actor info this needs.
 	//
-	// **Guarded on having taken it, not on bLocksMovement.** This runs on the shared base, so
-	// every ability passes through here -- an unguarded release would let any ability's ending
-	// hand movement back while a *different* one still owns it. Guarding on the property instead
-	// would strand the lock if it were ever toggled off mid-run. The instance flag is the only
-	// version that answers "did *I* take this", which is the actual question. Same reasoning as
-	// bAttackCommitted guarding the committed tag's removal.
+	// **Guarded on having taken it, not on bLocksMovement.** This runs on the shared base, so every
+	// ability passes through here -- an unguarded release would let any ability's ending hand
+	// movement back while a *different* one still owns it. Guarding on the property instead would
+	// strand the lock if it were ever toggled off mid-run. The instance flag is the only version
+	// that answers "did *I* take this".
 	if (bTookMovementLock)
 	{
 		if (ATheDreamCharacter* Character = Cast<ATheDreamCharacter>(GetAvatarActorFromActorInfo()))
@@ -390,8 +330,8 @@ void UTDGameplayAbility::EndAbility(const FGameplayAbilitySpecHandle Handle, con
 		bTookMovementLock = false;
 	}
 
-	// Before Super, which tears down the actor info this needs. Authority-only, like every
-	// other effect application in this project -- clients see the result by replication.
+	// Before Super, which tears down the actor info this needs. Authority-only, like every other
+	// effect application in this project -- clients see the result by replication.
 	if (EffectOnEnd && IsValid(this) && HasAuthority(&ActivationInfo))
 	{
 		if (UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo())
@@ -420,13 +360,6 @@ void UTDGameplayAbility::StartLunge(
 		return;
 	}
 
-	// Fixture-only, and it belongs here rather than in any caller because **every** lunge routes
-	// through this one function -- the base lunge, each attack's, and the dodge's.
-	//
-	// Suppressing after the fact is not equivalent, which cost a wrong build on 2026-08-18: the
-	// lunge and the release window both happen *inside* one attack, so re-homing between attacks
-	// leaves the hitbox having already gone live wherever the travel ended. A stationary attacker
-	// has to be stationary during the attack, not restored after it.
 	if (const ATDCombatCharacter* Combatant = Cast<ATDCombatCharacter>(Avatar))
 	{
 		if (Combatant->IsDebugLungeSuppressed())
@@ -439,9 +372,8 @@ void UTDGameplayAbility::StartLunge(
 		}
 	}
 
-	// Target Lock's standoff goes to the source rather than being applied to the distance here.
-	// Pre-shortening was the first implementation and it was wrong -- see StandoffCm on
-	// FTDRootMotionSource_FacingForce for what play found and why the gate has to be per tick.
+	// Target Lock's standoff goes to the source rather than being applied to the distance here --
+	// see StandoffCm on FTDRootMotionSource_FacingForce for why the gate has to be per tick.
 	UAbilityTask_FacingLunge* LungeTask = UAbilityTask_FacingLunge::ApplyFacingLunge(
 		this,
 		NAME_None,
@@ -450,10 +382,9 @@ void UTDGameplayAbility::StartLunge(
 		StrengthCurve,
 		StandoffCm,
 		YawOffsetDegrees,
-		// Velocity is clamped to nothing when the lunge ends, so no momentum survives into the
-		// next phase. Without this a lunge hands its speed to whatever follows -- for the light
-		// that is the branch lunge, which would then overshoot its own authored distance, and
-		// for a cancelled attack it is a character who keeps sliding after the swing is gone.
+		// Velocity is clamped to nothing when the lunge ends, so no momentum survives into the next
+		// phase. Without this the light's branch lunge would overshoot its own authored distance,
+		// and a cancelled attack would leave a character sliding after the swing is gone.
 		ERootMotionFinishVelocityMode::ClampVelocity,
 		FVector::ZeroVector,
 		/*ClampVelocityOnFinish=*/0.0f,
@@ -470,11 +401,9 @@ void UTDGameplayAbility::StopLunge()
 {
 	if (UAbilityTask_FacingLunge* LungeTask = ActiveLungeTask.Get())
 	{
-		// Traced because there is otherwise no way to see this happen. The gate's effect is visible
-		// as travel that did not occur, but a stop and a gate that stayed shut for the rest of the
-		// lunge produce an identical resting position -- so without a line saying which one ran,
-		// the two are indistinguishable from the outside, and only one of them survives the target
-		// dying. The distance is what separates a stop-on-contact from a stop that arrived late.
+		// Traced because a stop and a gate that stayed shut for the rest of the lunge produce an
+		// identical resting position -- so without a line saying which one ran, the two are
+		// indistinguishable from the outside, and only one of them survives the target dying.
 		const AActor* Avatar = GetAvatarActorFromActorInfo();
 		const UWorld* World = GetWorld();
 		TD_TIMING_LOG(TEXT("[%.3f] LUNGE STOP %s"),
