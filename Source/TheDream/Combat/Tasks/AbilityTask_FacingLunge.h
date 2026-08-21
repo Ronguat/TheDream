@@ -28,11 +28,9 @@ class UAbilityTask_FacingLunge : public UAbilityTask_ApplyRootMotion_Base
 	FTDFacingLungeDelegate OnFinish;
 
 	/**
-	 *  Starts a lunge of DistanceCm over DurationSeconds along the avatar's facing.
-	 *
-	 *  Takes a distance rather than a force so the caller authors the thing it actually cares
-	 *  about; the speed is derived here. A StrengthCurve that does not average 1.0 across its
-	 *  range will change the distance travelled.
+	 *  Starts a lunge of DistanceCm over DurationSeconds along the avatar's facing. Takes a distance
+	 *  rather than a force so the caller authors the thing it cares about; the speed is derived
+	 *  here. A StrengthCurve that does not average 1.0 across its range changes the distance.
 	 */
 	static UAbilityTask_FacingLunge* ApplyFacingLunge(
 		UGameplayAbility* OwningAbility,

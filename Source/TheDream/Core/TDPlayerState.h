@@ -38,10 +38,9 @@ public:
 	 *  **The flag lives with the ASC, not with the character.** A player pawn's BeginPlay runs
 	 *  *before* it is possessed, so a bool on the character would seed the character's fallback ASC,
 	 *  set the flag, then swap to this one -- leaving the player with no attributes and no
-	 *  abilities, while the never-possessed training dummy worked perfectly throughout.
-	 *
-	 *  It also stops a respawned pawn re-granting every ability and re-stacking every default effect
-	 *  onto a PlayerState that already carries them.
+	 *  abilities, while the never-possessed training dummy worked perfectly throughout. It also
+	 *  stops a respawned pawn re-granting every ability and re-stacking every default effect onto a
+	 *  PlayerState that already carries them.
 	 */
 	bool HasSeededDefaults() const { return bDefaultsSeeded; }
 	void MarkDefaultsSeeded() { bDefaultsSeeded = true; }

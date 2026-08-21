@@ -48,12 +48,10 @@ void UAnimNotify_ParryGesture::Notify(USkeletalMeshComponent* MeshComp, UAnimSeq
 
 	// **The rate switch happens here rather than in GA_Parry, and that is the point.** A successful
 	// parry ends the ability at the instant it catches -- 0 ms in, in the worst case -- so anything
-	// waiting inside the ability would be gone before this marker arrived, and the recovery segment
+	// waiting inside the ability would be gone before this marker arrived and the recovery segment
 	// would play at the window's rate. The authored recovery rate is *always* the one used, so the
-	// switch has to live somewhere that outlives the ability.
-	//
-	// The rate itself was derived at activation and parked on the character; nothing is recomputed
-	// here, and no gameplay event is needed to carry it.
+	// switch has to live somewhere that outlives the ability. The rate itself was derived at
+	// activation and parked on the character; nothing is recomputed here.
 	if (ATDCombatCharacter* Character = Cast<ATDCombatCharacter>(Owner))
 	{
 		const float RecoveryRate = Character->GetPendingParryMontageRecoveryRate();

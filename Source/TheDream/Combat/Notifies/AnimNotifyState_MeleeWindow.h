@@ -16,9 +16,8 @@
  *  branch without modification.
  *
  *  **Do not rename the class.** Placed notifies serialise against the class path, so a rename needs
- *  an ActiveClassRedirects entry and breaks every montage already using it, and notify placement
- *  cannot be repaired programmatically. Only the editor-facing name was brought into line with the
- *  windup / release / recovery vocabulary.
+ *  an ActiveClassRedirects entry, breaks every montage already using it, and notify placement
+ *  cannot be repaired programmatically.
  */
 UCLASS(meta = (DisplayName = "Release Window"))
 class UAnimNotifyState_MeleeWindow : public UAnimNotifyState

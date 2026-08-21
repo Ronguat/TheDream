@@ -14,13 +14,12 @@ ATDPlayerState::ATDPlayerState()
 
 	AttributeSet = CreateDefaultSubobject<UTDAttributeSet>(TEXT("AttributeSet"));
 
-	// APlayerState's own constructor sets this to 1 Hz, which suits a scoreboard and is
-	// catastrophic for an ASC. The attack ladder resolves in 250 ms, so at 1 Hz attributes,
-	// tags and ability state would arrive up to a second late -- and it would read as a
-	// gameplay bug (attacks that do nothing, stamina that jumps) rather than as a net setting.
-	//
-	// 100 Hz is AActor's own default, so this restores the normal rate rather than choosing a
-	// special one. The actual send rate is still bounded by the connection's tick.
+	// APlayerState's own constructor sets this to 1 Hz, which suits a scoreboard and is catastrophic
+	// for an ASC. The attack ladder resolves in 250 ms, so at 1 Hz attributes, tags and ability
+	// state would arrive up to a second late -- and it would read as a gameplay bug (attacks that
+	// do nothing, stamina that jumps) rather than as a net setting. 100 Hz is AActor's own default,
+	// so this restores the normal rate rather than choosing a special one; the actual send rate is
+	// still bounded by the connection's tick.
 	SetNetUpdateFrequency(100.0f);
 }
 
