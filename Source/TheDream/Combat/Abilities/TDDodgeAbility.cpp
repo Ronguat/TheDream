@@ -72,17 +72,12 @@ void UTDDodgeAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, c
 	DodgeDirection = bIsKnockdownKipUp ? ETDDodgeDirection::Bw : ResolveDodgeDirection();
 
 	// Facing freezes for the whole dodge, so the direction resolved a line ago is the direction
-	// travelled. Root motion carries the character along the montage's authored path *relative to
-	// its facing*, so a character free to turn mid-dodge steers the dodge itself.
+	// travelled -- a character free to turn mid-dodge steers the dodge itself. The engine no longer
+	// suppresses rotation during root-motion montages (bAllowPhysicsRotationDuringAnimRootMotion),
+	// so anything wanting a committed direction has to say so.
 	//
-	// **This became necessary rather than merely correct on 2026-08-12**, when
-	// bAllowPhysicsRotationDuringAnimRootMotion was enabled to fix attacks: until then the engine
-	// suppressed rotation during any root-motion montage, and the dodge inherited a committed
-	// direction it had never asked for. Play found the difference immediately -- steerable dodges
-	// read as too much control for a move that costs half the stamina bar.
-	//
-	// Set after ResolveDodgeDirection deliberately; that call reads facing, and locking first
-	// would only freeze the same value it is about to use.
+	// Set after ResolveDodgeDirection deliberately; that call reads facing, and locking first would
+	// only freeze the same value it is about to use.
 	if (ATheDreamCharacter* Character = Cast<ATheDreamCharacter>(GetAvatarActorFromActorInfo()))
 	{
 		Character->SetAbilityFacingLocked(true);
@@ -93,24 +88,21 @@ void UTDDodgeAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, c
 		DodgeStartLocation = Avatar->GetActorLocation();
 	}
 
-	// **Authored displacement, as of 2026-08-13**, replacing the montage's root motion and the
-	// eight per-direction scales that existed to correct it. The clips disagreed by 90.6 cm about
-	// how far a dodge carries, so every one of those scales was a measurement of an animator's
-	// choice; now all eight directions travel DodgeTargetDistanceCm because that is the number.
+	// Authored displacement: all eight directions travel DodgeTargetDistanceCm.
 	//
-	// **The eight yaw offsets are the enum's own order, not a table.** ETDDodgeDirection runs
-	// Fw, FR, R, BR, Bw, BL, L, FL -- clockwise at 45 degrees a step -- so the offset is the
-	// index times 45, and a direction cannot be given the wrong angle without being in the wrong
-	// place in the compass.
+	// **The eight yaw offsets are the enum's own order, not a table.** ETDDodgeDirection runs Fw,
+	// FR, R, BR, Bw, BL, L, FL -- clockwise at 45 degrees a step -- so the offset is the index
+	// times 45, and a direction cannot be given the wrong angle without being in the wrong place in
+	// the compass.
 	//
-	// Standoff is deliberately 0: Target Lock's gate belongs to attacks. An evade has to be able
-	// to travel *past* people, and gating it on pawns would break dodging through a crowd.
+	// Standoff is deliberately 0: Target Lock's gate belongs to attacks. An evade has to be able to
+	// travel *past* people, and gating it on pawns would break dodging through a crowd.
+	//
 	// **Kip-up: the same ability, stationary.** From a hard knockdown the directional dodge is
-	// removed and this replaces it -- i-framed and 50-stamina like any dodge, but travelling
-	// nothing and ignoring held direction, so hard's narrow choice window cannot also buy
-	// repositioning. It is the one deliberate exception to the authored-displacement rule above:
-	// the kip-up clip keeps its own gentle root motion, by ruling, which is why the authored
-	// distance here is zero rather than small.
+	// removed and this replaces it -- i-framed and full-cost like any dodge, but travelling nothing
+	// and ignoring held direction, so hard's narrow choice window cannot also buy repositioning. It
+	// is the one exception to authored displacement: the kip-up clip keeps its own root motion,
+	// which suppresses the authored source, so the zero passed here is moot.
 	const bool bKipUp = bIsKnockdownKipUp;
 
 	StartLunge(
@@ -231,14 +223,13 @@ ETDDodgeDirection UTDDodgeAbility::ResolveDodgeDirection() const
 		return ETDDodgeDirection::Bw;
 	}
 
-	// **The heading captured when the button went down, not the movement component's vector.**
-	// That vector is empty for the whole of any ability that locks movement, so reading it made
-	// every dodge cancelling an attack resolve to the standing-still default -- seven of the eight
-	// directions unreachable from windup between 2026-08-12 and 2026-08-16.
+	// **The heading captured when the button went down, not the movement component's vector.** That
+	// vector is empty for the whole of any ability that locks movement, so reading it makes every
+	// dodge cancelling an attack resolve to the standing-still default.
 	//
-	// Press-time also settles the buffered case the way the player means it: release the key
-	// inside the buffer window and the dodge still goes where you aimed it, because the heading
-	// was one half of a composite input rather than something looked up later.
+	// Press-time also settles the buffered case the way the player means it: release the key inside
+	// the buffer window and the dodge still goes where you aimed it, because the heading was one
+	// half of a composite input rather than something looked up later.
 	float AngleDegrees = 0.0f;
 	if (!Character->GetPressMoveDirection(AngleDegrees))
 	{
@@ -300,15 +291,12 @@ void UTDDodgeAbility::EndAbility(const FGameplayAbilitySpecHandle Handle, const 
 		{
 			const FVector Delta = Avatar->GetActorLocation() - DodgeStartLocation;
 
-			// **Logged as a vector in the avatar's own frame, not as a magnitude.** It printed
-			// Delta.Size2D() until 2026-08-13, and that is how a dodge travelling ninety degrees
-			// from its intended direction produced a line indistinguishable from a perfect one --
-			// the instrument answered "how far", correctly, while the question was "which way".
+			// **Logged as a vector in the avatar's own frame, not as a magnitude.** A magnitude
+			// answers "how far", correctly, while the question is "which way" -- a dodge travelling
+			// ninety degrees off its intended direction reads identically to a perfect one.
 			//
-			// Every number this system was ever tuned on had the same hole: MeasuredTravelCm was
-			// captured the same way, so the eight scales corrected distances nobody had checked the
-			// direction of. Right is +Y and forward is +X, so a left dodge should read fwd~0
-			// right~-405, and any other shape is the bug announcing itself.
+			// Right is +Y and forward is +X, so a left dodge should read fwd~0 right~-405, and any
+			// other shape is the bug announcing itself.
 			const FVector Local = Avatar->GetActorTransform().InverseTransformVectorNoScale(Delta);
 
 			TD_TIMING_LOG(TEXT("[%.3f] DODGE END  dir=%s fwd=%+.1f right=%+.1f up=%+.1f dist=%.1fuu yaw=%.0f%s"),
@@ -336,15 +324,9 @@ void UTDDodgeAbility::EndAbility(const FGameplayAbilitySpecHandle Handle, const 
 	// plus this gap plus the parry window must overshoot 750 for the worst-timed predictive dodge.
 	//
 	// Expressed as a tag rather than as a bespoke timestamp consulted in CanActivateAbility, so the
-	// refusal is visible in the same place every other refusal is.
-	//
-	// ***It had its own tag from 2026-08-19 and shared State.ParryRecovery before that.*** The
-	// sharing was deliberate and correct while both causes said only "you may not put a parry
-	// window here". The designer's ruling that a whiffed parry must prevent *acting* ended the
-	// equivalence: that one now commits the character for its whole duration, and this one still
-	// takes nothing but the parry. Leaving them merged would have made every dodge lock the player
-	// out of everything for DodgeRecoverySeconds -- a feel regression arriving as a side effect of
-	// an unrelated ruling, which is exactly the kind of change that gets blamed on the wrong slice.
+	// refusal is visible in the same place every other refusal is. It has its own tag rather than
+	// sharing State.ParryRecovery, which commits the character outright, where this takes nothing
+	// but the parry.
 	//
 	// Applied on *every* exit including a cancel, deliberately: a dodge cut short still bought its
 	// i-frames, and letting a cancel skip the gap would make cancelling the cheap route to the
