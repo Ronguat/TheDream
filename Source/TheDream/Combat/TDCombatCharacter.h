@@ -587,14 +587,27 @@ protected:
 	virtual void Jump() override;
 
 	/**
-	 *  The dead do not turn to face the camera -- **and neither does a character mid-swing.**
+	 *  The dead do not turn to face the camera -- **and neither does a character mid-swing, nor one
+	 *  lying on the floor.**
 	 *
 	 *  ORed with Super rather than replacing it. The base holds the attack lock, so returning
 	 *  only bDead here would discard it silently: attacks would keep tracking the camera through
 	 *  their own release window and drag an actor-frame hitbox around with them.
+	 *
+	 *  **Knockdown joined on 2026-08-20, found in play: a downed body span with the camera.** The
+	 *  distinction the designer drew is the one to keep -- *camera* rotation while down is fine and
+	 *  wanted, since the free camera is the aiming instrument the block get-up's latched call reads
+	 *  from; what is unnatural is the *body* spinning on its back to match it. This gate separates
+	 *  exactly those two, switching off both rotation sources while leaving the controller alone.
+	 *
+	 *  **Forced facing is unaffected and must be.** TickForcedFacing writes rotation directly
+	 *  rather than through the movement component's desired-rotation path, so the rate-limited turn
+	 *  toward the attacker still runs while this refuses camera tracking -- which is the whole
+	 *  point: the hit turns you to face what hit you, and nothing else turns you at all.
+	 *
+	 *  Released at the stand boundary with the tag, symmetric with the movement lock.
 	 */
-	virtual bool IsFacingLocked() const override { return bDead || Super::IsFacingLocked(); }
-
+	virtual bool IsFacingLocked() const override { return bDead || bKnockedDown || Super::IsFacingLocked(); }
 	/**
 	 *  **Lockouts take movement, not just abilities** (2026-08-20, discharging the "Before Stun" trap).
 	 *
