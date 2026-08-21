@@ -7,20 +7,18 @@
 #include "AnimNotifyState_MeleeWindow.generated.h"
 
 /**
- *  Marks the release phase of an attack on a montage timeline -- the frames during which
- *  it can deal damage.
+ *  Marks the release phase of an attack on a montage timeline -- the frames during which it can
+ *  deal damage.
  *
- *  The notify deliberately does no tracing and applies no damage: it only sends
- *  Event.Melee.WindowBegin / WindowEnd to the owner's ASC. The ability owns the trace
- *  and the damage effect, because that is where the ability level, source tags and
- *  effect context live. That keeps this notify reusable by every branch without
- *  modification.
+ *  It does no tracing and applies no damage: it only sends Event.Melee.WindowBegin / WindowEnd to
+ *  the owner's ASC. The ability owns the trace and the damage effect, because that is where the
+ *  ability level, source tags and effect context live, which keeps this notify reusable by every
+ *  branch without modification.
  *
- *  The class name predates the windup / release / recovery vocabulary and is deliberately
- *  left alone: placed notifies serialise against the class path, so renaming it would
- *  need an ActiveClassRedirects entry and would break the montages already using it --
- *  and notify placement cannot be repaired programmatically. Only the editor-facing name
- *  was brought in line.
+ *  **Do not rename the class.** Placed notifies serialise against the class path, so a rename needs
+ *  an ActiveClassRedirects entry and breaks every montage already using it, and notify placement
+ *  cannot be repaired programmatically. Only the editor-facing name was brought into line with the
+ *  windup / release / recovery vocabulary.
  */
 UCLASS(meta = (DisplayName = "Release Window"))
 class UAnimNotifyState_MeleeWindow : public UAnimNotifyState

@@ -9,32 +9,18 @@
 /**
  *  Marks the boundary on the parry clip where the parry motion **ends** and the recovery begins.
  *
- *  **Place it at the end of the parry, not at the visual peak of the catch** (the designer,
- *  2026-08-19). The distinction decides both play rates, so it is an authoring instruction rather
- *  than a description: everything before the marker is stretched to fit ParryWindowSeconds and
- *  everything after it to fit ParryWhiffRecoverySeconds. A marker placed at the peak -- earlier
- *  than the motion actually resolves -- silently compresses the parry and stretches the recovery,
+ *  **Place it at the end of the parry, not at the visual peak of the catch.** Clip start to the
+ *  marker is stretched to fit ParryWindowSeconds and the marker to clip end to fit
+ *  ParryWhiffRecoverySeconds, so one placed marker authors both halves. A marker at the peak --
+ *  earlier than the motion resolves -- silently compresses the parry and stretches the recovery,
  *  and nothing about the result looks like a misplaced notify.
  *
- *  **An instant treated as a span** (the designer, 2026-08-19). The marker names one frame, and
- *  the two spans either side of it are what the ability actually uses: clip start to here is
- *  fitted to ParryWindowSeconds, here to clip end is fitted to ParryWhiffRecoverySeconds. So a
- *  single placed marker authors both halves of the fit.
+ *  It declares the clip's geometry and never decides when the parry is live. The negation window is
+ *  a timestamp checked in Tick, unreachable from this class, so retiming the clip, moving this
+ *  marker or deleting the montage changes how the parry *looks* and cannot change what it *does*.
  *
- *  **It declares the clip's geometry. It never decides when the parry is live.** That direction is
- *  the whole point and it is the opposite of what a notify usually does here: the animation
- *  conforms to the authored values, never the reverse (the designer, 2026-08-19). The negation
- *  window remains a timestamp checked in Tick, unreachable from this class -- so retiming the
- *  clip, moving this marker, or deleting the montage outright changes how the parry *looks* and
- *  cannot change what it *does*. Making the window a notify would hand a hit-negation window to
- *  the animation, which is the mistake Docs/Combat-Spec.md spent the ladder learning not to make.
- *
- *  The relationship it does have is the one Release Window has with ReleaseSeconds: the notify
- *  says where the clip's own boundary sits, the code says how long the mechanic lasts, and the
- *  play rate is *derived* to reconcile them. Nobody maintains a second copy of either number.
- *
- *  A UAnimNotify rather than a UAnimNotifyState because there is one boundary, not two. The span
- *  it implies is bounded by the clip's own ends, which need no marking.
+ *  A UAnimNotify rather than a UAnimNotifyState because there is one boundary, not two; the spans
+ *  either side are bounded by the clip's own ends.
  */
 UCLASS(meta = (DisplayName = "Parry Gesture"))
 class UAnimNotify_ParryGesture : public UAnimNotify
