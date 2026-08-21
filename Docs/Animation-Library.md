@@ -546,6 +546,46 @@ project uses:
 - `BP_ANS_Sheath` / `BP_ANS_Unsheath` — sheathing notify states, unused for now but relevant
   if weapon swapping ever comes into scope.
 
+
+### Only SwordShield ships a mesh, so every other pack previews as nothing
+
+*(2026-08-20, hit while previewing a migrated rise clip.)* **Three of the four packs contain a
+Skeleton and no SkeletalMesh at all.** Their `Mannequins/Meshes/` folder holds exactly one asset —
+`SK_Mannequin.uasset`, the *Skeleton*, despite living in a folder called `Meshes`:
+
+| Pack | `Mannequins/Meshes/` contains |
+|---|---|
+| `Unarmed` | `SK_Mannequin` (skeleton only) |
+| `DaggerCombatAnimationV1` | `SK_Mannequin` (skeleton only) |
+| `GreatSword` | `SK_Mannequin` (skeleton only) |
+| `SwordShield` | `SKM_Manny` **and** `SK_Mannequin` |
+
+**The symptom is alarming and means nothing is wrong.** Open one of those skeletons and the bone
+tree populates normally while the viewport is empty — *"invisible as if there were no bones, but the
+hierarchy still shows bones"*. Open an AnimSequence on it and playback previews nothing. There is no
+mesh in the pack for Persona to draw and none for it to auto-pick, so it draws nothing. The clip,
+the skeleton and the bone data are all intact.
+
+**The fix is to pick a preview mesh, and the only one that exists is
+`/Game/GDHBundle/SwordShield/DEMO/Characters_SwordShield/Mannequins/Meshes/SKM_Manny`.** It works
+across packs because SwordShield's skeleton lists the other three in `compatibleSkeletons` —
+verified 2026-08-20, all four present including Epic's `/Game/Characters/...SK_Mannequin`. That
+direction is the correct one and the property is explicitly **not bi-directional**: a skeleton lists
+the skeletons whose animation *it* may consume. The source packs' own `compatibleSkeletons` are
+empty, which is right rather than broken — they consume nobody's.
+
+**So the first preview of a migrated clip is also the compat-link play check**, exactly as
+`Docs/Plan-Knockdown.md` intended: if the clip animates correctly on `SKM_Manny`, the link is proven
+end to end.
+
+**Not scriptable, checked rather than assumed** *(2026-08-20)*. `USkeleton::PreviewSkeletalMesh` is
+`WITH_EDITORONLY_DATA` with no `EditAnywhere`, so it is absent from the skeleton's reflection surface
+entirely — `list_properties` returns only `boneTree`, `previewForwardAxis`, `compatibleSkeletons`,
+`bUseRetargetModesFromCompatibleSkeleton` and the two `assetUserData` arrays — and `set_properties`
+refuses it by name. `SkeletalMeshTools` was enumerated in full (21 tools) and has no preview-mesh
+setter; Persona's picker calls `USkeleton::SetPreviewMesh()`, which nothing exposes. **Assigning a
+preview mesh is a human step.**
+
 ## Getting an animation into this project
 
 Use **Asset Actions → Migrate** from `AnimLibrary`, targeting `TheDream/Content`. Migrate
