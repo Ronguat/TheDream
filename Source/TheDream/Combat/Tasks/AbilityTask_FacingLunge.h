@@ -16,9 +16,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE(FTDFacingLungeDelegate);
  *  Modelled directly on UAbilityTask_ApplyRootMotionConstantForce, differing only in the source it
  *  applies -- see FTDRootMotionSource_FacingForce for why the direction cannot be baked in.
  *
- *  **Distance and duration are authored, not the force.** Every other number in this attack model
- *  is a duration a designer chose with the animation fitted to it; displacement is the last one
- *  that was still whatever the clip happened to do, and this is what finishes that job.
+ *  **Distance and duration are authored, not the force.** The speed is derived from them.
  */
 UCLASS()
 class UAbilityTask_FacingLunge : public UAbilityTask_ApplyRootMotion_Base

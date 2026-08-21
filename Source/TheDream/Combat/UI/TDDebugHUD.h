@@ -11,9 +11,8 @@ class ATDCombatCharacter;
 /**
  *  Throwaway debug readout: health, stamina and active gameplay tags for every combatant.
  *
- *  Deliberately a Canvas HUD rather than UMG. This is scaffolding for judging combat by
- *  feel during development, not the shipping health bar, so it is one file with no asset
- *  dependencies and deletes in a single commit when real UI arrives.
+ *  A Canvas HUD rather than UMG: scaffolding for judging combat by feel during development,
+ *  not the shipping health bar, so it is one file with no asset dependencies.
  *
  *  Toggle at runtime with the console variable TD.DebugHUD.
  */
@@ -63,9 +62,8 @@ protected:
 	/**
 	 *  List each combatant's owned gameplay tags.
 	 *
-	 *  Worth keeping on: blockstun, hitstun, knockdown and exhaustion are all state tags,
-	 *  and "is the tag actually applied right now" is the question those slices will need
-	 *  answered directly rather than inferred from animation.
+	 *  Worth keeping on: "is the tag actually applied right now" is a question the state slices
+	 *  need answered directly rather than inferred from animation.
 	 */
 	UPROPERTY(EditDefaultsOnly, Category="Debug|Content")
 	bool bShowGameplayTags = true;
@@ -75,9 +73,8 @@ protected:
 	 *
 	 *  The "lock" figure is the one that matters: an attack's wedge freezes at the commit
 	 *  checkpoint, so that error is the angle between where the player was aiming and where the
-	 *  attack actually points. Kept past the facing pass that added it -- TurnRateDegrees is
-	 *  derived, and this is the readout that shows what it costs. Local player only -- it reads
-	 *  the controller, which a remote character does not have here.
+	 *  attack actually points. Local player only -- it reads the controller, which a remote
+	 *  character does not have here.
 	 */
 	UPROPERTY(EditDefaultsOnly, Category="Debug|Content")
 	bool bShowFacingError = true;
@@ -91,10 +88,8 @@ protected:
 	/**
 	 *  Fill colour for the stamina bar while State.Exhausted is applied.
 	 *
-	 *  Exhaustion is otherwise only legible by spotting a tag in the tag line, which is
-	 *  exactly the wrong amount of work for the one state that explains why an input just
-	 *  refused. Draining the colour out of the bar says "this resource is not yours right
-	 *  now" without needing to be read.
+	 *  Draining the colour out of the bar says "this resource is not yours right now" without
+	 *  needing to be read, where spotting State.Exhausted in the tag line does not.
 	 */
 	UPROPERTY(EditDefaultsOnly, Category="Debug|Colours")
 	FLinearColor ExhaustedStaminaColor = FLinearColor(0.45f, 0.45f, 0.45f, 1.0f);
@@ -102,9 +97,8 @@ protected:
 	/**
 	 *  Fill colour for the health bar while State.Dead is applied.
 	 *
-	 *  Same reasoning as the exhausted stamina colour: an empty bar and a dead character look
-	 *  identical at a glance, since both sit at zero. This distinguishes "at 0 health" from
-	 *  "dead and refusing everything", which is the state that explains why input does nothing.
+	 *  An empty bar and a dead character look identical at a glance, both sitting at zero. This
+	 *  distinguishes "at 0 health" from "dead and refusing everything".
 	 */
 	UPROPERTY(EditDefaultsOnly, Category="Debug|Colours")
 	FLinearColor DeadHealthColor = FLinearColor(0.35f, 0.05f, 0.05f, 1.0f);

@@ -19,12 +19,6 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FTDMeleeTraceHitDelegate, const FHit
  *  frame -- see that struct for what a hitbox is and why it is authored rather than traced off
  *  the weapon. Every actor is reported at most once per window, so one swing cannot multi-hit.
  *
- *  **This replaced a swept capsule chain along the sword, and the sweeping went with it.** A
- *  blade is thin, so a point-in-time test could tunnel past a target between frames and the old
- *  trace swept previous-to-current to close that gap. An authored wedge is tens of cm deep and a
- *  target moves at most about 8 cm per frame at MaxWalkSpeed 500, so the gap it was closing no
- *  longer exists. What is left is one overlap and an exact filter per hitbox per tick.
- *
  *  **Facing must be stable while this runs.** The volume is defined in the attacker's yaw frame,
  *  so a character free to snap toward the camera mid-window would drag its own hitbox around
  *  with it. UTDChargedAttackAbility locks facing for the release window; without that lock this
@@ -76,8 +70,7 @@ private:
 	 *  Only window events carrying this montage open the test.
 	 *
 	 *  The events are broadcast to the whole ASC and carry no ownership of their own, so without
-	 *  this any montage carrying the notify opens every listening trace. Null means accept any,
-	 *  which is the pre-Attack-Swap behaviour, kept only so an ability may opt out deliberately.
+	 *  this any montage carrying the notify opens every listening trace. Null means accept any.
 	 */
 	TWeakObjectPtr<const UAnimMontage> ExpectedMontage;
 

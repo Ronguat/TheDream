@@ -17,13 +17,11 @@
 /**
  *  Core combat attributes shared by every combatant.
  *
- *  Health and Stamina are clamped to [0, Max] in *both* the base and current value.
- *  Both are needed and they catch different writes: PreAttributeChange guards the current
- *  value, PreAttributeBaseChange guards direct base writes such as
- *  ApplyModToAttribute, and PostGameplayEffectExecute guards instant effects. Missing the
- *  base clamp is not cosmetic -- stamina regen drove the base to 105 while the bar read a
- *  clamped 100, so the spendable pool silently exceeded the bar and a dodge from "full"
- *  left 55 rather than 50.
+ *  Health and Stamina are clamped to [0, Max] in *both* the base and current value, which
+ *  takes three overrides catching different writes: PreAttributeChange guards the current
+ *  value, PreAttributeBaseChange guards direct base writes such as ApplyModToAttribute, and
+ *  PostGameplayEffectExecute guards instant effects. Missing the base clamp is not cosmetic:
+ *  the spendable pool silently exceeds the bar.
  *
  *  Raising or lowering a Max attribute scales its current value to preserve the same ratio.
  */

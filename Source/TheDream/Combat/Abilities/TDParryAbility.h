@@ -88,6 +88,11 @@ private:
 	 */
 	void PlayParryMontage();
 
-	/** Trigger time of the Parry Gesture marker on ParryMontage, or -1 if there is none. */
+	/**
+	 *  Trigger time of the Parry Gesture marker on ParryMontage, or -1 if there is none.
+	 *
+	 *  Read straight off UAnimMontage::Notifies, which is what lets both rates be derived at
+	 *  activation rather than discovered when the notify fires.
+	 */
 	float FindGestureTime() const;
 };

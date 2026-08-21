@@ -33,7 +33,7 @@ class ATheDreamCharacter : public ACharacter
 	/** Follow camera */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta = (AllowPrivateAccess = "true"))
 	UCameraComponent* FollowCamera;
-	
+
 protected:
 
 	/** Jump Input Action */
@@ -53,32 +53,24 @@ protected:
 	UInputAction* MouseLookAction;
 
 	/**
-	 *  How fast the character turns to face the camera, in degrees/sec. One rate, whether
-	 *  moving or standing still.
+	 *  How fast the character turns to face the camera, in degrees/sec. One rate, whether moving or
+	 *  standing still. Its own value rather than CharacterMovement's RotationRate, which it drives.
 	 *
-	 *  Deliberately its own value rather than CharacterMovement's RotationRate, which it
-	 *  drives: the two were one concern while facing followed movement and are two now.
-	 *
-	 *  **This is an aim value, not a cosmetic one.** An attack's wedge is authored in the
-	 *  actor's frame and freezes at the commit checkpoint, so whatever this rate has turned by
-	 *  then *is* where the attack points. It is therefore derived rather than chosen:
+	 *  **This is an aim value, not a cosmetic one.** An attack's wedge is authored in the actor's
+	 *  frame and freezes at the commit checkpoint, so whatever this rate has turned by then *is*
+	 *  where the attack points. It is derived rather than chosen:
 	 *
 	 *      rate = 180 degrees / the light's HoldUntilSeconds  ->  180 / 0.15 = 1200
 	 *
-	 *  180 is the largest yaw error that can exist, since the delta is normalised to +/-180.
-	 *  So 1200 is the slowest rate that can *always* close the gap before the wedge freezes,
-	 *  from any starting orientation, for any input where aim was settled before the press.
-	 *  Below it there are flicks the character cannot finish in time: at 500 it covered only
-	 *  75 degrees, and 71% of measured flick-attacks committed with the target outside their
-	 *  own 60 degree wedge.
+	 *  180 is the largest yaw error that can exist, the delta being normalised to +/-180, so 1200 is
+	 *  the slowest rate that can *always* close the gap before the wedge freezes, from any starting
+	 *  orientation, for any input where aim was settled before the press.
 	 *
-	 *  **Move this if the light's HoldUntilSeconds moves**, or the guarantee quietly lapses.
-	 *  Nothing enforces the link -- the two live in different files, like MaxWalkSpeed and the
-	 *  locomotion blendspace.
+	 *  **Move this if the light's HoldUntilSeconds moves**, or the guarantee quietly lapses. Nothing
+	 *  enforces the link; the two live in different files.
 	 *
-	 *  It does not bound error from turning *after* the press; that is by design, since windup
-	 *  is meant to be steerable and the rate is what limits how far a committed swing can be
-	 *  redirected. Read the debug HUD's "lock" figure to see where any given attack froze.
+	 *  It does not bound error from turning *after* the press. That is by design: windup is meant to
+	 *  be steerable, and this rate is what limits how far a committed swing can be redirected.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Movement", meta=(ClampMin="0.0"))
 	float TurnRateDegrees = 1200.0f;
@@ -86,18 +78,11 @@ protected:
 	/**
 	 *  How fast the character turns while genuinely idle -- see IsIdle().
 	 *
-	 *  Exists because the derived rate above is *right* and still reads badly in one place: a
-	 *  character standing in a looping idle, spun on the spot by a camera, with no turn-in-place
-	 *  clip in the library to cover it. Everywhere else 1200 looks like intent; there it looks
-	 *  like a prop being rotated.
-	 *
-	 *  **This one is free to tune by feel, and TurnRateDegrees is not.** That asymmetry is the
-	 *  point of splitting them, and it is safe for a specific reason rather than by luck: the
-	 *  aim guarantee is stated against the *worst possible* gap of 180 degrees, not a typical
-	 *  one, so however far facing drifts while idling, the windup still closes it. What makes
-	 *  that hold is that the fast rate resumes at the **press**, not at the commit checkpoint --
-	 *  the whole 150 ms windup runs at TurnRateDegrees. Had the rate been fitted to observed
-	 *  flick sizes instead of derived from the ceiling, this split would have broken it.
+	 *  **Free to tune by feel, where TurnRateDegrees is not**, and that asymmetry is the point of
+	 *  splitting them. It is safe because the aim guarantee is stated against the *worst possible*
+	 *  gap of 180 degrees rather than a typical one, so however far facing drifts while idling the
+	 *  windup still closes it -- and because the fast rate resumes at the **press**, not at the
+	 *  commit checkpoint, so the whole 150 ms windup runs at TurnRateDegrees.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Movement", meta=(ClampMin="0.0"))
 	float IdleTurnRateDegrees = 300.0f;
@@ -105,19 +90,16 @@ protected:
 	/**
 	 *  How fast the character turns while an attack is coiling -- see SetAbilityCoiling().
 	 *
-	 *  The coil is the tell, and it is also the last window in which an attack can be aimed:
-	 *  facing freezes at the commit checkpoint that ends it. So this rate is exactly how far a
-	 *  held attack may be redirected after the defender has had time to react to it, which makes
-	 *  it a **power** value rather than a cosmetic one. Lower means more committed.
+	 *  The coil is the tell and also the last window in which an attack can be aimed, since facing
+	 *  freezes at the commit checkpoint that ends it. So this is how far a held attack may be
+	 *  redirected after the defender has had time to react, which makes it a **power** value. Lower
+	 *  means more committed.
 	 *
-	 *  **It is nonetheless free to tune by feel, and for the same reason IdleTurnRateDegrees is.**
-	 *  The aim guarantee is stated against the worst possible gap of 180 degrees and is discharged
-	 *  by the *first* 150 ms, which every tier runs at TurnRateDegrees before any coil begins --
-	 *  so by the time this rate applies, aim is already closed and only tracking is left. It
-	 *  cannot break aim at any value, including zero.
+	 *  **Free to tune by feel nonetheless**, for the reason IdleTurnRateDegrees is: aim is already
+	 *  closed by the first 150 ms, which every tier runs at TurnRateDegrees before any coil begins,
+	 *  so this cannot break aim at any value including zero.
 	 *
-	 *  The light never sees this: it commits at the instant the coil would start, so only the
-	 *  heavy and the charged have a coil at all.
+	 *  The light never sees it: it commits at the instant the coil would start.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Movement", meta=(ClampMin="0.0"))
 	float CoilTurnRateDegrees = 300.0f;
@@ -129,14 +111,12 @@ protected:
 	/**
 	 *  Debug only: the same error, sampled at the instant an ability took facing away.
 	 *
-	 *  This is the number that matters, because it is the frame the attack's wedge stops
-	 *  tracking the camera. A live error is only ever a hint about it.
+	 *  This is the number that matters, because it is the frame the attack's wedge stops tracking
+	 *  the camera. Also written to the log on every lock, behind TD.DebugCombatTiming, carrying the
+	 *  rate with it so a sweep is self-describing.
 	 *
-	 *  Also written to the log on every lock, behind TD.DebugCombatTiming, because reading a
-	 *  figure off a HUD in the same moment you are flicking the camera and pressing attack turned
-	 *  out not to be a thing a person can do. The line carries the rate with it so a sweep is
-	 *  self-describing. It does **not** record which ability took facing, so attacks and dodges
-	 *  are indistinguishable in it -- add that before trying to attribute a bad reading.
+	 *  It does **not** record which ability took facing, so attacks and dodges are indistinguishable
+	 *  in it -- add that before trying to attribute a bad reading.
 	 */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Movement", Transient)
 	float FacingErrorAtLockDegrees = 0.0f;
@@ -144,11 +124,10 @@ protected:
 	/**
 	 *  Where the camera pointed when the attack was *pressed*, and when that was.
 	 *
-	 *  `FacingErrorAtLockDegrees` answers an **angle** question — is the body aligned with the
-	 *  camera at commit — and reads a clean ±0.0° even when the swing goes somewhere the player
-	 *  never aimed. The thing it cannot see is that commit can happen up to ~440 ms after the
-	 *  press, with the camera moving throughout. These two make that a *time* question that the
-	 *  trace can answer, which the buffered-aim trap named as the missing correlation.
+	 *  FacingErrorAtLockDegrees answers an **angle** question -- is the body aligned with the camera
+	 *  at commit -- and reads a clean 0.0 even when the swing goes somewhere the player never aimed.
+	 *  What it cannot see is that commit can happen up to ~440 ms after the press, with the camera
+	 *  moving throughout. These two make that a *time* question the trace can answer.
 	 */
 	float AimPressControlYawDegrees = 0.0f;
 	float AimPressWorldTime = -1.0f;
@@ -156,29 +135,18 @@ protected:
 	/**
 	 *  Set while an *ability* owns the character's facing. Runtime only, never authored.
 	 *
-	 *  Named for abilities rather than attacks because the dodge uses it too, and it is the
-	 *  dodge that makes it load-bearing: with bAllowPhysicsRotationDuringAnimRootMotion enabled
-	 *  the engine no longer stops a root-motion montage from being steered, so anything that
-	 *  wants a committed direction has to say so. Previously the dodge got that for free from a
-	 *  suppression it did not ask for.
+	 *  Named for abilities rather than attacks because the dodge uses it too: with
+	 *  bAllowPhysicsRotationDuringAnimRootMotion enabled the engine no longer stops a root-motion
+	 *  montage from being steered, so anything wanting a committed direction has to say so.
 	 *
 	 *  **For an attack it runs from the commit checkpoint to the end of the ability, recovery
-	 *  included** (2026-08-12). It used to end when the release window closed, on the argument
-	 *  that recovery is not part of the commitment; play found the handback abrupt, and being
-	 *  committed to a direction through the punish window is the same commitment the recovery
-	 *  already imposes. The aim guarantee is indifferent to this -- it lives between the press and
-	 *  the commit checkpoint -- and a chained attack redirects during the *next* windup, which is
-	 *  where a spectator can actually read it.
+	 *  included.** The aim guarantee is indifferent to that, living between the press and the commit
+	 *  checkpoint, and a chained attack redirects during the *next* windup.
 	 *
-	 *  A plain bool, and the fact that it is not a scale is a decision rather than an omission.
-	 *  It shipped on 2026-08-12 as a float faded in and out over time, so a swing eased into and
-	 *  out of its freeze, and play killed it the same day: **any scale below 1 disables the snap
-	 *  branch**, so the fade did not merely soften the handoff, it left the character on smooth
-	 *  turning for its whole duration. Chaining lights with the camera turned meant each swing
-	 *  landed a little nearer to where you were looking and never at it. Precision beats polish
-	 *  here, and the smoothing turned out not to need a scale at all. Holding the lock to
-	 *  EndAbility and letting IdleTurnRateDegrees close the gap covers the case a fade would have
-	 *  softened, without any value that can disable the snap.
+	 *  A plain bool, and its not being a scale is a decision: **any scale below 1 disables the snap
+	 *  branch**, so a fade does not soften the handoff, it leaves the character on smooth turning
+	 *  for the fade's whole duration. Holding the lock to EndAbility and letting IdleTurnRateDegrees
+	 *  close the gap covers the same case without a value that can disable the snap.
 	 */
 	bool bAbilityFacingLocked = false;
 
@@ -186,43 +154,37 @@ protected:
 	 *  Set while an attack is coiling. Runtime only, never authored.
 	 *
 	 *  A bool announced by the ability rather than a rate pushed by it, following
-	 *  bAbilityFacingLocked: the ability knows *what phase it is in*, the character owns what
-	 *  facing does about it. That keeps all three turn rates side by side where a designer
-	 *  looks for them, instead of one of them living in an ability.
+	 *  bAbilityFacingLocked: the ability knows what phase it is in, the character owns what facing
+	 *  does about it. That keeps all three turn rates side by side where a designer looks for them.
 	 *
-	 *  Cleared in the ability's EndAbility, the one place every exit converges -- a coil that
-	 *  was cancelled must not leave the character permanently slow to turn.
+	 *  Cleared in the ability's EndAbility, the one place every exit converges -- a coil that was
+	 *  cancelled must not leave the character permanently slow to turn.
 	 */
 	bool bAbilityCoiling = false;
 
 	/**
 	 *  Set while an ability owns the character's movement. Runtime only, never authored.
 	 *
-	 *  Suppresses movement *input* -- WASD and jump -- rather than movement itself, which is the
-	 *  distinction that matters: a lunge, a dodge or a knockback still moves the character while
-	 *  this is set, because those are the ability moving you rather than you moving yourself.
+	 *  Suppresses movement *input* -- WASD and jump -- rather than movement itself: a lunge, a dodge
+	 *  or a knockback still moves the character while this is set.
 	 *
-	 *  **It exists because "the attack already overrides movement" was only true in part.** An
-	 *  attack's lunge runs its root motion source in Override mode, so input genuinely does
-	 *  nothing while it plays -- but the coil and the recovery carry no lunge at all, and WASD
-	 *  worked normally through both. Found in play 2026-08-12.
+	 *  It is not covered by an attack's lunge running its root motion source in Override mode. That
+	 *  genuinely stops input while it plays, but the coil and the recovery carry no lunge at all.
 	 *
-	 *  Named for movement rather than for attacking, deliberately, so block, parry or a future
-	 *  crouch can adopt it without the flag having to be renamed or re-explained.
+	 *  Named for movement rather than for attacking so block, parry or a future crouch can adopt it
+	 *  without the flag being renamed.
 	 */
 	bool bAbilityMovementLocked = false;
 
 	/**
 	 *  World-space movement the player is *asking* for, recorded even while an ability locks it.
 	 *
-	 *  `GetLastInputVector()` cannot serve this. `DoMove` returns before `AddMovementInput` while
-	 *  locked, so the movement component's vector is empty exactly when something needs to know
-	 *  which way you were holding -- which is how a dodge cancelling an attack resolved backward
-	 *  every time between 2026-08-12 and 2026-08-16, the lock and the dodge having been written
-	 *  against different assumptions about the same vector.
+	 *  GetLastInputVector() cannot serve this: DoMove returns before AddMovementInput while locked,
+	 *  so the movement component's vector is empty exactly when something needs to know which way
+	 *  you were holding.
 	 *
-	 *  Local-only and deliberately unreplicated: input is one of the three things the networking
-	 *  model names as knowable only on the machine that produced it.
+	 *  Local-only and deliberately unreplicated -- input is knowable only on the machine that
+	 *  produced it.
 	 */
 	FVector LastRequestedMoveInput = FVector::ZeroVector;
 
@@ -234,51 +196,45 @@ public:
 	/**
 	 *  What the player is asking for this frame, whether or not an ability is letting them have it.
 	 *
-	 *  Cleared by the release edge rather than decaying, so it is only ever this frame's answer --
-	 *  which is why `MoveAction` binds `Completed` as well as `Triggered`. Without that binding
-	 *  this would hold the last direction walked forever and a neutral dodge would inherit it.
+	 *  Cleared by the release edge rather than decaying, so it is only ever this frame's answer,
+	 *  which is why MoveAction binds Completed as well as Triggered. Without that binding this would
+	 *  hold the last direction walked forever and a neutral dodge would inherit it.
 	 */
 	FVector GetLastRequestedMoveInput() const { return LastRequestedMoveInput; }
 
 	/**
-	 *  Takes facing away for the duration of an ability, or gives it straight back.
+	 *  Takes facing away for the duration of an ability, or gives it straight back. Instant in both
+	 *  directions -- see bAbilityFacingLocked.
 	 *
-	 *  Instant in both directions, deliberately -- see bAbilityFacingLocked.
-	 *
-	 *  **Whoever takes facing away is responsible for giving it back on every exit path**,
-	 *  including cancellation and death -- a stranded lock is a character who can never turn
-	 *  again, and nothing about it announces itself. Both callers clear it from `EndAbility`
-	 *  for exactly that reason, which is the one place every exit converges.
+	 *  **Whoever takes facing away is responsible for giving it back on every exit path**, including
+	 *  cancellation and death. A stranded lock is a character who can never turn again, and nothing
+	 *  about it announces itself. Both callers clear it from EndAbility, the one place every exit
+	 *  converges.
 	 */
 	void SetAbilityFacingLocked(bool bLocked);
 
 	/**
 	 *  Tells the character an attack is coiling, so facing slows to CoilTurnRateDegrees.
 	 *
-	 *  Same contract as SetAbilityFacingLocked: whoever sets it clears it from `EndAbility`,
-	 *  which is the one place every exit path converges. Cheap to leave set past the commit
-	 *  checkpoint -- facing is locked from there and never consults a rate at all -- but it must
-	 *  not survive the ability.
+	 *  Same contract as SetAbilityFacingLocked: whoever sets it clears it from EndAbility. Cheap to
+	 *  leave set past the commit checkpoint, since facing is locked from there and never consults a
+	 *  rate, but it must not survive the ability.
 	 */
 	void SetAbilityCoiling(bool bCoiling);
 
 	/**
 	 *  Takes movement input away for the duration of an ability, or gives it straight back.
 	 *
-	 *  Same contract as SetAbilityFacingLocked: whoever takes it is responsible for returning it
-	 *  on **every** exit path. Both are cleared from `EndAbility`, the one place every exit
-	 *  converges, and a stranded movement lock is a character who can never walk again.
-	 *
-	 *  Driven by `UTDGameplayAbility::bLocksMovement` rather than by individual abilities calling
-	 *  it, so opting in is a checkbox and opting in cannot be done without also opting into the
-	 *  clearing.
+	 *  Same contract as SetAbilityFacingLocked, and a stranded movement lock is a character who can
+	 *  never walk again. Driven by UTDGameplayAbility::bLocksMovement rather than by individual
+	 *  abilities calling it, so opting in cannot be done without also opting into the clearing.
 	 */
 	void SetAbilityMovementLocked(bool bLocked);
 
 	/**
 	 *  Whether movement input is currently taken away. Read by DoMove and by GA_Jump's refusal.
 	 *
-	 *  **Virtual because an ability owning movement is only one of the reasons** (2026-08-20).
+	 *  **Virtual because an ability owning movement is only one of the reasons.**
 	 *  ATDCombatCharacter adds the externally-inflicted ones -- hitstun and a broken guard -- which
 	 *  are states rather than abilities and so have nothing to call SetAbilityMovementLocked.
 	 */
@@ -288,11 +244,10 @@ public:
 	/**
 	 *  Yaw the player is *aiming*, which is the camera when there is one and the body otherwise.
 	 *
-	 *  **Target Lock is evaluated in this frame rather than the actor.s**, because the assist aids
-	 *  the attacker.s input and input is the camera. Damage stays in the actor frame, because a
+	 *  **Target Lock is evaluated in this frame rather than the actor's**, because the assist aids
+	 *  the attacker's input and input is the camera. Damage stays in the actor frame, because a
 	 *  defender has to be able to trust what the body is doing. They coincide whenever facing has
-	 *  caught up, which is most of the time -- and the moment homing makes them diverge is exactly
-	 *  the moment the distinction starts mattering.
+	 *  caught up, and the moment homing makes them diverge is the moment the distinction matters.
 	 */
 	float GetAimYawDegrees() const;
 
@@ -309,15 +264,12 @@ public:
 	 *  Re-applies the camera-probe exemption to the capsule and the mesh.
 	 *
 	 *  **Every SetCollisionProfileName call on either component silently undoes it**, because a
-	 *  profile replaces the whole response table rather than merging into it. That is invisible at
-	 *  the call site: ragdolling sets the mesh to `Ragdoll` and the revive sets it back to
-	 *  `CharacterMesh`, and both read as restoring a known-good state while actually dropping a
-	 *  per-channel override the constructor set. The symptom is a corpse the spring arm collides
-	 *  with -- and because the revive does not restore it either, a revived character whose mesh
-	 *  blocks the camera permanently from then on.
+	 *  profile replaces the whole response table rather than merging into it, and that is invisible
+	 *  at the call site. The symptom is a corpse the spring arm collides with -- and since the
+	 *  revive does not restore it either, a revived character whose mesh blocks the camera from then
+	 *  on.
 	 *
-	 *  So the exemption lives here rather than inline in the constructor, and anything touching a
-	 *  collision profile on these two components calls it afterwards.
+	 *  Anything touching a collision profile on these two components calls this afterwards.
 	 */
 	void ApplyCameraCollisionExemption();
 
@@ -329,35 +281,29 @@ protected:
 	/**
 	 *  Whether facing should stop tracking the camera this frame.
 	 *
-	 *  A hook rather than a check, because this class deliberately knows nothing about combat
-	 *  state -- death lives on ATDCombatCharacter. Base returns false: a character with no
-	 *  combat state always faces the camera.
+	 *  A hook rather than a check, because this class deliberately knows nothing about combat state.
+	 *  Base returns false: a character with no combat state always faces the camera.
 	 *
-	 *  Note that disabling *movement* does not disable facing. The two are separate systems
-	 *  and a dead character was still turning in place until this existed.
+	 *  Disabling *movement* does not disable facing -- the two are separate systems.
 	 *
-	 *  Attacks route through here too, rather than through a second mechanism. This path already
-	 *  clears *both* rotation flags and returns, which is precisely what a hard freeze needs, and
-	 *  it was already the tested one. An override must therefore OR with `Super::` rather than
-	 *  replace it, or it silently discards the attack lock.
+	 *  Attacks route through here too. This path clears *both* rotation flags and returns, which is
+	 *  what a hard freeze needs, so **an override must OR with Super:: rather than replace it**, or
+	 *  it silently discards the attack lock.
 	 */
 	virtual bool IsFacingLocked() const { return bAbilityFacingLocked; }
 
 	/**
 	 *  Whether the character is doing *nothing at all*, which selects IdleTurnRateDegrees.
 	 *
-	 *  **Idle means zero button presses of any kind**, not merely "not moving" and not merely
-	 *  "not attacking". Stated that way deliberately: a list of exceptions would need extending
-	 *  by every slice that adds an action, and would be wrong in between. Block and parry will
-	 *  cost nothing here.
+	 *  **Idle means zero button presses of any kind**, not merely "not moving" and not merely "not
+	 *  attacking". Stated that way deliberately: a list of exceptions would need extending by every
+	 *  slice that adds an action, and would be wrong in between.
 	 *
-	 *  A hook rather than a check, for the same reason IsFacingLocked() is one -- this class
-	 *  knows nothing about combat. The base answers only what it can see: no movement input and
-	 *  feet on the ground. Falling counts as activity because you either jumped, which is a
-	 *  press, or walked off something, which was one a moment ago.
+	 *  A hook rather than a check, for the reason IsFacingLocked() is one. The base answers only
+	 *  what it can see: no movement input and feet on the ground. Falling counts as activity.
 	 *
-	 *  An override must AND with `Super::`, never replace it, or it reports a sprinting
-	 *  character as idle.
+	 *  **An override must AND with Super::**, never replace it, or it reports a sprinting character
+	 *  as idle.
 	 */
 	virtual bool IsIdle() const;
 
@@ -367,21 +313,13 @@ protected:
 	/**
 	 *  Turns facing toward the camera at TurnRateDegrees. Runs every frame.
 	 *
-	 *  The character is camera-relative rather than facing its own input, which is what lets
-	 *  it strafe and backpedal and what lets all eight dodge directions resolve.
+	 *  The character is camera-relative rather than facing its own input, which is what lets it
+	 *  strafe and backpedal and what lets all eight dodge directions resolve.
 	 *
-	 *  **One rate in both states, since 2026-08-12.** Facing used to *snap* whenever there was
-	 *  movement input and turn smoothly only at rest, on the reasoning that a static idle has
-	 *  nothing to hide a rotation pop while a moving character does. Two things retired that:
-	 *  the snap read as a bug rather than a feature in play, and the snap's supposed safety
-	 *  argument -- that smooth turning would send dodges sideways -- turned out to be false.
-	 *  UTDDodgeAbility::ResolveDodgeDirection resolves the direction *relative to facing* and
-	 *  the montage then travels relative to that same facing, so lag cancels out of the result
-	 *  entirely; only the 45 degree quantisation survives. Confirmed in play.
-	 *
-	 *  What the snap really bought was an aim error of identically zero, because facing was
-	 *  assigned to the camera every frame. Giving it up costs a measured 5.7 degree mean
-	 *  against a 60 degree wedge, with 86% of attacks still exact. See TurnRateDegrees.
+	 *  One rate in both states: facing does not snap when there is movement input. Direction
+	 *  resolves *relative to facing* in UTDDodgeAbility::ResolveDodgeDirection and the montage then
+	 *  travels relative to that same facing, so turn lag cancels out of the result entirely and only
+	 *  the 45 degree quantisation survives. See TurnRateDegrees for what smooth turning costs in aim.
 	 */
 	void UpdateCameraRelativeFacing(float DeltaSeconds);
 
@@ -422,4 +360,3 @@ public:
 	/** Returns FollowCamera subobject **/
 	FORCEINLINE class UCameraComponent* GetFollowCamera() const { return FollowCamera; }
 };
-

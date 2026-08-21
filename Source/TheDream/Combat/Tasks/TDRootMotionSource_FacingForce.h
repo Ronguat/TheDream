@@ -11,31 +11,16 @@ class UCurveFloat;
 /**
  *  A constant force along the avatar's *current* facing, re-read every movement tick.
  *
- *  **The only thing that separates this from FRootMotionSource_ConstantForce is one line**, and
- *  it is the whole point: the stock source stores a world-space Force vector chosen when the
- *  source was created, so it cannot follow a character who turns. This one stores a scalar speed
- *  and builds the direction in PrepareRootMotion.
- *
- *  **Why that matters here.** Animation root motion is applied in the actor's local frame, so an
- *  attack's travel has always turned with the player. Replacing it with a world-fixed force would
- *  have been a regression, not a missing feature -- a flick during the windup would lunge one way
- *  while the swing landed another, up to 180 degrees apart, which is exactly the case
- *  TurnRateDegrees exists to serve. Play confirmed the aimable version reads better (2026-08-12).
- *
- *  **It is not a hand-rolled movement system**, which is the objection this design had to answer.
- *  FRootMotionSource is a first-class extension point with a full replication contract, and every
- *  stock source is a sibling of this one -- so it is predicted, replayed and replicated by the same
- *  machinery that makes animation root motion safe. SetActorLocation, AddMovementInput and
- *  LaunchCharacter are the versions the netcode audit was right to fear; this is not one of them.
- *
- *  Reading facing during PrepareRootMotion is safe under prediction because rotation is part of
- *  saved-move data and is reproduced during replay. That is mechanism-level reasoning rather than
- *  a measured claim: nothing in this project has run two machines.
+ *  **One line separates this from FRootMotionSource_ConstantForce**, and it is the whole point: the
+ *  stock source stores a world-space Force vector chosen when the source was created, so it cannot
+ *  follow a character who turns. This one stores a scalar speed and builds the direction in
+ *  PrepareRootMotion. Reading facing there replays correctly under prediction, because rotation is
+ *  part of saved-move data.
  *
  *  **The lunge is aimable only where facing is free.** From an attack's commit checkpoint facing is
  *  frozen until the ability ends, so during the post-commit lunge this behaves identically to a
- *  world-fixed force. Steerability is therefore a property of the phase, not a second setting --
- *  which is why one source serves both of an attack's lunges.
+ *  world-fixed force. Steerability is a property of the phase, not a second setting, which is why
+ *  one source serves both of an attack's lunges.
  */
 USTRUCT()
 struct FTDRootMotionSource_FacingForce : public FRootMotionSource
@@ -50,9 +35,8 @@ struct FTDRootMotionSource_FacingForce : public FRootMotionSource
 	 *  Speed along facing, in cm/s.
 	 *
 	 *  Distance travelled is Strength * Duration * the mean of StrengthOverTime, so authoring a
-	 *  distance means dividing it by the duration -- and a curve that does not average 1 changes
-	 *  the distance. Note this is the distance travelled *along the path*: if the character turns
-	 *  while it runs, the path curves and the straight-line displacement is shorter.
+	 *  distance means dividing it by the duration. This is distance along the *path*: if the
+	 *  character turns while it runs, the path curves and straight-line displacement is shorter.
 	 */
 	UPROPERTY()
 	float Strength;
@@ -64,24 +48,15 @@ struct FTDRootMotionSource_FacingForce : public FRootMotionSource
 	/**
 	 *  Target Lock: how close to a body this force is willing to carry the avatar, in cm. 0 disables.
 	 *
-	 *  **Gated per tick, not pre-computed, and the difference is the whole point.** Shortening the
-	 *  authored distance up front was the first implementation and it was wrong: it bakes in a
-	 *  prediction of where the target will be, taken at one instant, at a moment the target is free
-	 *  to invalidate. Play found it immediately -- an opponent who backed away while an attack was
-	 *  running could never be reached, because the distance had already been reduced to nothing on
-	 *  their behalf. That was **worse than having no system at all**, which had at least travelled
-	 *  the full distance and usually caught them.
+	 *  **Gated per tick, not pre-computed.** Each movement tick asks whether a body is within
+	 *  StandoffCm ahead and contributes nothing if so. Time still advances either way, so the gate
+	 *  can only ever subtract travel -- the authored distance remains a hard ceiling and the source
+	 *  still ends exactly on schedule. Shortening the distance up front instead would bake in a
+	 *  prediction of where the target will be, taken at an instant the target is free to invalidate.
 	 *
-	 *  The requirement was always "do not be inside a body", which is a *state*. Pre-shortening
-	 *  expressed it as a *prediction*. This expresses it as a state again: each movement tick asks
-	 *  whether a body is within StandoffCm ahead, and contributes nothing if so. Time still advances
-	 *  either way, so the gate can only ever subtract travel -- the authored distance remains a hard
-	 *  ceiling and the source still ends exactly on schedule.
-	 *
-	 *  **It is not homing**, which is the property whiff punish depends on. Homing changes a lunge's
-	 *  direction or extends its distance; this changes neither. A target moving laterally still
-	 *  escapes, and one backing off still escapes if it out-paces the authored travel. What it no
-	 *  longer gets is the escape handed to it for free by a stale prediction.
+	 *  **It is not homing**, which is the property whiff punish depends on. This changes neither a
+	 *  lunge's direction nor its distance, so a target moving laterally still escapes, and one
+	 *  backing off still escapes if it out-paces the authored travel.
 	 */
 	UPROPERTY()
 	float StandoffCm;
@@ -89,15 +64,12 @@ struct FTDRootMotionSource_FacingForce : public FRootMotionSource
 	/**
 	 *  Direction relative to facing, in degrees clockwise. 0 is straight ahead.
 	 *
-	 *  **This is what let the dodge stop reading displacement off its clips** (2026-08-13). Every
-	 *  attack passes 0, so the lunge is unchanged; the dodge passes its direction, and the eight
-	 *  values come out of the direction enum's own order at 45 degrees a step rather than a table
-	 *  -- Fw, FR, R, BR, Bw, BL, L, FL is already the compass.
+	 *  Every attack passes 0. The dodge passes its direction, and the eight values come out of
+	 *  ETDDodgeDirection's own order at 45 degrees a step rather than from a table.
 	 *
-	 *  Applied to a direction that is still *read from facing every tick*, which is the property
-	 *  that keeps this cheap on the wire: an offset is one float, where a world-space direction
-	 *  would be a vector that has to travel and then disagree with a rotation which already
-	 *  replicates.
+	 *  Applied to a direction still read from facing every tick, which is what keeps this cheap on
+	 *  the wire: an offset is one float, where a world-space direction would be a vector that has to
+	 *  travel and then disagree with a rotation which already replicates.
 	 */
 	UPROPERTY()
 	float YawOffsetDegrees;
@@ -106,8 +78,7 @@ struct FTDRootMotionSource_FacingForce : public FRootMotionSource
 	 *  Whether a pawn sits within StandoffCm ahead, so this tick should contribute nothing.
 	 *
 	 *  Swept with the avatar's own capsule on ECC_Pawn, which makes this the movement component's
-	 *  own collision test asked one tick early rather than an approximation of it. Anything it
-	 *  declines to gate on is something the avatar would not have collided with.
+	 *  own collision test asked one tick early rather than an approximation of it.
 	 */
 	bool IsWithinStandoff(const ACharacter& Character, const FVector& Direction) const;
 
