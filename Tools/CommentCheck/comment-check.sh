@@ -124,15 +124,25 @@ check_narrative() { # $@=files -> prints hits (never fails hard)
 }
 
 # --- C5 (WARN): per-file ratio backstop --------------------------------------
-# Backstop, never a gate: the criterion is the rule, not the number. Set from what
-# the debloat pass actually landed at, with headroom.
-# Files under RATIO_FLOOR comment lines are exempt -- a ratio over a handful of
-# lines measures nothing.
-RATIO_MAX=80   # comment lines per 100 code lines
+# Backstop, never a gate: the criterion is the rule, not the number. Catches a file that
+# grows uniformly, which C3 misses because no single block is large.
+#
+# **Two thresholds, because a header and a .cpp are different shapes.** A declaration
+# header's comments *are* its interface -- every property owes a contract, and the code
+# beside them is two lines of UPROPERTY -- so headers legitimately run several times the
+# ratio an implementation does. One number would either never fire on a header or fire on
+# every .cpp.
+#
+# Both set from what the debloat pass landed at, plus headroom: headers topped out at 309
+# per 100 and implementations at 66. Files under RATIO_FLOOR comment lines are exempt --
+# a ratio over a handful of lines measures nothing.
+RATIO_MAX_HEADER=330
+RATIO_MAX_IMPL=100
 RATIO_FLOOR=10 # files under this many comment lines have no volume to judge
-check_ratio() { # $@=files -> prints files over RATIO_MAX (never fails hard)
-  local f c k
+check_ratio() { # $@=files -> prints files over their threshold (never fails hard)
+  local f c k RATIO_MAX
   for f in "$@"; do
+    case "$f" in *.h) RATIO_MAX=$RATIO_MAX_HEADER ;; *) RATIO_MAX=$RATIO_MAX_IMPL ;; esac
     c=$(extract "$f" | wc -l)
     [ "$c" -lt "$RATIO_FLOOR" ] && continue
     k=$(awk -v F="$f" '
@@ -148,12 +158,12 @@ check_ratio() { # $@=files -> prints files over RATIO_MAX (never fails hard)
 }
 
 # --- C6 (FAIL): orphaned doc blocks ------------------------------------------
-# Incident: TDCombatCharacter.h carried ETDDebugFacingMode's doc block stranded
-# above ETDParryCloseReason's, leaving one enum undocumented and a stray comment
-# above the wrong declaration; a second pair sat above DebugAutoParryCycle, and a
-# third block described EndHitstun while sitting on EndParryLockout. Each was an
-# insertion that landed between a comment and the thing it described. A doc block
-# immediately followed by another doc block documents nothing.
+# Catches a doc block that documents another doc block, which happens when an insertion
+# lands between a comment and the thing it described: the stranded block now sits above
+# the wrong declaration and its own declaration is left undocumented.
+#
+# It cannot catch the same failure in a // run, nor a single block sitting on the wrong
+# declaration -- both are well-formed to a grep. Only reading finds those.
 check_orphans() { # $@=files -> prints offending sites, rc 1 if any
   awk 'prev ~ /^[[:space:]]*\*\/[[:space:]]*$/ && /^[[:space:]]*\/\*\*/ {
          printf "  %s:%d  doc block follows a doc block\n", FILENAME, FNR
@@ -272,7 +282,7 @@ out=$(check_blocks    $FILES) && ok "C3 block size"  "no block over $BLOCK_MAX l
 out=$(check_narrative $FILES) && ok "C4 narrative"   "no narrative connectives" \
   || { warn "C4 narrative" "review these lines:"; printf '%s\n' "$out"; }
 
-out=$(check_ratio     $FILES) && ok "C5 ratio"       "every file inside $RATIO_MAX per 100" \
+out=$(check_ratio     $FILES) && ok "C5 ratio"       "every file inside its backstop ($RATIO_MAX_HEADER header / $RATIO_MAX_IMPL impl)" \
   || { warn "C5 ratio" "over backstop:"; printf '%s\n' "$out"; }
 
 out=$(check_orphans   $FILES) && ok "C6 orphans"     "no doc block documents another doc block" \
