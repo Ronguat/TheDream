@@ -169,9 +169,8 @@ void ATDCombatCharacter::Tick(float DeltaSeconds)
 			}
 		}
 
-		// The dodge's own tail, which forbids only a parry. Split from the above 2026-08-19: they
-		// shared one tag while both merely refused defensive activations, and stopped being the
-		// same sentence when a whiffed parry began refusing everything.
+		// The dodge's own tail, which forbids only a parry -- its own tag rather than the parry
+		// recovery's, which refuses everything.
 		if (bInDodgeRecovery)
 		{
 			const UWorld* World = GetWorld();
@@ -298,7 +297,7 @@ void ATDCombatCharacter::TickStaminaRegen(float DeltaSeconds)
 
 	// **Knockdown suppresses regen -- unless you are already exhausted.**
 	//
-	// The carve-out is the schema pricing a vortex out (2026-08-19). Every other suppressor here is
+	// The carve-out is the schema pricing a vortex out. Every other suppressor here is
 	// *bounded*: an action pause is self-inflicted and ends, and the guard break's holds only until
 	// the stun does -- an opponent cannot renew it, because every break exhausts you and an
 	// exhausted player cannot raise a guard to be broken again. Knockdown is the first suppressor
@@ -320,12 +319,9 @@ void ATDCombatCharacter::TickStaminaRegen(float DeltaSeconds)
 		return;
 	}
 
-	// **Exhaustion does not bypass the pause.** It did for a few hours on 2026-08-14 and play threw
-	// it straight back out: the bypass was written to stop a held guard stalling the only condition
-	// that ends exhaustion, but it closed the *bounded* cases along with the unbounded one, so a
-	// dodge that exhausted you started regenerating during its own duration. The pause is a cost of
-	// acting, and being exhausted is not a refund -- if anything it is where the cost should bite
-	// hardest.
+	// **Exhaustion does not bypass the pause.** A bypass would close the *bounded* cases along with
+	// the unbounded one, so a dodge that exhausted you would start regenerating during its own
+	// duration. The pause is a cost of acting, and being exhausted is not a refund.
 	//
 	// **The unbounded case stopped being a deadlock by design rather than by code.** A player may
 	// hold block at zero stamina; it accomplishes nothing, since anything actually blocked breaks
@@ -519,10 +515,9 @@ void ATDCombatCharacter::TickResumeHeldAbilities()
 	// the request and never retried -- and the comment further up promising that "a guard blocked by
 	// exhaustion comes up the instant exhaustion lifts" described behaviour the code did not have.
 	//
-	// Nearly unreachable until 2026-08-14, when the exhausted guard began force-ending at its
-	// commitment and made it the ordinary path: the forced end requests a resume, exhaustion refuses
-	// it, and the held button was silently forgotten. Retrying costs a refused activation per tick,
-	// which is precisely what REFUSED's dedupe was built for.
+	// The ordinary path is the exhausted guard force-ending at its commitment: the forced end
+	// requests a resume, exhaustion refuses it, and the held button would be silently forgotten.
+	// Retrying costs a refused activation per tick, which is what REFUSED's dedupe was built for.
 	bool bStillWaiting = false;
 	for (const FGameplayAbilitySpecHandle& Handle : Resumable)
 	{
@@ -630,9 +625,9 @@ void ATDCombatCharacter::TickBlockCommitment(float Now)
 		return;
 	}
 
-	// **An exhausted guard ends the instant its commitment expires, held button or not** (the user,
-	// 2026-08-14). It follows from two rules already in force rather than being a new one: you
-	// cannot block while exhausted, and all blocks are created equal. Raising a guard you cannot
+	// **An exhausted guard ends the instant its commitment expires, held button or not.** It follows
+	// from two rules already in force rather than being a new one: you cannot block while exhausted,
+	// and all blocks are created equal. Raising a guard you cannot
 	// afford is allowed, charges its cost, exhausts you -- and then owes the full commitment,
 	// because exempting it is exactly the exemption that made the floor bimodal once already.
 	//
@@ -896,7 +891,7 @@ void ATDCombatCharacter::EnterHitstun(float DurationSeconds)
 	// contact refreshing the stun before the last one expires.
 	HitstunEndsAt = FMath::Max(HitstunEndsAt, World->GetTimeSeconds() + DurationSeconds);
 
-	// **Being hit cancels everything, committed or not** -- the designer's ruling, 2026-08-16.
+	// **Being hit cancels everything, committed or not.**
 	// Server-only and outside the Apply half, exactly as death's cancel is: a client's OnRep must
 	// not cancel predicted copies out from under a correction. Cancelling runs each ability's
 	// EndAbility, which is what clears State.Attacking, restores facing, tears down the lunge, and
@@ -1150,27 +1145,20 @@ void ATDCombatCharacter::EndKnockdown()
 	KnockdownGrade = ETDKnockdownGrade::None;
 	ClearKnockdownState();
 
-	// **The fixture's way back into the fight, and it has to be here** (2026-08-20).
+	// **The fixture's way back into the fight, and it has to be here.**
 	//
-	// A knockdown carries its victim to KnockdownSpacingCm -- 450 -- and the light's whole covered
-	// range is 410, so a body that does not walk is permanently 40 cm outside anything the ladder
-	// can reach. That gap is deliberate (the heavy and charged lunge it; the light walks it), and a
-	// human simply walks back in. **A stationary dummy never does**, so after its first knockdown a
-	// defensive fixture is out of the exchange for the rest of the session -- windows opening
-	// against attacks that can never arrive, which reads as the defence failing rather than as the
-	// pawn having left.
-	//
-	// Measured before it was fixed: the auto-parrier sat at a median 507 cm from its attacker
-	// across 365 commits, plateauing near 453.
+	// A knockdown carries its victim to KnockdownSpacingCm, past the light's whole covered range, so
+	// a body that does not walk sits permanently outside anything the ladder can reach. A human
+	// walks back in; **a stationary dummy never does**, so after its first knockdown a defensive
+	// fixture is out of the exchange for the rest of the session -- windows opening against attacks
+	// that can never arrive, which reads as the defence failing rather than as the pawn having left.
 	//
 	// **The stand is the only safe moment.** The dodge fixture re-homes on its press because that
 	// press precedes the attack; a parry's press is timed *into* one, and teleporting mid-swing
 	// would resolve the hit at a distance nobody aimed at. Hitstun's end will not serve either --
-	// a graded hit knocks down instead of stunning, so that hook never fires. Here the body is
-	// upright, unlocked, and nothing is in flight.
+	// a graded hit knocks down instead of stunning, so that hook never fires.
 	//
-	// Self-guarding: ReturnToDebugAutoAttackHome does nothing without a debug fixture, so a real
-	// player standing up is untouched.
+	// Self-guarding: ReturnToDebugAutoAttackHome does nothing without a debug fixture.
 	ReturnToDebugAutoAttackHome();
 }
 
@@ -1186,7 +1174,7 @@ void ATDCombatCharacter::EnterParryLockout(float LockoutSeconds)
 	{
 		// An authored zero means a swing whose owner owes nothing for being parried. Honoured
 		// silently rather than clamped to a minimum: inventing a floor here would author the
-		// reward behind the designer's back, which is the whole reason the old floor retired.
+		// reward behind the author's back, which is the whole reason there is no floor.
 		return;
 	}
 
@@ -1497,13 +1485,9 @@ void ATDCombatCharacter::CloseParryWindow(ETDParryCloseReason Reason)
 
 	bParryCaughtThisWindow = false;
 
-	// ***Superseded 2026-08-19 -- "parry is sacred".*** This used to charge the whiff on every exit
-	// including cancellation, reasoning that "being cancelled is exactly the cheap exit an attacker
-	// would otherwise be handing you for free". The designer has since ruled that an attacker can
-	// never interrupt an active parry at all -- there will never be a move designed to defeat one,
-	// a promise deliberately not made for block -- so the threat that argument defended against
-	// does not exist. Cancellation no longer reaches here: GA_Parry::EndAbility leaves an open
-	// window running and warns instead.
+	// **Cancellation does not reach here at all** -- "parry is sacred", so an attacker can never
+	// interrupt an active parry, and GA_Parry::EndAbility leaves an open window running and warns
+	// rather than closing it.
 	//
 	// **Only Expired bills.** A catch owes nothing, and death is on the house because dying resets
 	// your starting conditions anyway.
@@ -1600,8 +1584,8 @@ void ATDCombatCharacter::NotifyParrySuccess(AActor* Attacker)
 			ParryStaminaReward);
 	}
 
-	// **The pause is discharged outright rather than left to tail off** -- the designer's ruling,
-	// and the half of the reward that lives in the stamina ledger. GA_Parry carries
+	// **The pause is discharged outright rather than left to tail off** -- the half of the
+	// reward that lives in the stamina ledger. GA_Parry carries
 	// State.StaminaRegenPaused like every other ability, so a *whiffed* parry pays the pause in the
 	// ordinary way; a successful one does not. Clearing the timestamp is what makes it instant:
 	// the tag coming off with the ability would otherwise still leave StaminaRegenPauseSeconds of
@@ -1618,9 +1602,9 @@ void ATDCombatCharacter::NotifyParrySuccess(AActor* Attacker)
 	// and it is why the reward's *magnitude* is filed as untested rather than asserted. This field
 	// is what makes it assertable the moment a fixture exists that can spend the parrier's stamina.
 	//
-	// **by= names which of the two caught it**, added with Grace 2026-08-19. Without it a run in
-	// which Grace never fires is indistinguishable from one in which it fires constantly, and the
-	// no-re-arm rule -- at most one by=window per tail -- is unassertable.
+	// **by= names which of the two caught it.** Without it a run in which Grace never fires is
+	// indistinguishable from one in which it fires constantly, and the no-re-arm rule -- at most one
+	// by=window per tail -- is unassertable.
 	TD_TIMING_LOG(TEXT("[%.3f] PARRY SUCCESS %s parried %s  by=%s gained=%.1f stamina=%.1f"),
 		World->GetTimeSeconds(),
 		*GetName(),
@@ -1659,10 +1643,8 @@ void ATDCombatCharacter::ClearParryWindowState()
 
 void ATDCombatCharacter::OnRep_ParryWindow()
 {
-	// **Added 2026-08-19 with the tag's move off the ability.** While State.Parrying rode in
-	// GA_Parry's ActivationOwnedTags it arrived on every machine for free and this hook would have
-	// done nothing; now the tag is the window's, a client has to apply it from the replicated bool
-	// exactly as it does for the recoveries and the stuns.
+	// The tag belongs to the window rather than to GA_Parry, so a client applies it from the
+	// replicated bool exactly as it does for the recoveries and the stuns.
 	if (bParryWindowOpen)
 	{
 		ApplyParryWindowState();
@@ -1716,12 +1698,10 @@ void ATDCombatCharacter::ApplyParryRecovery(float DurationSeconds)
 		return;
 	}
 
-	// Max-extended like blockstun and hitstun. **One cause since 2026-08-19** -- a whiffed parry --
-	// where this used to carry the dodge's gap as well; that moved to State.DodgeRecovery when the
-	// two stopped forbidding the same things. Kept as a max rather than an assignment anyway,
-	// because two whiffs cannot overlap today only by construction (GA_Parry refuses itself while
-	// State.ParryRecovery is present) and an assignment would quietly become the bug the moment
-	// anything else charged one.
+	// Max-extended like blockstun and hitstun. **One cause today** -- a whiffed parry -- and kept as
+	// a max rather than an assignment anyway, because two whiffs cannot overlap only by construction
+	// (GA_Parry refuses itself while State.ParryRecovery is present), and an assignment would
+	// quietly become the bug the moment anything else charged one.
 	ParryRecoveryEndsAt = FMath::Max(ParryRecoveryEndsAt, World->GetTimeSeconds() + DurationSeconds);
 
 	if (!bInParryRecovery)
@@ -1739,20 +1719,18 @@ void ATDCombatCharacter::OverrideParryRecovery(const TCHAR* Cause)
 	}
 
 	// **A lockout overrides a recovery, and that is the schema doing the work rather than a
-	// special case.** The designer, 2026-08-19: a parry jail ends when "an attacker overrides it
-	// via inflicting punishment". Since a lockout is *externally inflicted* and a recovery is
-	// *self-inflicted*, the general rule falls straight out -- being punished supersedes the price
-	// you were paying yourself, and there is no need to enumerate which punishments count.
+	// special case.** A lockout is *externally inflicted* and a recovery is *self-inflicted*, so the
+	// general rule falls straight out: being punished supersedes the price you were paying yourself,
+	// and there is no need to enumerate which punishments count.
 	//
-	// **Deliberately not narrowed to hitstun** (the designer, same evening): knockdown will want
-	// this, and so will ability effects that do not exist yet. **Anything that inflicts a lockout
-	// should call this**, which is why it is a named function rather than three copies of a bool
-	// assignment.
+	// **Deliberately not narrowed to hitstun**: knockdown wants this, and so will ability effects
+	// that do not exist yet. **Anything that inflicts a lockout should call this**, which is why it
+	// is a named function rather than three copies of a bool assignment.
 	//
 	// The charge usually happened moments earlier -- EnterHitstun cancels every ability, which runs
 	// GA_Parry's EndAbility, which closes the window and bills the whiff. Charging and then
 	// overriding is correct rather than wasteful: the trace shows the read failed *and* that the
-	// punishment absorbed its price, which is two separate facts a reader wants.
+	// punishment absorbed its price.
 	TD_TIMING_LOG(TEXT("[%.3f] PARRY RECOVERY OVERRIDDEN %s  by=%s  remaining=%.3f"),
 		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f,
 		*GetName(),
@@ -1963,22 +1941,18 @@ void ATDCombatCharacter::ReceiveKnockback(const FVector& DestinationWorld, float
 	MoveTo->FinishVelocityParams.Mode = ERootMotionFinishVelocityMode::ClampVelocity;
 	MoveTo->FinishVelocityParams.ClampVelocity = 0.0f;
 
-	// **Gravity keeps the Z axis. This is what stops juggling** (the designer, 2026-08-20, found by
-	// eye in play). An Override source overrides *velocity* -- gravity included -- so a fixed
-	// destination whose Z is the target's contact height pins an airborne body at that height for
-	// the source's whole duration, and ClampVelocity above then drops them from rest rather than
-	// letting them resume their arc. Land a second hit before they fall clear and the hang re-arms:
-	// a target could be held in the air indefinitely.
+	// **Gravity keeps the Z axis. This is what stops juggling.** An Override source overrides
+	// *velocity* -- gravity included -- so a fixed destination whose Z is the target's contact
+	// height pins an airborne body there for the source's whole duration, and ClampVelocity above
+	// then drops them from rest rather than letting them resume their arc. Land a second hit before
+	// they fall clear and the hang re-arms, holding a target in the air indefinitely.
 	//
-	// IgnoreZAccumulate is the engine's own answer -- UCharacterMovementComponent tracks override
-	// sources carrying it separately (bHasOverrideSourcesWithIgnoreZAccumulate) precisely so
-	// vertical motion stays with the physics. XY still arrives at the authored destination, which
-	// is the whole of what either displacement means.
+	// IgnoreZAccumulate is the engine's own answer: UCharacterMovementComponent tracks override
+	// sources carrying it separately (bHasOverrideSourcesWithIgnoreZAccumulate) so vertical motion
+	// stays with the physics. XY still arrives at the authored destination.
 	//
-	// **Applied to both paths deliberately.** Docs/Plan-Knockdown.md rules it for the knockdown
-	// carry -- "the carry's XY applies, Z follows gravity, no ground snap" -- and the knockback
-	// shares this function; a rule that held for one of two displacement paths would be
-	// rediscovered as a bug later. The designer's call, 2026-08-20.
+	// **Applied to both paths deliberately** -- the knockdown carry and the knockback share this
+	// function, and a rule holding for one of two displacement paths would be rediscovered as a bug.
 	MoveTo->Settings.SetFlag(ERootMotionSourceSettingsFlags::IgnoreZAccumulate);
 
 	KnockbackRootMotionSourceID = Movement->ApplyRootMotionSource(MoveTo);
@@ -2149,9 +2123,10 @@ void ATDCombatCharacter::EnterDeath()
 	}
 	bDead = true;
 
-	// **Death is the single carve-out to "parry is sacred", and it is on the house** (the designer,
-	// 2026-08-19): the window closes and no recovery is charged, because dying resets your starting
-	// conditions anyway. Explicitly *before* the cancel below -- the cancel runs GA_Parry's
+	// **Death is the single carve-out to "parry is sacred", and it is on the house**: the window
+	// closes and no recovery is charged, because dying resets your starting conditions anyway.
+	//
+	// Explicitly *before* the cancel below -- the cancel runs GA_Parry's
 	// EndAbility, which warns about an open window it is no longer allowed to close, and that
 	// warning should be reserved for a real sacredness violation.
 	//
@@ -2218,11 +2193,10 @@ void ATDCombatCharacter::OnRep_Dead()
 
 void ATDCombatCharacter::ApplyDeathState()
 {
-	// Logged here rather than in EnterDeath, and the siting is the point (2026-08-15): the
-	// Apply*/Clear* pairs run on every machine while Enter/Exit run on the server alone, so a log
-	// on the transition is invisible to exactly the client the replicated bool exists for. The
-	// two-machine recon measured death and exhaustion as the trace's only silent-on-client states,
-	// both for this one reason. The server still logs once -- Enter calls this directly.
+	// **Logged here rather than in EnterDeath, and the siting is the point**: the Apply*/Clear* pairs
+	// run on every machine while Enter/Exit run on the server alone, so a log on the transition is
+	// invisible to exactly the client the replicated bool exists for. The server still logs once --
+	// Enter calls this directly.
 	TD_TIMING_LOG(TEXT("[%.3f] DEATH      %s"),
 		GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f, *GetName());
 
@@ -2418,8 +2392,8 @@ void ATDCombatCharacter::ApplyExhaustionState()
 	// Both edges carry the bar because the *rule* is that exhaustion begins at 0 and ends at Max
 	// rather than on a clock: the two numbers are the assertion, and a value here that is neither
 	// says the mechanism has moved. Logged in the state pair rather than Enter/Exit for the reason
-	// ApplyDeathState gives (2026-08-15) -- these run on every machine, the transitions do not,
-	// and this was one of the trace's two silent-on-client states. Fires only on real transitions:
+	// ApplyDeathState gives -- these run on every machine and the transitions do not. Fires only on
+	// real transitions:
 	// the server guards in HandleStaminaChanged, clients in OnRep on a changed bool.
 	TD_TIMING_LOG(TEXT("[%.3f] EXHAUSTED  %s  stamina=%.1f"),
 		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f,
@@ -2448,12 +2422,10 @@ void ATDCombatCharacter::ClearExhaustionState()
 
 void ATDCombatCharacter::Jump()
 {
-	// **Every gate this function used to hold moved to UTDJumpAbility on 2026-08-20, and none of
-	// them came back here.** It restated exhaustion, death, hitstun, the movement lock and the
-	// guard's commitment by hand -- five copies of rules the shared ability base already enforced,
-	// kept only because jump was not an ability. Its own comment called itself "the only place that
-	// can be forgotten", and it was: a broken guard refuses every ability and jump walked through
-	// it for six days. See the "Before Stun" trap in Docs/Combat-Decisions.md.
+	// **Every permission gate lives in UTDJumpAbility, and none of them belong here.** This function
+	// used to restate exhaustion, death, hitstun, the movement lock and the guard's commitment by
+	// hand -- five copies of rules the shared ability base already enforced -- which is exactly the
+	// arrangement that lets one be forgotten.
 	//
 	// So this is now reachable only through GA_Jump, which has already answered every one of those
 	// questions before calling it -- and death, the one check whose removal looks riskiest, is inert
@@ -2578,11 +2550,11 @@ void ATDCombatCharacter::InitialiseAbilitySystem()
 		AttributeSet = OwnedAttributeSet;
 	}
 
-	// The line the first two-machine recon was missing (2026-08-15): nothing could say which ASC
-	// a client resolved -- the toolset cannot see the client world, and an unseeded fallback reads
-	// the same 100/100 on the HUD as the real thing, because the attribute constructor inits to
-	// 100. Logged on every resolution path (BeginPlay, PossessedBy, OnRep_PlayerState), so the
-	// swap a client makes when its PlayerState arrives is visible in its own log.
+	// **Nothing else can say which ASC a client resolved**: the toolset cannot see the client world,
+	// and an unseeded fallback reads the same 100/100 on the HUD as the real thing, because the
+	// attribute constructor inits to 100. Logged on every resolution path -- BeginPlay, PossessedBy,
+	// OnRep_PlayerState -- so the swap a client makes when its PlayerState arrives is visible in
+	// its own log.
 	TD_TIMING_LOG(TEXT("[%.3f] ASC RESOLVE %s -> %s (%s)"),
 		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f,
 		*GetName(),
@@ -2681,7 +2653,7 @@ void ATDCombatCharacter::SeedAbilitySystemDefaults()
 	// root motion has since carried us. Taken for either fixture: a dodger needs it as much as an
 	// attacker, because with no movement input every dodge resolves *backward*, so an unattended
 	// defender reverses out of the exchange at DodgeTargetDistanceCm a time.
-	// A jump-only fixture is a fixture as well (2026-08-20), and it MUST be included here if it is
+	// A jump-only fixture is a fixture as well, and it MUST be included here if it is
 	// included in ReturnToDebugAutoAttackHome's guard -- the two conditions are one rule written
 	// twice, and a pawn that can be sent home without having recorded a home goes to the world
 	// origin. That is the failure the guard's own comment warns about.
@@ -2935,7 +2907,7 @@ void ATDCombatCharacter::ReturnToDebugAutoAttackHome()
 	// Guarded on there being a debug fixture at all, as well as on the reset flag, because
 	// HomeTransform is only captured for one. Without this, calling it on anything else -- the
 	// player, on revive -- teleports to an identity transform, i.e. the world origin.
-	// bDebugPeriodicJump counts as a fixture too (2026-08-20). It is orthogonal to
+	// bDebugPeriodicJump counts as a fixture too. It is orthogonal to
 	// DebugAutoDefendMode by design -- the guard-break and knockdown rules need a pawn that
 	// blocks *and* jumps -- so a jump-only defender would otherwise fall through this guard and
 	// never be brought home, which is exactly the drift the stand-boundary reset exists to undo.
@@ -2954,10 +2926,9 @@ void ATDCombatCharacter::ReturnToDebugAutoAttackHome()
 		return;
 	}
 
-	// **The reset had no observability at all until 2026-08-16**, which is why "it fires mid-attack
-	// and the numbers still look plausible" was a documented hazard nobody could check. The
-	// timestamp is what identifies the path: the delayed timer lands ResetDelay after the last
-	// swing's ABILITY END, while the burst's belt-and-braces call shares a timestamp with the
+	// **Traced because "it fires mid-attack and the numbers still look plausible" is otherwise
+	// uncheckable.** The timestamp identifies the path: the delayed timer lands ResetDelay after the
+	// last swing's ABILITY END, while the burst's belt-and-braces call shares a timestamp with the
 	// ACTIVATE that follows it. Distance moved separates a real reset from a no-op.
 	const FVector PreviousLocation = GetActorLocation();
 	TD_TIMING_LOG(TEXT("[%.3f] HOME RESET %s  moved=%.1fcm"),
@@ -3101,8 +3072,8 @@ void ATDCombatCharacter::HandleDebugAutoAttackEnded(const FAbilityEndedData& End
 	// exactly once per attack.** The press path is the wrong clock: taps arrive every
 	// DebugAutoAttackStringTapIntervalSeconds (0.25 s) while attacks activate at the chain cadence
 	// (~0.5 s), so advancing on a press ticks twice per attack and lands back on the body it
-	// started from. Measured 2026-08-18 -- focus visibly flipped on every press and every attack
-	// in the burst still committed to the same target.
+	// started from -- the focus flips on every press while every attack in the burst still commits to
+	// the same target.
 	//
 	// Ahead of the taps guard below deliberately: mid-burst is exactly when rotation must happen,
 	// and that guard exists for the home reset, which must *not*.
@@ -3142,9 +3113,9 @@ void ATDCombatCharacter::HandleDebugAutoAttackEnded(const FAbilityEndedData& End
 		return;
 	}
 
-	// **An open link window defers the reset; it must never drop it** (fixed 2026-08-16, found in
-	// play by the user). The window says another swing *may* follow, so resetting now would
-	// teleport the attacker out of a string still in progress. But returning outright loses the
+	// **An open link window defers the reset; it must never drop it.** The window says another swing
+	// *may* follow, so resetting now would teleport the attacker out of a string still in progress.
+	// But returning outright loses the
 	// reset entirely when no press arrives: nothing re-runs this handler, so the attacker idled
 	// displaced for the rest of the cycle and snapped home on the next burst's belt-and-braces
 	// call, one frame before it attacked. Waiting the window out and then applying the ordinary
@@ -3687,7 +3658,7 @@ void ATDCombatCharacter::TickInputBuffer()
 		BufferedInput.ExpiryWorldTime = FMath::Max(BufferedInput.ExpiryWorldTime, Now + InputBufferSeconds);
 	}
 
-	// A chain press outlives the swing that refused it (2026-08-16). A tap made early in a swing
+	// A chain press outlives the swing that refused it. A tap made early in a swing
 	// would otherwise expire before the chain could open -- 200 ms of grace against a 350 ms
 	// boundary, dropping exactly the mash cadence the string invites. The extension is the
 	// *ability's* choice, is bounded by the swing plus its link window, and rolls the same
