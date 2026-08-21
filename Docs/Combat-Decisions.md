@@ -772,7 +772,7 @@ kept in their own notes. What belongs here is only what to move once a verdict a
 | The forced turn after a hit reads too slow or too snappy | `ForcedFacingTurnRateDegrees`, but **re-derive first**: 180° must complete well inside the shortest hitstun a victim can actually *feel* | The ladder's minimum `HitstunSeconds`. **The basis moved on 2026-08-20 and the number did not.** It was derived against the heavy's 0.50 (floor ≈ 655); knockdown repurposed the heavy's and charged's into attacker-side oki knobs no victim ever feels, so the binding value is now the light's 0.55 and the floor is nearer 330. 720 clears both. Re-derive against the *felt* hitstun, not the smallest one in the table. |
 | A graded swing's oki tempo feels wrong — the attacker gets to move too early or too late after flooring someone | That swing's `HitstunSeconds`. **On a graded swing it no longer stuns anybody** — knockdown supersedes it — so it does exactly one thing: keys the attacker's movement return through the on-hit waiver | Reading it as a victim-side duration. Heavy 0.35 and charged 0.45 are pure attacker-side tempo since 2026-08-20; the light's 0.55 is still a real hitstun *and* still derived from the string guarantee, so the same property means two different things depending on the swing. |
 | A crowd scatters oddly, or a knockdown sends someone the wrong way | Which **axis** that volume uses, not the distance. The string's forward knockback centres on the attacker's facing (the next hit needs its target in front); a knockdown and the get-up attack radiate along the attacker→victim bearing, so a side target flies to its own side | Unifying the two. They are two axes **by design** and the trace's `bearing=` is what tells them apart — ≈0° for a 1v1, ≈±90° for the two victims of a 360° finisher. A single axis makes one of the two volumes wrong in a way nobody sees until a crowd exists. |
-| A parried attacker recovers too fast or too slow | `ParryLockoutFloorSeconds`, which is **reserved at 0** and is the authored half held for exactly this | The derivation. The lockout is `planned authored total − elapsed at the catch`, and **it does not scale per tier** — measured 2026-08-20: light **0.736 s** (n=14), heavy **0.636 s** (n=15). A catch can only land once the hitbox is live, so the elapsed time subtracted is always ≈ the windup, the windup cancels, and what survives is `Release + Recovery` — 0.75 / 0.65 / 0.75 across the ladder. The parried *heavy* pays least, purely because its recovery is 0.50 where the others are 0.60. This is not a regression: the pre-2026-08-20 model let the attacker ride the same tail, so the flatness predates the derivation and was never a property it had. |
+| A parried attacker recovers too fast or too slow | That branch's or swing's **`ParryLockoutSeconds`** — authored since 2026-08-20, freely tunable, and the Tuning Rig's job is to give each one a reason | Any recovery or release value. It **was** derived (`planned total − elapsed at the catch`) and that is exactly what retired: a catch only lands once the hitbox is live, so the windup always cancelled and what survived was `Release + Recovery` — two ungreened placeholders plus an arbitrary remainder. Seeded at what the derivation produced (light 0.75, heavy 0.65, charged 0.75, ender 0.9725), so today's values are the old ones wearing a name. **The ordering happens to be right and was never chosen**: light punishes harder than heavy, which is what *"lights are harder to parry, so probably more punishable"* would ask for — by accident, because the heavy's recovery is 0.50 where the others are 0.60. |
 | An airborne target can be held in the air | **Nothing — the fix is in and it is structural.** `IgnoreZAccumulate` on the shared root motion source, so XY reaches the authored destination and gravity keeps the vertical | Re-authoring the destination's Z. An Override source overrides *velocity*, gravity included, so any pinned Z hangs an airborne body for the source's duration and `ClampVelocity` then drops them from rest — a second hit re-arms it. Verified by the `z=` and `airborne=` fields on `KNOCKDOWN` against `z=` on `KNOCKDOWN STAND`; equal heights across a carry mean the body hung. |
 
 Add a row whenever an entry below establishes that a fix belongs in one place rather than
@@ -873,7 +873,7 @@ reading the file front to back found it.** An index nobody has to read front to 
 
 Generated from the archive rather than maintained by hand, so it goes stale rather than wrong —
 a missing row means the entry is newer than the index, never that the symbol is absent.
-Current through **2026-08-19** — update the date when regenerating, and `docs-check` turns
+Current through **2026-08-20** — update the date when regenerating, and `docs-check` turns
 staleness into a red row by comparing it against the newest entry. The rule for reading it is the standing one,
 that **a search finding nothing proves only that the filter did not match.**
 
@@ -886,21 +886,21 @@ long.
 | Symbol | Entries |
 |---|---|
 | `ABP_Combat` | 08-11, 08-12, 08-15 |
-| `ACharacter` | 08-12 |
 | `ACharacter::SetAnimRootMotionTranslationScale` | 08-12 |
+| `ACharacter` | 08-12 |
 | `AGameModeBase::ChoosePlayerStart_Implementation` | 08-15 |
-| `AM_Attack` | 08-12 |
 | `AM_Attack_S2` | 08-16 |
 | `AM_Attack_S3` | 08-16 |
 | `AM_Attack_S4` | 08-16 |
+| `AM_Attack` | 08-12 |
 | `AM_Dodge` | 08-10, 08-11, 08-12, 08-13 |
 | `APawn::FaceRotation` | 08-12 |
-| `ATDCombatCharacter` | 08-10, 08-12 |
 | `ATDCombatCharacter::Jump` | 08-12 |
 | `ATDCombatCharacter::StartRagdoll` | 08-13 |
+| `ATDCombatCharacter` | 08-10, 08-12 |
 | `ATDPlayerState` | 08-11 |
-| `ATheDreamCharacter` | 08-12, 08-13 |
 | `ATheDreamCharacter::ApplyCameraCollisionExemption` | 08-13 |
+| `ATheDreamCharacter` | 08-12, 08-13 |
 | `ActivateAbility` | 08-10, 08-12 |
 | `ActivationBlockedTags` | 08-10, 08-11, 08-12, 08-19 |
 | `ActorsHitThisWindow` | 08-18 |
@@ -944,16 +944,19 @@ long.
 | `DodgeSeconds` | 08-10, 08-11 |
 | `DodgeTargetDistanceCm` | 08-11, 08-12, 08-13 |
 | `ECC_Camera` | 08-12, 08-13 |
-| `EndParryRecovery` | 08-19 |
+| `ETDKnockdownGrade` | 08-20 |
 | `ETriggerEvent::Started` | 08-11 |
 | `EffectOnEnd` | 08-10 |
 | `EffectOnStart` | 08-10 |
 | `EndAbility` | 08-12 |
+| `EndParryRecovery` | 08-19 |
 | `EndTask` | 08-14 |
 | `EnterCoil` | 08-14 |
 | `EnterDeath` | 08-11 |
 | `EnterExhaustion` | 08-15 |
 | `EnterHitstun` | 08-18 |
+| `EnterKnockdown` | 08-20 |
+| `EnterParryLockout` | 08-20 |
 | `ExhaustedMaxWalkSpeed` | 08-14 |
 | `ExhaustedStaminaRegenPerSecond` | 08-14 |
 | `ExhaustedTag` | 08-11 |
@@ -971,18 +974,21 @@ long.
 | `FTDAttackBranch::RecoverySeconds` | 08-12 |
 | `FTDAttackBranch::RootMotionScale` | 08-12 |
 | `FTDAttackHitbox` | 08-12, 08-13, 08-14 |
-| `FTDRootMotionSource_FacingForce` | 08-12, 08-13 |
 | `FTDRootMotionSource_FacingForce::IsWithinStandoff` | 08-14 |
 | `FTDRootMotionSource_FacingForce::PrepareRootMotion` | 08-13 |
+| `FTDRootMotionSource_FacingForce` | 08-12, 08-13 |
 | `FTDStringSwing` | 08-16 |
 | `FacingLockFadeSeconds` | 08-12 |
 | `FinishVelocityParams` | 08-14 |
+| `ForcedFacingTurnRateDegrees` | 08-20 |
 | `GA_Attack` | 08-09, 08-10, 08-11, 08-12, 08-14 |
 | `GA_Block` | 08-14 |
 | `GA_Dodge` | 08-10, 08-11, 08-13, 08-14 |
+| `GA_Jump` | 08-20 |
 | `GA_Parry` | 08-19 |
 | `GetActorForwardVector` | 08-12 |
 | `GetAimYawDegrees` | 08-13 |
+| `GetAttackParryLockoutSeconds` | 08-20 |
 | `GetLastInputVector` | 08-10, 08-16 |
 | `GetScriptStruct` | 08-12 |
 | `GuardBreakStunSeconds` | 08-14 |
@@ -1005,7 +1011,11 @@ long.
 | `IsGuardFacing` | 08-14 |
 | `IsIdle` | 08-12, 08-16 |
 | `IsInBlockstun` | 08-15 |
+| `IsMovementLocked` | 08-20 |
 | `JumpRegenPauseSeconds` | 08-10 |
+| `KnockdownCarrySeconds` | 08-20 |
+| `KnockdownRiseSeconds` | 08-20 |
+| `KnockdownSpacingCm` | 08-20 |
 | `LastRequestedMoveInput` | 08-16 |
 | `LaunchCharacter` | 08-12 |
 | `LocalPredicted` | 08-11 |
@@ -1024,9 +1034,10 @@ long.
 | `NetSerialize` | 08-12 |
 | `OnCompleted` | 08-12 |
 | `OnDestroy` | 08-14 |
-| `OnRep` | 08-11, 08-16 |
 | `OnRep_PlayerState` | 08-15 |
+| `OnRep` | 08-11, 08-16 |
 | `OverlapsCapsule` | 08-14 |
+| `ParryLockoutSeconds` | 08-20 |
 | `ParryWhiffRecoverySeconds` | 08-19 |
 | `ParryWindowSeconds` | 08-19 |
 | `PeriodicDodge` | 08-15 |
@@ -1047,8 +1058,8 @@ long.
 | `ReturnToDebugAutoAttackHome` | 08-11 |
 | `RootMotionScale` | 08-12 |
 | `RotationRate` | 08-10, 08-12 |
-| `SKM_Manny` | 08-11, 08-12 |
 | `SKM_Manny_Simple` | 08-11 |
+| `SKM_Manny` | 08-11, 08-12 |
 | `SetAbilityFacingLocked` | 08-13 |
 | `SetActorLocation` | 08-12 |
 | `SetTimer` | 08-11 |
@@ -1065,7 +1076,9 @@ long.
 | `State.DodgeRecovery` | 08-19 |
 | `State.GuardBroken` | 08-14 |
 | `State.Hitstun` | 08-16 |
+| `State.KnockedDown` | 08-20 |
 | `State.ParryLockout` | 08-19 |
+| `State.ParryLockout` | 08-19, 08-20 |
 | `State.ParryRecovery` | 08-19 |
 | `StopLunge` | 08-14 |
 | `StopRagdoll` | 08-13 |
@@ -1086,15 +1099,16 @@ long.
 | `UTDAttributeSet` | 08-15 |
 | `UTDChargedAttackAbility` | 08-09, 08-10, 08-12 |
 | `UTDDodgeAbility` | 08-10 |
-| `UTDGameplayAbility` | 08-12, 08-14 |
 | `UTDGameplayAbility::CanActivateAbility` | 08-19 |
 | `UTDGameplayAbility::InputTag` | 08-09 |
 | `UTDGameplayAbility::StartLunge` | 08-13 |
-| `UTDMeleeAttackAbility` | 08-10 |
+| `UTDGameplayAbility` | 08-12, 08-14 |
+| `UTDJumpAbility` | 08-20 |
 | `UTDMeleeAttackAbility::HandleTraceHit` | 08-14 |
 | `UTDMeleeAttackAbility::LungeDistanceCm` | 08-12 |
 | `UTDMeleeAttackAbility::LungeDurationSeconds` | 08-13 |
 | `UTDMeleeAttackAbility::RootMotionScale` | 08-12 |
+| `UTDMeleeAttackAbility` | 08-10 |
 | `UpdateCameraRelativeFacing` | 08-11, 08-12 |
 | `UpdateStateFrom` | 08-14 |
 | `WeaponMesh` | 08-11 |
@@ -1102,12 +1116,15 @@ long.
 | `YawOffsetDegrees` | 08-13 |
 | `bAbilityFacingLocked` | 08-12 |
 | `bAllowPhysicsRotationDuringAnimRootMotion` | 08-12 |
+| `bAllowedFromKnockdown` | 08-20 |
 | `bAttackCommitted` | 08-12 |
 | `bBlockedWhileAirborne` | 08-10, 08-12 |
+| `bBlockedWhileMovementLocked` | 08-20 |
 | `bChainsIntoString` | 08-16 |
 | `bDead` | 08-11, 08-15 |
-| `bDebugAutoAttack` | 08-11 |
 | `bDebugAutoAttackResetPosition` | 08-11 |
+| `bDebugAutoAttack` | 08-11 |
+| `bDebugPeriodicJump` | 08-20 |
 | `bDoCollisionTest` | 08-12 |
 | `bEnableRootMotion` | 08-12, 08-13 |
 | `bEnabled` | 08-14 |
@@ -1127,6 +1144,59 @@ long.
 | `gEComponents` | 08-10, 08-11 |
 
 ---
+
+## 2026-08-20 — The parry lockout is authored, because a right answer with no reason is still imprecise
+
+**The ruling.** *"Derived parry lockout is sufficient, but imprecise, and I think it needs to be
+formalized. Not necessarily TUNED now, but authored, and during the tuning pass that accompanies the
+Tuning Rig, they all need logical answers that don't just fall out."*
+
+### What was wrong with a model that worked
+
+Sub-slice E derived the lockout as **the swing's planned authored total minus the time elapsed at
+the catch**, on the argument that this preserves per-tier punish for free — a parried charged pays
+more than a parried light, without anyone authoring a number.
+
+**Measured, it does no such thing.** Light **0.736 s** (n=14), heavy **0.636 s** (n=15), from the
+designer's own hand-parried sessions. The mechanism is arithmetic rather than a bug: a catch can
+only land once the hitbox is live — measured at 12–20 ms after release-open, consistently — so the
+elapsed time subtracted is always ≈ `ReleaseAtSeconds`. **The windup cancels.** What survives is
+`Release + Recovery`, which is 0.75 / 0.65 / 0.75 across the ladder, and the tiers differ almost
+entirely in windup.
+
+**And it was never a property the derivation had.** Before E, a parried attacker rode their swing to
+completion — the same `Release + Recovery` tail. E reproduced that duration exactly, which is what
+"behaviour-preserving by derivation" meant. So the plan's claim was wrong about the *old* model too.
+**Superseded:** *"a parried charged pays more than a parried light and every per-tier punish window
+is preserved."* The scaling that does exist is in **total time lost** — 1.50 against 0.95 — which is
+real, but does not live in the lockout.
+
+### Why it still had to change, having been declared harmless
+
+An assistant's first read was that the inversion needed fixing; the second was that it barely
+mattered — both lockouts admit the same punishes (light at 200 ms, heavy at 350) and neither admits
+a charged (750 > 736), so the 100 ms is **margin, not capability**. Both readings missed the point
+the designer made: **the recovery values it is built from are ungreened placeholders.** The Tuning
+Rig has not happened. Reasoning about whether 0.50 versus 0.60 produces the right feel is reasoning
+about two numbers that mean nothing yet.
+
+**The sharpest fact is that the derived ordering was correct.** Light punishing harder than heavy is
+what *"lights are harder to parry, so they should be more punishable"* asks for — arrived at by
+accident, out of an arbitrary recovery pairing. A number that is right for no reason cannot be
+defended, cannot be re-derived when something moves, and gives the Rig nothing to reason from.
+
+### What it is now
+
+`ParryLockoutSeconds`, authored on `FTDAttackBranch` and `FTDStringSwing`, resolved by the same
+swing-then-branch-then-ability ladder `HitstunSeconds` and `KnockdownGrade` use. **Seeded at exactly
+what the derivation produced** — light 0.75, heavy 0.65, charged 0.75, ender 0.9725 — so
+formalising changed no behaviour. `GetPlannedTotalSeconds()` retires with the derivation and
+`GetElapsedSeconds()` goes back to non-virtual; both existed only to feed it.
+
+**One measurable gain beyond the philosophical.** Under the derivation, two catches on the same
+branch produced *different* spans — 0.732 and 0.744 — because they landed at slightly different
+elapsed times. After: **0.750 and 0.750, exactly.** The authored value removed a ±10 ms wobble that
+came from nothing, and `s5-parry` can now band a CDO value rather than an arithmetic result.
 
 ## 2026-08-19 — Knockdown's plan session: the down-state anatomy, forced facing, and the exhausted carve-out
 
