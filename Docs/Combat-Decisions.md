@@ -300,17 +300,102 @@ slide it was authored to fix and felt as how far apart people stand while tradin
 final spacing depends on where in the release window the hitbox caught them. What it still pins is
 an exchange in which nothing connects.
 
-**Before Stun — *a guard break stuns abilities and nothing else.*** Filed 2026-08-14 with the user's
-agreement, so this is a deferral rather than a defect. `State.GuardBroken` refuses every
-GameplayAbility from the shared base, but **`Jump()` does not check it and movement is not locked**,
-so a broken guard can still walk and jump. The intended end state is full loss of control except the
-camera, and it belongs to Stun because that slice owns the hit-reaction plumbing it needs.
+**~~Before Stun — a guard break stuns abilities and nothing else~~ — DISCHARGED 2026-08-20**, both
+halves, by Knockdown's sub-slices A and B in the commit that closed it. Filed 2026-08-14 as a
+deferral rather than a defect: `State.GuardBroken` refused every GameplayAbility from the shared
+base, but **`Jump()` did not check it and movement was not locked**, so a broken guard could walk
+*and* jump away from the punish window the break exists to create.
 
-Two things make it cheap to finish there and worth not doing now. `Jump()` already restates four
-lockouts by hand and its own comment calls itself *"the only place that can be forgotten"* — adding
-a fifth strengthens the case for jump becoming an ability rather than weakening it, and that is the
-structure audit's call. And `bLocksMovement` already exists on the shared base as the seam for
-exactly this.
+**Both halves needed different fixes, which is why it stayed one trap.** Movement: `IsMovementLocked()`
+became virtual and `ATDCombatCharacter` now ORs in hitstun and the guard break. Jump: it stopped
+being a hand-gated call and became `UTDJumpAbility`, so it inherits the base's refusals like
+everything else. Blockstun is deliberately still excluded from the movement lock — a guard that
+*fails* costs everything, a guard that *works* costs only initiative.
+
+**Its prediction came true and is the part worth keeping.** The trap noted that `Jump()` already
+restated four lockouts by hand and that its own comment called it *"the only place that can be
+forgotten"* — and it was forgotten, for six days, by exactly the mechanism named. **A rule enforced
+in a place the shared base cannot see is a rule with an expiry date.** The five restated checks are
+gone; the one non-permission thing `Jump()` still does (dropping the guard) is all that remains in
+the override.
+
+Covered by `s6-stand`'s jail refusals and by the full matrix; the guard-break-specific movement
+assertion the sub-slice promised is **still owed** — see the knockdown coverage trap below.
+
+**Whenever a stationary fixture must stay in an exchange — *a knocked-down dummy parks itself out
+of the game, and only a human hides it.*** Filed 2026-08-20, mitigated the same day, kept because
+the general form will recur.
+
+A knockdown carries its victim to `KnockdownSpacingCm` (450) while the light's covered range is
+410 — deliberate, and the tuning map explains why — so **a body that does not walk is 40 cm outside
+anything the ladder can reach, permanently.** Measured before the fix: the auto-parrier sat at a
+**median 507 cm** from its attacker across 365 commits, drifting past 900, while a human in the same
+role sat at ~120 cm throughout. A human walks back in without thinking about it; a fixture never
+does, so its first knockdown ends its participation for the rest of the session.
+
+**What it looked like was a defence failing**, not a pawn leaving: `s5-parry` opened 73 windows and
+caught 0–1, which reads exactly like a broken parry. The same designer parried **15 of 15**.
+
+**Mitigated** by `EndKnockdown` calling `ReturnToDebugAutoAttackHome` at the **stand boundary** — the
+only safe moment, since the dodger's on-press hook would teleport a parrier mid-swing and hitstun's
+end never fires for a graded hit. Knockdowns per minute went from 4 to 13 with it in.
+
+**Not discharged, because the seed cause is untouched.** The drift is a *feedback* term: the sweep
+misses, a hit lands, the body is carried out, so the sweep misses more. Re-homing breaks the loop
+but does not raise the base catch rate, and `s5-parry` has **not been re-measured** since. The
+standing options are the phase-locked parry mode (successes) beside the co-prime sweep
+(`s5-parry-whiff`, whiffs), or simply a longer run.
+
+**The general form, which is why this stays filed: any assertion about a stationary defender is an
+assertion about a pawn that is still in reach, and nothing checks that it is.**
+
+
+**Before the next knockdown sitting — *the get-up options are built and none of them is tested.***
+Filed 2026-08-20 at the end of the A–F run, and this is the loop-coverage rule's bill coming due.
+
+`s6-knockdown`, `s6-hard` and `s6-stand` cover the state machine: grades, the 2.5 s total, the
+0.5 s rise, floor invincibility across 13 knockdowns, and the jail boundary via refusals. **What
+they do not touch is sub-slice D.** The dodge get-up, the kip-up, the block get-up and every
+exhaustion refusal are written, compiled, armed on their CDOs — and have never run. The neutral
+stand is the single exception, because the jump fixture happens to exercise it.
+
+**The reason is fixture shape, and it is nameable**: `DebugGetUpMode` (`Wait` / `DodgeGetUp` /
+`BlockGetUp` / `AttackGetUp` / `StandGetUp`) was specified in the plan and **not built** — only
+`bDebugPeriodicJump` was, which reaches the stand and nothing else. Pressing dodge or block on a
+schedule is not equivalent: those inputs fire outside the down-state too, so the log cannot tell a
+get-up from an ordinary dodge without the mode saying which was intended.
+
+**Specifically untested:** that `GA_Dodge` from the floor is i-framed and costs 50; that hard grade
+turns it into a kip-up travelling ≈0; that hard **refuses** the directional dodge and the free
+stand; that `GA_Block` comes up guarded from activation; that exhaustion refuses block, dodge and
+kip-up while leaving the get-up attack and the wait.
+
+**Also owed and separate: the guard break's own movement assertion.** Sub-slice B promised a new
+`s2-*` asserting zero movement during break stun. `s6-stand` covers the *jump* half of that trap
+through jail refusals; the *walking* half has no assertion at all, because nothing in the loop
+measures a defender's displacement during a stun.
+
+**And sub-slice F is not built**, so nothing about the get-up attack exists to test — it derives
+its phase rates from `AM_GetUpAttack`'s measured position and that montage is a human step.
+
+
+**Whenever a second attacker becomes possible — *knockdown's 1vX half has never been observed
+either.*** Filed 2026-08-20, owed from Knockdown's plan and **discharged in the same sitting as the
+Parry Grace second-attacker trap**, which is blocked on exactly the same thing.
+
+Three items, all unproducible with one attacker: a **meaty loop** run against a riser by someone
+other than the person who floored them; a **second attacker hitting a body mid-rise**, which is the
+only way to test that floor invincibility ends per-body rather than per-attacker; and the **parried
+swing's bystander deadness** — sub-slice E kills a caught swing's hitbox for *everyone*, and in a
+1v1 there is nobody to prove it on.
+
+**One of the three did get observed, by accident.** The designer's own session produced a meaty:
+stand at 125.892, next heavy landing at 126.383 — 0.49 s later, auto-rise into a waiting attack, no
+press, guaranteed hit, and it killed them. That is the vortex the design accepts and Interplay
+judges, seen once from the receiving end. It is not the 1vX case, because the same attacker did it.
+
+**Also still unexercised: death while knocked down.** *"Death wins outright over knockdown"* is a
+ruling nothing has run — the one death so far happened 0.49 s *after* a stand, not on the floor.
 
 **Whenever reach or travel move — *the string's connect inequality is unenforced.*** The
 fixed-destination knockback (2026-08-16, discharging the old two-number budget fear) reduced the
@@ -681,6 +766,14 @@ kept in their own notes. What belongs here is only what to move once a verdict a
 | Movement comes back too early or too late after landing a hit | **Nothing — it is derived.** The on-hit waiver returns movement at contact + *that swing's* `HitstunSeconds`. Earlier lets the attacker erode the authored spacing the fixed-destination knockback just paid for; later is dead freedom, since the victim is out of hitstun and the exchange has restarted | A separate waiver duration. Authoring it apart immediately allows the pair that makes no sense — movement returning while the victim is still stunned for it, or staying locked after they can act |
 | A parried attacker gets away with too much | **Nothing — the reward is derived and already per-tier.** Recovery *is* the punish window, so a parried charged pays more than a parried light without anyone authoring it; the string reset is what compensates at the light end | A per-branch parry bonus. Raised 2026-08-18 and rejected: the derived model pays by the victim's commitment rather than by the read's difficulty, and an authored bonus exists only if play demands read-difficulty compensation |
 | The charged feels unreactable, or trivially reactable | **Nothing, without re-deriving it.** It must arrive at or after coil + reaction + dodge duration — 750 = 150 + 200 + 400, exactly on the line today, so it has no slack downward at all | Moving it for feel. Below the derived value the slow layer stops being answerable by the defence it exists to reward, and the ladder loses the pole that makes the fast layer mean anything |
+| A knockdown holds you down too long, or lets you up too early | That grade's `KnockdownJailSeconds*` and `KnockdownChoiceSeconds*` **as a pair summing to the same total** — each grade's split is its own dial | The total, or `KnockdownRiseSeconds`. Both grades spend 2.5 s down and begin rising at 2.0 **by design**, and every derivation keyed to the total is grade-blind because of it: the exhausted player's ~62 stamina return, the netcode window. Move the split, never the sum. |
+| A knockdown feels escapable in the wrong way | The split again — jail buys lockout, choice buys agency | `KnockdownRiseSeconds`. The rise is committed, vulnerable and unactionable whichever way it started; shortening it shrinks the meaty window that is the whole of the oki, and the clips are rate-fitted to it. |
+| Re-engaging a knocked-down player feels wrong | **Nothing, without re-deriving the whole relationship.** `KnockdownSpacingCm` (450) is set against each tier's covered range — light 410, heavy 510, charged 610, each `100 base lunge + branch lunge + 150 reach − 40 standoff`. The intent is that the heavy and charged **lunge** the gap and the light **walks** it | Any one of the five numbers alone. They are one coupling written in five places with nothing enforcing it, and the margins are the same size as the gap — the light misses by 40, the heavy clears by 60. Move one and you silently change *which tiers can reach a riser at all*, which presents as "oki feels wrong" rather than as a number being wrong. |
+| The forced turn after a hit reads too slow or too snappy | `ForcedFacingTurnRateDegrees`, but **re-derive first**: 180° must complete well inside the shortest hitstun a victim can actually *feel* | The ladder's minimum `HitstunSeconds`. **The basis moved on 2026-08-20 and the number did not.** It was derived against the heavy's 0.50 (floor ≈ 655); knockdown repurposed the heavy's and charged's into attacker-side oki knobs no victim ever feels, so the binding value is now the light's 0.55 and the floor is nearer 330. 720 clears both. Re-derive against the *felt* hitstun, not the smallest one in the table. |
+| A graded swing's oki tempo feels wrong — the attacker gets to move too early or too late after flooring someone | That swing's `HitstunSeconds`. **On a graded swing it no longer stuns anybody** — knockdown supersedes it — so it does exactly one thing: keys the attacker's movement return through the on-hit waiver | Reading it as a victim-side duration. Heavy 0.35 and charged 0.45 are pure attacker-side tempo since 2026-08-20; the light's 0.55 is still a real hitstun *and* still derived from the string guarantee, so the same property means two different things depending on the swing. |
+| A crowd scatters oddly, or a knockdown sends someone the wrong way | Which **axis** that volume uses, not the distance. The string's forward knockback centres on the attacker's facing (the next hit needs its target in front); a knockdown and the get-up attack radiate along the attacker→victim bearing, so a side target flies to its own side | Unifying the two. They are two axes **by design** and the trace's `bearing=` is what tells them apart — ≈0° for a 1v1, ≈±90° for the two victims of a 360° finisher. A single axis makes one of the two volumes wrong in a way nobody sees until a crowd exists. |
+| A parried attacker recovers too fast or too slow | `ParryLockoutFloorSeconds`, which is **reserved at 0** and is the authored half held for exactly this | The derivation. The lockout is `planned authored total − elapsed at the catch`, and **it does not scale per tier** — measured 2026-08-20: light **0.736 s** (n=14), heavy **0.636 s** (n=15). A catch can only land once the hitbox is live, so the elapsed time subtracted is always ≈ the windup, the windup cancels, and what survives is `Release + Recovery` — 0.75 / 0.65 / 0.75 across the ladder. The parried *heavy* pays least, purely because its recovery is 0.50 where the others are 0.60. This is not a regression: the pre-2026-08-20 model let the attacker ride the same tail, so the flatness predates the derivation and was never a property it had. |
+| An airborne target can be held in the air | **Nothing — the fix is in and it is structural.** `IgnoreZAccumulate` on the shared root motion source, so XY reaches the authored destination and gravity keeps the vertical | Re-authoring the destination's Z. An Override source overrides *velocity*, gravity included, so any pinned Z hangs an airborne body for the source's duration and `ClampVelocity` then drops them from rest — a second hit re-arms it. Verified by the `z=` and `airborne=` fields on `KNOCKDOWN` against `z=` on `KNOCKDOWN STAND`; equal heights across a carry mean the body hung. |
 
 Add a row whenever an entry below establishes that a fix belongs in one place rather than
 another. That is the reusable part of an entry; the argument around it is not.

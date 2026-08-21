@@ -48,6 +48,37 @@ them. **The home reset waits for the burst**: taps remaining or an open link win
 or a teleport would sever the spacing chain s4 measures. The whole burst must fit inside
 `DebugAutoAttackInterval`, exactly as the single attack must.
 
+
+**`bDebugPeriodicJump` is orthogonal to `DebugAutoDefendMode`, and that is the point** *(2026-08-20)*.
+A defender has exactly one defensive *policy* at a time and that exclusivity is deliberate, but the
+jump is a second **input** rather than a second policy — and the rules it exists to observe need a
+pawn that blocks *and* jumps, or is floored *and* jumps. So it sits beside the enum with its own
+`DebugJumpIntervalSeconds` (default 1.3, co-prime with the attacker's cycle for the reason the
+parry's interval is) and `DebugJumpInputTag`. It reaches the neutral stand and nothing else; the
+other get-up options still have no fixture — see the traps.
+
+**A knocked-down fixture is brought home at the stand boundary** *(2026-08-20)*, and without it a
+defensive fixture leaves the exchange permanently after its first knockdown. The mechanism, the
+measurement and why the stand is the only safe hook are in the trap; what matters here is that
+**`bDebugPeriodicJump` counts as a fixture for the home-transform capture as well as the reset** —
+those two conditions are one rule written twice, and a pawn sent home without having recorded a
+home teleports to the world origin.
+
+**Placed-actor fixture knobs are level state, and an editor restart reverts every one of them**
+*(2026-08-20, after it silently invalidated a control run)*. They are `EditAnywhere` instance
+writes, so they live in the `.umap` — and the level is deliberately never saved, because saving it
+while a CDO write is not yet live bakes stale overrides into the placed actors. **So re-set the
+whole fixture after every restart**, and treat a scenario that suddenly measures the wrong tier as
+a reverted knob before anything else. The tell is cheap: `ESCALATE` counts say which tier is
+actually being thrown.
+
+**`save_assets` with explicit paths does not sweep the level in** *(2026-08-20)*. `Docs/Working-In-Unreal.md`
+recommends the empty list plus `git status`, which is right for *discovering* what was written and
+wrong right after a CDO session: the empty list saved `L_CombatTest.umap` too and baked a stale
+four-ability `DefaultAbilities` onto both dummies, which `set_properties` and `reset_properties`
+then both refused to repair (re-tested 2026-08-20; the limit held). Naming the assets avoided it
+cleanly on the next pass.
+
 **Close the animation editor before measuring — its preview actor fires notifies into the same
 log** *(2026-08-19)*. An editor left open on `AM_Parry` loops its preview, and every loop emits a
 real `PARRY GESTURE` line from `AnimationEditorPreviewActor_0`. A sweep collected **8 preview
@@ -493,6 +524,9 @@ looks ignored.
 | `s5-parry-whiff` | 0.1, **taps 3** | `PeriodicParry`, `DebugParryIntervalSeconds` **0.5**, **and the defender also auto-attacks** (`bDebugAutoAttack`, interval **0.7**, `bDebugSuppressLunge`) | `PARRY RECOVERY` span 0.600 ±25 ms; `REFUSED` naming **the jail** (`parrying` or `parry recovery`) at least once; **nothing activates inside a recovery span (n=0 fails)**; **nothing activates inside a parry window either (n=0 fails)** |
 | `s5-cancel` | 0.1, **`bDebugCancelAttackIntoBlock`** | `Off` | zero `RELEASE BEGIN`; zero `DAMAGED`; `BLOCK cost` at least once |
 | `s5-waiver` | 0.1, **`bDebugDodgeAfterHit`** | `Off` | attacker `DODGE` within 100 ms of its own `DAMAGED`; `MOVE UNLOCK` present |
+| `s6-knockdown` | 0.1, **taps 3** | `Off` | the ender's knockdown: every `KNOCKDOWN` reads `grade=normal`; entry→rise **2.000 ±25 ms**; rise→stand **0.500 ±25 ms**; **zero `DAMAGED` between a knockdown and its rise** (floor invincibility, and it fails on n=0 knockdowns rather than passing vacuously); every rise `by=auto` |
+| `s6-hard` | 0.22 | `Off` | the same spans from the other grade — `grade=hard`, entry→rise 2.000, rise→stand 0.500. **The total is grade-invariant by design**, which is why this cannot see the 1.5/0.5 split and `s6-stand` exists |
+| `s6-stand` | 0.1, **taps 3** | `Off`, plus **`bDebugPeriodicJump`** (interval **1.3**) | the jail made observable: presses inside it are `REFUSED … knocked down (jail)`, and the first press after it fires `RISE by=stand`. Chosen stands must land in **[jail, auto-rise)** — measured n=9 all within [1.000, 1.975] s |
 
 **`s5-parry-whiff` needs its own interval, and finding out why cost a run** *(2026-08-18)*. At the
 default 1.7 the recovery is **never exercised**: a whiff closes 0.3 s after the press and its
