@@ -143,16 +143,21 @@ restate values nobody thinks to update, and a second copy is not reinforcement, 
 nobody reviews. **Prefer naming the authority over restating the value.**
 
 **`Tools/DocsCheck/docs-check.sh` is these files' integrity check** — truncated tails, orphaned
-table rows, dead cross-references, a stale symbol index — each invariant carrying the incident
-that earned it. Run it after any edit that moves text between docs; closedown runs it regardless.
+table rows, dead cross-references, a stale symbol index — each invariant naming the failure shape
+it catches. Run it after any edit that moves text between docs; closedown runs it regardless.
 
 **Name the asset, not the C++ class — a correctness rule, not a style one.** A Blueprint CDO
 override shadows a C++ default silently, so a class is the authority only until someone touches a
 details panel. Write *"`BP_PlayerCharacter`'s CDO is authoritative, defaults in
 `ATDCombatCharacter`"*, which names both and says which wins.
 
-**Deliberately not kept: per-system design docs.** Local rationale belongs in header comments, read
-at the moment the code is; a doc describing a system drifts and then gets trusted over the code.
+**Deliberately not kept: per-system design docs.** A doc describing a system drifts and then gets
+trusted over the code.
+
+**Comments carry WHAT, and HOW where the mechanism is not plain from reading — never WHY.** No
+dates, no attributions, no history; `Tools/CommentCheck/comment-check.sh` fails on those, and the
+**symbol index** routes a symbol back to its reasoning. **The test is recoverability**: cut what a
+reader could recover from the code or from a doc by grep; move what they could not to `Docs/` first.
 
 ## Working Rules
 
@@ -271,7 +276,7 @@ roster — struck through is the whole record a shipped item needs here.
 | A value that is **derived** and must not be tuned freely | the **tuning map** there, as *"nothing, without re-deriving it"* |
 | Which knob moves for a given complaint | the **tuning map** there |
 | What the next slice inherits | its **brief**, in the slice-briefs section there |
-| Rationale about one symbol | that symbol's **header comment** |
+| What a symbol *is, does or requires* | that symbol's **header comment** — and nothing else does |
 | The argument behind any of it | its **dated entry**, where it already is |
 
 **Graduation has a bar: the rule must be general.** Something that only makes sense as the history

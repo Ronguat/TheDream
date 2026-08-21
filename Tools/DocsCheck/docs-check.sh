@@ -72,6 +72,7 @@ Docs/Combat-Decisions.md:::- **Knockdown**:::CLAUDE.md Current Focus points at t
 Docs/Combat-Decisions.md:::- **Netcode**:::CLAUDE.md network section defers status to this brief
 Docs/Debug-Instruments.md:::### Scenario matrix:::Working-In-Unreal sends verification here
 Tools/RegressionCheck/regression-check.sh:::--self-test:::CLAUDE.md and W-I-U both name the script and its self-test
+Tools/CommentCheck/comment-check.sh:::--self-test:::CLAUDE.md names the script; Closing-Down step 3 runs it
 Docs/Toolset-Snapshot.tsv:::list_toolsets:::Working-In-Unreal diffs the registry against this file
 '
 check_manifest() { # $1=manifest-string -> prints misses, rc 1 if any

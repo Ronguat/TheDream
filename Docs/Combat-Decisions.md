@@ -21,6 +21,12 @@ If an entry would be equally true as a header comment, **write the header commen
 code cannot drift from itself. Audited on the day this bar was set: 9 of the first 27 entries
 cleared it; the rest explained the current design, which the codebase does better.
 
+***Narrowed 2026-08-21 to WHAT only.*** That rule sent *rationale* into header comments as well,
+and the comment debloat pass reversed that half: comments carry what a symbol is, does and
+requires, and never why. So an entry stating what something does still belongs in the header — but
+an entry explaining a choice, a rejected alternative or a failure belongs here and nowhere else,
+and moving it into a comment is now a `comment-check` failure rather than a preference.
+
 **How to read this file.** The sections above the first dated entry — **known traps**, the
 **tuning map**, **what has been superseded**, **retired item numbers**, **retired names** and the
 **symbol index** — are the working part, and they are short on purpose. The dated entries below are
@@ -66,6 +72,7 @@ and not the order anyone reads in. Keep it sorted when adding.)*
 | 2026-08-15 — The Tuning Rig | the felt-numbers table takes provenance from the rig's log | 2026-08-18 — The felt-numbers table is retired (the table no longer exists; the rig instead *generates* the Interplay worklist, which is what it was approximating by hand) |
 | 2026-08-15 — Netcode precedes Interplay | cites "the felt-table preamble" for why final feel waits on the megaslice | 2026-08-18 — The felt-numbers table is retired (the preamble's argument survives and is restated in that entry; only its location is gone) |
 | 2026-08-09 — One ability with three branches | `GA_LightAttack` is kept on disk as a fallback | 2026-08-10 — The `GA_LightAttack` fallback is removed |
+| 2026-08-09 — Documentation: a decision log, not per-system design docs | "header comments in this codebase already carry local rationale well", so local rationale belongs in them | 2026-08-21 — Comments carry WHAT and HOW; WHY moves to Docs/ (the entry's primary claim survives untouched — per-system design docs are still rejected. Only the half sending *rationale* into header comments reversed: comments now carry what a symbol is, does and requires, and never why) |
 | 2026-08-10 — Costs are paid, not required | exhaustion lasts a flat 4 s (`ExhaustionSeconds`) | 2026-08-10 — Exhaustion ends at full |
 | 2026-08-10 — Exhaustion ends at full | recovery speed is one number, so `StaminaRegenPerSecond` *is* the exhaustion duration | 2026-08-14 — Exhaustion recovers at its own rate (the rate is split; exhaustion still ends at Max and nowhere else, so the entry's actual claim survives — what changed is which number sets how long it takes) |
 | 2026-08-10 — Facing is camera-relative | locomotion ships from `SwordAndShieldAnimV1`, and mixing packs must be avoided | 2026-08-11 — V3 becomes the base stance (V1 reads as permanently guarding, and V1 has no `Hit`/`Death` clips so mixing was never avoidable) |
@@ -886,7 +893,7 @@ reading the file front to back found it.** An index nobody has to read front to 
 
 Generated from the archive rather than maintained by hand, so it goes stale rather than wrong —
 a missing row means the entry is newer than the index, never that the symbol is absent.
-Current through **2026-08-20** — update the date when regenerating, and `docs-check` turns
+Current through **2026-08-21** — update the date when regenerating, and `docs-check` turns
 staleness into a red row by comparing it against the newest entry. The rule for reading it is the standing one,
 that **a search finding nothing proves only that the filter did not match.**
 
@@ -918,6 +925,7 @@ long.
 | `ActivationBlockedTags` | 08-10, 08-11, 08-12, 08-19 |
 | `ActorsHitThisWindow` | 08-18 |
 | `AddMovementInput` | 08-12, 08-16 |
+| `AimAssistMarginCm` | 08-21 |
 | `AimAssistWedge` | 08-16 |
 | `AirControl` | 08-13 |
 | `AnimRootMotionTranslationScale` | 08-10 |
@@ -951,17 +959,21 @@ long.
 | `DamageEffectClass` | 08-14 |
 | `DebugAutoAttackInterval` | 08-15 |
 | `DebugAutoAttackStringTaps` | 08-16 |
+| `DebugAutoParryCycle` | 08-21 |
 | `DefaultEffects` | 08-10 |
 | `DisableMovement` | 08-11 |
 | `DoMove` | 08-12, 08-16 |
 | `DodgeSeconds` | 08-10, 08-11 |
 | `DodgeTargetDistanceCm` | 08-11, 08-12, 08-13 |
 | `ECC_Camera` | 08-12, 08-13 |
+| `ETDDebugFacingMode` | 08-21 |
 | `ETDKnockdownGrade` | 08-20 |
 | `ETriggerEvent::Started` | 08-11 |
 | `EffectOnEnd` | 08-10 |
 | `EffectOnStart` | 08-10 |
 | `EndAbility` | 08-12 |
+| `EndHitstun` | 08-21 |
+| `EndParryLockout` | 08-21 |
 | `EndParryRecovery` | 08-19 |
 | `EndTask` | 08-14 |
 | `EnterCoil` | 08-14 |
@@ -1132,7 +1144,7 @@ long.
 | `bAllowedFromKnockdown` | 08-20 |
 | `bAttackCommitted` | 08-12 |
 | `bBlockedWhileAirborne` | 08-10, 08-12 |
-| `bBlockedWhileMovementLocked` | 08-20 |
+| `bBlockedWhileMovementLocked` | 08-20, 08-21 |
 | `bChainsIntoString` | 08-16 |
 | `bDead` | 08-11, 08-15 |
 | `bDebugAutoAttackResetPosition` | 08-11 |
@@ -1150,6 +1162,7 @@ long.
 | `bLocksMovement` | 08-12 |
 | `bOrientRotationToMovement` | 08-10 |
 | `bRagdollOnDeath` | 08-11 |
+| `bResumeWhileInputHeld` | 08-21 |
 | `bTookMovementLock` | 08-12 |
 | `bUseControllerDesiredRotation` | 08-12 |
 | `bUseControllerRotationYaw` | 08-12 |
@@ -1157,6 +1170,83 @@ long.
 | `gEComponents` | 08-10, 08-11 |
 
 ---
+
+## 2026-08-21 — Comments carry WHAT and HOW; WHY moves to Docs/ and stays there
+
+**The user's call, and a reversal of a standing rule.** Comments outnumbered code four to one by
+word across `Source/` — 73,493 comment words against 18,431 — and the worst header ran 11.21
+comment lines per code line. Measured before anything was planned; the complaint was "nearly 20 to
+1", which was the right complaint with the wrong denominator.
+
+**The rule now: comments carry WHAT, and HOW where the mechanism is not plain from reading. They
+never carry WHY.** No dates, no attributions, no history of what a thing used to be. The test
+applied to every paragraph was *recoverability*: recoverable from the code, cut; recoverable from a
+doc by grep, cut; recoverable from nowhere, then it was never a comment's to hold and it goes to
+`Docs/` first.
+
+**This reverses the half of the 2026-08-09 documentation entry that sent rationale into header
+comments**, and narrows this file's own "write the header comment instead" rule to WHAT only. The
+2026-08-09 entry's *primary* claim is untouched: per-system design docs are still rejected, and a
+doc describing a system still drifts and then gets trusted over the code. What changed is where
+local *rationale* lives — not in the comment beside the code, but here.
+
+**Why the reversal is safe, and it is the reason the pass was cheap.** Almost every cut paragraph
+was already homed. Sampling `TDGameplayTags.h`, the worst file: the native-tag stale-CDO rationale
+was at :5675 and restated four times in that one file; the "offense + parry was wrong" correction
+narrative was in `Combat-Spec.md:128` with its date; the "you are jailed" quote was already here.
+The comment layer had been exempted from CLAUDE.md's own "one fact, one home" rule, and was the
+second copy nobody reviewed.
+
+**Three claims were genuinely unique and are rehomed here:**
+
+- **`bResumeWhileInputHeld` is opt-in, and the general form was rejected.** The first design
+  re-attempted *any* ability whose input was still held. Rejected because holding the attack button
+  through the end of a swing would silently become auto-repeat — a held button turning into a fire
+  rate nobody authored. Only abilities that are *states* want resumption; actions do not, which is
+  why the flag is per-ability.
+- **A property's details-panel category follows the person looking for it, not the formula it feeds.**
+  `AimAssistMarginCm` sat under `Combat|Motion`, beside the lunge values its derivation consumes,
+  and was unfindable there: a designer looks for it near aim assist, not near the arithmetic that
+  produces it.
+- **A paused montage banks the time it was not advancing and spends it in one frame on resume**,
+  launching the character across the map. Kept because it is a recurrable engine behaviour rather
+  than an incident; reasoning about play rates on paper mis-diagnosed it before the trace settled
+  it.
+
+**Four comments were describing the wrong thing, and the volume is what hid them.** Two doc blocks
+in `TDCombatCharacter.h` were stranded above the *next* declaration's block, leaving
+`ETDDebugFacingMode` and `DebugAutoParryCycle` undocumented; a block reading "Ends hitstun" sat on
+`EndParryLockout()` while `EndHitstun()` had none; and in `TDGameplayAbility.cpp` a paragraph
+describing the `bBlockedWhileMovementLocked` check sat above the knockdown check inserted between
+them. Each is an edit that landed between a comment and the thing it described. All four fixed.
+
+**The rule is enforced rather than hoped for.** `Tools/CommentCheck/comment-check.sh`, built in
+`docs-check`'s image with an 18-assertion self-test: C1 fails on a date inside a comment, C2 on an
+attribution, C6 on a doc block documenting another doc block; C3, C4 and C5 shortlist for a human
+eye. C1 is the load-bearing one — a date in a comment cannot be a WHAT, so it is zero-false-positive
+by construction, and the extractor blanks string literals so a date in a literal and a URL's slashes
+are not mistaken for comment text.
+
+**What a grep cannot own is stated in the instrument itself.** C6 catches an orphaned doc block but
+not the same failure in a `//` run, and not a single well-formed block sitting on the wrong
+declaration — two of the four defects above. Only reading finds those, which is the honest limit.
+
+**Result**, by `comment-check`'s own count across all 50 scanned files: **6,801 comment lines to
+5,578**. Measuring `Source/` alone with the script used for the opening measurement, so the two are
+comparable: **6,377 to 5,026 lines, 0.95 to 0.74 per code line, and 3.99 to 2.97 by word** — 18,714
+comment words removed. Headers fell hardest at 2.90 to 2.13; `.cpp` files were already lean at 0.43
+and moved to 0.38.
+
+Code was verified unchanged file by file, every file diffed with comments stripped. That caught a
+`public:` specifier deleted along with the comment it existed to host, and three comment lines a
+`sed` had turned into stray code. **The code-line counts are identical in both measurements above —
+1,401 in headers and 5,347 in `.cpp` — which is the same fact arrived at independently.**
+
+**Not done, and deliberately.** Comments still carry roughly three times the words of the code they
+sit beside. What remains is contract — what a symbol does, what refuses it, which values are derived
+and must not be tuned freely — and `comment-check` C3 still shortlists ~170 blocks over eight lines
+for anyone who wants to go further. Cutting past that starts removing what the rule exists to keep,
+so the next pass over this should be judged by reading rather than by the ratio.
 
 ## 2026-08-20 — The parry lockout is authored, because a right answer with no reason is still imprecise
 

@@ -59,6 +59,11 @@ audit in miniature; the rest is making sure nothing is left on the floor.
    fitness is not, so the number will crowd out the criterion unless it is explicitly demoted —
    which is exactly how `CLAUDE.md` passed six length audits while most of it was unfit.
 
+   Then **run `Tools/CommentCheck/comment-check.sh` as well: clear every FAIL, read every WARN.**
+   It keeps WHY out of code comments — a date or an attribution in one fails outright, and the
+   block-size and narrative WARNs are shortlists for the same eye the trap shortlist needs. It
+   cannot catch a comment that describes the wrong declaration; only reading does.
+
    Then **run `Tools/DocsCheck/docs-check.sh`: clear every FAIL, read every WARN.** It mechanizes
    what used to be manual greps — truncated tails, orphaned table rows, the pointer manifest,
    index freshness, always-read duplication, trailer presence — each invariant commented with the
