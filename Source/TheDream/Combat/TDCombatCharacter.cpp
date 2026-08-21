@@ -1038,6 +1038,11 @@ void ATDCombatCharacter::EnterKnockdown(ETDKnockdownGrade Grade, AActor* Attacke
 	ApplyKnockdownCarry(Attacker);
 	BeginForcedFacing(Attacker);
 
+	// Fitted to the carry, so the body reaches the floor as the displacement finishes. The clip
+	// authors bEnableAutoBlendOut false, which is what holds its last frame as the ground pose for
+	// the jail and the choice window that follow.
+	PlayKnockdownMontage(KnockdownMontage, KnockdownCarrySeconds, TEXT("fall"));
+
 	if (!bKnockedDown)
 	{
 		bKnockedDown = true;
@@ -1106,7 +1111,7 @@ void ATDCombatCharacter::OnRep_KnockedDown()
 	}
 }
 
-void ATDCombatCharacter::BeginKnockdownRise(const TCHAR* By)
+void ATDCombatCharacter::BeginKnockdownRise(const TCHAR* By, bool bPlayRiseMontage)
 {
 	UWorld* World = GetWorld();
 	if (!World || !HasAuthority() || !bKnockedDown || bKnockdownRising)
@@ -1122,6 +1127,15 @@ void ATDCombatCharacter::BeginKnockdownRise(const TCHAR* By)
 
 	TD_TIMING_LOG(TEXT("[%.3f] KNOCKDOWN RISE  %s  by=%s  stands=%.3f"),
 		World->GetTimeSeconds(), *GetName(), By, KnockdownRiseEndsAt);
+
+	// **Only for exits that do not animate themselves.** The auto-rise, the neutral stand and the
+	// block get-up all use the grade's rise clip; the dodge brings its own roll or kip-up, and
+	// playing this first would be a frame of the wrong animation before it replaced us.
+	if (bPlayRiseMontage)
+	{
+		UAnimMontage* Rise = (KnockdownGrade == ETDKnockdownGrade::Hard) ? RiseHardMontage : RiseMontage;
+		PlayKnockdownMontage(Rise, KnockdownRiseSeconds, TEXT("rise"));
+	}
 }
 
 void ATDCombatCharacter::EndKnockdown()
@@ -1335,6 +1349,54 @@ void ATDCombatCharacter::TickForcedFacing(float DeltaSeconds)
 	SetActorRotation(FRotator(Current.Pitch, Current.Yaw + FMath::Sign(Remaining) * StepDegrees, Current.Roll));
 }
 
+
+void ATDCombatCharacter::PlayKnockdownMontage(UAnimMontage* Montage, float TargetSeconds, const TCHAR* Label)
+{
+	if (!Montage || TargetSeconds <= 0.0f)
+	{
+		return;
+	}
+
+	USkeletalMeshComponent* MeshComp = GetMesh();
+	UAnimInstance* Anim = MeshComp ? MeshComp->GetAnimInstance() : nullptr;
+	if (!Anim)
+	{
+		return;
+	}
+
+	// **The clip conforms to the duration, never the reverse** -- the standing rule for every
+	// authored timing in this project. The state machine's spans are the design; the montage is
+	// stretched to cover them.
+	const float Length = Montage->GetPlayLength();
+	const float Rate = (Length > 0.0f) ? FMath::Max(Length / TargetSeconds, 0.01f) : 1.0f;
+
+	Anim->Montage_Play(Montage, Rate);
+
+	// **The blend-out boundary moves with the rate, so a fast montage can blend itself out before
+	// the span it was fitted to has elapsed.** Warned rather than corrected: the fix is per clip
+	// (an explicit BlendOutTriggerTime is rate-immune) and the right value is a look decision.
+	// Ungated, following StartAttackMontage's root-motion warning -- silent phase loss is the
+	// failure this family of warnings exists to prevent. bEnableAutoBlendOut false exempts a clip
+	// outright, which is why the knockdown's ground pose holds.
+	if (Montage->bEnableAutoBlendOut)
+	{
+		const float Trigger = (Montage->BlendOutTriggerTime >= 0.0f)
+			? Montage->BlendOutTriggerTime
+			: Montage->BlendOut.GetBlendTime();
+		const float BlendStartsAt = Length - (Trigger * Rate);
+		if (BlendStartsAt < Length * 0.5f)
+		{
+			UE_LOG(LogTDCombatTiming, Warning,
+				TEXT("%s montage %s begins blending out at %.0f%% (pos %.3f of %.3f) at rate %.2f -- "
+					 "over half the clip is blend. Set an explicit BlendOutTriggerTime; it is rate-immune."),
+				Label, *Montage->GetName(), 100.0f * BlendStartsAt / Length, BlendStartsAt, Length, Rate);
+		}
+	}
+
+	TD_TIMING_LOG(TEXT("[%.3f] KNOCKDOWN MONTAGE  %s  %s len=%.3f rate=%.3f want=%.3fs"),
+		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f,
+		*GetName(), Label, Length, Rate, TargetSeconds);
+}
 void ATDCombatCharacter::ApplyKnockdownCarry(AActor* Attacker)
 {
 	if (!Attacker || KnockdownSpacingCm <= 0.0f)

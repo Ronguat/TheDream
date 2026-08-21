@@ -59,12 +59,14 @@ void UTDDodgeAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, c
 	}
 
 	// Resolved once, before the direction is, because a kip-up does not consult held input at all.
-	// Read off the *character's* grade rather than stored on the ability, so a kip-up cannot be
+	// Read off the *character's* grade rather than stored on the ability, so neither flag can be
 	// left armed on the next ordinary dodge.
+	bIsKnockdownGetUp = false;
 	bIsKnockdownKipUp = false;
 	if (const ATDCombatCharacter* Downed = Cast<ATDCombatCharacter>(GetAvatarActorFromActorInfo()))
 	{
-		bIsKnockdownKipUp = Downed->IsKnockedDown() && Downed->GetKnockdownGrade() == ETDKnockdownGrade::Hard;
+		bIsKnockdownGetUp = Downed->IsKnockedDown();
+		bIsKnockdownKipUp = bIsKnockdownGetUp && Downed->GetKnockdownGrade() == ETDKnockdownGrade::Hard;
 	}
 
 	DodgeDirection = bIsKnockdownKipUp ? ETDDodgeDirection::Bw : ResolveDodgeDirection();
@@ -141,35 +143,55 @@ void UTDDodgeAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, c
 	const ATDCombatCharacter* Combatant = Cast<ATDCombatCharacter>(GetAvatarActorFromActorInfo());
 	const float StaminaRemaining = Combatant ? Combatant->GetStamina() : -1.0f;
 
-	if (DodgeMontage)
+	// **Which clip, decided before which section.** A get-up brings its own single-segment montage
+	// -- the kip-up on hard, the roll on normal -- and neither has the eight directional sections
+	// DodgeMontage is built around, so they play from the start with no section name. Falling back
+	// to DodgeMontage when a get-up clip is unset is deliberate: a missing asset should read as the
+	// wrong animation, not as a dodge that does not come out.
+	UAnimMontage* MontageToPlay = DodgeMontage;
+	bool bUseSection = true;
+	if (bIsKnockdownKipUp && KipUpMontage)
 	{
-		const FName Section = SectionForDirection(DodgeDirection);
-		const int32 SectionIndex = DodgeMontage->GetSectionIndex(Section);
+		MontageToPlay = KipUpMontage;
+		bUseSection = false;
+	}
+	else if (bIsKnockdownGetUp && KnockdownRollMontage)
+	{
+		MontageToPlay = KnockdownRollMontage;
+		bUseSection = false;
+	}
 
-		// Derived from the *section*, not the montage: an eight-section montage's total
-		// length is eight rolls, and dividing by that would play each one at a crawl.
+	if (MontageToPlay)
+	{
+		const FName Section = bUseSection ? SectionForDirection(DodgeDirection) : NAME_None;
+		const int32 SectionIndex = bUseSection ? MontageToPlay->GetSectionIndex(Section) : INDEX_NONE;
+
+		// Derived from the *section* where there is one, because an eight-section montage's total
+		// length is eight rolls and dividing by that would play each at a crawl. A get-up montage
+		// has one segment, so its whole length is the clip and that is what fits DodgeSeconds.
 		float PlayRate = 1.0f;
-		if (SectionIndex != INDEX_NONE)
+		const float FitLength = bUseSection
+			? ((SectionIndex != INDEX_NONE) ? MontageToPlay->GetSectionLength(SectionIndex) : 0.0f)
+			: MontageToPlay->GetPlayLength();
+		if (FitLength > 0.0f && DodgeSeconds > 0.0f)
 		{
-			const float SectionLength = DodgeMontage->GetSectionLength(SectionIndex);
-			if (SectionLength > 0.0f && DodgeSeconds > 0.0f)
-			{
-				PlayRate = FMath::Max(SectionLength / DodgeSeconds, 0.01f);
-			}
+			PlayRate = FMath::Max(FitLength / DodgeSeconds, 0.01f);
 		}
-		else
+		else if (bUseSection)
 		{
 			// Ungated: a mistyped section name plays the wrong roll at the wrong speed,
 			// which reads as a tuning problem rather than the authoring error it is.
 			UE_LOG(LogTDCombatTiming, Warning,
 				TEXT("Dodge montage %s has no section '%s'; playing from the start at rate 1."),
-				*DodgeMontage->GetName(), *Section.ToString());
+				*MontageToPlay->GetName(), *Section.ToString());
 		}
 
-		// Scale 1.0, and it is inert: the eight source clips have bEnableRootMotion switched off,
-		// so the montage carries no root motion for this to scale. Displacement is authored below.
+		// Scale 1.0. Inert for the standing rolls and the knockdown roll, whose clips have
+		// bEnableRootMotion off so there is nothing to scale -- displacement is authored below.
+		// **The kip-up is the exception**: its clip carries root motion by ruling, which suppresses
+		// the authored source entirely, so the clip is the travel and StartLunge's zero is moot.
 		UAbilityTask_PlayMontageAndWait* MontageTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(
-			this, NAME_None, DodgeMontage, PlayRate, Section, /*bStopWhenAbilityEnds=*/true, /*AnimRootMotionTranslationScale=*/1.0f);
+			this, NAME_None, MontageToPlay, PlayRate, Section, /*bStopWhenAbilityEnds=*/true, /*AnimRootMotionTranslationScale=*/1.0f);
 
 		// Deliberately not ending the ability on completion. DodgeSeconds is the authority,
 		// and a montage whose sections chain into the next one would otherwise decide the
@@ -178,12 +200,11 @@ void UTDDodgeAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, c
 		MontageTask->OnCancelled.AddDynamic(this, &UTDDodgeAbility::HandleDodgeFinished);
 		MontageTask->ReadyForActivation();
 
-		// rate x DodgeSeconds should equal the section's authored length. If it does not,
-		// the section resolved to something other than the roll that was intended.
-		TD_TIMING_LOG(TEXT("[%.3f] DODGE      dir=%s section=%s sectionLen=%.3f rate=%.3f want=%.3fs remaining=%.1f"),
+		// rate x DodgeSeconds should equal the fitted length. If it does not, the section resolved
+		// to something other than the roll that was intended.
+		TD_TIMING_LOG(TEXT("[%.3f] DODGE      dir=%s section=%s clip=%s fitLen=%.3f rate=%.3f want=%.3fs remaining=%.1f"),
 			World->GetTimeSeconds(), *UEnum::GetValueAsString(DodgeDirection), *Section.ToString(),
-			(SectionIndex != INDEX_NONE) ? DodgeMontage->GetSectionLength(SectionIndex) : -1.0f,
-			PlayRate, DodgeSeconds, StaminaRemaining);
+			*MontageToPlay->GetName(), FitLength, PlayRate, DodgeSeconds, StaminaRemaining);
 	}
 	else
 	{

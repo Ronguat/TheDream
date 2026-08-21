@@ -74,12 +74,18 @@ public:
 	 *  refused either way, as ordinary defensive actions.
 	 */
 	virtual const TCHAR* GetKnockdownRiseLabel(const class ATDCombatCharacter* Character) const override;
+
+	/** The dodge animates its own rise -- a roll, or a kip-up on hard. */
+	virtual bool BringsOwnRiseMontage() const override { return true; }
 	virtual void EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled) override;
 
 protected:
 
 	/** Whether this activation is a hard knockdown's kip-up rather than a directional dodge. */
 	bool bIsKnockdownKipUp = false;
+
+	/** Whether this activation is a get-up off the floor at all (either grade). */
+	bool bIsKnockdownGetUp = false;
 
 	/**
 	 *  How long the dodge lasts end to end, including the part you can be punished in.
@@ -149,6 +155,28 @@ protected:
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Dodge")
 	TObjectPtr<UAnimMontage> DodgeMontage;
+
+	/**
+	 *  The roll played when dodging off the floor on a **normal** knockdown.
+	 *
+	 *  A single-segment montage, so it plays from the start with no section — unlike `DodgeMontage`,
+	 *  whose eight directional sections are the reason that one derives its rate per section. The
+	 *  displacement is still the dodge's authored `DodgeTargetDistanceCm`: this clip's root motion
+	 *  is switched off, exactly like the eight standing rolls.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Dodge")
+	TObjectPtr<UAnimMontage> KnockdownRollMontage;
+
+	/**
+	 *  The kip-up played when dodging off the floor on a **hard** knockdown.
+	 *
+	 *  **The one clip in the project whose own root motion is the travel**, by the designer's
+	 *  ruling — so the authored distance passed to StartLunge is zero and would be suppressed by
+	 *  the animation anyway. Stationary by design: hard's narrow choice window must not also buy
+	 *  repositioning.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Dodge")
+	TObjectPtr<UAnimMontage> KipUpMontage;
 
 	/** Direction the current dodge resolved to. Exposed so the debug HUD can show it. */
 	UPROPERTY(BlueprintReadOnly, Category="Combat|Dodge")

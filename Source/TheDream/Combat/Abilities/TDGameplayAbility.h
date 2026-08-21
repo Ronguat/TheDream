@@ -105,6 +105,16 @@ public:
 	 */
 	virtual const TCHAR* GetKnockdownRiseLabel(const class ATDCombatCharacter* Character) const { return TEXT("unknown"); }
 
+	/**
+	 *  Whether this get-up plays its own rise animation instead of the grade's shared one.
+	 *
+	 *  The character plays `RiseMontage` (or `RiseHardMontage`) when a rise begins, which is right
+	 *  for the auto-rise, the neutral stand and the block get-up — none of those animates itself.
+	 *  The dodge does: a roll on a normal knockdown, a kip-up on a hard one. Asked rather than
+	 *  assumed, so the character never has to know which ability is which.
+	 */
+	virtual bool BringsOwnRiseMontage() const { return false; }
+
 protected:
 
 	/**

@@ -237,10 +237,17 @@ bool UTDGameplayAbility::CanActivateAbility(const FGameplayAbilitySpecHandle Han
 		}
 	}
 
+	// **A get-up is exempt from the floor's own movement lock, and it has to be.** Knockdown locks
+	// movement for the whole down state (2026-08-20), and the neutral stand answers the jump input
+	// -- so without this exemption the lock the floor imposes would refuse the very option that
+	// exists to leave the floor. The knockdown check above has already decided whether this ability
+	// is legal here; if it said yes, this one must not overrule it.
 	if (bBlockedWhileMovementLocked)
 	{
 		const ATheDreamCharacter* Character = ActorInfo ? Cast<ATheDreamCharacter>(ActorInfo->AvatarActor.Get()) : nullptr;
-		if (Character && Character->IsMovementLocked())
+		const ATDCombatCharacter* Combatant = Cast<const ATDCombatCharacter>(Character);
+		const bool bLegalGetUp = bAllowedFromKnockdown && Combatant && Combatant->IsInKnockdownChoiceWindow();
+		if (Character && Character->IsMovementLocked() && !bLegalGetUp)
 		{
 			TD_TIMING_LOG(TEXT("[%.3f] REFUSED    %s on %s: movement locked"),
 				Character->GetWorld() ? Character->GetWorld()->GetTimeSeconds() : 0.0f,
@@ -334,7 +341,7 @@ void UTDGameplayAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle
 		{
 			if (Downed->IsKnockedDown())
 			{
-				Downed->BeginKnockdownRise(GetKnockdownRiseLabel(Downed));
+				Downed->BeginKnockdownRise(GetKnockdownRiseLabel(Downed), /*bPlayRiseMontage=*/!BringsOwnRiseMontage());
 			}
 		}
 	}

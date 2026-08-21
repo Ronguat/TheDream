@@ -371,7 +371,7 @@ public:
 	 *
 	 *  @param By  Trace label: auto, dodge, block, attack, kipup or stand.
 	 */
-	void BeginKnockdownRise(const TCHAR* By);
+	void BeginKnockdownRise(const TCHAR* By, bool bPlayRiseMontage = true);
 
 	/**
 	 *  Turn this body toward an attacker at the derived rate. Applies to every clean hit, not only
@@ -602,18 +602,28 @@ protected:
 	 *  holds the ability-side lock, so returning only these two would let an attack's own
 	 *  commitment be walked out of.
 	 *
-	 *  **Hitstun and the guard break, and deliberately not blockstun.** The pair is the one the
-	 *  schema already draws: a guard that *fails* costs you everything for a fixed stun, a guard
-	 *  that *works* costs you initiative only -- so blockstun keeps refusing offense while leaving
-	 *  the defender free to walk, which is the behaviour it shipped with and the reason it is not
-	 *  named here. A knockdown does not appear either: it takes movement through the same seam,
-	 *  but by the jail's own lock rather than by being a third name in this list.
+	 *  **Hitstun, the guard break and knockdown.** Deliberately not blockstun: the pair hitstun and
+	 *  the break form is the one the schema already draws -- a guard that *fails* costs you
+	 *  everything for a fixed stun, a guard that *works* costs you initiative only -- so blockstun
+	 *  keeps refusing offense while leaving the defender free to walk, which is the behaviour it
+	 *  shipped with and the reason it is not named here.
+	 *
+	 *  **Knockdown was named here on 2026-08-20, after being found walkable in play.** This comment
+	 *  previously claimed it took movement "by the jail's own lock rather than by being a third name
+	 *  in this list" -- and no such lock existed: EnterKnockdown never called
+	 *  SetAbilityMovementLocked, and its CancelAllAbilities actively *released* whatever lock the
+	 *  victim was under. The floored could walk. **A comment asserting a mechanism is not a
+	 *  mechanism**, and the seam it pointed at was the right one all along.
+	 *
+	 *  It covers the whole down state -- jail, choice window and rise alike. Movement returns at the
+	 *  stand boundary and nowhere earlier: the choice window buys *options*, not steps, and a rise
+	 *  is committed once started.
 	 *
 	 *  What this closes is not theoretical. `State.GuardBroken` refused every GameplayAbility from
 	 *  the shared base while the broken player could still walk and jump away from the punish
 	 *  window the break exists to create.
 	 */
-	virtual bool IsMovementLocked() const override { return bInHitstun || bGuardBroken || Super::IsMovementLocked(); }
+	virtual bool IsMovementLocked() const override { return bInHitstun || bGuardBroken || bKnockedDown || Super::IsMovementLocked(); }
 
 	/**
 	 *  Idle additionally means no ability running and no press waiting to be answered.
@@ -847,6 +857,30 @@ protected:
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Knockdown", meta=(ClampMin="1.0"))
 	float ForcedFacingTurnRateDegrees = 720.0f;
+
+	/**
+	 *  Played on entering the down state. Rate derived as `length / KnockdownCarrySeconds`, so the
+	 *  fall covers exactly the carry and the clip conforms to the number rather than the reverse.
+	 *
+	 *  **Authored with `bEnableAutoBlendOut` false**, which is what lets the last frame hold as the
+	 *  ground pose for the jail and choice window. A montage that blends itself out here leaves the
+	 *  body standing in idle while the state machine still has it on the floor.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Knockdown")
+	TObjectPtr<UAnimMontage> KnockdownMontage;
+
+	/**
+	 *  Played when a normal-grade rise begins. Rate derived as `length / KnockdownRiseSeconds`.
+	 *
+	 *  Covers the auto-rise, the neutral stand and the block get-up — every exit that does not
+	 *  bring its own animation. The dodge does bring one; see UTDGameplayAbility::BringsOwnRiseMontage.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Knockdown")
+	TObjectPtr<UAnimMontage> RiseMontage;
+
+	/** The hard grade's rise. Same derivation, same span -- a different clip, not a different rule. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Knockdown")
+	TObjectPtr<UAnimMontage> RiseHardMontage;
 	/**
 	 *  Present while an action that suppresses regen is running, via that ability's owned tags.
 	 *
@@ -1786,6 +1820,9 @@ private:
 
 	/** The radial carry: attacker + (attacker->victim bearing) * KnockdownSpacingCm, Z natural. */
 	void ApplyKnockdownCarry(AActor* Attacker);
+
+	/** Plays a knockdown montage at a rate derived to fit TargetSeconds. Shared by the fall and both rises. */
+	void PlayKnockdownMontage(UAnimMontage* Montage, float TargetSeconds, const TCHAR* Label);
 
 	/** Jail seconds for the grade currently held. */
 	float GetKnockdownJailSeconds() const;
