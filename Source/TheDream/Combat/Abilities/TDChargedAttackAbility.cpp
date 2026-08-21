@@ -52,21 +52,18 @@ void UTDChargedAttackAbility::ActivateAbility(const FGameplayAbilitySpecHandle H
 
 	ActivationWorldTime = World->GetTimeSeconds();
 
-	// Which swing of the string this is, asked of the character because the string outlives any
-	// one activation. Resolved before anything reads a montage or derives a rate -- every number
-	// below depends on it. With no StringSwings authored this is always 0 and the whole mechanism
-	// is inert by construction.
+	// Which swing of the string this is, asked of the character because the string outlives any one
+	// activation. Resolved before anything reads a montage or derives a rate. With no StringSwings
+	// authored this is always 0 and the mechanism is inert by construction.
 	CurrentSwingIndex = 0;
 	if (ATDCombatCharacter* CombatCharacter = Cast<ATDCombatCharacter>(GetAvatarActorFromActorInfo()))
 	{
 		CurrentSwingIndex = CombatCharacter->ResolveStringSwingIndexForActivation(GetSwingCount());
 	}
 
-	// The shared windup runs at whatever rate the *fastest* branch needs. Slower branches
-	// are made slower by the coil holding them back, not by this being slow.
-	//
-	// Handed to the montage as it starts rather than set immediately afterwards, so there
-	// is no window -- however brief -- in which the windup is running at the wrong speed.
+	// The shared windup runs at whatever rate the *fastest* branch needs; slower branches are made
+	// slower by the coil holding them back. Handed to the montage as it starts rather than set
+	// afterwards, so there is no window in which the windup runs at the wrong speed.
 	const float WindupRate = ComputeWindupPlayRate();
 
 	if (!StartAttackMontage(WindupSection, WindupRate))
@@ -75,12 +72,10 @@ void UTDChargedAttackAbility::ActivateAbility(const FGameplayAbilitySpecHandle H
 		return;
 	}
 
-	// applied should match wanted. If it reads 1.000 the montage task did not honour the
-	// rate it was given, and the whole windup is running at the wrong speed.
-	//
-	// **Names its avatar**, because abilities are InstancedPerActor: every combatant owns an
-	// instance, so without it this line is unattributable in any fixture where more than one of
-	// them attacks, and an assertion about one character's swings counts the other's.
+	// applied should match wanted. 1.000 means the montage task did not honour the rate it was
+	// given, and the whole windup is running at the wrong speed. **Names its avatar**, abilities
+	// being InstancedPerActor: without it the line is unattributable in any fixture where two
+	// combatants attack, and an assertion about one character's swings counts the other's.
 	TD_TIMING_LOG(TEXT("[%.3f] ACTIVATE   %s swing=%d pos=%.4f windupRate wanted=%.3f applied=%.3f"),
 		World->GetTimeSeconds(), *GetNameSafe(GetAvatarActorFromActorInfo()),
 		CurrentSwingIndex, GetMontagePosition(), WindupRate,
@@ -105,12 +100,10 @@ void UTDChargedAttackAbility::ActivateAbility(const FGameplayAbilitySpecHandle H
 float UTDChargedAttackAbility::GetBaseLungeDurationSeconds() const
 {
 	// **The span is structural; the duration inside it is a feel choice**, which is why this clamps
-	// the authored value rather than returning the boundary outright.
-	//
-	// What is *not* free is running past the boundary: the base lunge must finish before the branch
-	// lunge starts, or a light has two Override root motion sources live at equal priority, where
-	// which one wins is an implementation detail rather than a design. Authoring it longer is
-	// simply a request for the whole span.
+	// the authored value rather than returning the boundary outright. What is *not* free is running
+	// past the boundary: the base lunge must finish before the branch lunge starts, or a light has
+	// two Override root motion sources live at equal priority, where which wins is an
+	// implementation detail rather than a design. Authoring it longer requests the whole span.
 	if (Branches.Num() == 0)
 	{
 		return Super::GetBaseLungeDurationSeconds();
@@ -176,16 +169,15 @@ void UTDChargedAttackAbility::HandleCheckpoint()
 			EnterCoil();
 		}
 
-		// **Homing widens with the ladder, and that is why it does not leak the tier.** The
-		// widening happens in the same block that enters the coil -- the designed tell -- so a
-		// defender who could read a longer-reaching snap has already been told this is no longer a
-		// light. Before this boundary every tier homes on branch 0's wedge, which is the only span
-		// that has to be indistinguishable.
+		// **Homing widens with the ladder, and that is why it does not leak the tier.** The widening
+		// happens in the same block that enters the coil -- the designed tell -- so a defender who
+		// could read a longer-reaching snap has already been told this is no longer a light. Before
+		// this boundary every tier homes on branch 0's wedge, the only span that has to be
+		// indistinguishable.
 		//
-		// It rests on wedges being non-decreasing in reach across the ladder. A shrinking wedge
-		// breaks nothing -- the body has already turned, so the worst case is a slightly misleading
-		// rotation. **A later branch left at MaxReachCm 0 is the sharper case**: that is *disabled*
-		// rather than narrow, so homing switches off mid-hold and the body stops tracking partway.
+		// It rests on wedges being non-decreasing in reach. A shrinking wedge breaks nothing, the
+		// body having already turned. **A later branch left at MaxReachCm 0 is the sharper case**:
+		// that is *disabled* rather than narrow, so homing switches off mid-hold.
 		if (ATDCombatCharacter* CombatCharacter = Cast<ATDCombatCharacter>(GetAvatarActorFromActorInfo()))
 		{
 			CombatCharacter->SetAimAssistHoming(BuildAimAssistWedge(NextIndex), TargetImmunityTags, true, bDrawDebugTrace);
@@ -205,31 +197,28 @@ void UTDChargedAttackAbility::EnterCoil()
 {
 	bCoiling = true;
 
-	// Facing slows here, and only here. The coil is the tell, and it is also the last window in
-	// which the attack can be aimed -- so this is a cap on how far a held attack may be
-	// redirected once a defender has had time to react to it, not a visual flourish. It cannot
-	// touch the aim guarantee: that is discharged by the first 150 ms at the full rate, which
-	// every tier has already run before reaching this line. The character owns the rate; the
-	// ability only reports the phase. Cleared in EndAbility, where every exit converges.
+	// Facing slows here, and only here. The coil is the tell and also the last window in which the
+	// attack can be aimed, so this caps how far a held attack may be redirected once a defender has
+	// had time to react. It cannot touch the aim guarantee, discharged by the first 150 ms at the
+	// full rate that every tier has already run. The character owns the rate, the ability reports
+	// the phase. Cleared in EndAbility, where every exit converges.
 	if (ATheDreamCharacter* Character = GetFacingCharacter())
 	{
 		Character->SetAbilityCoiling(true);
 	}
 
-	// Measured, not assumed. The checkpoint timer fires a frame or two late, so the
-	// montage is always a little past where the maths would have put it; deriving the
-	// rate from the assumed position compounds that error across the whole coil until it
-	// overruns the release window.
+	// Measured, not assumed. The checkpoint timer fires a frame or two late, so the montage is
+	// always a little past where the maths would have put it; deriving the rate from the assumed
+	// position compounds that error across the coil until it overruns the release window.
 	const float CurrentPosition = GetMontagePosition();
 	const float CoilDistance = GetSwingCoilEndSeconds(CurrentSwingIndex) - CurrentPosition;
 	const float CoilDuration = Branches.Last().HoldUntilSeconds - GetElapsedSeconds();
 
 	if (CurrentPosition < 0.0f || CoilDistance <= 0.0f || CoilDuration <= 0.0f)
 	{
-		// Nowhere to creep to, or no time to do it in. Carrying on at the windup rate is
-		// a poor swing; stopping would be far worse, so there is no zero-rate branch here.
-		// Ungated: a coil that never runs means a held attack races into its own release
-		// window, which reads as an attack that simply does nothing.
+		// Nowhere to creep to, or no time to do it in. Carrying on at the windup rate is a poor
+		// swing; stopping would be far worse, so there is no zero-rate branch. Ungated: a coil that
+		// never runs means a held attack races into its own release window and reads as nothing.
 		UE_LOG(LogTDCombatTiming, Warning, TEXT("Coil skipped: pos=%.4f distance=%.4f duration=%.4f"),
 			CurrentPosition, CoilDistance, CoilDuration);
 		return;
@@ -257,11 +246,10 @@ void UTDChargedAttackAbility::CommitAttack()
 
 	const FTDAttackBranch& Branch = Branches[SelectedBranchIndex];
 
-	// A heavy or charged commit ends the string, then and there -- heavy never chains into light,
-	// and per the runway's silence this weapon's heavies do not chain at all. At the commit rather
-	// than the ability's end so a dodge-cancel of the *following* windup cannot resurrect a string
-	// the escalation already closed. Data-driven: a branch that authors bChainsIntoString keeps
-	// the string alive instead, which is the New World flip.
+	// A heavy or charged commit ends the string then and there -- heavy never chains into light. At
+	// the commit rather than the ability's end, so a dodge-cancel of the *following* windup cannot
+	// resurrect a string the escalation already closed. Data-driven: a branch that authors
+	// bChainsIntoString keeps the string alive instead.
 	if (!Branch.bChainsIntoString)
 	{
 		if (ATDCombatCharacter* CombatCharacter = Cast<ATDCombatCharacter>(GetAvatarActorFromActorInfo()))
@@ -302,9 +290,8 @@ void UTDChargedAttackAbility::CommitAttack()
 	StartMeleeTrace(GetAttackHitboxes());
 
 	// Target Lock's rotational half, and the order matters: it must run *before* the freeze below,
-	// because it is the last moment anything may change where this attack points. One correction,
-	// then facing is locked and nothing tracks -- which is what keeps it from being homing.
-	// Homing stops here. Past this instant tracking would be the homing this design rejects: a
+	// the last moment anything may change where this attack points. One correction, then facing is
+	// locked and nothing tracks -- which is what keeps it from being homing. Past this instant a
 	// defender's movement has to be able to make a committed attack whiff.
 	if (ATDCombatCharacter* CombatCharacter = Cast<ATDCombatCharacter>(GetAvatarActorFromActorInfo()))
 	{
@@ -314,25 +301,21 @@ void UTDChargedAttackAbility::CommitAttack()
 	ApplyAimAssist(BuildAimAssistWedge(SelectedBranchIndex));
 
 	// Facing freezes here, instantly. The hitbox is defined in the attacker's frame, so a swing
-	// free to track the camera mid-release would carry its own arc around with it and the
-	// authored coverage would mean nothing.
-	//
-	// Commit is the right moment on design grounds as well as geometric ones: it is already the
-	// boundary past which nothing can be cancelled, so this makes commitment spatial as well as
-	// temporal, and it deliberately leaves the whole windup steerable.
+	// free to track the camera mid-release would carry its own arc around and the authored coverage
+	// would mean nothing. Commit is right on design grounds too: already the boundary past which
+	// nothing can be cancelled, so this makes commitment spatial as well as temporal, and leaves
+	// the whole windup steerable.
 	if (ATheDreamCharacter* Character = GetFacingCharacter())
 	{
 		Character->SetAbilityFacingLocked(true);
 	}
 
 	// Branch-specific travel begins here and not one frame sooner. The windup is shared and
-	// identical across tiers by design, so displacement during it must be too -- a charged that
-	// pulled further forward than a light would be a tell from the press, which is the property
-	// the whole ladder is built to deny. See FTDAttackBranch::LungeDistanceCm.
-	//
-	// The duration is authored per branch rather than derived from the release window, which would
-	// let ReleaseSeconds -- a hitbox liveness number -- set how a movement burst feels. See
-	// FTDAttackBranch::LungeDurationSeconds.
+	// identical across tiers by design, so displacement during it must be too -- a charged pulling
+	// further forward than a light would be a tell from the press, the property the ladder exists
+	// to deny. See FTDAttackBranch::LungeDistanceCm. The duration is authored per branch rather
+	// than derived from the release window, which would let a hitbox-liveness number set how a
+	// movement burst feels; see FTDAttackBranch::LungeDurationSeconds.
 	StartLunge(
 		GetSwingLungeDistanceCm(CurrentSwingIndex, SelectedBranchIndex),
 		GetSwingLungeDurationSeconds(CurrentSwingIndex, SelectedBranchIndex),
@@ -347,10 +330,9 @@ void UTDChargedAttackAbility::CommitAttack()
 		WaitTask->ReadyForActivation();
 	}
 
-	// And the closing edge, because the release rate must come back off. Subscribed here
-	// rather than inside HandleReleaseWindowBegan so both edges are armed at the same moment
-	// -- a window narrow enough to open and close inside one frame would otherwise miss its
-	// own end and leave the rate applied, which is the bug this pair exists to fix.
+	// And the closing edge, because the release rate must come back off. Subscribed here rather
+	// than inside HandleReleaseWindowBegan so both edges arm at the same moment -- a window narrow
+	// enough to open and close inside one frame would otherwise miss its own end.
 	if (UAbilityTask_WaitGameplayEvent* EndTask = UAbilityTask_WaitGameplayEvent::WaitGameplayEvent(this, TDTags::Event_Melee_WindowEnd, nullptr, true, true))
 	{
 		EndTask->EventReceived.AddDynamic(this, &UTDChargedAttackAbility::HandleReleaseWindowEnded);
@@ -382,14 +364,12 @@ void UTDChargedAttackAbility::CommitAttack()
 
 bool UTDChargedAttackAbility::IsWindowForThisAttack(const FGameplayEventData& Payload) const
 {
-	// The notify broadcasts to the whole ASC and carries no ownership, so without this any
-	// montage carrying a Release Window would drive this attack's play rate. Harmless while
-	// exactly one montage carries the notify; silently wrong the moment a second does, which
-	// is what Attack Swap's content pass creates. UAbilityTask_MeleeTrace guards the same way.
-	//
-	// Null means accept any, which is the behaviour before this guard existed. The comparison is
-	// against the *active* montage: with per-swing montages, filtering on the authored first-hit
-	// field would reject every window swing 2 onward fires -- silently, and as no damage.
+	// The notify broadcasts to the whole ASC and carries no ownership, so without this any montage
+	// carrying a Release Window would drive this attack's play rate -- harmless while exactly one
+	// montage carries the notify, silently wrong the moment a second does. UAbilityTask_MeleeTrace
+	// guards the same way. Null means accept any. The comparison is against the *active* montage:
+	// with per-swing montages, filtering on the authored first-hit field would reject every window
+	// swing 2 onward fires, silently and as no damage.
 	const UAnimMontage* ActiveMontage = GetActiveAttackMontage();
 	if (!ActiveMontage)
 	{
@@ -418,14 +398,12 @@ void UTDChargedAttackAbility::HandleReleaseWindowEnded(FGameplayEventData Payloa
 		return;
 	}
 
-	// Off the release rate and onto the recovery rate. Without this the rate derived for the
-	// release stays applied for the rest of the montage, which is what sent recovery through
-	// at 3.28x and -- above about 2.8x -- left less montage-time remaining than the blend-out
-	// needed, so the montage terminated itself the instant the rate was applied.
-	//
-	// The rate is derived from the authored RecoverySeconds rather than authored directly, so
-	// what a designer sets is the punish window itself. A string position beyond the first
-	// authors its own on the swing; heavy and charged keep the branch's wherever they convert.
+	// Off the release rate and onto the recovery rate. Without this the release rate stays applied
+	// for the rest of the montage, which sent recovery through at 3.28x and -- above about 2.8x --
+	// left less montage-time remaining than the blend-out needed, terminating the montage the
+	// instant the rate was applied. The rate is derived from the authored RecoverySeconds, so what
+	// a designer sets is the punish window itself; a string position beyond the first authors its
+	// own on the swing, heavy and charged keep the branch's wherever they convert.
 	const float RecoveryFrom = GetMontagePosition();
 	float TargetSeconds = Branches.IsValidIndex(SelectedBranchIndex)
 		? Branches[SelectedBranchIndex].RecoverySeconds
@@ -459,12 +437,10 @@ void UTDChargedAttackAbility::HandleReleaseWindowEnded(FGameplayEventData Payloa
 
 	// **Facing is deliberately *not* released here; the lock runs to EndAbility.** Recovery is the
 	// window an attack is supposed to be punishable in, and being committed to a direction through
-	// it is the same commitment expressed spatially.
-	//
-	// It costs nothing to the aim guarantee, which lives entirely between the press and the commit
-	// checkpoint. What it does change is that a chained attack starts its windup with whatever gap
-	// accumulated during the whole previous attack -- fine, because the windup is sized to close the
-	// full 180 degree ceiling.
+	// it is that commitment expressed spatially. It costs the aim guarantee nothing, which lives
+	// entirely between the press and the commit checkpoint. What it does change is that a chained
+	// attack starts its windup with whatever gap accumulated during the previous attack -- fine,
+	// the windup being sized to close the full 180 degree ceiling.
 
 	TD_TIMING_LOG(TEXT("[%.3f] RELEASE OFF  pos=%.4f rate=%.3f (want %.3fs to blendOut %.4f)"),
 		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f, RecoveryFrom, RecoveryRate,
@@ -490,10 +466,9 @@ void UTDChargedAttackAbility::HandleReleaseWindowBegan(FGameplayEventData Payloa
 	// around a target its wedge could not follow, and it is the number Target Lock is judged on.
 	LogTargetGeometry(TEXT("release"));
 
-	// Redundant with the lock applied at commit, and kept deliberately, ahead of every early
-	// return below. The invariant worth defending is "facing is frozen whenever a hitbox is
-	// live", and this is the only place that can assert it at the moment it becomes true rather
-	// than inferring it from an earlier call having happened.
+	// Redundant with the lock applied at commit, and kept deliberately, ahead of every early return
+	// below. The invariant worth defending is "facing is frozen whenever a hitbox is live", and
+	// this is the only place that can assert it as it becomes true rather than inferring it.
 	if (ATheDreamCharacter* Character = GetFacingCharacter())
 	{
 		Character->SetAbilityFacingLocked(true);
@@ -557,14 +532,13 @@ float UTDChargedAttackAbility::GetBlendOutStartSeconds(float PlayRate) const
 		return Length - TriggerTime;
 	}
 
-	// **Without one, the boundary moves with the play rate**, which is the whole subtlety here.
-	// A negative trigger means "blend so it finishes as the montage does", and the engine tests
-	// that in *time* rather than position: it begins blending once the remaining montage would
-	// take less than the blend's duration to play. Halve the rate and the blend starts half as
-	// far from the end.
+	// **Without one, the boundary moves with the play rate**, the whole subtlety here. A negative
+	// trigger means "blend so it finishes as the montage does", and the engine tests that in *time*
+	// rather than position: it blends once the remaining montage would take less than the blend's
+	// duration to play. Halve the rate and the blend starts half as far from the end.
 	//
 	// **Treating this as the fixed position `Length - BlendTime` is right only at rate 1.0**, so the
-	// error hides at rates near it and grows as the recovery is authored slower -- a few percent at
+	// error hides at rates near it and grows as recovery is authored slower -- a few percent at
 	// 0.94, about half again at 0.50.
 	return Length - ActiveMontage->BlendOut.GetBlendTime() * FMath::Max(PlayRate, TDMinPlayRate);
 }
@@ -595,14 +569,14 @@ float UTDChargedAttackAbility::ComputeRecoveryPlayRate(float FromPosition, float
 	}
 
 	// Rate-dependent boundary. Solving for the rate R that makes recovery last exactly
-	// TargetSeconds, given that the blend begins BlendTime*R before the montage's end:
+	// TargetSeconds, the blend beginning BlendTime*R before the montage's end:
 	//
 	//     (Length - BlendTime*R - FromPosition) / R = TargetSeconds
 	//  => Length - FromPosition = R * (TargetSeconds + BlendTime)
 	//  => R = (Length - FromPosition) / (TargetSeconds + BlendTime)
 	//
-	// The blend cancels out of the position but not out of the time, which is exactly why the
-	// naive form is wrong and why it is wrong by more the slower the recovery is authored.
+	// The blend cancels out of the position but not the time, which is why the naive form is wrong
+	// and wrong by more the slower recovery is authored.
 	const float BlendTime = ActiveMontage->BlendOut.GetBlendTime();
 	return FMath::Max(Remaining / (TargetSeconds + BlendTime), TDMinPlayRate);
 }
@@ -647,9 +621,8 @@ float UTDChargedAttackAbility::GetAttackDamage() const
 float UTDChargedAttackAbility::GetAttackStaminaDamage() const
 {
 	// Falls back to the ability's own value on an invalid index, exactly as damage does. Note the
-	// asymmetry with hitboxes, which fall back on an *empty array* as well: a stamina damage of
-	// zero is a legitimate authored value meaning "this can never break a guard", so it must not
-	// be treated as unset.
+	// asymmetry with hitboxes, which fall back on an *empty array* too: a stamina damage of zero is
+	// a legitimate authored value meaning "this can never break a guard", so it is not unset.
 	if (SelectedBranchIndex == 0 && StringSwings.IsValidIndex(CurrentSwingIndex - 1))
 	{
 		return StringSwings[CurrentSwingIndex - 1].StaminaDamage;
@@ -809,9 +782,8 @@ UAnimMontage* UTDChargedAttackAbility::GetActiveAttackMontage() const
 void UTDChargedAttackAbility::ReleaseCommitmentTag()
 {
 	// Guarded on the attack having actually committed, so a hit landing before the checkpoint --
-	// which nothing produces today, but which a shorter windup could -- cannot remove a tag that
-	// was never added. RemoveLooseGameplayTag on an absent tag is harmless; the guard is here so
-	// the *intent* reads correctly rather than depending on that.
+	// which nothing produces today -- cannot remove a tag that was never added. Removing an absent
+	// loose tag is harmless; the guard is here so the *intent* reads correctly.
 	if (!bAttackCommitted || !CommittedTag.IsValid())
 	{
 		return;
@@ -870,10 +842,9 @@ bool UTDChargedAttackAbility::TryChainOutForBufferedPress()
 
 const TArray<FTDAttackHitbox>& UTDChargedAttackAbility::GetAttackHitboxes() const
 {
-	// An authored-but-empty branch falls back to the ability's own set rather than to nothing.
-	// The alternative is an attack that silently deals no damage, which is the exact failure this
-	// project keeps a trap list for -- and it was reachable the moment the old per-branch
-	// TraceRadius was removed, since every existing branch deserialises with an empty array.
+	// An authored-but-empty branch falls back to the ability's own set rather than to nothing. The
+	// alternative is an attack that silently deals no damage -- reachable the moment the old
+	// per-branch TraceRadius was removed, since every existing branch deserialises empty.
 	return GetSwingHitboxes(CurrentSwingIndex, SelectedBranchIndex);
 }
 
@@ -899,9 +870,8 @@ FTDAttackHitbox UTDChargedAttackAbility::BuildAimAssistWedge(int32 BranchIndex) 
 	}
 
 	// Travel plus reach is exactly the furthest a body can be and still be struck: the base lunge
-	// runs before the tiers diverge, the branch lunge from commit, and the hitbox extends further
-	// still. The margin on top is the only judgement in the sum -- see AimAssistMarginCm for why
-	// assist must reach *past* what it can hit rather than exactly as far.
+	// runs before the tiers diverge, the branch lunge from commit, the hitbox extends further still.
+	// The margin on top is the only judgement in the sum -- see AimAssistMarginCm.
 	const float ReachCm = LungeDistanceCm + GetSwingLungeDistanceCm(CurrentSwingIndex, BranchIndex)
 		+ FurthestReachCm + AimAssistMarginCm;
 
@@ -932,11 +902,10 @@ void UTDChargedAttackAbility::EndAbility(const FGameplayAbilitySpecHandle Handle
 		GetElapsedSeconds(),
 		bWasCancelled ? TEXT(" (cancelled)") : TEXT(""));
 
-	// The string's fate at this swing's end, decided where every exit converges. A cancelled
-	// swing -- a defensive cancel of the windup, death, a montage interrupt -- kills the string
-	// outright. A *completed* non-final string light opens the link window instead, whether the
-	// end was natural recovery or the chain-out's early exit; the buffer's next activation then
-	// resolves into the following swing. Heavy and charged already reset at their commit.
+	// The string's fate at this swing's end, decided where every exit converges. A cancelled swing
+	// -- a defensive cancel of the windup, death, a montage interrupt -- kills the string outright.
+	// A *completed* non-final string light opens the link window instead, whether the end was
+	// natural recovery or the chain-out's early exit. Heavy and charged already reset at commit.
 	if (ATDCombatCharacter* CombatCharacter = Cast<ATDCombatCharacter>(GetAvatarActorFromActorInfo()))
 	{
 		if (bWasCancelled)
@@ -945,10 +914,9 @@ void UTDChargedAttackAbility::EndAbility(const FGameplayAbilitySpecHandle Handle
 		}
 		else if (bParried)
 		{
-			// **A parried swing takes the string with it.** Gated here rather than at the moment of
-			// the parry because this is where the link window is *opened*: resetting at contact and
-			// then falling through to the branch below would re-open the very window the reset had
-			// just closed.
+			// **A parried swing takes the string with it.** Gated here rather than at the parry
+			// itself, because this is where the link window is *opened*: resetting at contact and
+			// falling through to the branch below would re-open the window the reset just closed.
 			CombatCharacter->ResetString(TEXT("parried"));
 		}
 		else if (bAttackCommitted && IsNonFinalStringLight())

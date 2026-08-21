@@ -231,15 +231,13 @@ bool UTDMeleeAttackAbility::StartAttackMontage(FName StartSection, float PlayRat
 	// **An attack montage must play an in-place clip, because Lunge drives the movement.**
 	//
 	// Animation root motion overrides Velocity and allows no other root motion sources
-	// (CharacterMovementComponent::PerformMovement), so while a root-motion montage plays, every
-	// UAbilityTask_ApplyRootMotion* source is ignored outright.
-	// **Scaling the animation to zero does not help and fails silently**: the montage still reports
-	// HasAnimRootMotion(), so the source is still ignored and the zeroed animation velocity wins --
-	// the character stands perfectly still for the whole swing.
-	//
-	// So the clip carries no root motion (AM_Attack plays the library's _IP variant, not _RM) and
-	// nothing here scales anything. This warning is the enforcement, because the dependency is
-	// content-side and a repointed segment would otherwise break every lunge in silence.
+	// (CharacterMovementComponent::PerformMovement), so while a root-motion montage plays every
+	// UAbilityTask_ApplyRootMotion* source is ignored outright. **Scaling the animation to zero
+	// does not help and fails silently**: the montage still reports HasAnimRootMotion(), so the
+	// source stays ignored and the zeroed animation velocity wins -- the character stands still for
+	// the whole swing. So the clip carries no root motion (AM_Attack plays the library's _IP
+	// variant, not _RM) and nothing here scales anything. This warning is the enforcement: the
+	// dependency is content-side and a repointed segment would break every lunge in silence.
 	if (ActiveMontage->HasRootMotion() && LungeDistanceCm > 0.0f)
 	{
 		UE_LOG(LogTDCombatTiming, Warning,
@@ -265,10 +263,9 @@ bool UTDMeleeAttackAbility::StartAttackMontage(FName StartSection, float PlayRat
 void UTDMeleeAttackAbility::HandleTraceHit(const FHitResult& Hit)
 {
 	// Damage is authority-only state; clients see it arrive by attribute replication.
-	//
-	// DamageEffectClass is deliberately *not* checked here: it gates damage, which is a consequence
-	// of the hit rather than the hit itself, and the lunge stops on the hit, so an ability with no
-	// damage effect configured must still stop rather than slide onward.
+	// DamageEffectClass is deliberately *not* checked here: it gates damage, a consequence of the
+	// hit rather than the hit itself, and the lunge stops on the hit, so an ability with no damage
+	// effect configured must still stop rather than slide onward.
 	if (!HasAuthority(&CurrentActivationInfo))
 	{
 		return;
@@ -285,26 +282,23 @@ void UTDMeleeAttackAbility::HandleTraceHit(const FHitResult& Hit)
 	}
 
 	// I-frames, floor invincibility, parry and block are all resolved here rather than on the
-	// defender, because this is the only place that knows a hit was resolved at all -- a defender
-	// cannot refuse damage it never sees. Their order is the precedence: intangibility is a
-	// stronger claim than negation, and negation is stronger than absorption.
+	// defender, this being the only place that knows a hit was resolved at all -- a defender cannot
+	// refuse damage it never sees. Their order is the precedence: intangibility is a stronger claim
+	// than negation, negation stronger than absorption.
 	//
 	// **A dodged attack runs on, lunge included**, which is why the stop below sits after this
-	// check rather than before it. Stopping the attacker dead would hand them the spacing as
-	// compensation for being read.
+	// check. Stopping the attacker dead would hand them the spacing as compensation for being read.
 	if (!TargetImmunityTags.IsEmpty() && TargetASC->HasAnyMatchingGameplayTags(TargetImmunityTags))
 	{
 		return;
 	}
 
 	// A body on the ground is untouchable until *any* rise begins, auto or chosen; from that frame
-	// each get-up option prices its own vulnerability.
+	// each get-up option prices its own vulnerability. **The rise-begin frame resolves to the
+	// defender**: IsKnockdownInvulnerable() goes false the instant BeginKnockdownRise runs, and a
+	// hit arriving that same frame has already been refused by the check above it in tick order.
 	//
-	// **The rise-begin frame resolves to the defender.** IsKnockdownInvulnerable() goes false the
-	// instant BeginKnockdownRise runs, and a hit arriving on that same frame has already been
-	// refused by the check above it in tick order.
-	//
-	// Deliberately *not* an i-frame tag: borrowing State.Dodging here would make every attack's
+	// Deliberately *not* an i-frame tag: borrowing State.Dodging would make every attack's
 	// TargetImmunityTags decide knockdown's invincibility as a side effect of tuning the dodge.
 	if (const ATDCombatCharacter* Downed = Cast<ATDCombatCharacter>(HitActor))
 	{
@@ -316,11 +310,9 @@ void UTDMeleeAttackAbility::HandleTraceHit(const FHitResult& Hit)
 
 	// **In practice none of the three defences can co-occur**: GA_Parry refuses activation while
 	// State.Dodging or State.Blocking is present, so this ordering describes what happens if one of
-	// those guarantees ever breaks rather than a case anyone can reach today.
-	//
-	// The dedup that makes the rest of this release window inert against the parrier is already
-	// done: ResolveHits adds every geometrically-valid candidate to ActorsHitThisWindow *before*
-	// broadcasting.
+	// those guarantees breaks rather than a case anyone can reach today. The dedup that makes the
+	// rest of this release window inert against the parrier is already done: ResolveHits adds every
+	// geometrically-valid candidate to ActorsHitThisWindow *before* broadcasting.
 	if (ATDCombatCharacter* Parrier = Cast<ATDCombatCharacter>(HitActor))
 	{
 		// **Grace is checked here and nowhere else, which is what "self-contained" means.** It
@@ -338,12 +330,10 @@ void UTDMeleeAttackAbility::HandleTraceHit(const FHitResult& Hit)
 			// no blockstun, no hitstun, no knockback. The early return is the whole negation.
 			bParried = true;
 
-			// This one flag stops two different things: IsChainOutOpen reads it to forbid skipping
-			// recovery, and EndAbility reads it to kill the string outright, so the attacker's next
-			// press starts a fresh swing 0 rather than resuming where the parry interrupted them.
-			// The string dies *there* rather than here, because that is where the link window is
-			// opened -- resetting at contact and then falling through would only re-open the window
-			// the reset had just closed.
+			// This one flag stops two things: IsChainOutOpen reads it to forbid skipping recovery, and
+			// EndAbility reads it to kill the string outright, so the attacker's next press starts a
+			// fresh swing 0. The string dies *there* rather than here, because that is where the link
+			// window is opened -- resetting at contact and falling through would re-open it.
 
 			// **Read before anything ends**, because the swing that authored it is about to stop
 			// existing.
@@ -411,11 +401,9 @@ void UTDMeleeAttackAbility::HandleTraceHit(const FHitResult& Hit)
 
 	// A viable target was struck, so the lunge is finished -- keyed to the hit rather than to the
 	// damage landing. The two are the same instant on the server today but are different events,
-	// and tying movement to the slower of them would eventually read as a slide.
-	//
-	// The standoff gate cannot cover this case: it *pauses* while a body is in the way and resumes
-	// when one is not, so a target that dies mid-attack loses its capsule and the attacker slides
-	// through the space it occupied. See UTDGameplayAbility::StopLunge.
+	// and tying movement to the slower would eventually read as a slide. The standoff gate cannot
+	// cover this: it *pauses* while a body is in the way and resumes when one is not, so a target
+	// dying mid-attack loses its capsule and the attacker slides through. See StopLunge.
 	StopLunge();
 
 	if (!DamageEffectClass)

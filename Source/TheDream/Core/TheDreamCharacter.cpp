@@ -23,10 +23,8 @@ ATheDreamCharacter::ATheDreamCharacter()
 	// centre, so this must be the negative of the half-height directly above it or the feet do not
 	// touch the ground. A mismatch hovers the character, and ABP_Combat's foot-IK Control Rig
 	// absorbs it silently -- so the hover shows only where that IK does not run: inside montages,
-	// and in mid-air where ShouldDoIKTrace is false.
-	//
-	// SKM_Manny's reference pose puts its lowest point at Z = -0.02, so the mesh origin is the feet
-	// and no further offset is owed.
+	// and in mid-air where ShouldDoIKTrace is false. SKM_Manny's reference pose puts its lowest
+	// point at Z = -0.02, so the mesh origin is the feet and no further offset is owed.
 	GetMesh()->SetRelativeLocation(FVector(0.0f, 0.0f, -96.0f));
 
 	// Characters are invisible to the camera boom's collision probe, which sweeps on ECC_Camera.
@@ -35,10 +33,8 @@ ATheDreamCharacter::ATheDreamCharacter()
 	//
 	// Narrower than switching off bDoCollisionTest: level geometry must still push the camera in,
 	// so only bodies are exempt. The cost is that the camera may pass through an opponent at very
-	// close range, which is much less disruptive than the pull-in.
-	//
-	// A call rather than two inline lines because setting it once is not enough -- see
-	// ApplyCameraCollisionExemption.
+	// close range, much less disruptive than the pull-in. A call rather than two inline lines
+	// because setting it once is not enough -- see ApplyCameraCollisionExemption.
 	ApplyCameraCollisionExemption();
 
 	// Facing is camera-relative, not movement-relative: the character faces where the camera
@@ -54,19 +50,17 @@ ATheDreamCharacter::ATheDreamCharacter()
 
 	// Let the smooth turn keep running while a root-motion montage plays. UE defaults this off,
 	// which silently kills PhysicsRotation -- and therefore bUseControllerDesiredRotation -- for the
-	// whole duration of any montage with root motion.
-	//
-	// **This hands rotation back to every root-motion ability, not just attacks**, so anything that
-	// wants a fixed direction must say so through SetAbilityFacingLocked, rather than inheriting one
-	// from a suppression it never asked for.
+	// whole duration of any montage with root motion. **This hands rotation back to every
+	// root-motion ability, not just attacks**, so anything wanting a fixed direction must say so
+	// through SetAbilityFacingLocked rather than inheriting one from a suppression it never asked
+	// for.
 	GetCharacterMovement()->bAllowPhysicsRotationDuringAnimRootMotion = true;
 
 	// **RotationRate.Yaw is rewritten every frame from TurnRateDegrees**, so editing it on a
 	// Blueprint does nothing and reverts invisibly. Change that property instead. Only pitch and
-	// roll, which nothing drives, are authored here.
-	//
-	// The yaw seeded here is cosmetic, so the value is never garbage on frame zero. Keep it equal to
-	// TurnRateDegrees' default, or a reader finds two rates and has to work out which wins.
+	// roll, which nothing drives, are authored here. The yaw seeded here is cosmetic, so the value
+	// is never garbage on frame zero -- keep it equal to TurnRateDegrees' default, or a reader
+	// finds two rates and has to work out which wins.
 	GetCharacterMovement()->RotationRate = FRotator(0.0f, 1200.0f, 0.0f);
 
 	// Note: For faster iteration times these variables, and many more, can be tweaked in the Character Blueprint
@@ -126,11 +120,9 @@ void ATheDreamCharacter::UpdateCameraRelativeFacing(float DeltaSeconds)
 	// Simulated proxies do not decide their own facing; it arrives replicated with the rest of the
 	// movement state. Everyone else runs this -- the owning client because it predicts, the server
 	// because it decides, and the AI-possessed dummy because it is an authority pawn whose death
-	// still has to stop it turning.
-	//
-	// Guarded explicitly rather than left to UCharacterMovementComponent::PhysicsRotation's own
-	// early-out on a null Controller: that is an engine detail nobody here chose, and the facing
-	// lock is set by an ability, which a proxy never runs.
+	// still has to stop it turning. Guarded explicitly rather than left to
+	// UCharacterMovementComponent::PhysicsRotation's own early-out on a null Controller: that is an
+	// engine detail nobody here chose, and the facing lock is set by an ability a proxy never runs.
 	if (!IsLocallyControlled() && !HasAuthority())
 	{
 		return;
@@ -161,9 +153,8 @@ void ATheDreamCharacter::UpdateCameraRelativeFacing(float DeltaSeconds)
 	// deadlock: turning away raises the bearing and homing pulls back exactly as hard, so a tagged
 	// target could never be left. **The player's authority moves up a level instead** -- the wedge
 	// is evaluated from the *camera*, so aiming at a different target selects it and the body
-	// follows. Steering is expressed as choosing, not as fighting.
-	//
-	// Runs at TurnRateDegrees, so no new number exists to keep in step with the aim guarantee.
+	// follows. Steering is expressed as choosing, not as fighting. Runs at TurnRateDegrees, so no
+	// new number exists to keep in step with the aim guarantee.
 	if (float HomingYaw = 0.0f; GetFacingHomingYaw(HomingYaw))
 	{
 		bUseControllerRotationYaw = false;
@@ -176,24 +167,21 @@ void ATheDreamCharacter::UpdateCameraRelativeFacing(float DeltaSeconds)
 	}
 
 	// Written every frame rather than once at construction, so the rate stays live-tunable in PIE.
-	//
 	// **Three rates, and only one of them is an aim value.** The fast rate resumes on the press and
 	// the whole first 150 ms of every attack runs at it, which is where the guarantee lives -- so
-	// the other two apply only outside that window and cannot affect aim at any value. The coil rate
-	// wins over idle because holding an attack is not idle; IsIdle() is already false then, and the
-	// order is stated rather than relied upon.
+	// the other two apply only outside that window and cannot affect aim at any value. The coil
+	// rate wins over idle because holding an attack is not idle; IsIdle() is already false then,
+	// and the order is stated rather than relied upon.
 	Movement->RotationRate.Yaw = bAbilityCoiling
 		? CoilTurnRateDegrees
 		: (IsIdle() ? IdleTurnRateDegrees : TurnRateDegrees);
 
-	// **One rotation source, always.** bUseControllerRotationYaw is the *snap* -- it assigns yaw from
-	// the controller every frame, ignoring RotationRate entirely -- and is never enabled now.
+	// **One rotation source, always.** bUseControllerRotationYaw is the *snap* -- it assigns yaw
+	// from the controller every frame, ignoring RotationRate entirely -- and is never enabled now.
 	// Leaving it on would silently disable the smooth turn below, since it wins over the movement
-	// component's desired-rotation path.
-	//
-	// Nothing scales between the two. Attacks freeze facing through IsFacingLocked() above and hand
-	// it straight back; IdleTurnRateDegrees covers the catch-up an interpolation would have
-	// smoothed.
+	// component's desired-rotation path. Nothing scales between the two: attacks freeze facing
+	// through IsFacingLocked() above and hand it straight back, and IdleTurnRateDegrees covers the
+	// catch-up an interpolation would have smoothed.
 	bUseControllerRotationYaw = false;
 	Movement->bUseControllerDesiredRotation = true;
 }
@@ -323,10 +311,9 @@ void ATheDreamCharacter::DoMove(float Right, float Forward)
 	// attack's lunge, a dodge's dash and any knockback all run through CMC.
 	//
 	// **The input is recorded before the gate, and only applying it is gated.** Returning before
-	// AddMovementInput leaves GetLastInputVector() empty, and anything asking "which way is the
-	// player holding" must read LastRequestedMoveInput instead -- see
-	// UTDDodgeAbility::ResolveDodgeDirection, which would otherwise resolve every dodge cancelling
-	// an attack to the standing-still default.
+	// AddMovementInput leaves GetLastInputVector() empty, so anything asking "which way is the
+	// player holding" reads LastRequestedMoveInput -- see UTDDodgeAbility::ResolveDodgeDirection,
+	// which would otherwise resolve every dodge cancelling an attack to the standing-still default.
 	if (GetController() != nullptr)
 	{
 		// find out which way is forward

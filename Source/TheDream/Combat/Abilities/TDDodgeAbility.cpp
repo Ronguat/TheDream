@@ -74,10 +74,9 @@ void UTDDodgeAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, c
 	// Facing freezes for the whole dodge, so the direction resolved a line ago is the direction
 	// travelled -- a character free to turn mid-dodge steers the dodge itself. The engine no longer
 	// suppresses rotation during root-motion montages (bAllowPhysicsRotationDuringAnimRootMotion),
-	// so anything wanting a committed direction has to say so.
-	//
-	// Set after ResolveDodgeDirection deliberately; that call reads facing, and locking first would
-	// only freeze the same value it is about to use.
+	// so anything wanting a committed direction has to say so. Set after ResolveDodgeDirection
+	// deliberately; that call reads facing, and locking first would freeze the value it is about
+	// to use.
 	if (ATheDreamCharacter* Character = Cast<ATheDreamCharacter>(GetAvatarActorFromActorInfo()))
 	{
 		Character->SetAbilityFacingLocked(true);
@@ -93,10 +92,8 @@ void UTDDodgeAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, c
 	// **The eight yaw offsets are the enum's own order, not a table.** ETDDodgeDirection runs Fw,
 	// FR, R, BR, Bw, BL, L, FL -- clockwise at 45 degrees a step -- so the offset is the index
 	// times 45, and a direction cannot be given the wrong angle without being in the wrong place in
-	// the compass.
-	//
-	// Standoff is deliberately 0: Target Lock's gate belongs to attacks. An evade has to be able to
-	// travel *past* people, and gating it on pawns would break dodging through a crowd.
+	// the compass. Standoff is deliberately 0: Target Lock's gate belongs to attacks, an evade has
+	// to travel *past* people, and gating it on pawns would break dodging through a crowd.
 	//
 	// **Kip-up: the same ability, stationary.** From a hard knockdown the directional dodge is
 	// removed and this replaces it -- i-framed and full-cost like any dodge, but travelling nothing
@@ -225,11 +222,10 @@ ETDDodgeDirection UTDDodgeAbility::ResolveDodgeDirection() const
 
 	// **The heading captured when the button went down, not the movement component's vector.** That
 	// vector is empty for the whole of any ability that locks movement, so reading it makes every
-	// dodge cancelling an attack resolve to the standing-still default.
-	//
-	// Press-time also settles the buffered case the way the player means it: release the key inside
-	// the buffer window and the dodge still goes where you aimed it, because the heading was one
-	// half of a composite input rather than something looked up later.
+	// dodge cancelling an attack resolve to the standing-still default. Press-time also settles the
+	// buffered case the way the player means it: release the key inside the buffer window and the
+	// dodge still goes where you aimed it, the heading having been one half of a composite input
+	// rather than something looked up later.
 	float AngleDegrees = 0.0f;
 	if (!Character->GetPressMoveDirection(AngleDegrees))
 	{
@@ -276,27 +272,24 @@ void UTDDodgeAbility::EndAbility(const FGameplayAbilitySpecHandle Handle, const 
 		Character->SetAbilityFacingLocked(false);
 	}
 
-	// Horizontal only: vertical travel is gravity and ground, not the dodge, and including it
-	// would make every dodge down a slope read as longer. Reported here rather than on the
-	// timer so a cancelled dodge still reports what it managed -- a dodge cut short by a
-	// cancel travelling nearly its full distance would be worth knowing about.
+	// Horizontal only: vertical travel is gravity and ground, not the dodge, and including it would
+	// make every dodge down a slope read as longer. Reported here rather than on the timer so a
+	// cancelled dodge still reports what it managed.
 	//
-	// Guarded on the start location being set, and clearing it, because EndAbility can run
-	// more than once -- the same reason EndIFrames is idempotent. A measurement that
-	// double-reports is worse than none: the duplicates look like real samples and quietly
-	// weight any average taken over them.
+	// Guarded on the start location being set, and clearing it, because EndAbility can run more than
+	// once -- the same reason EndIFrames is idempotent. A measurement that double-reports is worse
+	// than none: the duplicates look like real samples and quietly weight any average over them.
 	if (!DodgeStartLocation.IsZero())
 	{
 		if (const AActor* Avatar = GetAvatarActorFromActorInfo())
 		{
 			const FVector Delta = Avatar->GetActorLocation() - DodgeStartLocation;
 
-			// **Logged as a vector in the avatar's own frame, not as a magnitude.** A magnitude
-			// answers "how far", correctly, while the question is "which way" -- a dodge travelling
-			// ninety degrees off its intended direction reads identically to a perfect one.
-			//
-			// Right is +Y and forward is +X, so a left dodge should read fwd~0 right~-405, and any
-			// other shape is the bug announcing itself.
+			// **Logged as a vector in the avatar's own frame, not as a magnitude.** A magnitude answers
+			// "how far", correctly, while the question is "which way" -- a dodge travelling ninety
+			// degrees off its intended direction reads identically to a perfect one. Right is +Y and
+			// forward is +X, so a left dodge should read fwd~0 right~-405, and any other shape is the
+			// bug announcing itself.
 			const FVector Local = Avatar->GetActorTransform().InverseTransformVectorNoScale(Delta);
 
 			TD_TIMING_LOG(TEXT("[%.3f] DODGE END  dir=%s fwd=%+.1f right=%+.1f up=%+.1f dist=%.1fuu yaw=%.0f%s"),
@@ -323,15 +316,14 @@ void UTDDodgeAbility::EndAbility(const FGameplayAbilitySpecHandle Handle, const 
 	// unscrews and the charged stops collecting on a wrong read. The constraint is that dodge-end
 	// plus this gap plus the parry window must overshoot 750 for the worst-timed predictive dodge.
 	//
-	// Expressed as a tag rather than as a bespoke timestamp consulted in CanActivateAbility, so the
-	// refusal is visible in the same place every other refusal is. It has its own tag rather than
-	// sharing State.ParryRecovery, which commits the character outright, where this takes nothing
-	// but the parry.
+	// Expressed as a tag rather than a bespoke timestamp consulted in CanActivateAbility, so the
+	// refusal is visible where every other refusal is. Its own tag rather than State.ParryRecovery,
+	// which commits the character outright where this takes nothing but the parry.
 	//
 	// Applied on *every* exit including a cancel, deliberately: a dodge cut short still bought its
 	// i-frames, and letting a cancel skip the gap would make cancelling the cheap route to the
-	// chain this forbids. The dodge itself needs no cover, since GA_Parry already refuses to
-	// activate while State.Dodging is present.
+	// chain this forbids. The dodge itself needs no cover, GA_Parry already refusing to activate
+	// while State.Dodging is present.
 	if (ATDCombatCharacter* Character = Cast<ATDCombatCharacter>(GetAvatarActorFromActorInfo()))
 	{
 		Character->ApplyDodgeRecovery(DodgeRecoverySeconds);
