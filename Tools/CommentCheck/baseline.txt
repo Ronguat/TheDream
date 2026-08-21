@@ -1,0 +1,61 @@
+# comment-check baseline -- comment lines and words per file, as of the last deliberate
+# reset. C7 fails when a file grows more than 10 percent past its line count, or the
+# baselined corpus more than 2 percent; C8 warns on the same shape for words.
+#
+# Raising one number here is the sanctioned way to add comment volume: the diff names
+# what grew and the commit message carries the reason. Regenerate wholesale only after a
+# pass that deliberately re-set the standard, never to make a run green.
+#
+#   ./Tools/CommentCheck/comment-check.sh --baseline
+#
+# file<TAB>comment lines<TAB>comment words
+Source/TheDream/Combat/Abilities/TDBlockAbility.cpp	39	499
+Source/TheDream/Combat/Abilities/TDBlockAbility.h	45	373
+Source/TheDream/Combat/Abilities/TDChargedAttackAbility.cpp	219	3012
+Source/TheDream/Combat/Abilities/TDChargedAttackAbility.h	337	2893
+Source/TheDream/Combat/Abilities/TDDodgeAbility.cpp	108	1342
+Source/TheDream/Combat/Abilities/TDDodgeAbility.h	71	541
+Source/TheDream/Combat/Abilities/TDGameplayAbility.cpp	101	1343
+Source/TheDream/Combat/Abilities/TDGameplayAbility.h	150	1219
+Source/TheDream/Combat/Abilities/TDJumpAbility.cpp	37	535
+Source/TheDream/Combat/Abilities/TDJumpAbility.h	25	222
+Source/TheDream/Combat/Abilities/TDMeleeAttackAbility.cpp	148	1829
+Source/TheDream/Combat/Abilities/TDMeleeAttackAbility.h	214	1833
+Source/TheDream/Combat/Abilities/TDParryAbility.cpp	61	756
+Source/TheDream/Combat/Abilities/TDParryAbility.h	51	452
+Source/TheDream/Combat/Attributes/TDAttributeSet.cpp	8	83
+Source/TheDream/Combat/Attributes/TDAttributeSet.h	20	144
+Source/TheDream/Combat/Notifies/AnimNotifyState_MeleeWindow.cpp	17	168
+Source/TheDream/Combat/Notifies/AnimNotifyState_MeleeWindow.h	14	109
+Source/TheDream/Combat/Notifies/AnimNotify_ParryGesture.cpp	19	257
+Source/TheDream/Combat/Notifies/AnimNotify_ParryGesture.h	17	169
+Source/TheDream/Combat/TDAttackHitbox.cpp	26	371
+Source/TheDream/Combat/TDAttackHitbox.h	108	871
+Source/TheDream/Combat/TDCombatCharacter.cpp	852	11048
+Source/TheDream/Combat/TDCombatCharacter.h	1120	9215
+Source/TheDream/Combat/TDCombatDebug.cpp	6	79
+Source/TheDream/Combat/TDCombatDebug.h	29	232
+Source/TheDream/Combat/TDGameplayTags.cpp	1	7
+Source/TheDream/Combat/TDGameplayTags.h	51	341
+Source/TheDream/Combat/TDKnockdownTypes.h	17	132
+Source/TheDream/Combat/Tasks/AbilityTask_FacingLunge.cpp	7	93
+Source/TheDream/Combat/Tasks/AbilityTask_FacingLunge.h	24	167
+Source/TheDream/Combat/Tasks/AbilityTask_MeleeTrace.cpp	39	520
+Source/TheDream/Combat/Tasks/AbilityTask_MeleeTrace.h	35	295
+Source/TheDream/Combat/Tasks/TDRootMotionSource_FacingForce.cpp	27	347
+Source/TheDream/Combat/Tasks/TDRootMotionSource_FacingForce.h	49	463
+Source/TheDream/Combat/UI/TDDebugHUD.cpp	16	200
+Source/TheDream/Combat/UI/TDDebugHUD.h	53	388
+Source/TheDream/Core/TDPlayerState.cpp	8	114
+Source/TheDream/Core/TDPlayerState.h	21	159
+Source/TheDream/Core/TheDreamCharacter.cpp	127	1539
+Source/TheDream/Core/TheDreamCharacter.h	206	1790
+Source/TheDream/Core/TheDreamGameMode.cpp	6	79
+Source/TheDream/Core/TheDreamGameMode.h	5	16
+Source/TheDream/Core/TheDreamPlayerController.cpp	8	60
+Source/TheDream/Core/TheDreamPlayerController.h	13	75
+Source/TheDream/TheDream.cpp	1	7
+Source/TheDream/TheDream.h	2	15
+Tools/DocsCheck/docs-check.sh	72	662
+Tools/RegressionCheck/regression-check.sh	360	4358
+Tools/RegressionCheck/session-count.sh	3	36

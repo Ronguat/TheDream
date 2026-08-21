@@ -171,6 +171,93 @@ check_orphans() { # $@=files -> prints offending sites, rc 1 if any
        { prev = $0 }' "$@" | { grep . && return 1 || return 0; }
 }
 
+# --- volume accounting (C7, C8) ----------------------------------------------
+# C1-C6 judge a comment by its shape. Neither shape nor ratio can see a file that is
+# simply getting wordier: C3 is saturated at over a hundred deliberate blocks, so a
+# regrown one is indistinguishable from them, and C5 is a fixed ceiling with room to
+# spare. What is missing is a memory of where the tree already was.
+#
+# The baseline is that memory -- comment lines and words per file, checked in. Growth
+# past it is the failure, so a deliberate addition is a baseline edit that shows in the
+# diff and gets its reason in the commit message, and drift is the thing that has to be
+# justified rather than the thing that happens quietly.
+#
+# **Two tolerances, because they catch different failures.** A loose per-file one names
+# a single file that rotted; a tight corpus one catches uniform creep spread thin enough
+# that no single file trips. Growth under TOL_FLOOR lines never fails on its own, so a
+# small file gaining a line is not an incident -- the corpus check is what stops repeated
+# sub-floor additions from accumulating.
+#
+# **Only baselined files count toward the corpus total**, so adding a new file cannot
+# trip the corpus tolerance. A new file is judged by C5 until it has a baseline.
+BASELINE="Tools/CommentCheck/baseline.txt"
+TOL_FILE=10    # per-file growth allowed, percent
+TOL_TREE=2     # baselined-corpus growth allowed, percent
+TOL_FLOOR=5    # per-file growth under this many lines or words never fails alone
+
+volumes() { # $@=files -> "file<TAB>comment lines<TAB>comment words"
+  extract "$@" | awk '
+    { f=$1
+      t=$0; sub(/^[^\t]*\t[0-9]*\t/, "", t)
+      sub(/^[ \t]*(\/\/+|\/\*+|\*+|#+)[ \t]*/, "", t)
+      gsub(/[^A-Za-z0-9_.:*()-]+/, " ", t)
+      n[f]++; w[f] += split(t, a, " ") }
+    END { for (f in n) printf "%s\t%d\t%d\n", f, n[f], w[f] }' | sort
+}
+
+# $1=baseline file $2=column (2 lines, 3 words) $3=per-file tol $4=corpus tol; $5..=files
+# Prints offenders and any unbaselined or stale entries; rc 1 only on real growth.
+compare_volume() {
+  local bl=$1 col=$2 tf=$3 tt=$4; shift 4
+  [ -f "$bl" ] || { echo "  no baseline at $bl -- run --baseline"; return 0; }
+  volumes "$@" | awk -v BL="$bl" -v COL="$col" -v TF="$tf" -v TT="$tt" -v FL="$TOL_FLOOR" '
+    BEGIN { while ((getline line < BL) > 0) {
+              if (line ~ /^#/ || line == "") continue
+              split(line, b, "\t"); base[b[1]] = b[COL] + 0; seen[b[1]] = 1
+            } }
+    { cur[$1] = $COL + 0 }
+    END {
+      bad = 0; ct = 0; bt = 0
+      for (f in cur) {
+        if (!(f in seen)) { printf "  %s  unbaselined (%d)\n", f, cur[f]; continue }
+        ct += cur[f]; bt += base[f]
+        g = cur[f] - base[f]
+        if (g >= FL && base[f] > 0 && g * 100 > base[f] * TF) {
+          printf "  %s  %d -> %d  (+%d%%, tol %d%%)\n", f, base[f], cur[f], g * 100 / base[f], TF
+          bad = 1
+        }
+      }
+      for (f in seen) if (!(f in cur)) printf "  %s  stale baseline entry\n", f
+      if (bt > 0 && (ct - bt) * 100 > bt * TT) {
+        printf "  corpus  %d -> %d  (+%d%%, tol %d%%)\n", bt, ct, (ct - bt) * 100 / bt, TT
+        bad = 1
+      }
+      exit bad
+    }'
+}
+
+check_volume()  { compare_volume "$BASELINE" 2 "$TOL_FILE" "$TOL_TREE" "$@"; }
+check_density() { compare_volume "$BASELINE" 3 "$TOL_FILE" "$TOL_TREE" "$@"; }
+
+write_baseline() {
+  { cat <<'HDR'
+# comment-check baseline -- comment lines and words per file, as of the last deliberate
+# reset. C7 fails when a file grows more than 10 percent past its line count, or the
+# baselined corpus more than 2 percent; C8 warns on the same shape for words.
+#
+# Raising one number here is the sanctioned way to add comment volume: the diff names
+# what grew and the commit message carries the reason. Regenerate wholesale only after a
+# pass that deliberately re-set the standard, never to make a run green.
+#
+#   ./Tools/CommentCheck/comment-check.sh --baseline
+#
+# file<TAB>comment lines<TAB>comment words
+HDR
+    volumes $(sources)
+  } > "$BASELINE"
+  printf 'wrote %s (%d files)\n' "$BASELINE" "$(volumes $(sources) | grep -c .)"
+}
+
 # ==== self-test ===============================================================
 self_test() {
   local t; t=$(mktemp -d) || exit 2
@@ -238,14 +325,43 @@ self_test() {
   expect "C6: doc block after doc block fails"    1 check_orphans   "$t/orphan.cpp"
   expect "C6: doc blocks with code between pass"  0 check_orphans   "$t/noorphan.cpp"
 
+  # C7/C8 drive compare_volume with explicit tolerances so each assertion isolates one
+  # guard; 999 disables the other. The constants themselves are TOL_FILE and TOL_TREE.
+  mkcomments() { # $1=file $2=comment lines $3=words per line
+    local i j line; : > "$1"
+    for i in $(seq 1 "$2"); do
+      line="//"; for j in $(seq 1 "$3"); do line="$line word"; done
+      printf '%s\n' "$line" >> "$1"
+    done
+    printf 'int z;\n' >> "$1"
+  }
+  mkcomments "$t/vol_a.cpp" 20 4
+  mkcomments "$t/vol_b.cpp" 20 4
+  volumes "$t/vol_a.cpp" "$t/vol_b.cpp" > "$t/bl.txt"
+
+  expect "C7: unchanged corpus passes"            0 compare_volume "$t/bl.txt" 2 10 2   "$t/vol_a.cpp" "$t/vol_b.cpp"
+  mkcomments "$t/vol_a.cpp" 30 4
+  expect "C7: file grown past tolerance fails"    1 compare_volume "$t/bl.txt" 2 10 999 "$t/vol_a.cpp" "$t/vol_b.cpp"
+  mkcomments "$t/vol_a.cpp" 22 4
+  expect "C7: growth under the floor passes"      0 compare_volume "$t/bl.txt" 2 10 999 "$t/vol_a.cpp" "$t/vol_b.cpp"
+  mkcomments "$t/vol_a.cpp" 26 4
+  mkcomments "$t/vol_b.cpp" 26 4
+  expect "C7: creep under per-file tol still fails" 1 compare_volume "$t/bl.txt" 2 999 2 "$t/vol_a.cpp" "$t/vol_b.cpp"
+  mkcomments "$t/vol_a.cpp" 20 4
+  mkcomments "$t/vol_b.cpp" 20 4
+  expect "C7: an unbaselined file does not fail"  0 compare_volume "$t/bl.txt" 2 10 2   "$t/vol_a.cpp" "$t/vol_b.cpp" "$t/clean.cpp"
+  mkcomments "$t/vol_a.cpp" 20 9
+  expect "C8: same lines, more words, fails"      1 compare_volume "$t/bl.txt" 3 10 999 "$t/vol_a.cpp" "$t/vol_b.cpp"
+
   rm -rf "$t"
-  if [ "$bad" -eq 0 ]; then echo "SELF-TEST PASSED (18 assertions)"; exit 0; fi
+  if [ "$bad" -eq 0 ]; then echo "SELF-TEST PASSED (24 assertions)"; exit 0; fi
   exit 1
 }
 
 # ==== main ====================================================================
 case "${1:-}" in
   --self-test) self_test ;;
+  --baseline) write_baseline; exit 0 ;;
   --list) shift; CAP=100000; case "${1:-}" in
       C1) check_dates     $(sources) ;;
       C2) check_attrib    $(sources) ;;
@@ -253,10 +369,12 @@ case "${1:-}" in
       C4) check_narrative $(sources) ;;
       C5) check_ratio     $(sources) ;;
       C6) check_orphans   $(sources) ;;
-      *) echo "usage: comment-check.sh --list C1|C2|C3|C4|C5|C6"; exit 2 ;;
+      C7) check_volume    $(sources) ;;
+      C8) check_density   $(sources) ;;
+      *) echo "usage: comment-check.sh --list C1|C2|C3|C4|C5|C6|C7|C8"; exit 2 ;;
     esac; exit 0 ;;
   "") ;;
-  *) echo "usage: comment-check.sh [--self-test|--list Cn]"; exit 2 ;;
+  *) echo "usage: comment-check.sh [--self-test|--baseline|--list Cn]"; exit 2 ;;
 esac
 
 echo "comment-check -- WHY stays out of code comments ($(date +%F))"
@@ -287,6 +405,16 @@ out=$(check_ratio     $FILES) && ok "C5 ratio"       "every file inside its back
 
 out=$(check_orphans   $FILES) && ok "C6 orphans"     "no doc block documents another doc block" \
   || { fail "C6 orphans" "a doc block is orphaned:"; printf '%s\n' "$out" | head -12; }
+
+out=$(check_volume    $FILES); rc=$?
+if [ "$rc" -eq 0 ]; then ok "C7 volume" "no file or corpus over baseline (+$TOL_FILE% file, +$TOL_TREE% corpus)"
+else fail "C7 volume" "comment volume grew past baseline:"; fi
+[ -n "$out" ] && printf '%s\n' "$out"
+
+out=$(check_density   $FILES); rc=$?
+if [ "$rc" -eq 0 ]; then ok "C8 density" "no file or corpus wordier than baseline"
+else warn "C8 density" "comment words grew past baseline:"; fi
+[ -n "$out" ] && printf '%s\n' "$out" | grep -v 'unbaselined\|stale baseline'
 
 echo
 printf 'corpus: %d files, %d comment lines, %d code lines (%d per 100)\n' \

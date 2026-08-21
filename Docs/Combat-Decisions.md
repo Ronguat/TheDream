@@ -1256,6 +1256,38 @@ this one. Two files were read and left alone as already terse, `TDGameplayTags.h
 `TDAttackHitbox.cpp`. In `regression-check.sh` the guarded awk program at the parry-gesture assertion
 stayed apostrophe-free and its `--self-test` still passes.
 
+**The standard is ratcheted, because nothing else was holding it.** Asked whether verbosity could be
+codified, the honest answer measured out badly: C1, C2 and C6 fail on *shape* and hold fine, but all
+three volume guards had gone slack. C3 was saturated — it already warned on 113 deliberate blocks, so
+a regrown 114th was indistinguishable from them. C5 was calibrated to what *pass one* landed at, its
+own comment still saying "headers topped out at 309 per 100", leaving headers ~46% and
+implementations ~113% of headroom. And nothing measured words at all, though words were what both
+passes actually moved.
+
+**C7 (FAIL, lines) and C8 (WARN, words) against a checked-in baseline.** Per file +10% with a
+five-unit floor; across the baselined corpus +2%. The two tolerances catch different failures — a
+loose per-file one names the single file that rotted, a tight corpus one catches creep spread thin
+enough that nothing trips individually, including repeated sub-floor additions the floor would
+otherwise let through forever. **Only baselined files count toward the corpus total**, so a new file
+cannot trip it; C5 judges a new file until it has a baseline.
+
+**Two metrics because they are provably not redundant.** A self-test fixture whose line count is
+unchanged while its words more than double trips C8 and is invisible to C7 — the re-wrap dodge,
+asserted rather than assumed. The instrument was also failed on purpose against the real tree, not
+just fixtures: thirteen padded lines into `TDJumpAbility.h` produced `C7 FAIL 25 -> 38 (+52%)` and
+exit 1, and restoring the file returned it to green.
+
+**The sanctioned edit is one line in `Tools/CommentCheck/baseline.txt`, in the commit that adds the
+volume.** That inverts the burden: drift becomes the thing that has to be justified, where before it
+was the thing that happened quietly. Regenerating wholesale with `--baseline` erases the memory the
+check exists to keep, which is why both `CLAUDE.md` and `Closing-Down` say so at the point of use.
+
+**Two counts of the same corpus exist, and neither is wrong.** `comment-check`'s own extractor reads
+**4,993 lines / 51,458 words** where the measuring script used for the figures below reads **4,919 /
+50,868** — the extractor also counts a comment trailing a code line, which the line-oriented script
+does not. The baseline is built by the extractor, so C7 and C8 are self-consistent; do not read a
+difference between the two as regrowth.
+
 **Result after both passes**, measured on `Source/` + `Tools/` by one script run over the session's
 first commit and its last, so the two sides are the same measurement: **6,898 comment lines to 4,919,
 and 73,425 comment words to 50,868 — 3.18 to 2.20 by word.** `Source/` alone: **6,473 to 4,545 lines,

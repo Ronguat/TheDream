@@ -73,6 +73,8 @@ Docs/Combat-Decisions.md:::- **Netcode**:::CLAUDE.md network section defers stat
 Docs/Debug-Instruments.md:::### Scenario matrix:::Working-In-Unreal sends verification here
 Tools/RegressionCheck/regression-check.sh:::--self-test:::CLAUDE.md and W-I-U both name the script and its self-test
 Tools/CommentCheck/comment-check.sh:::--self-test:::CLAUDE.md names the script; Closing-Down step 3 runs it
+Tools/CommentCheck/comment-check.sh:::--baseline:::CLAUDE.md and Closing-Down both name the flag as the sanctioned reset
+Tools/CommentCheck/baseline.txt:::comment lines:::CLAUDE.md sends a C7 failure here to raise one line
 Docs/Toolset-Snapshot.tsv:::list_toolsets:::Working-In-Unreal diffs the registry against this file
 '
 check_manifest() { # $1=manifest-string -> prints misses, rc 1 if any

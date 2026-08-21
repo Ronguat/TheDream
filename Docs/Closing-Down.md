@@ -64,6 +64,12 @@ audit in miniature; the rest is making sure nothing is left on the floor.
    block-size and narrative WARNs are shortlists for the same eye the trap shortlist needs. It
    cannot catch a comment that describes the wrong declaration; only reading does.
 
+   **A C7 failure is not cleared by `--baseline`.** It means a file outgrew its recorded volume:
+   either cut it back, or raise that one line in `Tools/CommentCheck/baseline.txt` and say why in
+   the commit. Regenerating wholesale erases the memory the check exists to keep. C7 also names any
+   **unbaselined** file added this session and any **stale** entry left by one deleted — neither
+   fails, and both are cleared by `--baseline` once the session's file set is settled.
+
    Then **run `Tools/DocsCheck/docs-check.sh`: clear every FAIL, read every WARN.** It mechanizes
    what used to be manual greps — truncated tails, orphaned table rows, the pointer manifest,
    index freshness, always-read duplication, trailer presence — each invariant commented with the

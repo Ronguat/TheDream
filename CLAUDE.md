@@ -150,6 +150,11 @@ dates, no attributions, no history; `Tools/CommentCheck/comment-check.sh` fails 
 **symbol index** routes a symbol back to its reasoning. **The test is recoverability**: cut what a
 reader could recover from the code or a doc; move what they could not to `Docs/` first.
 
+**Comment volume is ratcheted, not trusted.** The same script fails when a file outgrows its entry
+in `Tools/CommentCheck/baseline.txt`, so **adding volume means raising that number in the same
+commit and saying why** — a sanctioned edit, and the only one. Never regenerate the baseline to
+clear a failure; `--baseline` is for a pass that deliberately re-sets the standard.
+
 ## Working Rules
 
 **Autonomy on the HOW. Interrupt on the WHAT or the WHY.** Once what to build and why is agreed,
