@@ -1248,6 +1248,24 @@ and must not be tuned freely — and `comment-check` C3 still shortlists ~170 bl
 for anyone who wants to go further. Cutting past that starts removing what the rule exists to keep,
 so the next pass over this should be judged by reading rather than by the ratio.
 
+**A second pass followed, on wording rather than content.** *"Efficient comments rather than
+maximally explanatory."* Same files and the same claims, fewer words carrying them: paragraphs merged
+where a blank line separated one thought from itself, and every sentence restating its predecessor
+cut. Nothing was rehomed, because nothing was removed — a claim that survived the first pass survived
+this one. Two files were read and left alone as already terse, `TDGameplayTags.h` and
+`TDAttackHitbox.cpp`. In `regression-check.sh` the guarded awk program at the parry-gesture assertion
+stayed apostrophe-free and its `--self-test` still passes.
+
+**Result after both passes**, measured on `Source/` + `Tools/` by one script run over the session's
+first commit and its last, so the two sides are the same measurement: **6,898 comment lines to 4,919,
+and 73,425 comment words to 50,868 — 3.18 to 2.20 by word.** `Source/` alone: **6,473 to 4,545 lines,
+3.97 to 2.69 by word.** Headers, still the worst, **2.90 to 1.84 by line and 7.70 to 4.41 by word**;
+`TDCombatCharacter.h`, the worst single file, **8.40 to 5.47 by word**. The "roughly three times" in
+the paragraph above was pass one's figure; **2.20 supersedes it**, and the C3 shortlist is 124 blocks
+rather than ~170. Code words moved by eleven across the whole tree — the `docs-check` manifest row
+added, the dead `public:` culled — and `verify-code-unchanged` confirms every other file is identical
+once comments are stripped.
+
 ## 2026-08-20 — The parry lockout is authored, because a right answer with no reason is still imprecise
 
 **The ruling.** *"Derived parry lockout is sufficient, but imprecise, and I think it needs to be
