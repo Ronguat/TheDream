@@ -96,6 +96,10 @@ BAND_PARRY_SPAN_TOL=0.025
 # against that ceiling, never against feel. It exists so a successful parry lasts longer than 0 ms
 # -- a catch closes the window, so without it one press can only ever answer one attack.
 BAND_PARRY_GRACE=0.150
+# The parry lockout is **authored** per branch and per swing as of 2026-08-20, not derived from
+# what remained of the swing -- so this is the value off the CDO, not an arithmetic result.
+# s5-parry's attacker throws the string, whose first swing is the light branch.
+BAND_PARRY_LOCKOUT_LIGHT=0.750
 
 # S5 -- the credited stamina reward, as seen by s5-parry, whose parrier never spends. A parry costs
 # nothing, so that fixture's bar never leaves 100 and the attribute set's clamp trims the whole
@@ -578,6 +582,25 @@ kd_damage_while_down() { # count of DAMAGED landing between a victim's KNOCKDOWN
 	' "$SLICE"
 }
 
+
+parry_lockout_spans() { # one span per PARRY LOCKOUT, from its start to its printed until=
+	awk '
+		/^\[[0-9.]+\] PARRY LOCKOUT  / {
+			t=$1; gsub(/[\[\]]/,"",t);
+			for (i=1;i<=NF;i++) if ($i ~ /^until=/) { u=substr($i,7); printf "%.3f\n", (u+0)-(t+0) }
+		}
+	' "$SLICE"
+}
+
+damage_during_parry_lockout() { # DAMAGED dealt BY an attacker while it is serving one
+	awk '
+		/^\[[0-9.]+\] PARRY LOCKOUT  / { locked[$4]=1; next }
+		/^\[[0-9.]+\] PARRY LOCKOUT END/ { delete locked[$5]; next }
+		/^\[[0-9.]+\] DAMAGED/ { for (a in locked) if (index($0, " by " a)) n++ }
+		END { print n+0 }
+	' "$SLICE"
+}
+
 # --- assertion helpers ------------------------------------------------------
 
 assert_all_in_band() { # label values_cmd lo hi unit
@@ -747,6 +770,22 @@ run_s5_parry() {
 	# "No more games": a parried swing takes the string with it, so no link window may follow one.
 	violations=$(parried_string_violations | grep -c '[0-9]' || true)
 	assert_count "no STRING continuation after a parry" "$violations" 0
+	# **The lockout is authored, so this asserts a CDO value rather than an arithmetic result**
+	# (2026-08-20). Under the retired derivation two catches on the same branch produced *different*
+	# spans -- 0.732 and 0.744 in the last run before the change -- because they landed at slightly
+	# different elapsed times. A flat authored number is what removes that wobble, and a span that
+	# starts varying again means something is computing it.
+	assert_all_in_band "PARRY LOCKOUT span" parry_lockout_spans \
+		"$(awk -v v="$BAND_PARRY_LOCKOUT_LIGHT" -v t="$BAND_PARRY_SPAN_TOL" 'BEGIN{printf "%.3f", v-t}')" \
+		"$(awk -v v="$BAND_PARRY_LOCKOUT_LIGHT" -v t="$BAND_PARRY_SPAN_TOL" 'BEGIN{printf "%.3f", v+t}')" "s"
+
+	# A caught swing ends at the catch, so its hitbox is dead for everyone -- the half of sub-slice
+	# E that only matters in a crowd. In 1v1 this can only show that the *parried attacker* deals no
+	# damage while locked out, which is the observable corner of it.
+	local lockdmg
+	lockdmg=$(damage_during_parry_lockout)
+	check "no damage from a locked-out attacker" "$([ "$lockdmg" -eq 0 ] && echo 0 || echo 1)" \
+		"$lockdmg DAMAGED dealt during a PARRY LOCKOUT"
 }
 
 run_s5_parry_reward() {

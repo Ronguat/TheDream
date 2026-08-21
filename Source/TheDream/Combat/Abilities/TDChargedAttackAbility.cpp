@@ -704,28 +704,18 @@ ETDKnockdownGrade UTDChargedAttackAbility::GetAttackKnockdownGrade() const
 	return Branches.IsValidIndex(SelectedBranchIndex) ? Branches[SelectedBranchIndex].KnockdownGrade : KnockdownGrade;
 }
 
-float UTDChargedAttackAbility::GetPlannedTotalSeconds() const
+
+float UTDChargedAttackAbility::GetAttackParryLockoutSeconds() const
 {
-	// Same resolution the stun values use: swing values for a mid-string light, branch values for
-	// the tiers. **Authored numbers only** -- no montage reads, no measured spans -- so a parry's
-	// lockout is arithmetic over what the designer set and cannot drift with a clip swap.
-	const bool bStringSwing = (SelectedBranchIndex == 0 && StringSwings.IsValidIndex(CurrentSwingIndex - 1));
-
-	if (bStringSwing)
+	// Same resolution as the stun values and the grade: swing value for a mid-string light, branch
+	// value for the tiers, ability fallback on an invalid index. Authored at every level -- this
+	// replaced a derivation on 2026-08-20, and the whole point of the change is that no level of
+	// this ladder computes the number any more.
+	if (SelectedBranchIndex == 0 && StringSwings.IsValidIndex(CurrentSwingIndex - 1))
 	{
-		const int32 SwingIndex = CurrentSwingIndex - 1;
-		return GetSwingReleaseStartSeconds(SwingIndex)
-			+ GetSwingReleaseSeconds(SwingIndex, SelectedBranchIndex)
-			+ StringSwings[SwingIndex].RecoverySeconds;
+		return StringSwings[CurrentSwingIndex - 1].ParryLockoutSeconds;
 	}
-
-	if (Branches.IsValidIndex(SelectedBranchIndex))
-	{
-		const FTDAttackBranch& Branch = Branches[SelectedBranchIndex];
-		return Branch.ReleaseAtSeconds + Branch.ReleaseSeconds + Branch.RecoverySeconds;
-	}
-
-	return 0.0f;
+	return Branches.IsValidIndex(SelectedBranchIndex) ? Branches[SelectedBranchIndex].ParryLockoutSeconds : ParryLockoutSeconds;
 }
 
 float UTDChargedAttackAbility::GetKnockbackSpacingCm(bool bBlocked) const

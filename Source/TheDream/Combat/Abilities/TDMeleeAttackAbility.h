@@ -132,6 +132,26 @@ protected:
 	ETDKnockdownGrade KnockdownGrade = ETDKnockdownGrade::None;
 
 	/**
+	 *  How long this attack's owner is locked out when a parrier catches it.
+	 *
+	 *  **Authored, not derived** (the designer, 2026-08-20). It *was* derived, as the swing's
+	 *  planned total minus the time elapsed at the catch, and that model worked -- but a catch can
+	 *  only land once the hitbox is live, so the windup always cancelled out and what survived was
+	 *  `ReleaseSeconds + RecoverySeconds`: two placeholder values plus a functionally arbitrary
+	 *  remainder. **Sufficient, and imprecise.** The number was a consequence rather than a choice,
+	 *  and it happened to come out right -- the light punished harder than the heavy, which is what
+	 *  "lights are harder to parry, so they should be more punishable" would ask for -- by accident.
+	 *
+	 *  Seeded at the values the derivation produced, so formalising it changed no behaviour. What
+	 *  it changes is that each value now needs a *reason*, and the Tuning Rig's pass is where every
+	 *  one of them gets one.
+	 *
+	 *  The ability-level fallback; branches and string swings override it.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Attack", meta=(ClampMin="0.0"))
+	float ParryLockoutSeconds = 0.65f;
+
+	/**
 	 *  The spacing reset: where a clean non-final string hit parks its target, in centimetres from
 	 *  the attacker along facing. **0 disables knockback entirely, and is the C++ default.**
 	 *
@@ -326,22 +346,8 @@ protected:
 	/** Knockdown grade for the swing being resolved. See ETDKnockdownGrade. */
 	virtual ETDKnockdownGrade GetAttackKnockdownGrade() const { return KnockdownGrade; }
 
-	/**
-	 *  The swing's **planned authored total** -- windup plus release plus recovery, as authored.
-	 *
-	 *  Not measured, not read off a montage: pure arithmetic over the values the designer set. It
-	 *  exists so a parry can derive its lockout as "what was left of this swing" without anyone
-	 *  authoring a per-tier number, which is what preserves the punish-scales-with-commitment
-	 *  property the derived reward model is built on.
-	 *
-	 *  **0 on the base means "no authored phases here"**, which is the honest answer: the ladder's
-	 *  phase structure lives on the charged subclass, and a lockout derived from 0 correctly comes
-	 *  out at nothing rather than at a number nobody chose.
-	 */
-	virtual float GetPlannedTotalSeconds() const { return 0.0f; }
-
-	/** Real seconds since this activation. 0 where a subclass does not track one. */
-	virtual float GetElapsedSeconds() const { return 0.0f; }
+	/** Parry lockout for the swing being resolved. Authored; see ParryLockoutSeconds. */
+	virtual float GetAttackParryLockoutSeconds() const { return ParryLockoutSeconds; }
 
 	/**
 	 *  How far from the attacker this swing parks a target it touches, or 0 for no knockback.

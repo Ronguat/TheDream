@@ -381,10 +381,12 @@ void UTDMeleeAttackAbility::HandleTraceHit(const FHitResult& Hit)
 			// scales the punish by the victim's commitment, so a parried *light* has the shortest
 			// recovery and pays least, and taking the string compensates exactly there without
 			// authoring the per-branch bonus that was raised and rejected.
-			// **The duration is captured before anything ends**, because both halves of it are
-			// properties of a swing that is about to stop existing. Planned authored total minus
-			// elapsed is what this attacker had left to spend; that is what the parry takes.
-			const float RemainingSeconds = GetPlannedTotalSeconds() - GetElapsedSeconds();
+
+			// **Read before anything ends**, because the swing that authored it is about to stop
+			// existing. Authored per branch and per swing since 2026-08-20; it was derived from
+			// what remained of this swing until the designer ruled that a number falling out of
+			// two placeholder values is sufficient but imprecise.
+			const float LockoutSeconds = GetAttackParryLockoutSeconds();
 			ATDCombatCharacter* ParriedAttacker = Cast<ATDCombatCharacter>(GetAvatarActorFromActorInfo());
 
 			Parrier->NotifyParrySuccess(GetAvatarActorFromActorInfo());
@@ -402,7 +404,7 @@ void UTDMeleeAttackAbility::HandleTraceHit(const FHitResult& Hit)
 			// stroll. This is the same bTookMovementLock ordering hazard the shared base documents.
 			if (ParriedAttacker)
 			{
-				ParriedAttacker->EnterParryLockout(RemainingSeconds);
+				ParriedAttacker->EnterParryLockout(LockoutSeconds);
 			}
 			return;
 		}

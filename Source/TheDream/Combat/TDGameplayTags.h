@@ -208,16 +208,18 @@ namespace TDTags
 	 *  parried, carrying its own authored properties. That is externally inflicted and so a lockout
 	 *  under the recovery/lockout schema; the attacker/defender asymmetry is immaterial.
 	 *
-	 *  **Its duration is derived, not authored**: the swing's planned authored total minus the time
-	 *  already elapsed at the catch. That is pure arithmetic over values the designer already set,
-	 *  and it preserves every per-tier punish window for free -- a parried charged pays more than a
-	 *  parried light because it had more attack left to lose. ParryLockoutFloorSeconds is the
-	 *  authored half, reserved at 0 and spent only if play asks for one.
+	 *  **Its duration is authored per branch and per swing** (2026-08-20). It was derived until then --
+	 *  the swing's planned total minus the elapsed time at the catch -- and that model worked, but a
+	 *  catch can only land once the hitbox is live, so the windup always cancelled and what survived
+	 *  was `Release + Recovery`: two placeholder values plus a functionally arbitrary remainder.
+	 *  Sufficient, and imprecise. The designer's ruling is that every one of these needs a reason at
+	 *  the Tuning Rig rather than a number that falls out -- *should a light be more punishable than a
+	 *  heavy? lights are harder to parry, so probably more.* See UTDMeleeAttackAbility.
 	 *
 	 *  **What it replaced**: the attacker used to ride their own recovery to the end, because a
 	 *  parry ended nothing. Now the catch ends the swing through the ordinary funnel -- facing,
 	 *  lunge, homing and tags all restored, and the hitbox dead for *everyone*, which matters in a
-	 *  crowd -- and this holds them for what remained. Same total, honest cause.
+	 *  crowd -- and this holds them for the duration that swing authored.
 	 */
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_ParryLockout);
 
@@ -237,8 +239,12 @@ namespace TDTags
 	 *  because the designer had used it before for the state inflicted on an attacker who *has
 	 *  been* parried, and that is what it now names.
 	 *
-	 *  The prediction it was filed on is worth keeping: the lean, fully-derived reward "has a
-	 *  significant chance of proving under-authored". ParryLockoutFloorSeconds is the authored half
-	 *  held in reserve at 0 against exactly that. See Docs/Combat-Decisions.md, 2026-08-19.
+	 *  **The prediction it was filed on came true the next day, in a different form than expected.**
+	 *  The lean, fully-derived reward was said to have "a significant chance of proving
+	 *  under-authored" -- and it did, though not by being too *weak*. It was under-authored in the
+	 *  literal sense: the number fell out of two placeholder recovery values rather than being
+	 *  chosen. So `ParryLockoutFloorSeconds`, the authored half held in reserve at 0 against
+	 *  exactly that, **retired unused on 2026-08-20** -- a floor under a per-swing authored value
+	 *  serves nothing, since you would simply author above it. See Docs/Combat-Decisions.md.
 	 */
 }

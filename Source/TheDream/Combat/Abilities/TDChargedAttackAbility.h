@@ -233,6 +233,13 @@ struct FTDAttackBranch
 	ETDKnockdownGrade KnockdownGrade = ETDKnockdownGrade::None;
 
 	/**
+	 *  Seconds this branch's owner is locked out when it is parried. **Authored**; see
+	 *  UTDMeleeAttackAbility::ParryLockoutSeconds for why this stopped being derived.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Attack", meta=(ClampMin="0.0"))
+	float ParryLockoutSeconds = 0.65f;
+
+	/**
 	 *  Whether committing this branch keeps the string alive. **The DKO/New World flip in data.**
 	 *
 	 *  True on the light alone expresses the current model: lights chain and a heavy or charged
@@ -328,6 +335,13 @@ struct FTDStringSwing
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Swing")
 	ETDKnockdownGrade KnockdownGrade = ETDKnockdownGrade::None;
+
+	/**
+	 *  Seconds this position's owner is locked out when it is parried. **Authored**; see
+	 *  UTDMeleeAttackAbility::ParryLockoutSeconds.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Swing", meta=(ClampMin="0.0"))
+	float ParryLockoutSeconds = 0.65f;
 
 	/**
 	 *  This position's recovery -- commitment and punish window both, exactly as on the branch.
@@ -508,7 +522,7 @@ protected:
 	virtual float GetAttackBlockstunSeconds() const override;
 	virtual float GetAttackHitstunSeconds() const override;
 	virtual ETDKnockdownGrade GetAttackKnockdownGrade() const override;
-	virtual float GetPlannedTotalSeconds() const override;
+	virtual float GetAttackParryLockoutSeconds() const override;
 	virtual float GetKnockbackSpacingCm(bool bBlocked) const override;
 
 	/**
@@ -615,7 +629,7 @@ private:
 	float GetBlendOutStartSeconds(float PlayRate) const;
 
 	/** Real seconds since this activation. */
-	virtual float GetElapsedSeconds() const override;
+	float GetElapsedSeconds() const;
 
 	/** Montage playhead position in seconds, or -1 if there is nothing to read. */
 	float GetMontagePosition() const;

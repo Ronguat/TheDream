@@ -349,16 +349,17 @@ public:
 	bool IsInParryLockout() const { return bInParryLockout; }
 
 	/**
-	 *  Lock this attacker out for what remained of the swing a parrier just caught.
+	 *  Lock this attacker out for the duration the swing a parrier just caught authored.
 	 *
 	 *  **Externally inflicted, so a lockout rather than a recovery**, and it composes with
 	 *  recoveries by the standing schema: a lockout overrides one. Takes the full movement lock,
 	 *  refuses every ability from the shared base, and ends the string explicitly.
 	 *
-	 *  @param RemainingSeconds  Planned authored total minus elapsed at the catch. Floored at
-	 *                           ParryLockoutFloorSeconds, which is 0 unless play asks otherwise.
+	 *  @param LockoutSeconds  Authored on the swing that was caught -- see
+	 *                         UTDMeleeAttackAbility::ParryLockoutSeconds. Zero is honoured, not
+	 *                         floored: there is no floor any more.
 	 */
-	void EnterParryLockout(float RemainingSeconds);
+	void EnterParryLockout(float LockoutSeconds);
 
 	/**
 	 *  Start the rise. **Ends invincibility on the frame it is called**, and commits: from here
@@ -846,18 +847,6 @@ protected:
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Knockdown", meta=(ClampMin="1.0"))
 	float ForcedFacingTurnRateDegrees = 720.0f;
-
-	/**
-	 *  Authored floor under the derived lockout. **Reserved at 0 and deliberately unused.**
-	 *
-	 *  The duration is the swing's planned total minus elapsed, which preserves per-tier punish for
-	 *  free. This is the authored half held against the designer's own prediction that the fully
-	 *  derived reward may prove under-authored -- spend it only if play asks, and record the number
-	 *  when you do.
-	 */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Parry", meta=(ClampMin="0.0"))
-	float ParryLockoutFloorSeconds = 0.0f;
-
 	/**
 	 *  Present while an action that suppresses regen is running, via that ability's owned tags.
 	 *
@@ -2028,7 +2017,7 @@ private:
 	UPROPERTY(ReplicatedUsing = OnRep_ParryLockout)
 	bool bInParryLockout = false;
 
-	/** Authority-side deadline. Derived at the catch; see EnterParryLockout. */
+	/** Authority-side deadline. Authored on the caught swing; see EnterParryLockout. */
 	float ParryLockoutEndsAt = 0.0f;
 
 	/**

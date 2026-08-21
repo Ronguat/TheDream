@@ -1160,7 +1160,7 @@ void ATDCombatCharacter::EndKnockdown()
 	ReturnToDebugAutoAttackHome();
 }
 
-void ATDCombatCharacter::EnterParryLockout(float RemainingSeconds)
+void ATDCombatCharacter::EnterParryLockout(float LockoutSeconds)
 {
 	UWorld* World = GetWorld();
 	if (!World || !HasAuthority() || bDead)
@@ -1168,18 +1168,17 @@ void ATDCombatCharacter::EnterParryLockout(float RemainingSeconds)
 		return;
 	}
 
-	const float Duration = FMath::Max(RemainingSeconds, ParryLockoutFloorSeconds);
-	if (Duration <= 0.0f)
+	if (LockoutSeconds <= 0.0f)
 	{
-		// A catch landing at or past the swing's planned end owes nothing: the attacker has already
-		// spent every frame this would have taken from them. Silent rather than clamped to a
-		// minimum, because inventing one here would be authoring the reward this model derives.
+		// An authored zero means a swing whose owner owes nothing for being parried. Honoured
+		// silently rather than clamped to a minimum: inventing a floor here would author the
+		// reward behind the designer's back, which is the whole reason the old floor retired.
 		return;
 	}
 
 	// Max-extended like every other lockout on this character: a second parry landing inside a
 	// running one lengthens the sentence and can never shorten it.
-	ParryLockoutEndsAt = FMath::Max(ParryLockoutEndsAt, World->GetTimeSeconds() + Duration);
+	ParryLockoutEndsAt = FMath::Max(ParryLockoutEndsAt, World->GetTimeSeconds() + LockoutSeconds);
 
 	// **The string dies explicitly, and stays explicit.** bParried's chain gate is subsumed by the
 	// ability no longer existing -- there is nothing left to chain out of -- so this is now the
