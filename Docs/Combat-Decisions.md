@@ -407,7 +407,8 @@ measures a defender's displacement during a stun.
 
 **And sub-slice F is not built**, so nothing about the get-up attack exists to test — it derives its
 phase rates from `AM_GetUpAttack`'s measured position, and that montage is the human step that
-unblocks it.
+unblocks it. *The notify half of that step gained a scripted candidate on 2026-08-22 —
+`AnimationLibrary`, in `Working-In-Unreal.md` — unverified.*
 
 
 **Whenever a second attacker becomes possible — *knockdown's 1vX half has never been observed
@@ -618,6 +619,8 @@ could detect it, and **the user found it by eye in the editor**. The hazard is s
 `UAnimNotifyState_MeleeWindow` emits `RELEASE BEGIN`/`END`, which `s1-light`/`s1-heavy`/`s1-charged`
 assert press→release timing against — so a stray window on an unrelated montage **poisons the
 regression checker while reading as a timing bug**, which is the worst possible disguise.
+*`AnimationLibrary.get_animation_notify_events` is a candidate detector as of 2026-08-22 —
+unverified; `Working-In-Unreal.md`.*
 
 **Never clone an attack montage to make a non-attack one.** The general rule is that duplication is
 only safe from a source whose notifies you actively want, and that a montage the toolset reports as

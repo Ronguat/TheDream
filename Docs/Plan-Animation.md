@@ -29,8 +29,10 @@ Confirmed 2026-08-21 unless noted.
 - **Montages are ~90% scriptable** — `AssetTools.duplicate` clones with the skeleton intact and the
   segment repoints by writing `slotAnimTracks` whole. Multi-*section* montages are not scriptable,
   and `compositeSections` is unreadable — confirmed again 2026-08-21.
-- **Notify placement is a human step**, and `notifies` is not readable by any toolset route. The
-  runtime drift warning is what verifies placement.
+- **Notify placement was recorded as a human step** because `notifies` is unreadable by any toolset
+  route. **`unreal.AnimationLibrary` writes and reads notifies on montages** — read off the 5.8
+  source 2026-08-22, not yet run; the calls are in `Working-In-Unreal.md`. The runtime drift
+  warning verifies placement either way.
 - **Neither Cascadeur nor Meshy is set up.** No install, no licence, no account.
 
 ## Not measured, and everything rests on the first
@@ -69,6 +71,10 @@ foreign skeletons — retarget **inside the library project** and migrate the re
 the foreign skeleton never enters this repo. Untested and manual, but it means A failing makes
 retargeting a human step rather than stopping the slice.
 
+**A3 — prove the notify write.** Place a Release Window on a scratch montage through
+`AnimationLibrary`, read it back, save, see the file in `git status`, and confirm the drift warning
+in PIE agrees with the placement. Holding lifts E's human step; failing leaves it as recorded.
+
 **B — Cascadeur.** Install, licence, and register its MCP toolset. Ends with the toolset appearing
 in `list_toolsets` and answering a call. Human steps throughout — installation, licensing and
 account creation are not mine to do.
@@ -82,8 +88,8 @@ if B runs long.
 travel. The designer's eye decides when it reads as coming off the floor.
 
 **E — assemble `AM_GetUpAttack`.** Single-segment montage from D's clip, fitted to the authored
-duration at derived rates. Human places the Release Window notify; the drift warning verifies it at
-runtime.
+duration at derived rates. The Release Window notify is placed by script if A3 holds, by hand if
+not; the drift warning verifies it at runtime either way.
 
 **F — unblock Knockdown's sub-slice F.** The get-up attack commits and its hitbox opens.
 

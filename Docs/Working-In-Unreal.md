@@ -321,19 +321,24 @@ second scripting surface into the editor, wider than the toolsets — **every li
 *(toolset)* is a candidate to be lifted through it**, and one marked *(inherited)* was never tested
 against anything.
 
+**`ProgrammaticToolset` is not that surface** *(confirmed 2026-08-22)* — its sandbox refuses
+`import unreal`; six stdlib modules only.
+
 Needs a human in the editor:
 
 - Creating levels, BlendSpaces and AnimBlueprints **from scratch** *(toolset, inherited)*
-- Placing or configuring AnimNotifies *(toolset)* — a montage's `notifies` is not even readable, so
-  notify placement can only be verified at runtime. **Re-tested 2026-08-19 and it held**:
-  `get_properties` on `AM_Attack` still answers *"the following properties could not be read:
-  notifies"*.
-
-  **But that is the toolset's limit, not the engine's — C++ reads `UAnimMontage::Notifies` fine**
-  *(2026-08-19)*. `UTDParryAbility::FindGestureTime` walks the array to find its marker's trigger
-  time at activation. So the split for anything notify-driven is: **a human places it, C++ reads
-  it, and the trace line it emits is what lets us verify the placement.** Reaching for a screenshot
-  here would be answering a question the game can answer itself, every run.
+- Placing or configuring AnimNotifies *(toolset)* — `get_properties` on `AM_Attack` answers *"could
+  not be read: notifies"* *(re-tested 2026-08-19, held)*. **The toolset's limit, not the engine's**:
+  C++ reads `UAnimMontage::Notifies` (`UTDParryAbility::FindGestureTime`), and the editor's own
+  `AnimationBlueprintLibrary` — Python `unreal.AnimationLibrary` — writes and reads them:
+  `add_animation_notify_state_event(montage, track, start, duration, cls)` on any
+  `UAnimSequenceBase`; `get_animation_notify_events` with `get_anim_notify_event_trigger_time` /
+  `_duration` to read back; `add_animation_notify_track` for the track. It validates the track and
+  `0 ≤ start ≤ play length`, outers the notify to the montage, and **does not dirty the package** —
+  `modify()`, mark dirty, save, `git status`. *(inherited — read off the 5.8 source 2026-08-22,
+  never run here; `Plan-Animation.md`'s A3 is the test.)* Until then the split stands: **a human
+  places it, C++ reads it, the trace line verifies it** — a screenshot answers a question the game
+  answers itself every run.
 - A montage's **`compositeSections`** *(toolset)* — neither readable nor writable *(re-confirmed 2026-08-21)*,
   and `sequenceLength` is read-only and does not recompute after a reflection write.
   **`slotAnimTracks` reads back in full structural detail**, not only writes whole: every segment's
@@ -351,11 +356,12 @@ value, and **opening the montage recomputes it unaided**, so the human step is o
 **Multi-section montages are fully out**, a design constraint rather than a chore: four directional
 clips must be four montages.
 
-**Duplication carries the source's notifies, and `notifies` is unreadable — so you cannot see what
-you copied** *(confirmed 2026-08-15)*. A cloned attack montage brings its **Release Window** with
-it, and `UAnimNotifyState_MeleeWindow` emits `RELEASE BEGIN`/`END`, which `s1-*` asserts timing
-against — so a stray one poisons the checker while reading as a timing bug. **Never clone an attack
-montage to make a non-attack one.**
+**Duplication carries the source's notifies, and the toolset cannot read them — so you cannot see
+what you copied** *(confirmed 2026-08-15)*. A cloned attack montage brings its **Release Window**
+with it, and `UAnimNotifyState_MeleeWindow` emits `RELEASE BEGIN`/`END`, which `s1-*` asserts
+timing against — so a stray one poisons the checker while reading as a timing bug. **Never clone an
+attack montage to make a non-attack one.** The Python read above, once verified, lifts the
+blindness, not the rule.
 
 **But creation is per-toolset, not a blanket limitation** *(confirmed 2026-08-12)*. `MaterialTools`
 and `MaterialInstanceTools` create and build whole graphs end to end. Check the toolset that owns the
