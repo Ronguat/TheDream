@@ -121,8 +121,11 @@ handled *(reported once)* — a convenience that can cost you the editor, not th
 
 
 **"Bash cannot do this" is nearly always wrong, and believing it is what breaks the rule.** There is
-**no Python on PATH** *(machine fact, hit twice)*, but Git Bash ships `base64`, `reg`, `xxd`,
-`certutil` and `curl`. Check for the binary before concluding otherwise.
+**no usable Python on PATH** *(machine fact, hit twice)* — `command -v` finds three WindowsApps
+aliases that print an install prompt when run, so the check reads as though an interpreter is
+there. The *editor's* Python is a separate thing and does work; see the scriptable section. Git
+Bash ships `base64`, `reg`, `xxd`, `certutil` and `curl`. Check for the binary before concluding
+otherwise.
 
 **A single Bash tool command near ~14 KB can arrive mangled** *(reported once, 2026-08-19)* —
 a quoted heredoc died with a shell parse error mid-content, while the same content in ~5 KB
