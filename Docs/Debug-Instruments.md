@@ -310,7 +310,7 @@ with the clip length, the marker's trigger time as `gesture=`, and the derived `
 records the switch to the recovery segment's rate.
 
 **`PARRY GESTURE` is ungated, unlike `RELEASE BEGIN`/`END`**, and deliberately: a montage's
-notifies cannot be read off the asset by the toolset (`AnimationLibrary` is an unverified Python
+notifies cannot be read off the asset by the toolset (`AnimationLibrary` is a Python route, verified 2026-08-22
 route — `Working-In-Unreal.md`), so this line is the only evidence the marker was ever placed.
 `gesture=-1.0000` on `PARRY MONTAGE` means no marker was found — the clip
 then plays at one rate across window + recovery and an **ungated warning** says so. A missing

@@ -335,10 +335,10 @@ Needs a human in the editor:
   `UAnimSequenceBase`; `get_animation_notify_events` with `get_anim_notify_event_trigger_time` /
   `_duration` to read back; `add_animation_notify_track` for the track. It validates the track and
   `0 ≤ start ≤ play length`, outers the notify to the montage, and **does not dirty the package** —
-  `modify()`, mark dirty, save, `git status`. *(inherited — read off the 5.8 source 2026-08-22,
-  never run here; `Plan-Animation.md`'s A3 is the test.)* Until then the split stands: **a human
-  places it, C++ reads it, the trace line verifies it** — a screenshot answers a question the game
-  answers itself every run.
+  `modify()` dirties it; `EditorLoadingAndSavingUtils.save_packages` saves it; `git status`.
+  *(confirmed 2026-08-22: written, read back and saved on a scratch montage — not yet fired at
+  runtime.)* So the split is now **the script places it, C++ reads it, the trace line verifies
+  it** — a screenshot answers a question the game answers itself every run.
 - A montage's **`compositeSections`** *(toolset)* — neither readable nor writable *(re-confirmed 2026-08-21)*,
   and `sequenceLength` is read-only and does not recompute after a reflection write.
   **`slotAnimTracks` reads back in full structural detail**, not only writes whole: every segment's

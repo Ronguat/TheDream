@@ -408,7 +408,7 @@ measures a defender's displacement during a stun.
 **And sub-slice F is not built**, so nothing about the get-up attack exists to test — it derives its
 phase rates from `AM_GetUpAttack`'s measured position, and that montage is the human step that
 unblocks it. *The notify half of that step gained a scripted candidate on 2026-08-22 —
-`AnimationLibrary`, in `Working-In-Unreal.md` — unverified.*
+`AnimationLibrary`, in `Working-In-Unreal.md` — verified on a scratch montage the same day.*
 
 
 **Whenever a second attacker becomes possible — *knockdown's 1vX half has never been observed
@@ -620,7 +620,7 @@ could detect it, and **the user found it by eye in the editor**. The hazard is s
 assert press→release timing against — so a stray window on an unrelated montage **poisons the
 regression checker while reading as a timing bug**, which is the worst possible disguise.
 *`AnimationLibrary.get_animation_notify_events` is a candidate detector as of 2026-08-22 —
-unverified; `Working-In-Unreal.md`.*
+verified 2026-08-22; `Working-In-Unreal.md`.*
 
 **Never clone an attack montage to make a non-attack one.** The general rule is that duplication is
 only safe from a source whose notifies you actively want, and that a montage the toolset reports as
@@ -908,7 +908,7 @@ reading the file front to back found it.** An index nobody has to read front to 
 
 Generated from the archive rather than maintained by hand, so it goes stale rather than wrong —
 a missing row means the entry is newer than the index, never that the symbol is absent.
-Current through **2026-08-21** — update the date when regenerating, and `docs-check` turns
+Current through **2026-08-22** — update the date when regenerating, and `docs-check` turns
 staleness into a red row by comparing it against the newest entry. The rule for reading it is the standing one,
 that **a search finding nothing proves only that the filter did not match.**
 
@@ -929,7 +929,7 @@ long.
 | `AM_Attack_S4` | 08-16 |
 | `AM_Attack` | 08-12 |
 | `AM_Dodge` | 08-10, 08-11, 08-12, 08-13, 08-21 |
-| `AM_GetUpAttack` | 08-21 |
+| `AM_GetUpAttack` | 08-21, 08-22 |
 | `animSegments` | 08-21 |
 | `APawn::FaceRotation` | 08-12 |
 | `ATDCombatCharacter::Jump` | 08-12 |
@@ -1185,6 +1185,26 @@ long.
 | `bUseControllerRotationYaw` | 08-12 |
 | `compositeSections` | 08-15, 08-18 |
 | `gEComponents` | 08-10, 08-11 |
+
+---
+
+## 2026-08-22 — The get-up attack is authored in Cascadeur, from the poses it must join
+
+**Text-to-motion was tried and set aside the same day.** The designer generated with Uthana and
+found it short of the authorship this project needs: a generator produces motion from a sentence,
+with no way to hold the clip to the pose it must start from or the one it must end in, and props
+are invisible to every such model — "holding a sword" comes back as a mimed grip. The plan's
+original B, Cascadeur, stands, on a reason the plan had not stated: **the clip is keyed from
+`AM_Knockdown`'s held ground pose to the idle's first frame**, both already on our skeleton, so
+the montage joins what surrounds it instead of blending toward it.
+
+**What that changes in the plan.** Cascadeur ships a rigged UE5 Manny, which is our skeleton, so a
+clip authored there returns on our bone names: the IK retarget stops gating the slice and the
+UE↔Cascadeur round-trip becomes the gate, tested numerically on bone transforms. Retargeting
+survives for foreign skeletons only. "Less autonomous" is the accepted price: endpoints, timing,
+exports and the montage are scripted; the strike poses are shaped with the tool's AI assists under
+the designer's eye. `AM_GetUpAttack` is the first output; the 2026-08-21 entry's argument for the
+capability is unchanged.
 
 ---
 
