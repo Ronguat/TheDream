@@ -292,6 +292,11 @@ grep -o '"name":"<toolset>\.[a-z_]*"' <saved-file> | sed 's/.*\.//;s/"//' | sort
 That returned 51 tools for `BlueprintTools` in one call. **A `describe_toolset` that will not fit
 is the exact condition under which a capability goes unnoticed for months.**
 
+**There is no IK Rig or IK Retargeter toolset** *(2026-08-21, read off a full `list_toolsets`
+response — `ControlRigTools` is Control Rig, a different system, and `SkeletalMeshTools` is mesh,
+bones and sockets)*. The `IKRig` plugin is enabled, so the system exists; only the MCP surface is
+missing. Python is the only candidate route and is untested for it.
+
 **The Unreal Python API is reachable, and nothing needs installing** *(confirmed 2026-08-21)*.
 `PythonScriptPlugin` is an engine default, so it is enabled while absent from the uproject's plugin
 array — checking there reads as "not installed" and is a filtered view. `IKRig` runs its own

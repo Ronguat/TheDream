@@ -591,6 +591,12 @@ preview mesh is a human step.**
 Use **Asset Actions → Migrate** from `AnimLibrary`, targeting `TheDream/Content`. Migrate
 copies the whole dependency chain, which is the thing to be careful about.
 
+**A force-locked clip can foot-slide.** `bForceRootLock = true` pins an `_RM` clip's root, but the
+body motion was choreographed to cover *that clip's* distance. Drive the capsule at a different
+authored speed and the stride the animation sells is not the one being taken. It does not arise on
+a stationary move, and it will the moment a converted clip serves a lunging attack — so prefer a
+genuine `_IP` clip where one exists, and treat force-lock as a conversion with a cost.
+
 **What our montages actually look like** *(read off the assets 2026-08-21)*. `AM_Dodge` holds
 **eight `animSegments` in one slot track**, sequential from `startPos` 0 to 5.833 — so a
 multi-segment montage is precedented and needs no special handling. **No clip in this project is

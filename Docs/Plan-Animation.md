@@ -64,6 +64,11 @@ attack.
 Python. Ends in an `AnimSequence` that exists and previews. **This gates everything below**; run it
 before any setup work, because a failure here changes what the rest of the plan is.
 
+*A failure is not a dead end.* `Animation-Library.md` already proposes a retarget-first route for
+foreign skeletons — retarget **inside the library project** and migrate the retargeted results, so
+the foreign skeleton never enters this repo. Untested and manual, but it means A failing makes
+retargeting a human step rather than stopping the slice.
+
 **B — Cascadeur.** Install, licence, and register its MCP toolset. Ends with the toolset appearing
 in `list_toolsets` and answering a call. Human steps throughout — installation, licensing and
 account creation are not mine to do.

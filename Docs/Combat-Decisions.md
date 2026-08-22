@@ -914,7 +914,9 @@ long.
 | `AM_Attack_S3` | 08-16 |
 | `AM_Attack_S4` | 08-16 |
 | `AM_Attack` | 08-12 |
-| `AM_Dodge` | 08-10, 08-11, 08-12, 08-13 |
+| `AM_Dodge` | 08-10, 08-11, 08-12, 08-13, 08-21 |
+| `AM_GetUpAttack` | 08-21 |
+| `animSegments` | 08-21 |
 | `APawn::FaceRotation` | 08-12 |
 | `ATDCombatCharacter::Jump` | 08-12 |
 | `ATDCombatCharacter::StartRagdoll` | 08-13 |
@@ -1169,6 +1171,35 @@ long.
 | `bUseControllerRotationYaw` | 08-12 |
 | `compositeSections` | 08-15, 08-18 |
 | `gEComponents` | 08-10, 08-11 |
+
+---
+
+## 2026-08-21 — Animation authoring becomes a slice, and generation goes first
+
+**The one clip is not the justification.** Knockdown's sub-slice F is blocked on `AM_GetUpAttack`,
+but a single montage does not warrant a pipeline. What does: **Polish's bespoke windup pass is
+currently implemented as selection under constraint.** The 2026-08-18 entry asks a candidate for
+"a legible anticipation apex to blend into" and records a designer read that "widens the pool
+considerably" — the vocabulary of a search problem. Authoring dissolves it, and the pass stops
+being bespoke-by-compromise. Past the roster, a second weapon makes the capability permanent.
+
+**Generation before assembly, and not for the reason first argued.** The initial case was that
+assembling a two-clip trimmed montage was novel work generation would avoid. That was wrong:
+`AM_Dodge` holds eight `animSegments` in one slot track and the trim is a single field. **The
+actual reason is the designer's read that the composition would look bad** — rise front-half plus
+a 360° spin, for a move whose whole read is *coming off the floor*. A placeholder reaching
+Interplay teaches the wrong tell, so the composition is deferred on quality rather than
+difficulty, and survives only as a mechanical test fixture that never reaches a feel verdict.
+
+**Meshy is deliberately speculative**, in the designer's framing: no use case in this slice or the
+rest of this work, set up now because art enters the conversation if the project survives, and
+"only worth doing if we're willing to bet on ourselves." Recorded as such rather than justified
+after the fact.
+
+**How the composition went unnoticed.** `Plan-Knockdown.md` named the recipe and its candidate on
+2026-08-19; `CLAUDE.md` gained "no clip in the library suits it" on 2026-08-20 with no recorded
+search. Both searches were correct and both were for a *single* clip. The composition lived only in
+a plan nobody opens unless they are working that slice.
 
 ---
 
