@@ -1,6 +1,7 @@
 # Working in Unreal on this project
 
-**Read this file front to back at the start of every session.** It is not a reference for when
+**Read this file front to back before planning or executing work that touches the engine.** It is
+not a reference for when
 something breaks; it is what must already be in your head before you touch the editor, because most
 of what it describes **fails silently** — a write that returns true and changes nothing, a build
 that never happened, a log that lies about absence. It is kept short enough for that to be
@@ -17,11 +18,10 @@ engine.**
 
 ## Before you start
 
-**The editor must be open before Claude Code starts.** `unreal-mcp` is an HTTP server hosted by the
-in-editor plugin (`127.0.0.1:8000`, see `.mcp.json`).
+`unreal-mcp` is an HTTP server hosted by the in-editor plugin (`127.0.0.1:8000`, see `.mcp.json`).
+**`CLAUDE.md` carries the startup registration rule** *(reported twice)*, because it has to be
+known before this file is triggered.
 
-- **Editor absent at Claude Code startup** *(reported twice)* — the tools never register for that
-  entire session, and opening the editor afterwards does not fix it. Restart Claude Code.
 - **Editor closed and reopened mid-session** *(confirmed)* — fine, tools resume by themselves.
 
 The distinction is **registration versus connection**: schemas are picked up once at session start,

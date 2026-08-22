@@ -57,17 +57,16 @@ they form.
   so the designer adjusts without recompiling.
 
 ## Implementation Conventions
-- **`TheDream` is the codename, not the title.** It appears in exactly three places: the C++ module
-  (`/Script/TheDream.*`), the content root `/Game/TheDream/`, and the `TD` class prefix. All three
-  are permanent — renaming a module breaks every Blueprint's stored class path, paid for with
-  `ActiveClassRedirects` cruft that never goes away.
+- **`TheDream` is the codename, not the title.** It is baked into the C++ module
+  (`/Script/TheDream.*`), the content root `/Game/TheDream/`, and the `TD` class prefix, all
+  permanent — renaming a module breaks every Blueprint's stored class path and costs permanent
+  `ActiveClassRedirects` cruft.
 - **The shipping title lives only in `ProjectName` (`Config/DefaultGame.ini`) and localized
   strings.** That makes retitling a one-line change rather than a migration.
 - **Everything authored here lives under `/Game/TheDream/`**; anything at `/Game/` root is Epic
-  template or third-party. Combat content is under `/Game/TheDream/Combat/`
-  (`Abilities/`, `Effects/`, `Animations/`, `Input/`, `Characters/`, `Data/`).
-- C++ mirrors this: `Source/TheDream/Core/` and `Source/TheDream/Combat/` (`Abilities/`,
-  `Attributes/`, `Tasks/`, `Notifies/`). Includes are relative to the module root, e.g.
+  template or third-party. Combat content is under `/Game/TheDream/Combat/`, subfoldered by kind.
+- C++ mirrors this: `Source/TheDream/Core/` and `Source/TheDream/Combat/`, subfoldered the same
+  way. Includes are relative to the module root, e.g.
   `#include "Combat/Attributes/TDAttributeSet.h"`.
 
 ## Project Documentation
@@ -80,7 +79,7 @@ wrong.
   to change how combat behaves.*
 - **`Docs/Working-In-Unreal.md`** — driving the editor and its MCP toolset without losing work.
   Nearly everything in it **fails silently**, so it only helps if already in your head. *Trigger:
-  read front to back at the start of every session.*
+  before planning or executing work that touches the engine.*
 - **`Docs/Debug-Instruments.md`** — trace tags, cvars, the fixtures and the configurations that
   silently invalidate them, the scenario matrix, the verification checklist. *Trigger: about to
   measure something in combat.*
@@ -204,6 +203,10 @@ went wrong once.
 
 **At startup, check that the previous session wound down, and say so if it did not** — a dirty
 working tree, or stranded packages in `Saved/Autosaves/PackageRestoreData.json`.
+
+**MCP tools register only if the editor was open when Claude Code started.** Opening it later does
+not fix that session; restarting Claude Code does. This is in the always-read file because no
+trigger fires early enough to help.
 
 **Never delete assets or change project settings without explicit approval.**
 
