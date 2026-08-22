@@ -3,48 +3,37 @@
 ## Project Intent
 A high-precision **PvP** combat prototype in Unreal, prioritising spacing, reactability windows, stamina as a real resource, and clear punishes.
 
-**PvP is the destination, not a later phase.** A prototype that cannot be played against another person does not answer the question it exists to ask.
+**PvP is the destination.** A prototype that cannot be played against another person cannot answer the question it exists to ask.
 
 Feel goals, in priority order:
 - Precise spacing and whiff punish
-- Unreactable-but-risky light offense vs reactable-but-rewarding **charged**. Light and heavy form
-  a **fast layer**, read as *"they pressed"*; only the charged holds the reactable pole, *"they're
-  charging"*
+- Two types of offense: unreactable but risky (lights and heavies) against reactable but rewarding
+  (charged)
 - High-agency defense (block, dodge, parry) with meaningful costs
 - Fair, readable knockdown / oki
 - Strong melee identity first; ranged and hybrid later
 
-## Current Prototype Scope
-**In scope** is the execution order below. **Explicitly out of scope:**
-- Multiple weapons / weapon swapping
-- Ranged and Hybrid archetypes
-- Armor classes
-- Abilities / specials
-- Full frame-data tuning pass (placeholder numbers are fine)
-- **Multiplayer session UX** — lobbies, matchmaking, reconnect. *Running* multiplayer is in scope;
-  **Netcode** holds a roster position ahead of Interplay.
-
 ## Building for the network
 
-**Server-authoritative with client prediction** — the model GAS is designed around. Three rules
-bind all new work:
+**Server-authoritative with client prediction** — the model GAS is designed around. Binding on all
+new work:
 
 - **New state is a replicated property or an attribute, never a loose gameplay tag** — loose tags
   do not replicate. Follow `bDead` / `bExhausted` on `ATDCombatCharacter`: the server decides, the
-  bool replicates, `OnRep` applies the tag locally. **Decide on the server, apply everywhere.**
+  bool replicates, `OnRep` applies the tag locally.
 - **Authority-sensitive work is explicitly gated.** Damage, attribute writes and hit detection
   belong to the server. What only the local machine can know — input, buffered presses,
   camera-relative facing — deliberately does not.
-- **Latency comes out of the reactability budget, so it is a design input.** The tightest window is
-  the **light's 200 ms**. When choosing a timing, say what it looks like with a round trip in it.
+- **Latency is a design input.** The tightest window is the light's release. When choosing a
+  timing, say what it looks like with a round trip in it.
 
 **Netcode difficulty is never a reason to compromise combat feel.** Status is in Netcode's brief.
 
 ## Combat Vocabulary
 
-Used consistently in code, comments and discussion. **The spec — timings, costs, windows, volumes,
-state transitions — is `Docs/Combat-Spec.md`**, with one exception kept here: the ladder's two
-numbers per tier, needed to read a commit message or a trace line in any session.
+Used consistently in code, comments and discussion. **The spec itself is `Docs/Combat-Spec.md`**,
+with one exception kept here: the ladder's two numbers per tier, needed to read a commit message or
+a trace line in any session.
 
 | | Release before | Hitbox live |
 |---|---|---|
@@ -56,15 +45,13 @@ numbers per tier, needed to read a commit message or a trace line in any session
 - **Release** — the period during which it deals damage. Marked on a montage by the `Release
   Window` notify state (`UAnimNotifyState_MeleeWindow`).
 - **Recovery** — a tail you inflicted on yourself. For an attack, the third phase: end of the
-  damaging phase to end of the attack. A whiffed parry's is the same idea. Say *attack recovery*
-  only where context leaves it open.
+  damaging phase to end of the attack. A whiffed parry's is the same idea.
 - **Lockout** — a tail someone else inflicted on you: blockstun, hitstun, a guard break. **The axis
   is who caused it, not what it forbids** — a recovery can refuse more than a lockout does, and
   attacker-versus-defender is immaterial.
 - **Coil** — *not* a fourth phase: the sub-state of windup slowed while waiting for the commit
   checkpoint, as visual feedback. Its values are named `Coil*` rather than after a phase.
-- **Initiative** — frame advantage. One of the **two ledgers** an exchange settles in, the other
-  being stamina; an attack plus on block takes stamina *and* keeps initiative.
+- **Initiative** — frame advantage; one of the two ledgers an exchange settles in.
 - **Flinch** — hitstun interrupting offense. Distinct from the **challenge**, a raw counter thrown
   out of blockstun; the two race, and the blockstun derivation decides by how much.
 
@@ -74,14 +61,14 @@ the damaging phase; the button edge is always *input release*.
 **Attack and swing mean the same thing.** A chained light is **three attacks**, not one attack in
 three parts — `FTDStringSwing` and the trace's `swing=N` are that index. A **string** is the chain
 they form. A **burst** is the debug fixture's firing cycle: a string when
-`DebugAutoAttackStringTaps` > 1, a single attack at its default 1.
+`DebugAutoAttackStringTaps` > 1, a single attack otherwise.
 
 ## Technical Preferences
 - **C++** for core systems, characters, AttributeSets, ability base classes and non-trivial logic;
   Gameplay Abilities, Effects and notify logic may live in Blueprint where that speeds iteration.
-- **GAS is preferred** for attacks, block, dodge, parry, stamina, hitstun, blockstun, knockdown.
-- **Every important tuning value — timings, costs, magnitudes, windows — is exposed via UPROPERTY**
-  or lives in data (curves, data assets), so the designer adjusts without recompiling.
+- **GAS is preferred** for combat — abilities, states and attributes alike.
+- **Every important tuning value is exposed via UPROPERTY** or lives in data (curves, data assets),
+  so the designer adjusts without recompiling.
 
 ## Implementation Conventions
 - **`TheDream` is the codename, not the title.** It appears in exactly three places: the C++ module

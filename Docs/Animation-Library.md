@@ -404,7 +404,7 @@ Worth recording, because a name gives no hint and re-discovering costs a preview
 
 - **`AS_SwordSwordAnimV3_Attack7_Stage2_Complete_RM` is a shield bash** — starts from idle, steps
   forward into a bash, holds the new position. Wrong for a sword light, and a strong candidate if
-  a **shield bash ability** is ever wanted (out of scope now; abilities and specials are).
+  a **shield bash ability** is ever wanted.
 
 ## Known gaps and what they imply
 

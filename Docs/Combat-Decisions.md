@@ -6751,8 +6751,8 @@ sitting in the always-read file.
   construction. Last of the megaslice.
 - **Netcode** — the behavioural pass the 2026-08-15 recon mapped: the two `SetTimer` sites and
   i-frame lag compensation (one problem twice), prediction windows, client stamina prediction, the
-  loose-tag aim-assist asymmetry, and a shareable direct-connect build — lobbies and matchmaking
-  stay out of scope. **It opens with the three checks V2 could not run** (2026-08-15, reclassified
+  loose-tag aim-assist asymmetry, and a shareable direct-connect build.
+  **It opens with the three checks V2 could not run** (2026-08-15, reclassified
   from chores: client attack → server damage, the client-tag re-measure now `DEATH`/`EXHAUSTED` are
   sited in `Apply*`, and `OnRep_PlayerState` via the `ASC RESOLVE` line, which is confirmed working
   in standalone). None is input-blocked any more — `Net PktLag` runs from the editor console. **The tempo measurement comes first** *(the kill-question, renamed 2026-08-18 — its output is
