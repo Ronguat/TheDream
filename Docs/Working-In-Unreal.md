@@ -241,9 +241,11 @@ type** — a broken one usually looks fine alone.
 
 - **InputMappingContext** *(confirmed)* — UE 5.8 reads `defaultKeyMappings.mappings`. The top-level
   `mappings` array accepts writes and is never read.
-- **GameplayEffect modifier attribute** *(reported once)* — setting `attributeName` + `attributeOwner`
-  leaves the `FProperty` null, so the effect modifies nothing. Re-pick it in the details panel. The
-  `attribute` field reads `/Script/TheDream.TDAttributeSet:Health` when correct, empty when broken.
+- **GameplayEffect modifier attribute** *(confirmed 2026-08-21, corrected)* — writing
+  `attributeName` + `attributeOwner` does not re-resolve the `FProperty`, and it does **not** leave
+  it null as recorded: it **keeps the previous attribute**. Wrote `Health` on a duplicate;
+  `attribute` stayed `...:Stamina` while `attributeName` read `Health`, so the effect modifies the
+  old one while reading as the new — worse than an empty field. Re-pick in the details panel.
 - **A GameplayEffect's inline tag containers cannot be written** *(confirmed 2026-08-10)* —
   `inheritableOwnedTagsContainer` and `ongoingTagRequirements` accept writes and read back empty; UE
   5.8 moved this to `gEComponents`. **Adding a GEComponent is not scriptable.** Numeric properties on
@@ -254,11 +256,11 @@ type** — a broken one usually looks fine alone.
   fails and leaves a partial write. **Empty the container, then write it whole**, as two calls.
   Applies to `FGameplayTagContainer`, where the array is `gameplayTags`.
 - **TMap keys** *(reported once)* — logs `added key ... not found in map` while being correct.
-- **`AssetTools` functions taking an `asset_path` string false-negative on assets that exist** —
-  `exists`, `is_dirty`, `get_asset_class` and `save_assets` all rejected `GA_Attack` 2026-08-14 while
-  `find_assets` listed it and `load_asset` returned it. **Use `load_asset` as the existence check.**
-  `duplicate` fails with a bare `false`; a plain asset may need a human, though a `CurveFloat`
-  worked 2026-08-13.
+- **`AssetTools` path functions work** *(confirmed 2026-08-21, correcting a 2026-08-14
+  false-negative claim)* — `exists`, `is_dirty` and `get_asset_class` answer for `GA_Attack` and for
+  an unloaded vendor map, so loading is not the variable. `save_assets` untested; testing it means
+  writing. **`load_asset` is no longer needed as the existence check.** `duplicate` still fails with
+  a bare `false`, though a `CurveFloat` worked 2026-08-13.
 - **The two `save_assets` forms do different jobs, and picking the wrong one bakes a trap**
   *(2026-08-20)*. The empty list saves everything dirty **including the level**, which is how the
   stale-override trap below gets created after a CDO session. **Naming the assets works and scopes
