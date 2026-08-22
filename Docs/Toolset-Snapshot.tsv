@@ -5,7 +5,8 @@
 # Every wall that fell on 2026-08-15 turned out to be pre-existing and untested,
 # but with no baseline that could only be asserted, not shown.
 #
-# HOW TO USE: at session start, run list_toolsets and diff against this file.
+# HOW TO USE: before planning or executing engine work — the same trigger as
+# Working-In-Unreal.md — run list_toolsets and diff against this file.
 #   A new row  = the surface grew; re-read Working-In-Unreal.md's limits.
 #   A gone row = something was removed; claims depending on it are now suspect.
 # Regenerate and commit whenever it legitimately changes, with a dated note.

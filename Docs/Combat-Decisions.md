@@ -853,6 +853,7 @@ concludes the log is wrong rather than merely old. Add a row whenever a name cha
 
 | Entries say | Code now |
 |---|---|
+| **Not scriptable at all** (`Working-In-Unreal.md` section) | **What is and is not scriptable** — retitled because most of the section refutes limits rather than asserting them. |
 | **Knockdown & Oki** (roster item) | Split 2026-08-18 into **Knockdown** (functionality: knockdown and its grades, get-up options, the get-up attack, the guard-break lockout, jump-as-ability, hitstun's movement lock, the string's terminator) and **Polish** (style over substance, carrying the bespoke windup pass). Entries naming "Knockdown & Oki" predate the split and usually mean the functionality half. |
 | **Stun** (roster item) | Split 2026-08-15 into Knockdown & Oki and Death-full; those two split again 2026-08-18, see the row above. |
 | `CoilPlayRate` | Derived at runtime from distance and time remaining. The authored knob is `CoilEndSeconds`. |

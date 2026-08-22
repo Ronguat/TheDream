@@ -269,7 +269,7 @@ type** -- a broken one usually looks fine alone.
 
 ---
 
-## Not scriptable at all
+## What is and is not scriptable
 
 Needs a human in the editor:
 
