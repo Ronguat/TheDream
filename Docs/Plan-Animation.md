@@ -104,12 +104,20 @@ read it back, save, see the file in `git status`, and confirm the drift warning 
 
 **C — Meshy.** Unchanged: deliberately speculative, dropped without consequence if B runs long.
 
-**D — author the clip.** Frame 0 keyed from the ground pose, the last frame from the idle; the
-strike roughed through AutoPosing and `MotionGeneration_Run` with viewport captures as the
-feedback loop; an AutoPhysics pass; the designer's eye decides when it reads as coming off the
-floor. Stationary, in place, no baked travel; duration free — E rate-fits it.
+**D — author the clip.** **The rough is built in UE, not posed in Cascadeur** (2026-08-22):
+`ue_build_rough.py` writes every bone track key-exact — frames 0–3 the ground pose, 10–30
+`Attack2_Stage2_IP` frames 8–28 (its right hand peaks at frame 19, found by `ue_bone_speed.py`),
+45–46 the idle, root held at the idle's — and verifies all seven anchors to 0.000°. Cascadeur then
+receives it baked: `casc_open_gaps.py` drops the keys in 4–9 and 31–44 and sets the intervals
+before them to `AI` interpolation, so its inbetweening owns the rise and the settle and the designer
+owns the middle. `Timeline.Remove frames` ignores the API's frame selection, which is why the
+assembly moved to UE. Stationary, in place, no baked travel; duration free — E rate-fits it.
 
-**E — assemble `AM_GetUpAttack`.** Single-segment montage from D's clip, fitted to
+**E — assemble `AM_GetUpAttack`.** **Montage-from-clip is scriptable**: `AnimMontageFactory` with
+`target_skeleton` and `source_animation` through `AssetTools.create_asset` (2026-08-22,
+`ue_make_montage.py`, which also places the window and prints the derived rates and the blend-out
+check). `Scratch/AM_GetUpAttack_Rough` is that script's output on the rough — a fixture for E/F's
+mechanical proof, never the shipped asset. Single-segment montage from D's clip, fitted to
 `Plan-Knockdown.md`'s authored phases at derived rates; the notify's start and the ability's
 `ReleaseStartSeconds` written from one number if A3 holds, by hand if not; the blend-out condition
 checked like any montage.
