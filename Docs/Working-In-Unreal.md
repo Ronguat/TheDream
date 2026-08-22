@@ -81,17 +81,19 @@ re-path and actors silently go missing. Use File → New Level → Empty.
 
 **The editor console is drivable, and it is the only console route there is** — `EditorAppToolset`
 searches cvars and cannot set one. `Observe` the main window, `Snapshot` for the status-bar textbox
-beside the **"Cmd"** combobox, `Type` with `submit: true` *(confirmed 2026-08-15)*.
+beside the **"Cmd"** combobox, `Type` with `submit: true` *(confirmed 2026-08-15)*. **`Type` fails on a single quote** *(confirmed
+2026-08-21)* — it returns `false`, logs nothing, enters nothing, and reads like a permissions
+refusal. Double quotes are fine, so write `print("x")` and never `print('x')`.
 
 **Menus navigate, which answers "where is this in the editor" without guessing** *(2026-08-15)*.
 `Click` a dropdown, `Click` an entry for its submenu, `PressKey Escape` to leave no state behind.
 Menus are separate Slate windows; **`Hover` does not open a submenu and `Click` does**; a full
 `Snapshot` here is enormous, so **`WaitFor` is the cheap presence probe**. **Use it before describing a UI location from memory.** **Keep it read-only** unless a change was asked for; it is their live editor.
 
-**Say what you are about to do before driving their UI, every time.** A menu opening by itself on
-someone's screen is startling in a way a file edit is not — the surface is in front of them and
-moving without warning. Announce, then act; this is the one toolset where the user watches it
-happen.
+**In conversation, say what you are about to do before driving their UI.** A menu opening by itself
+on someone's screen is startling in a way a file edit is not — the surface is in front of them and
+moving without warning. This is the one toolset where the user watches it happen. **Greenlit
+execution is exempt**: it was agreed in advance, and hesitating there is the failure, not the care.
 
 **It does not reach the game** *(confirmed 2026-08-15, both confounds killed first)*. `PressKey`
 delivers to the focused **accessible** widget and the PIE viewport is absent from the accessibility
@@ -286,6 +288,18 @@ grep -o '"name":"<toolset>\.[a-z_]*"' <saved-file> | sed 's/.*\.//;s/"//' | sort
 
 That returned 51 tools for `BlueprintTools` in one call. **A `describe_toolset` that will not fit
 is the exact condition under which a capability goes unnoticed for months.**
+
+**The Unreal Python API is reachable, and nothing needs installing** *(confirmed 2026-08-21)*.
+`PythonScriptPlugin` is an engine default, so it is enabled while absent from the uproject's plugin
+array — checking there reads as "not installed" and is a filtered view. `IKRig` runs its own
+`init_unreal.py` at startup, so that API is loaded too.
+
+The route is a two-step REPL: `Type` a `py` statement into the status bar's Cmd textbox with
+`submit: true`, then read what it printed with `LogsToolset.GetLogEntries` on category `LogPython`.
+`py import unreal; print(unreal.SystemLibrary.get_engine_version())` returned `5.8.1`. This is a
+second scripting surface into the editor, wider than the toolsets, and **the limits below were all
+measured against the toolsets alone** — re-test any of them through Python before treating it as a
+wall.
 
 Needs a human in the editor:
 
