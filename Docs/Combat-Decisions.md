@@ -151,6 +151,17 @@ already lives.)*
 
 ---
 
+**Before the next documentation audit — *nothing mechanical compares two docs for contradicting
+instructions.*** `docs-check` has eight checks and none of them does this. The 2026-08-21 audit
+found three by hand: `Closing-Down` instructed the exact `save_assets` call `Working-In-Unreal`
+says creates the stale-override trap, and that call sat in a third place inside `Working-In-Unreal`
+itself; `Toolset-Snapshot.tsv` told you to diff the registry "at session start" after that trigger
+had moved. A cross-doc token index catches the shape — the same tool call named in two files with
+different advice — but the one built that day compared occurrences *between* documents and was
+blind to two occurrences *within* one, which is how the third instance survived it. **The
+always-read duplication check is not this**: identical text is the easy case, and contradicting
+text shares no shingles at all.
+
 **Before the reach/travel/spacing pass — *reach, travel and the placed spacing are one felt
 quantity and none of them is authored yet.*** The oldest live trap, filed at Attack Swap and
 re-shaped three times since. **Everything mechanical about it is discharged; what remains is
@@ -1171,6 +1182,44 @@ long.
 | `bUseControllerRotationYaw` | 08-12 |
 | `compositeSections` | 08-15, 08-18 |
 | `gEComponents` | 08-10, 08-11 |
+
+---
+
+## 2026-08-21 — The tests a documentation audit actually runs on
+
+Nine of these were used repeatedly across the comment pass, the `CLAUDE.md` audit and the
+`Working-In-Unreal` audit, and none was written anywhere. They are here rather than in `CLAUDE.md`
+because they are method, not rules that bind every session.
+
+- **"X, not Y" earns its keep only when Y is a live wrong answer.** "PvP is the destination, *not a
+  later phase*" is the mirror of X and doubles the words for nothing. "The axis is who caused it,
+  *not what it forbids*" rules out a reading someone would actually reach. Mirror → cut.
+- **A closed enumeration rots; a visibly partial example does not.** "includes" and "is one" signal
+  incompleteness and can never be wrong. Both closed lists in `CLAUDE.md` were already stale when
+  found — the GAS list named every combat system that existed, and Lockout named three of five tags,
+  omitting knockdown and being parried.
+- **A stated count of a visible list is a maintenance liability.** "Three rules bind all new work" —
+  the reader can count, and a fourth rule silently makes it false. Unless the count is an
+  *exhaustiveness claim*: "appears in exactly three places" means a fourth appearance is a bug. That
+  one earns itself, and was still false against eight.
+- **An assertion followed by its own evidence is one thing said twice.** Keep the evidence.
+- **A claim co-located with its mechanism defends itself.** The same claim isolated reads as an
+  artifact — a real designer decree was nearly cut for having no visible support, and survived by
+  moving next to the paragraph that derives it.
+- **Grep sees written usage only.** A term used in conversation is invisible to it, which is why
+  "flinch" scored one code hit and is load-bearing anyway.
+- **A transcription artifact and a decree recorded only here are indistinguishable to a grep.** Both
+  return zero external sources. Only the author separates them, so the default is keep-and-ask.
+- **A rule with no failure condition is a preference.** "Every new system should be playable in PIE
+  as soon as possible" — nothing detects a violation, nothing breaks.
+- **A line-count budget rewards bad wrapping.** Eight lines in `Working-In-Unreal` run 116–208
+  characters; rewrapping them to the file's own ~100 would *add* lines and worsen the number.
+
+**And the finding that outranks all of them.** Every deep result came from the designer pushing on
+a passage already read and called clean — "tail", "challenge", the recovery-versus-lockout
+ordering, `AM_Dodge`'s segment count. The mechanical tests generate candidates; they do not judge
+provenance or whether something is load-bearing, and no amount of grepping substitutes for the
+person who wrote the thing.
 
 ---
 
