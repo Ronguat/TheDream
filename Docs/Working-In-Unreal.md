@@ -88,6 +88,11 @@ beside the **"Cmd"** combobox, `Type` with `submit: true` *(confirmed 2026-08-15
 Menus are separate Slate windows; **`Hover` does not open a submenu and `Click` does**; a full
 `Snapshot` here is enormous, so **`WaitFor` is the cheap presence probe**. **Use it before describing a UI location from memory.** **Keep it read-only** unless a change was asked for; it is their live editor.
 
+**Say what you are about to do before driving their UI, every time.** A menu opening by itself on
+someone's screen is startling in a way a file edit is not — the surface is in front of them and
+moving without warning. Announce, then act; this is the one toolset where the user watches it
+happen.
+
 **It does not reach the game** *(confirmed 2026-08-15, both confounds killed first)*. `PressKey`
 delivers to the focused **accessible** widget and the PIE viewport is absent from the accessibility
 tree, in-viewport and floating alike. **There is no synthetic gameplay input**: anything needing a
