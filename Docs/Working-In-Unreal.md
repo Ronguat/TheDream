@@ -316,8 +316,11 @@ Needs a human in the editor:
   time at activation. So the split for anything notify-driven is: **a human places it, C++ reads
   it, and the trace line it emits is what lets us verify the placement.** Reaching for a screenshot
   here would be answering a question the game can answer itself, every run.
-- A montage's **`compositeSections`** — neither readable nor writable, and `sequenceLength` is
-  read-only and does not recompute after a reflection write
+- A montage's **`compositeSections`** — neither readable nor writable *(re-confirmed 2026-08-21)*,
+  and `sequenceLength` is read-only and does not recompute after a reflection write.
+  **`slotAnimTracks` reads back in full structural detail**, not only writes whole: every segment's
+  `animReference`, `startPos`, `animStartTime`, `animEndTime` and `animPlayRate` come back
+  *(2026-08-21)*, so a montage's construction is inspectable even where its sections are not
 - **`UCurveFloat`'s keys** *(confirmed 2026-08-13)* — `FloatCurve` is a bare `UPROPERTY()` the
   reflection layer cannot see. Creating the asset by duplication works, so the split is **script the
   asset, have a human author the keys**; only measured travel can confirm a curve's mean.

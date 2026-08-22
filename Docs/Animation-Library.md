@@ -591,6 +591,12 @@ preview mesh is a human step.**
 Use **Asset Actions → Migrate** from `AnimLibrary`, targeting `TheDream/Content`. Migrate
 copies the whole dependency chain, which is the thing to be careful about.
 
+**What our montages actually look like** *(read off the assets 2026-08-21)*. `AM_Dodge` holds
+**eight `animSegments` in one slot track**, sequential from `startPos` 0 to 5.833 — so a
+multi-segment montage is precedented and needs no special handling. **No clip in this project is
+trimmed**: every one of those segments runs `animStartTime: 0` to `animEndTime` at full clip
+length. Trimming is one field rather than a structure, but nothing here has done it yet.
+
 **The skeleton caveat.** Every sub-pack ships its *own copy* of `SK_Mannequin`, at its own
 path — e.g. `GDHBundle/Unarmed/DEMO/Character_Unarmed/Mannequins/Meshes/SK_Mannequin`. This
 project already has one at `/Game/Characters/Mannequins/Meshes/SK_Mannequin`. They are the

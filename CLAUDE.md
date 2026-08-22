@@ -196,6 +196,11 @@ nothing proves only that your filter did not match. Search the authoritative sou
 synonyms and known misspellings, **quote the command you ran**, and **date every absence claim with
 what you searched** — absence claims rot faster than any other kind.
 
+**When a doc describes something that exists, read the thing.** The same failure wearing a positive
+claim: a document is accurate about the moment it was written, and describes a limit that has since
+lifted, a construction still in progress, or a default that was never checked. Prefer the artefact —
+the asset, the registry, the running editor — and treat its description as a pointer to it.
+
 **Do not delete lines you did not write without asking**: most are scar tissue from something that
 went wrong once.
 
