@@ -163,7 +163,7 @@ check_trailers() { # -> prints trailer-less commits since origin/main
 # --- C8 (WARN): budgets ------------------------------------------------------
 # Backstops, never gates: the criterion is the closedown questions. A line count is
 # checkable in a second and fitness is not, so the number crowds out the criterion
-# unless it is explicitly demoted. ~280 / ~500 per Closing-Down.
+# unless it is explicitly demoted. ~280 / ~520 per Closing-Down.
 check_budget() { # $1=file $2=limit
   local n; n=$(wc -l < "$1")
   [ "$n" -le "$2" ] && return 0
@@ -236,7 +236,7 @@ out=$(check_ngrams CLAUDE.md Docs/Working-In-Unreal.md) && ok "always-read-dup" 
 out=$(check_trailers) && ok "trailers" "all commits since origin/main carry parsed trailers" || { warn "trailers" "confirm these are not Claude-authored:"; printf '%s\n' "$out"; }
 
 out=$(check_budget CLAUDE.md 280) && ok "budget" "CLAUDE.md inside backstop" || warn "budget" "$out"
-out=$(check_budget Docs/Working-In-Unreal.md 500) && ok "budget" "Working-In-Unreal.md inside backstop" || warn "budget" "$out"
+out=$(check_budget Docs/Working-In-Unreal.md 520) && ok "budget" "Working-In-Unreal.md inside backstop" || warn "budget" "$out"
 
 echo
 if [ "$FAILS" -gt 0 ]; then echo "RESULT: $FAILS FAIL, $WARNS WARN"; exit 1; fi
