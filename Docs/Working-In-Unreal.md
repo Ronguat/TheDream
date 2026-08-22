@@ -42,17 +42,17 @@ see a new tool inside an existing toolset, which is the price of staying cheap e
 |---|---|
 | Running? | `tasklist \| grep -i UnrealEditor.exe` |
 | Open | `nohup "/c/Program Files (x86)/UE_5.8/Engine/Binaries/Win64/UnrealEditor.exe" "<abs path>/TheDream.uproject" >/dev/null 2>&1 &` |
-| Save all dirty | `AssetTools.save_assets` with `asset_paths: []` |
+| Save | `AssetTools.save_assets` naming the paths — see the empty-list trap below |
 | Close | `taskkill //F //IM UnrealEditor.exe` — exits in ~2 s |
 
-**Save-all, then read `git status`, then kill.** Calling `save_assets` is not the check; *seeing the
+**Save, then read `git status`, then kill.** Calling `save_assets` is not the check; *seeing the
 files listed* is. **Two failure modes wear the same face:** a write that is saved but not yet live
 needs a restart and is safe, and a write that was never saved is already gone. Both read back fine
 from inside the editor. `git status` is the only thing that separates them and it must happen
 *before* the kill.
 
 There is **no graceful quit** — checked across the whole toolset registry. So closing is always a
-forced kill, and **save-all covers assets only**: in-progress asset-editor state dies unasked.
+forced kill, and **saving covers assets only**: in-progress asset-editor state dies unasked.
 `Saved/Autosaves/PackageRestoreData.json` reading `Packages: []` confirms nothing was stranded;
 **`Packages` is the field that matters, not `RestoreEnabled`**, which is not a stable signal.
 
