@@ -98,9 +98,8 @@ wrong.
 **Durable knowledge belongs in these files, not in per-machine memory.** Memory keeps only what is
 session- or machine-scoped, and *points* at the repo rather than restating it.
 
-**One fact, one home; everywhere else points at it.** **Summaries and descriptions are where this
-breaks**: they restate values nobody thinks to update, and a second copy is not reinforcement, it
-is something nobody reviews. **Name the authority rather than restating the value.**
+**One fact, one home; name the authority rather than restating the value.** A second copy is not
+reinforcement — it is the one nobody reviews.
 
 **`Tools/DocsCheck/docs-check.sh` is these files' integrity check.** Run it after any edit that
 moves text between docs; closedown runs it regardless.
@@ -108,7 +107,7 @@ moves text between docs; closedown runs it regardless.
 **Name the asset, not the C++ class — a correctness rule, not a style one.** A Blueprint CDO
 override shadows a C++ default silently, so a class is authoritative only until someone touches a
 details panel. Write *"`BP_PlayerCharacter`'s CDO is authoritative, defaults in
-`ATDCombatCharacter`"*, which names both and says which wins.
+`ATDCombatCharacter`"*.
 
 **Deliberately not kept: per-system design docs.** A doc describing a system drifts, then gets
 trusted over the code.
@@ -120,8 +119,8 @@ the code or a doc to `Docs/` first.
 
 **Comment volume is ratcheted, not trusted.** The same script fails when a file outgrows its entry
 in `Tools/CommentCheck/baseline.txt`, so **adding volume means raising that number in the same
-commit and saying why** — a sanctioned edit, and the only one. Never regenerate the baseline to
-clear a failure; `--baseline` is for a pass that deliberately re-sets the standard.
+commit and saying why** — a sanctioned edit, and the only one. `--baseline` is for a pass that
+deliberately re-sets the standard.
 
 ## Communication
 
@@ -132,6 +131,10 @@ earns its space; a second example does not. **Efficient, not expressive.**
 **A transcription may lose detail; it may never add any.** Sharpening a source — into a term, a
 category, a general rule — is a decision taken quietly and reads as more authoritative than what it
 came from. Point at the source; if it says less, say less.
+
+**Report what was found, not who found it.** Note a contribution in a clause if it matters to the
+reasoning and move on; do not tally credit and do not apologise. A wrong claim still gets corrected
+plainly.
 
 ## Working Rules
 
@@ -148,28 +151,23 @@ about *what* or *why* emerges mid-run, stop and raise it.
 - **Permission prompts are not the mechanism.** A prompt only asks a HOW question, so it cannot
   gate a WHAT; do not add one to cover a rule.
 
-**When something is vague, or two sources disagree, ask. Every single time.** This project is
-**maximally designer-authored at every step except the HOW**, so resolving an ambiguity quietly
-takes a decision that was never yours — including when it looks obvious and turns out right. **An
-implementation disagreeing with its spec is a question to ask, not a discrepancy to fix.** **A
-question is the cue to commit a design direction and solidify it**, so ask early and cheaply, and
-record the choice in `Docs/Combat-Decisions.md`. Unprompted initiative is welcome for debug and
-tooling conveniences;
-never for anything that changes how the game plays.
+**When something is vague, or two sources disagree, ask. Every single time.** Resolving an ambiguity
+quietly takes a decision that was never yours — including when it looks obvious and turns out right.
+**An implementation disagreeing with its spec is a question to ask, not a discrepancy to fix.** Ask
+early and cheaply. Unprompted initiative is welcome for debug and tooling conveniences; never for
+anything that changes how the game plays.
 
 **The design runway lives outside the repo, deliberately.** The user maintains living design
-documentation running ahead of the build and dispenses from it as each thing becomes relevant.
-**Silence in the spec is not a gap and not missing design** — it means we have not reached that
-thing yet. Do not invent to fill it, and do not try to write the runway down.
+documentation running ahead of the build and dispenses from it as each thing becomes relevant, so
+**a question is the cue to commit a design direction and solidify it**. **Silence in the spec is not
+a gap and not missing design** — it means we have not reached that thing yet. Do not invent to fill
+it, and do not try to write the runway down.
 
 **The loop: objective → read the traps → measure → plan → greenlight → execute → report.**
-- **Reading the traps is a step, not a hope.** Before measuring, grep `Docs/Combat-Decisions.md`'s
-  known-traps section for the item in play and say what it turned up.
-- ***Measuring comes before planning*** — a plan proposed before measuring is the first hypothesis
-  wearing a schedule.
-- ***The pause is real.*** Do not begin work that has not been described and agreed, however
-  obvious. A plan for an attack or defensive move includes the input binding, montage/notify
-  windows, stamina cost, and at least a basic success/failure outcome.
+- Before measuring, grep `Docs/Combat-Decisions.md`'s known-traps section for the item in play and
+  **say what it turned up**.
+- Do not begin work that has not been described and agreed, however obvious — described in enough
+  detail that executing it needs no further decisions.
 - ***Execution after a greenlight is unattended*** — drive editor closes, rebuilds, asset writes and
   verification through to the end. If something mid-execution changes what should happen — **scope
   as much as direction** — that is a **new plan** needing its own greenlight.
@@ -177,10 +175,10 @@ thing yet. Do not invent to fill it, and do not try to write the runway down.
   merely written**, the assets touched and key values set, and **what was done beyond what was
   agreed, or that nothing was** — then stop. This is what makes unattended execution safe.
 
-**Any package planning a new combat capability includes one of two things, and there is no third:**
-the scenarios it will add to `Tools/RegressionCheck/regression-check.sh` **in the same package**, or
-a **dated trap** naming what is now untested. **Doing neither is a process violation, and it binds
-at plan time.** A loop that lags the combat surface still prints green.
+**Any package planning a new combat capability includes one of two things:** the scenarios it will
+add to `Tools/RegressionCheck/regression-check.sh` **in the same package**, or a **dated trap**
+naming what is now untested. **It binds at plan time.** A loop that lags the combat surface still
+prints green.
 
 **When play and rationale disagree, play wins.** A designed distinction that does not survive
 contact with feel gets dropped, and the entry recording it superseded. Do not treat a persuasive
@@ -205,10 +203,7 @@ went wrong once.
 working tree, or stranded packages in `Saved/Autosaves/PackageRestoreData.json`.
 
 **MCP tools register only if the editor was open when Claude Code started.** Opening it later does
-not fix that session; restarting Claude Code does. This is in the always-read file because no
-trigger fires early enough to help.
-
-**Never delete assets or change project settings without explicit approval.**
+not fix that session; restarting Claude Code does.
 
 **Commit freely; the push waits for the user to call the work done.** A local commit is a HOW, and
 the message is where reasoning gets recorded. Commit in coherent, verified units as work lands. **A
@@ -218,10 +213,6 @@ Pending *tuning* questions do not block a push; pending *correctness* verificati
 **Every commit you author gets the `Co-Authored-By` trailer** — present only sometimes, its absence
 turns ambiguous, so a commit you did not author says so in its message instead. Never via hook: a
 hook cannot tell who wrote a change.
-
-**Report what was found, not who found it.** Note a contribution in a clause if it matters to the
-reasoning and move on; do not tally credit and do not apologise. A wrong claim still gets corrected
-plainly.
 
 ## Current Focus
 
@@ -255,6 +246,5 @@ roster — struck through is the whole record a shipped item needs here.
 | What a symbol *is, does or requires* | that symbol's **header comment** — and nothing else does |
 | The argument behind any of it | its **dated entry**, where it already is |
 
-**Graduation has a bar: the rule must be general.** Something that only makes sense as the history
-of one slice is not a rule and goes to the decision log — otherwise the spec becomes the new
-dumping ground and the problem has merely moved.
+**Graduation has a bar: the rule must be general.** Something that only makes sense as one slice's
+history goes to the decision log instead — otherwise the spec becomes the new dumping ground.
