@@ -34,11 +34,9 @@ new work:
 - **Windup** — everything before the attack can deal damage.
 - **Release** — the period it deals damage, marked on a montage by the `Release Window` notify
   state (`UAnimNotifyState_MeleeWindow`).
-- **Recovery** — an input restriction you inflicted on yourself: an attack's third phase, or a
-  whiffed parry's.
-- **Lockout** — an input restriction someone else inflicted on you: blockstun, hitstun, a guard
-  break. What each restricts is not uniform — a recovery can refuse more than a lockout does — and
-  attacker-versus-defender is immaterial.
+- **Recovery** — an input restriction you inflicted on yourself; an attack's third phase is one.
+- **Lockout** — an input restriction someone else inflicted on you. `TDGameplayTags.h` says which
+  states are which.
 - **Coil** — *not* a fourth phase: the sub-state of windup slowed while waiting for the commit
   checkpoint, as visual feedback. Its values are named `Coil*` rather than after a phase.
 - **Initiative** — frame advantage; one of the two ledgers an exchange settles in.
@@ -49,8 +47,7 @@ damaging phase; the button edge is *input release*.
 
 **Attack and swing mean the same thing.** A chained light is **three attacks**, not one attack in
 three parts — `FTDStringSwing` and the trace's `swing=N` are that index. A **string** is the chain
-they form. A **burst** is the debug fixture's firing cycle: a string when
-`DebugAutoAttackStringTaps` > 1, a single attack otherwise.
+they form.
 
 ## Technical Preferences
 - **C++** for core systems, characters, AttributeSets, ability base classes and non-trivial logic;
@@ -66,20 +63,18 @@ they form. A **burst** is the debug fixture's firing cycle: a string when
   `ActiveClassRedirects` cruft that never goes away.
 - **The shipping title lives only in `ProjectName` (`Config/DefaultGame.ini`) and localized
   strings.** That makes retitling a one-line change rather than a migration.
-- **Ownership rule:** everything authored here lives under `/Game/TheDream/`; anything at `/Game/`
-  root is Epic template or third-party. Combat content is under `/Game/TheDream/Combat/`
+- **Everything authored here lives under `/Game/TheDream/`**; anything at `/Game/` root is Epic
+  template or third-party. Combat content is under `/Game/TheDream/Combat/`
   (`Abilities/`, `Effects/`, `Animations/`, `Input/`, `Characters/`, `Data/`).
 - C++ mirrors this: `Source/TheDream/Core/` and `Source/TheDream/Combat/` (`Abilities/`,
   `Attributes/`, `Tasks/`, `Notifies/`). Includes are relative to the module root, e.g.
   `#include "Combat/Attributes/TDAttributeSet.h"`.
-- Every new system should be playable in PIE with a debug enemy or training dummy as soon as
-  possible.
 
 ## Project Documentation
 
-Six standing files carry knowledge the code cannot. **Each has a trigger** — that is why their
-contents are not in this file, which is loaded in full every session. Read them before working in
-their area; keep them true in the same commit that makes them wrong.
+Standing files carry knowledge the code cannot. **Each has a trigger** — which is why they are not
+in this file, loaded in full every session. Keep them true in the same commit that makes them
+wrong.
 
 - **`Docs/Combat-Spec.md`** — timings, costs, windows, volumes, state transitions. *Trigger: about
   to change how combat behaves.*
@@ -108,9 +103,8 @@ session- or machine-scoped, and *points* at the repo rather than restating it.
 breaks**: they restate values nobody thinks to update, and a second copy is not reinforcement, it
 is something nobody reviews. **Name the authority rather than restating the value.**
 
-**`Tools/DocsCheck/docs-check.sh` is these files' integrity check** — truncated tails, orphaned
-table rows, dead cross-references, a stale symbol index. Run it after any edit that moves text
-between docs; closedown runs it regardless.
+**`Tools/DocsCheck/docs-check.sh` is these files' integrity check.** Run it after any edit that
+moves text between docs; closedown runs it regardless.
 
 **Name the asset, not the C++ class — a correctness rule, not a style one.** A Blueprint CDO
 override shadows a C++ default silently, so a class is authoritative only until someone touches a
@@ -122,13 +116,23 @@ trusted over the code.
 
 **Comments carry WHAT, and HOW where the mechanism is not plain from reading — never WHY.** No
 dates, no attributions, no history; `Tools/CommentCheck/comment-check.sh` fails on those, and the
-**symbol index** routes a symbol back to its reasoning. **The test is recoverability**: cut what a
-reader could recover from the code or a doc; move what they could not to `Docs/` first.
+**symbol index** routes a symbol back to its reasoning. Move what a reader could not recover from
+the code or a doc to `Docs/` first.
 
 **Comment volume is ratcheted, not trusted.** The same script fails when a file outgrows its entry
 in `Tools/CommentCheck/baseline.txt`, so **adding volume means raising that number in the same
 commit and saying why** — a sanctioned edit, and the only one. Never regenerate the baseline to
 clear a failure; `--baseline` is for a pass that deliberately re-sets the standard.
+
+## Communication
+
+**Use as few words as you possibly can, without any form of signal degradation.** Every instance,
+project-wide, whatever the context — code comments, decision entries, conversation. A useful table
+earns its space; a second example does not. **Efficient, not expressive.**
+
+**A transcription may lose detail; it may never add any.** Sharpening a source — into a term, a
+category, a general rule — is a decision taken quietly and reads as more authoritative than what it
+came from. Point at the source; if it says less, say less.
 
 ## Working Rules
 
@@ -148,11 +152,10 @@ about *what* or *why* emerges mid-run, stop and raise it.
 **When something is vague, or two sources disagree, ask. Every single time.** This project is
 **maximally designer-authored at every step except the HOW**, so resolving an ambiguity quietly
 takes a decision that was never yours — including when it looks obvious and turns out right. **An
-implementation disagreeing with its spec is a question to ask, not a discrepancy to fix.** A design
-question asked in service of a HOW is welcome — **a question is the cue to commit a design
-direction and solidify it**, so ask early and cheaply. If a gameplay question has more than one
-defensible answer, raise it rather than picking quietly, and record the choice in
-`Docs/Combat-Decisions.md`. Unprompted initiative is welcome for debug and tooling conveniences;
+implementation disagreeing with its spec is a question to ask, not a discrepancy to fix.** **A
+question is the cue to commit a design direction and solidify it**, so ask early and cheaply, and
+record the choice in `Docs/Combat-Decisions.md`. Unprompted initiative is welcome for debug and
+tooling conveniences;
 never for anything that changes how the game plays.
 
 **The design runway lives outside the repo, deliberately.** The user maintains living design
