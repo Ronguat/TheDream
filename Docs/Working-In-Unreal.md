@@ -271,6 +271,17 @@ type** -- a broken one usually looks fine alone.
 
 ## What is and is not scriptable
 
+**Enumerate before concluding a toolset cannot do something.** `describe_toolset` overflows the
+response limit on a large toolset, and the overflow is written to a file — so grep the file for
+tool names rather than reading it:
+
+```bash
+grep -o '"name":"<toolset>\.[a-z_]*"' <saved-file> | sed 's/.*\.//;s/"//' | sort -u
+```
+
+That returned 51 tools for `BlueprintTools` in one call. **A `describe_toolset` that will not fit
+is the exact condition under which a capability goes unnoticed for months.**
+
 Needs a human in the editor:
 
 - Creating levels, BlendSpaces and AnimBlueprints **from scratch**
@@ -352,21 +363,9 @@ inheriting every C++ default correctly. `set_parent` and `get_parent` reparent a
 does not contradict "AnimGraph creation is not scriptable" above, which is about *graphs*; it is the
 asset that can be made.
 
-**What actually hid it is the lesson worth keeping: nobody had enumerated the toolset.**
-`describe_toolset` on `BlueprintTools` overflows the response limit, and the snapshot recorded
-exactly that — *"describe_toolset too large to return"* — which is a fact about the **description**
-and says nothing about the capability. The absence was inherited rather than measured.
-
-**The enumeration is cheap and works on any toolset too large to describe.** The overflow is
-written to a file, so grep the file for tool names instead of reading it:
-
-```bash
-grep -o '"name":"<toolset>\.[a-z_]*"' <saved-file> | sed 's/.*\.//;s/"//' | sort -u
-```
-
-That returned 51 tools for `BlueprintTools` in one call, `create` among them. **Do this before
-concluding any toolset cannot do something** — a `describe_toolset` that will not fit is the exact
-condition under which a capability goes unnoticed for months.
+What hid it: the snapshot recorded *"describe_toolset too large to return"* for `BlueprintTools`,
+which is a fact about the **description** and says nothing about the capability. The absence was
+inherited rather than measured — see the enumeration recipe at the top of this section.
 
 **`add_variable` does not make a variable live; compiling does** *(confirmed 2026-08-15)*. It
 returns null either way, and the new property is unreadable on the CDO until `compile_blueprint`
