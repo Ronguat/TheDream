@@ -239,8 +239,8 @@ type** — a broken one usually looks fine alone.
 
 ### Confirmed traps
 
-- **InputMappingContext** *(confirmed)* — UE 5.8 reads `defaultKeyMappings.mappings`. The top-level
-  `mappings` array accepts writes and is never read.
+- **InputMappingContext** *(confirmed 2026-08-21)* — UE 5.8 reads `defaultKeyMappings.mappings`;
+  top-level `mappings` reads empty on `IMC_Combat` while its input works, which is the proof.
 - **GameplayEffect modifier attribute** *(confirmed 2026-08-21, corrected)* — writing
   `attributeName` + `attributeOwner` does not re-resolve the `FProperty`, and it does **not** leave
   it null as recorded: it **keeps the previous attribute**. Wrote `Health` on a duplicate;
@@ -252,10 +252,12 @@ type** — a broken one usually looks fine alone.
   the same asset write fine, so a partially-configured effect is the likely outcome.
 - **Object references need the full path** *(confirmed 2026-08-21)* — `/Game/Path/Asset.Asset`. A
   short path is refused outright; this one fails loudly rather than silently.
-- **Array edits** *(confirmed 2026-08-10)* — changing an element and adding one in the same call
-  fails and leaves a partial write. **Empty the container, then write it whole**, as two calls.
-  Applies to `FGameplayTagContainer`, where the array is `gameplayTags`.
-- **TMap keys** *(reported once)* — logs `added key ... not found in map` while being correct.
+- **Array edits** *(confirmed 2026-08-21, corrected)* — changing an element and adding one in one
+  call is **refused atomically**, not partially written as recorded; the container is untouched and
+  the error names the reason. **Empty it, then write it whole**, as two calls.
+  `FGameplayTagContainer`'s array is `gameplayTags`.
+- **TMap keys** — the misleading `added key ... not found in map` log **no longer reproduces**
+  *(2026-08-21)*; a key added to `abilityInputActions` landed silently and read back.
 - **`AssetTools` path functions work** *(confirmed 2026-08-21, correcting a 2026-08-14
   false-negative claim)* — `exists`, `is_dirty` and `get_asset_class` answer for `GA_Attack` and for
   an unloaded vendor map, so loading is not the variable. `save_assets` untested; testing it means
