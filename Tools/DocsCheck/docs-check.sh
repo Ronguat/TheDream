@@ -57,12 +57,11 @@ check_tables() { # $1=file -> prints offending line numbers, rc 1 if any
 # points at; a miss means the target moved and the pointer did not.
 # Format: file:::literal:::which pointer relies on it.
 MANIFEST='
-CLAUDE.md:::| Light | 150 ms | **200 ms** |:::Combat-Spec cedes the ladder table to CLAUDE.md
 CLAUDE.md:::### When a slice ships:::Closing-Down step 5 routes by this section
 CLAUDE.md:::## Working Rules:::Debug-Instruments points the loop-coverage rule here
 Docs/Combat-Spec.md:::### Stamina:::Debug-Instruments names this section as the stamina rule
 Docs/Combat-Spec.md:::## The laws:::the Exchange entry points at the graduated laws
-Docs/Combat-Spec.md:::ladder table lives in `CLAUDE.md`:::the spec must keep saying where its table went
+Docs/Combat-Spec.md:::| Light | 150 ms | 200 ms |:::the ladder table lives here; the vocabulary and the checker both lean on it
 Docs/Combat-Decisions.md:::## Known traps:::CLAUDE.md loop step greps this section
 Docs/Combat-Decisions.md:::## Tuning map:::CLAUDE.md routing table sends knob rows here
 Docs/Combat-Decisions.md:::## What has been superseded:::the supersession check reads this table

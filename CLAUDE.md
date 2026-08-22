@@ -31,32 +31,21 @@ new work:
 
 ## Combat Vocabulary
 
-Used consistently in code, comments and discussion. **The spec itself is `Docs/Combat-Spec.md`**,
-with one exception kept here: the ladder's two numbers per tier, needed to read a commit message or
-a trace line in any session.
-
-| | Release before | Hitbox live |
-|---|---|---|
-| Light | 150 ms | **200 ms** |
-| Heavy | 300 ms | **350 ms** |
-| Charged Heavy | (held past 300 ms) | **750 ms** |
-
 - **Windup** — everything before the attack can deal damage.
-- **Release** — the period during which it deals damage. Marked on a montage by the `Release
-  Window` notify state (`UAnimNotifyState_MeleeWindow`).
-- **Recovery** — a tail you inflicted on yourself. For an attack, the third phase: end of the
-  damaging phase to end of the attack. A whiffed parry's is the same idea.
-- **Lockout** — a tail someone else inflicted on you: blockstun, hitstun, a guard break. **The axis
-  is who caused it, not what it forbids** — a recovery can refuse more than a lockout does, and
+- **Release** — the period it deals damage, marked on a montage by the `Release Window` notify
+  state (`UAnimNotifyState_MeleeWindow`).
+- **Recovery** — an input restriction you inflicted on yourself: an attack's third phase, or a
+  whiffed parry's.
+- **Lockout** — an input restriction someone else inflicted on you: blockstun, hitstun, a guard
+  break. What each restricts is not uniform — a recovery can refuse more than a lockout does — and
   attacker-versus-defender is immaterial.
 - **Coil** — *not* a fourth phase: the sub-state of windup slowed while waiting for the commit
   checkpoint, as visual feedback. Its values are named `Coil*` rather than after a phase.
 - **Initiative** — frame advantage; one of the two ledgers an exchange settles in.
-- **Flinch** — hitstun interrupting offense. Distinct from the **challenge**, a raw counter thrown
-  out of blockstun; the two race, and the blockstun derivation decides by how much.
+- **Flinch** — hitstun interrupting offense.
 
-"Release" also names the button coming up, via GAS's `InputReleased`. Bare "release" always means
-the damaging phase; the button edge is always *input release*.
+"Release" also names the button coming up (GAS's `InputReleased`). Bare "release" means the
+damaging phase; the button edge is *input release*.
 
 **Attack and swing mean the same thing.** A chained light is **three attacks**, not one attack in
 three parts — `FTDStringSwing` and the trace's `swing=N` are that index. A **string** is the chain
@@ -76,8 +65,7 @@ they form. A **burst** is the debug fixture's firing cycle: a string when
   are permanent — renaming a module breaks every Blueprint's stored class path, paid for with
   `ActiveClassRedirects` cruft that never goes away.
 - **The shipping title lives only in `ProjectName` (`Config/DefaultGame.ini`) and localized
-  strings** — never in code, asset names, folder paths or tags. That makes retitling a one-line
-  change rather than a migration.
+  strings.** That makes retitling a one-line change rather than a migration.
 - **Ownership rule:** everything authored here lives under `/Game/TheDream/`; anything at `/Game/`
   root is Epic template or third-party. Combat content is under `/Game/TheDream/Combat/`
   (`Abilities/`, `Effects/`, `Animations/`, `Input/`, `Characters/`, `Data/`).

@@ -1,8 +1,7 @@
 # Combat spec
 
 **Read this before changing how combat behaves** — a timing, a cost, a window, a volume, a state
-transition. Not otherwise. `CLAUDE.md` keeps only the vocabulary and the ladder table, because those
-are needed to read a commit message or a trace line in any session.
+transition. Not otherwise. `CLAUDE.md` keeps only the vocabulary.
 
 **`GA_Attack`'s `Branches` array and the character Blueprints' CDOs are authoritative for live
 values.** Numbers below carry an argument, not a reading — when the two disagree, the asset wins.
@@ -49,11 +48,18 @@ numbers; when current math and a law disagree, the math is what moves.*
 ---
 
 ### Offense (Melee)
-**An attack is defined by when it hits, not by how it plays.** Each tier authors the moment its
-hitbox goes live and the input boundary you must release before to get it — **the
-two-numbers-per-tier ladder table lives in `CLAUDE.md`**, the one fact this file cedes, because
-those numbers are needed to read a trace line in any session. Every play rate is derived from them
-at runtime.
+**An attack is defined by when it hits, not by how it plays.** Each tier authors the input boundary
+you must release before to get it, and its three phase durations; every play rate is derived from
+these at runtime.
+
+| | Input release by | Windup | Release | Recovery | Total |
+|---|---|---|---|---|---|
+| Light | 150 ms | 200 ms | 150 ms | 600 ms | 950 ms |
+| Heavy | 300 ms | 350 ms | 150 ms | 500 ms | 1000 ms |
+| Charged Heavy | held past 300 ms | 750 ms | 150 ms | 600 ms | 1500 ms |
+
+Total is the sum of the three phases rather than an authored value, and `regression-check.sh`'s
+`s1-*` scenarios assert it against a real log every run.
 
 **Space is authored the same way, as of 2026-08-12.** Each tier also authors its damaging volume — reach, arc and a vertical band — as an `FTDAttackHitbox` on its branch, so range is a designed number rather than a property of the clip.
 
