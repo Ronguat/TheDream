@@ -65,6 +65,8 @@ Total is the sum of the three phases rather than an authored value, and `regress
 
 **Displacement too, as of 2026-08-12** — two authored distances in centimetres, not a scale on the clip. A shared **base lunge** from the press to the light's input boundary, then a **per-branch lunge** from the commit checkpoint to the end of the release window. The coil carries neither, which is what keeps the tiers indistinguishable for as long as they must be.
 
+**Displacement is authored where the distance drives gameplay, and left to the clip where it does not** (2026-08-21). A distance drives gameplay when a player builds intuition around it, which is why attacks and dodges both author theirs in centimetres and play their clips in place. **I-frames are not the test** — a dodge is i-framed and its distance still drives gameplay, because the pilot chooses it. The kip-up is the exception: nobody chooses its distance and no range calculation depends on it, so the clip keeps its own root motion and visual quality wins.
+
 **A lunge is shortened two different ways, and they are not the same mechanism** (the stop added 2026-08-14):
 - **The standoff gate *pauses* it** while a body sits ahead, per movement tick, and travel resumes if that body leaves. Geometric, so it never needs to know who the target is.
 - **A hit against a viable target *stops* it outright**, permanently, for that activation. Needed because a pause cannot survive the target ceasing to exist: killing someone removes their capsule, the gate opens on the corpse, and the attacker slides through. Geometry does not stop a lunge, and neither does a target who i-framed it — **a dodged attack runs on**, which is what stops a successful evade from paying the attacker in spacing.
