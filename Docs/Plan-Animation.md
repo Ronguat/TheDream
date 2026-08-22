@@ -56,8 +56,7 @@ Confirmed 2026-08-22 unless noted.
 
 ## Not measured
 
-- **Round-trip fidelity on Manny.** Cascadeur's own docs warn its simpler rig can distort twist and
-  IK joints. A2′ measures it bone by bone.
+- ~~Round-trip fidelity on Manny~~ — **measured 2026-08-22, exact**: see A2′.
 - **Whether AutoPosing, AutoPhysics and `View.MotionGeneration_Run` answer a script.** Menu action
   ids exist for all three; the tool classes document `add/update/activate` and nothing beyond.
 
@@ -89,8 +88,12 @@ script; record the two endpoint frames' bone transforms through
 
 **A2′ — the round trip, which gates the rest.** Drive Cascadeur over `127.0.0.1:8765`: import both
 clips onto UE5 Manny, export joints, import into UE onto our skeleton, **compare bone transforms
-against the reference numerically**. A failure here is a rig-template or axis problem, and the
-plan changes shape before anything is authored.
+against the reference numerically**. **Done 2026-08-22**: 89/89 joints, frame-exact lengths, every
+bone within 0.13° / 0.04 cm — after one fix, the UE import's `import_rotation` roll +90, which
+cancels the −90° roll Cascadeur's UE5 Manny bakes into `root` on export (its own docs' remedy;
+`convert_scene` and `force_front_x_axis` do nothing for it). Scripts: `casc_roundtrip.py`,
+`ue_roundtrip_check.py`. Also learned: `take_image` renders after the script returns, so a capture
+is its own `/run` call, and a clip with baked travel walks out of the default camera.
 
 **A3 — the notify write.** Place a Release Window on a scratch montage through `AnimationLibrary`,
 read it back, save, see the file in `git status`, and confirm the drift warning in PIE agrees.
