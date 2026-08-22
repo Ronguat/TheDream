@@ -9,7 +9,14 @@ reasonable: **anything that can be compressed to its rule has been**, and the in
 and `Docs/Combat-Decisions.md`.
 
 **Confidence marks.** *(confirmed)* was observed directly; *(reported once)* comes from a single
-unreproduced incident. Never promote a mark without re-observing the behaviour.
+unreproduced incident; ***(inherited)* means nobody has observed it** — recorded from an error
+message, a snapshot, or an assumption, and indistinguishable from a confirmed claim without this
+mark. Never promote a mark without re-observing the behaviour, and never by repetition.
+
+***(toolset)* narrows a limit to the MCP surface.** Python is a wider one — see the scriptable
+section — so a `(toolset)` wall is a claim about what these tools reach, not about the engine.
+
+**An undated mark predates the dating convention**; seven remain, in the oldest material.
 
 **Re-test any limit that blocks you, whatever its mark, and record the result** — a fresh date if it held, a correction if it did not. **A limit is a measurement with a date, not a property of the
 engine.**
@@ -241,7 +248,8 @@ type** — a broken one usually looks fine alone.
   `inheritableOwnedTagsContainer` and `ongoingTagRequirements` accept writes and read back empty; UE
   5.8 moved this to `gEComponents`. **Adding a GEComponent is not scriptable.** Numeric properties on
   the same asset write fine, so a partially-configured effect is the likely outcome.
-- **Object references need the full path** *(confirmed)* — `/Game/Path/Asset.Asset`. Errors, at least.
+- **Object references need the full path** *(confirmed 2026-08-21)* — `/Game/Path/Asset.Asset`. A
+  short path is refused outright; this one fails loudly rather than silently.
 - **Array edits** *(confirmed 2026-08-10)* — changing an element and adding one in the same call
   fails and leaves a partial write. **Empty the container, then write it whole**, as two calls.
   Applies to `FGameplayTagContainer`, where the array is `gameplayTags`.
@@ -305,23 +313,24 @@ array — checking there reads as "not installed" and is a filtered view. `IKRig
 The route is a two-step REPL: `Type` a `py` statement into the status bar's Cmd textbox with
 `submit: true`, then read what it printed with `LogsToolset.GetLogEntries` on category `LogPython`.
 `py import unreal; print(unreal.SystemLibrary.get_engine_version())` returned `5.8.1`. This is a
-second scripting surface into the editor, wider than the toolsets, and **the limits below were all
-measured against the toolsets alone** — re-test any of them through Python before treating it as a
-wall.
+second scripting surface into the editor, wider than the toolsets — **every limit marked
+*(toolset)* is a candidate to be lifted through it**, and one marked *(inherited)* was never tested
+against anything.
 
 Needs a human in the editor:
 
-- Creating levels, BlendSpaces and AnimBlueprints **from scratch**
-- Placing or configuring AnimNotifies — a montage's `notifies` is not even readable, so notify
-  placement can only be verified at runtime. **Re-tested 2026-08-19 and it held**: `get_properties`
-  on `AM_Attack` still answers *"the following properties could not be read: notifies"*.
+- Creating levels, BlendSpaces and AnimBlueprints **from scratch** *(toolset, inherited)*
+- Placing or configuring AnimNotifies *(toolset)* — a montage's `notifies` is not even readable, so
+  notify placement can only be verified at runtime. **Re-tested 2026-08-19 and it held**:
+  `get_properties` on `AM_Attack` still answers *"the following properties could not be read:
+  notifies"*.
 
   **But that is the toolset's limit, not the engine's — C++ reads `UAnimMontage::Notifies` fine**
   *(2026-08-19)*. `UTDParryAbility::FindGestureTime` walks the array to find its marker's trigger
   time at activation. So the split for anything notify-driven is: **a human places it, C++ reads
   it, and the trace line it emits is what lets us verify the placement.** Reaching for a screenshot
   here would be answering a question the game can answer itself, every run.
-- A montage's **`compositeSections`** — neither readable nor writable *(re-confirmed 2026-08-21)*,
+- A montage's **`compositeSections`** *(toolset)* — neither readable nor writable *(re-confirmed 2026-08-21)*,
   and `sequenceLength` is read-only and does not recompute after a reflection write.
   **`slotAnimTracks` reads back in full structural detail**, not only writes whole: every segment's
   `animReference`, `startPos`, `animStartTime`, `animEndTime` and `animPlayRate` come back
@@ -350,8 +359,8 @@ asset type before concluding a thing cannot be made.
 
 **Renaming an AnimNotify class is expensive** — placed notifies serialize against the class path.
 
-**Writing to any graph whose outer is a *node* fails; reading depends on which graph** *(refined
-twice on 2026-08-15)*. `create_node` and `find_node_types` resolve the Blueprint through the outer
+**Writing to any graph whose outer is a *node* fails; reading depends on which graph** *(toolset,
+refined twice on 2026-08-15)*. `create_node` and `find_node_types` resolve the Blueprint through the outer
 and fail with *"Cannot cast type 'X' to 'Blueprint'"* for all three: **`AnimStateNode`** (a state's
 interior), **`AnimGraphNode_StateMachine`** (the machine itself) and **`AnimStateTransitionNode`**
 (a transition's rule). So **the whole state machine is a human job** — states, transitions, rules.
