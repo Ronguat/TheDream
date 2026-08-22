@@ -17,9 +17,15 @@ It exists because the 2026-08-12 audit found eight wrong claims across the docs,
 them was cheap to catch at a boundary and expensive to trip over later**. Steps 3 and 4 are the
 audit in miniature; the rest is making sure nothing is left on the floor.
 
-1. **Make the editor state safe.** `AssetTools.save_assets` with an empty list, then **`git status`
-   — and read it.** Calling save is not the check; *seeing the files listed* is. A write that was
-   never saved and a write that is saved but not yet live look identical from inside the editor.
+1. **Make the editor state safe.** `AssetTools.save_assets` **naming what you touched**, then
+   **`git status` — and read it.** Calling save is not the check; *seeing the files listed* is. A
+   write that was never saved and a write that is saved but not yet live look identical from inside
+   the editor.
+
+   **The empty list saves the level too.** After a CDO write that has not been through a restart,
+   that serialises the stale value into placed actors as per-instance overrides, permanently — see
+   `Working-In-Unreal.md`. Name paths instead; `git checkout` on the `.umap` is the way back, but
+   the binary diff cannot tell a baked override from a real level edit.
 
    **If the editor is reopened and offers to restore auto-saved packages, decline.** The only thing
    ever stranded is fixture state — `DebugAutoAttackStringTaps`, a defend mode — which is

@@ -163,8 +163,8 @@ Batch all the C++ for a slice while the editor is closed, do one rebuild, then o
 
 ## Writing assets through the toolset
 
-**Read a property off the asset rather than guessing from a filename** *(confirmed 2026-08-11)*. A
-naming-convention guess is a filter, and a filter that misses proves nothing. The call shape is
+**Read a property off the asset rather than guessing from a filename** *(confirmed 2026-08-11)*. The
+call shape is
 `{"instance": {"refPath": "..."}, "properties": [...]}` — calling any of these wrong returns the full
 input schema, which is the fastest way to learn one.
 
@@ -212,12 +212,11 @@ a programmatic write. **The rule is about Blueprint CDOs and does not extend to 
 the last restart each write landed on, while the CDO read correct for both. **Batch CDO writes and
 restart once**, and when a setting "is not working" **read the runtime instance before touching it**.
 
-**Prove the instrument before trusting a null result — or a confirming one.** An instrument that
-cannot print the unexpected proves nothing in either direction. When the evidence is *"I changed it
-and the symptom did not move"*, the restart rule makes that ambiguous between a refuted hypothesis
-and a write that never landed. Make one write whose effect is numerically measurable, confirm it, then
-trust what follows. **Where a value drives behaviour, print the value** — that is what made
-a value diagnosable where judging it by feel would not be.
+**Prove the instrument before trusting a null result — or a confirming one.** When the evidence is
+*"I changed it and the symptom did not move"*, the restart rule makes that ambiguous between a
+refuted hypothesis and a write that never landed. Make one write whose effect is numerically
+measurable, confirm it, then trust what follows. **Where a value drives behaviour, print the
+value.**
 
 **`reset_properties` resets to the property's *default*, not the inherited archetype value**
 *(confirmed 2026-08-12)* — it wrote `(0,0,0)` over a component offset. There is no scriptable
@@ -229,7 +228,7 @@ serialized copy. After any C++ default change to an inherited component, read it
 PIE actor.
 
 **When configuring an asset type for the first time, diff it against a known-good asset of the same
-type** -- a broken one usually looks fine alone.
+type** — a broken one usually looks fine alone.
 
 ### Confirmed traps
 
@@ -255,9 +254,10 @@ type** -- a broken one usually looks fine alone.
 - **The two `save_assets` forms do different jobs, and picking the wrong one bakes a trap**
   *(2026-08-20)*. The empty list saves everything dirty **including the level**, which is how the
   stale-override trap below gets created after a CDO session. **Naming the assets works and scopes
-  the write** — re-tested, contradicting the older advice to always pass an empty list. So: explicit
-  paths to *write*, the empty list only to *discover* what is dirty, and `git status` either way,
-  because seeing the files listed is the check and calling save is not.
+  the write** — re-tested, contradicting the older advice to always pass an empty list. **There is
+  no discovery call** *(enumerated 2026-08-21)*: the empty list saves rather than lists, and
+  `is_dirty` takes one `asset_path`, so it can only confirm a file you already suspect. Name the
+  paths, and `git status` either way — seeing the files listed is the check, calling save is not.
 - **`delete` is inconsistent about removing the `.uasset` from disk** *(confirmed both ways)*.
   Always check the directory afterwards; `git rm` only what is still there.
 - **Saving a level while a CDO write is not yet live bakes the stale value into placed actors as
