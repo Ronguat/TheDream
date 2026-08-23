@@ -68,6 +68,14 @@ void UTDGetUpAttackAbility::ActivateAbility(const FGameplayAbilitySpecHandle Han
 
 	StartMeleeTrace(GetAttackHitboxes());
 
+	// Registers the volume with the character: the AIM WEDGE line and the debug draw, homing off.
+	if (ATDCombatCharacter* CombatCharacter = Cast<ATDCombatCharacter>(GetAvatarActorFromActorInfo()))
+	{
+		const TArray<FTDAttackHitbox>& Volumes = GetAttackHitboxes();
+		CombatCharacter->SetAimAssistHoming(
+			Volumes.Num() > 0 ? Volumes[0] : FTDAttackHitbox::MakeDisabled(), TargetImmunityTags, false, bDrawDebugTrace);
+	}
+
 	if (UAbilityTask_WaitGameplayEvent* BeginTask = UAbilityTask_WaitGameplayEvent::WaitGameplayEvent(this, TDTags::Event_Melee_WindowBegin, nullptr, true))
 	{
 		BeginTask->EventReceived.AddDynamic(this, &UTDGetUpAttackAbility::HandleReleaseWindowBegan);
@@ -96,6 +104,11 @@ void UTDGetUpAttackAbility::ActivateAbility(const FGameplayAbilitySpecHandle Han
 void UTDGetUpAttackAbility::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled)
 {
 	SetCommitted(false);
+
+	if (ATDCombatCharacter* CombatCharacter = Cast<ATDCombatCharacter>(GetAvatarActorFromActorInfo()))
+	{
+		CombatCharacter->SetAimAssistHoming(FTDAttackHitbox::MakeDisabled(), FGameplayTagContainer(), false, false);
+	}
 
 	const UWorld* World = GetWorld();
 	const float Now = World ? World->GetTimeSeconds() : 0.0f;

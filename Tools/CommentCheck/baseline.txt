@@ -17,7 +17,7 @@ Source/TheDream/Combat/Abilities/TDDodgeAbility.cpp	108	1342
 Source/TheDream/Combat/Abilities/TDDodgeAbility.h	71	541
 Source/TheDream/Combat/Abilities/TDGameplayAbility.cpp	101	1343
 Source/TheDream/Combat/Abilities/TDGameplayAbility.h	150	1219
-Source/TheDream/Combat/Abilities/TDGetUpAttackAbility.cpp	5	56
+Source/TheDream/Combat/Abilities/TDGetUpAttackAbility.cpp	6	72
 Source/TheDream/Combat/Abilities/TDGetUpAttackAbility.h	31	247
 Source/TheDream/Combat/Abilities/TDJumpAbility.cpp	37	535
 Source/TheDream/Combat/Abilities/TDJumpAbility.h	25	222
