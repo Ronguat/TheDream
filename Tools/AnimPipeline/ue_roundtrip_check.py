@@ -30,7 +30,7 @@ def import_anim(tag):
     ui.skeleton = unreal.load_asset(SK)
     # Cascadeur exports its UE5 Manny root with a -90 deg roll baked in; +90 on import cancels it
     # (measured 2026-08-22: root exact, every bone within 0.13 deg / 0.04 cm).
-    ui.anim_sequence_import_data.import_rotation = unreal.Rotator(roll=90.0, pitch=0.0, yaw=0.0)
+    ui.anim_sequence_import_data.set_editor_property("import_rotation", unreal.Rotator(roll=90.0, pitch=0.0, yaw=0.0))
     task.options = ui
     unreal.AssetToolsHelpers.get_asset_tools().import_asset_tasks([task])
     paths = list(task.imported_object_paths)

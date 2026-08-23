@@ -91,7 +91,9 @@ clips onto UE5 Manny, export joints, import into UE onto our skeleton, **compare
 against the reference numerically**. **Done 2026-08-22**: 89/89 joints, frame-exact lengths, every
 bone within 0.13° / 0.04 cm — after one fix, the UE import's `import_rotation` roll +90, which
 cancels the −90° roll Cascadeur's UE5 Manny bakes into `root` on export (its own docs' remedy;
-`convert_scene` and `force_front_x_axis` do nothing for it). Scripts: `casc_roundtrip.py`,
+`convert_scene` and `force_front_x_axis` do nothing for it). **The roll is not always there**: the
+gap-edited scene's export carried none and the same fix over-rotated it, so `ue_import_clip.py`
+imports plain, reads `root`, and re-imports rotated only when it reads −90. Scripts: `casc_roundtrip.py`,
 `ue_roundtrip_check.py`. Also learned: `take_image` renders after the script returns, so a capture
 is its own `/run` call, and a clip with baked travel walks out of the default camera.
 
@@ -112,6 +114,10 @@ receives it baked: `casc_open_gaps.py` drops the keys in 4–9 and 31–44 and s
 before them to `AI` interpolation, so its inbetweening owns the rise and the settle and the designer
 owns the middle. `Timeline.Remove frames` ignores the API's frame selection, which is why the
 assembly moved to UE. Stationary, in place, no baked travel; duration free — E rate-fits it.
+**The loop closed 2026-08-22**: the AI fill computed (pelvis 12.6 → 78 cm across frames 3–10),
+the processed clip re-imported as `Scratch/AS_GetUpAttack_Casc` matching the rough on every anchor
+to ≤0.07°, and the scene is saved as `Saved/AnimPipeline/GetUpAttack.casc` (`view.Scene.save`;
+`DataSourceManager.save_scene_as` does not write). The designer's polish happens in that scene.
 
 **E — assemble `AM_GetUpAttack`.** **Montage-from-clip is scriptable**: `AnimMontageFactory` with
 `target_skeleton` and `source_animation` through `AssetTools.create_asset` (2026-08-22,
