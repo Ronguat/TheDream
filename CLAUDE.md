@@ -227,12 +227,13 @@ Execution order, the only line that changes when the order does:
 
 **Pick up at Knockdown's sub-slice F, the get-up attack** — `Docs/Plan-Knockdown.md` is still live.
 **A–E shipped 2026-08-20**, the state machine verified in play: grades, the 2.5 s total, the 0.5 s
-rise, floor invincibility, the movement and facing locks, the parried attacker's lockout. **F is
-blocked on `AM_GetUpAttack`** — without a montage carrying a Release Window notify the ability
-commits but its hitbox never opens. **No single library clip suits it**, searched exhaustively by
-the designer and a prior session; `Plan-Knockdown.md` holds a two-clip composition that is
-buildable and deferred on how it would read, not on difficulty. **`Docs/Plan-Animation.md` is the
-live plan** — authoring the clip rather than composing one.
+rise, floor invincibility, the movement and facing locks, the parried attacker's lockout. **F's code shipped 2026-08-22** (`5b08169` + a wedge fix): the get-up attack fires from the floor,
+opens its Release Window and commits, on a **rough scratch montage** (`Scratch/AM_GetUpAttack_Rough`,
+untracked). **What remains for F to ship**: the designer's polished clip replacing the rough
+(`Saved/AnimPipeline/GetUpAttack.casc` is the Cascadeur scene to polish), then `s6-getup` green —
+today 4/7, the reds a contaminated fixture, an in-fixture geometry limit, and a timing under-run,
+all in the trap. **The animation pipeline that unblocked it is `Docs/Plan-Animation.md`**: authored
+in Cascadeur, transferred by the scripts in `Tools/AnimPipeline/`.
 
 **Also owed**: `s4-360`'s first-burst exclusion, sub-slice I's spec rewrite, and the get-up options
 — dodge, kip-up, block, every exhaustion refusal — built and never run, which is a filed trap.

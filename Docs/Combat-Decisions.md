@@ -410,6 +410,33 @@ phase rates from `AM_GetUpAttack`'s measured position, and that montage is the h
 unblocks it. *The notify half of that step gained a scripted candidate on 2026-08-22 —
 `AnimationLibrary`, in `Working-In-Unreal.md` — verified on a scratch montage the same day.*
 
+**Update 2026-08-22: sub-slice F's *code* is built** (`5b08169` + the wedge fix that
+day), and the get-up attack fires from the floor. What is untested is below.
+
+**Before trusting `s6-getup`, or shipping the get-up attack — *the scenario reads 4/7 and none of
+the three reds is the ability failing.*** Filed 2026-08-22. The attack fires from the floor, rises
+the body, opens its Release Window (`AIM WEDGE reach=150 arc=360` now prints once per rise — a
+missing `SetAimAssistHoming` call was the reported bug, fixed same day), commits, and never chains.
+The three non-green assertions, in descending order of how much they matter:
+- **Fixture contamination makes the run untrustworthy.** This run logged **9 `by=attack` rises but
+  only 2 from the configured defender `_C_1`**; the other 7 activate on `BP_PlayerCharacter_C_0`,
+  which should have no get-up fixture and spawned off in the corner. Until only the configured pawn
+  rises by attack, `s6-getup`'s counts mean nothing — **this is the one to fix first.** The
+  `STRING`-lines red (8, all naming `_C_0`) is a symptom: `getup_string_lines_after_rise` marks
+  every by=attack riser and counts any later `STRING` naming one, so `_C_0`'s ordinary strings are
+  counted. **No `STRING` ever names `_C_1`** — the get-up attack itself did not chain.
+- **The hitbox reaches no target in this fixture, by geometry.** `KnockdownSpacingCm` 450 against
+  the volume's 150 reach: the riser swings into empty air, and the lone attacker only closes by
+  lunging, which lands on the riser. So **0 `DAMAGED` by the riser, and one attacker can never
+  produce one.** The path is the shared `StartMeleeTrace` / `UAbilityTask_MeleeTrace` every attack
+  uses — correct by construction, and the designer accepted that as sufficient 2026-08-22. Proving
+  it in play needs an approach-and-hold attacker mode or a second riser in reach — joins the 1vX
+  owed traps.
+- **The total runs 1.221–1.254 s against authored 1.250, band [1.255, 1.285].** The 2.111× windup
+  opens the window a frame late (`pos` ~0.653 vs the notify's 0.633) and the shared
+  `windowLen ÷ ReleaseSeconds` release rate ignores the overshoot, so the release plays ~25–45 ms
+  short. A WHAT question — fix in the subclass, the base, or the band — left for the user.
+
 
 **Whenever a second attacker becomes possible — *knockdown's 1vX half has never been observed
 either.*** Filed 2026-08-20, owed from Knockdown's plan and **discharged in the same sitting as the
