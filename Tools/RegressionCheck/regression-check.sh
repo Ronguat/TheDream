@@ -13,6 +13,7 @@
 # Scenarios: s1-light s1-heavy s1-charged s2-light s2-heavy s2-charged s3
 #            s4-string s4-guarantee s4-block s4-360   (all need StringTaps 3)
 #            s5-parry s5-parry-reward s5-parry-whiff s5-cancel s5-waiver
+#            s6-knockdown s6-hard s6-stand s6-getup
 # Exit 0 = all assertions passed, 1 = at least one failed, 2 = usage/no data.
 
 set -uo pipefail
@@ -160,6 +161,12 @@ BAND_KD_SPAN_TOL=0.025
 BAND_KD_JAIL_NORMAL=1.000
 BAND_KD_JAIL_HARD=1.500
 
+# S6 -- the get-up attack's authored phases: press to RELEASE BEGIN in WindupSeconds, and the
+# ability's own ABILITY END at WindupSeconds + ReleaseSeconds + RecoverySeconds. Source:
+# GA_GetUpAttack's CDO, defaults in UTDGetUpAttackAbility.
+BAND_RELEASE_GETUP=300
+BAND_ELAPSED_GETUP=1.250
+
 # ---------------------------------------------------------------------------
 
 PASSES=0; FAILS=0; ROWS=""
@@ -174,7 +181,7 @@ check() { # check <label> <condition-result 0/1> <detail>
 }
 
 usage() {
-	sed -n '3,15p' "$0" | sed 's/^# \?//'
+	sed -n '3,17p' "$0" | sed 's/^# \?//'
 	exit 2
 }
 
@@ -1209,6 +1216,66 @@ run_s6_stand() {
 		"$(awk -v v="$BAND_KD_ENTRY_TO_RISE" -v t="$BAND_KD_SPAN_TOL" 'BEGIN{printf "%.3f", v-t}')" "s"
 }
 
+getup_press_to_release() { # ms from each fixture get-up attack press to the next RELEASE BEGIN
+	awk '
+		/^\[[0-9.]+\] DEBUG GETUP  .* mode=attack/ { t=$1; gsub(/[\[\]]/,"",t); p=t+0; have=1; next }
+		have && /^\[[0-9.]+\] RELEASE BEGIN/ { t=$1; gsub(/[\[\]]/,"",t); printf "%.0f\n", (t-p)*1000; have=0 }
+	' "$SLICE"
+}
+
+getup_elapsed() { # elapsed= of every completed get-up attack, read off its own ABILITY END line
+	grep -E '^\[[0-9.]+\] ABILITY END  GA_GetUpAttack' "$SLICE" | grep -v "(cancelled)" | grep -o "elapsed=[0-9.]*" | cut -d= -f2
+}
+
+getup_damage() { # DAMAGED dealt by a pawn the fixture made press the get-up attack
+	awk '
+		/^\[[0-9.]+\] DEBUG GETUP  / { riser[$4]=1; next }
+		/^\[[0-9.]+\] DAMAGED/ { for (r in riser) if (index($0, " by " r)) n++ }
+		END { print n+0 }
+	' "$SLICE"
+}
+
+getup_string_lines_after_rise() { # STRING lines naming a riser after its attack get-up
+	awk '
+		/^\[[0-9.]+\] KNOCKDOWN RISE  / && /by=attack/ { rose[$4]=1; next }
+		/^\[[0-9.]+\] STRING/ { for (r in rose) if (index($0, r)) n++ }
+		END { print n+0 }
+	' "$SLICE"
+}
+
+run_s6_getup() {
+	# The get-up attack as a get-up: the fixture presses it just inside the hard choice
+	# window, and it must rise the body, open its window on the authored clock, run to the
+	# authored total, land on the attacker, and never join a string.
+	local presses rises damaged strings
+	presses=$(grep -c 'DEBUG GETUP  .* mode=attack' "$SLICE" || true)
+	check "fixture pressed the get-up attack" "$([ "$presses" -gt 0 ] && echo 0 || echo 1)" \
+		"$presses presses"
+
+	rises=$(kd_rise_reasons | grep -c '^attack$' || true)
+	check "get-up attack fires as a get-up" "$([ "$rises" -gt 0 ] && echo 0 || echo 1)" \
+		"$rises rises by=attack"
+
+	assert_all_in_band "rise inside the hard choice window" \
+		"kd_entry_to_rise_by attack" "$BAND_KD_JAIL_HARD" \
+		"$(awk -v v="$BAND_KD_ENTRY_TO_RISE" -v t="$BAND_KD_SPAN_TOL" 'BEGIN{printf "%.3f", v-t}')" "s"
+
+	assert_all_in_band "press to RELEASE BEGIN" getup_press_to_release \
+		$((BAND_RELEASE_GETUP - BAND_RELEASE_TOL)) $((BAND_RELEASE_GETUP + BAND_RELEASE_TOL)) "ms"
+
+	assert_all_in_band "get-up attack total" getup_elapsed \
+		"$(awk -v v="$BAND_ELAPSED_GETUP" -v t="$BAND_ELAPSED_MIN" 'BEGIN{printf "%.3f", v+t}')" \
+		"$(awk -v v="$BAND_ELAPSED_GETUP" -v t="$BAND_ELAPSED_MAX" 'BEGIN{printf "%.3f", v+t}')" "s"
+
+	damaged=$(getup_damage)
+	check "riser's attack lands on the attacker" "$([ "$damaged" -gt 0 ] && echo 0 || echo 1)" \
+		"$damaged DAMAGED by the riser"
+
+	strings=$(getup_string_lines_after_rise)
+	check "no STRING line for the riser after its attack get-up" "$([ "$strings" -eq 0 ] && echo 0 || echo 1)" \
+		"$strings STRING lines"
+}
+
 # --- self-test: the checker must be seen to fail ----------------------------
 self_test() {
 	echo "Self-test: asserting the checker reports FAIL on a band it cannot meet."
@@ -1283,6 +1350,7 @@ case "$SCENARIO" in
 	s6-knockdown)   run_s6_knockdown ;;
 	s6-hard)        run_s6_hard ;;
 	s6-stand)       run_s6_stand ;;
+	s6-getup)       run_s6_getup ;;
 	*) echo "regression-check: unknown scenario '$SCENARIO'" >&2; usage ;;
 esac
 

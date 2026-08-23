@@ -439,6 +439,10 @@ private:
 	/** Locks in the selected branch: applies its tag, starts tracing, aims at its release. */
 	void CommitAttack();
 
+	/** Real seconds since this activation. */
+	float GetElapsedSeconds() const;
+
+
 	/** Stretches the release window to the selected branch's ReleaseSeconds. */
 	UFUNCTION()
 	void HandleReleaseWindowBegan(FGameplayEventData Payload);
@@ -451,8 +455,6 @@ private:
 	UFUNCTION()
 	void HandleReleaseWindowEnded(FGameplayEventData Payload);
 
-	/** Whether a window event came from the montage this attack is playing. */
-	bool IsWindowForThisAttack(const FGameplayEventData& Payload) const;
 
 	/**
 	 *  Shared windup rate: fast enough that the first branch reaches ReleaseStartSeconds exactly on
@@ -464,36 +466,6 @@ private:
 	/** The first branch's HoldUntilSeconds: where the tiers stop being indistinguishable. */
 	virtual float GetBaseLungeDurationSeconds() const override;
 
-	/**
-	 *  Recovery rate: carries the montage from where it actually is to the blend-out boundary in the
-	 *  branch's authored RecoverySeconds. Takes the measured position rather than assuming the
-	 *  release ended where the notify says -- the window closes a frame or two late, and a rate from
-	 *  the assumed end compounds that error across the longest phase.
-	 *
-	 *  Returns negative when the montage has no room left, a real authoring outcome rather than an
-	 *  error: a clip whose tail is shorter than the blend cannot host any recovery. The caller warns
-	 *  and leaves the rate alone.
-	 */
-	float ComputeRecoveryPlayRate(float FromPosition, float TargetSeconds) const;
-
-	/**
-	 *  Montage position at which blend-out begins, which is where the ability ends.
-	 *
-	 *  Takes a play rate because the boundary is not fixed: unless the montage authors a
-	 *  BlendOutTriggerTime, the engine blends when the remaining time at the current rate equals the
-	 *  blend's duration, so a slower recovery pushes the boundary later. The wrong rate here
-	 *  silently misplaces the end of the ability.
-	 */
-	float GetBlendOutStartSeconds(float PlayRate) const;
-
-	/** Real seconds since this activation. */
-	float GetElapsedSeconds() const;
-
-	/** Montage playhead position in seconds, or -1 if there is nothing to read. */
-	float GetMontagePosition() const;
-
-	/** Sets the montage's play rate, if one is playing. Never called with 0. */
-	void SetMontagePlayRate(float PlayRate) const;
 
 	/** Total swings: the legacy first hit plus the StringSwings array. Never below 1. */
 	int32 GetSwingCount() const { return 1 + StringSwings.Num(); }

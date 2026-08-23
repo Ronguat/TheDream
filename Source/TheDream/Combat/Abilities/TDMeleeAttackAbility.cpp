@@ -477,6 +477,9 @@ void UTDMeleeAttackAbility::HandleTraceHit(const FHitResult& Hit)
 		// knockback just paid for; later is dead freedom, since by then the victim is out of
 		// hitstun. So it is exactly contact plus this swing's own hitstun.
 		Attacker->BeginOnHitMovementWaiver(GetAttackHitstunSeconds());
+
+		// Held intent resumes on the frame the hit lands: a guard held through the read comes up now.
+		Attacker->RequestResumePass();
 	}
 }
 
@@ -493,11 +496,19 @@ void UTDMeleeAttackAbility::ApplyKnockbackToTarget(ATDCombatCharacter* Target, b
 	// window, facing froze at commit, and the lunge stopped on this very hit -- so the axis the
 	// destination sits on is planted, which is what makes "the same spot every time" true.
 	const FVector AttackerLoc = Avatar->GetActorLocation();
-	FVector Facing = Avatar->GetActorForwardVector();
+	FVector Facing = UsesRadialKnockback()
+		? Target->GetActorLocation() - AttackerLoc
+		: Avatar->GetActorForwardVector();
 	Facing.Z = 0.0f;
 	if (!Facing.Normalize())
 	{
-		return;
+		// Radial with no bearing -- co-located -- falls back to the facing axis.
+		Facing = Avatar->GetActorForwardVector();
+		Facing.Z = 0.0f;
+		if (!Facing.Normalize())
+		{
+			return;
+		}
 	}
 
 	const FVector ToTarget = Target->GetActorLocation() - AttackerLoc;
@@ -570,3 +581,119 @@ void UTDMeleeAttackAbility::HandleMontageInterrupted()
 	TD_TIMING_LOG(TEXT("[%.3f] MONTAGE    OnInterrupted"), GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f);
 	EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, true);
 }
+
+bool UTDMeleeAttackAbility::IsWindowForThisAttack(const FGameplayEventData& Payload) const
+{
+	// The notify broadcasts to the whole ASC and carries no ownership, so without this any montage
+	// carrying a Release Window would drive this attack's play rate -- harmless while exactly one
+	// montage carries the notify, silently wrong the moment a second does. UAbilityTask_MeleeTrace
+	// guards the same way. Null means accept any. The comparison is against the *active* montage:
+	// with per-swing montages, filtering on the authored first-hit field would reject every window
+	// swing 2 onward fires, silently and as no damage.
+	const UAnimMontage* ActiveMontage = GetActiveAttackMontage();
+	if (!ActiveMontage)
+	{
+		return true;
+	}
+
+	if (Payload.OptionalObject == ActiveMontage)
+	{
+		return true;
+	}
+
+	// Ungated: a mismatch here means the attack never applies its release rate and never
+	// takes it off again -- both silent, and the second is the bug this guard shipped with.
+	UE_LOG(LogTDCombatTiming, Warning,
+		TEXT("Release Window from '%s' ignored; this attack is playing '%s'."),
+		Payload.OptionalObject ? *Payload.OptionalObject->GetName() : TEXT("<none>"),
+		*ActiveMontage->GetName());
+
+	return false;
+}
+
+float UTDMeleeAttackAbility::GetBlendOutStartSeconds(float PlayRate) const
+{
+	const UAnimMontage* ActiveMontage = GetActiveAttackMontage();
+	if (!ActiveMontage)
+	{
+		return -1.0f;
+	}
+
+	const float Length = ActiveMontage->GetPlayLength();
+	const float TriggerTime = ActiveMontage->BlendOutTriggerTime;
+
+	// A trigger time is an authored montage position, measured back from the end, and it does
+	// not care how fast the montage is playing.
+	if (TriggerTime >= 0.0f)
+	{
+		return Length - TriggerTime;
+	}
+
+	// **Without one, the boundary moves with the play rate**, the whole subtlety here. A negative
+	// trigger means "blend so it finishes as the montage does", and the engine tests that in *time*
+	// rather than position: it blends once the remaining montage would take less than the blend's
+	// duration to play. Halve the rate and the blend starts half as far from the end.
+	//
+	// **Treating this as the fixed position `Length - BlendTime` is right only at rate 1.0**, so the
+	// error hides at rates near it and grows as recovery is authored slower -- a few percent at
+	// 0.94, about half again at 0.50.
+	return Length - ActiveMontage->BlendOut.GetBlendTime() * FMath::Max(PlayRate, TDMinPlayRate);
+}
+
+float UTDMeleeAttackAbility::ComputeRecoveryPlayRate(float FromPosition, float TargetSeconds) const
+{
+	const UAnimMontage* ActiveMontage = GetActiveAttackMontage();
+	if (!ActiveMontage || FromPosition < 0.0f || TargetSeconds <= 0.0f)
+	{
+		return -1.0f;
+	}
+
+	const float Length = ActiveMontage->GetPlayLength();
+	const float Remaining = Length - FromPosition;
+	if (Remaining <= KINDA_SMALL_NUMBER)
+	{
+		return -1.0f;
+	}
+
+	const float TriggerTime = ActiveMontage->BlendOutTriggerTime;
+	if (TriggerTime >= 0.0f)
+	{
+		// Fixed boundary: cover the montage up to it in the authored time.
+		const float ToBoundary = (Length - TriggerTime) - FromPosition;
+		return (ToBoundary <= KINDA_SMALL_NUMBER)
+			? -1.0f
+			: FMath::Max(ToBoundary / TargetSeconds, TDMinPlayRate);
+	}
+
+	// Rate-dependent boundary. Solving for the rate R that makes recovery last exactly
+	// TargetSeconds, the blend beginning BlendTime*R before the montage's end:
+	//
+	//     (Length - BlendTime*R - FromPosition) / R = TargetSeconds
+	//  => Length - FromPosition = R * (TargetSeconds + BlendTime)
+	//  => R = (Length - FromPosition) / (TargetSeconds + BlendTime)
+	//
+	// The blend cancels out of the position but not the time, which is why the naive form is wrong
+	// and wrong by more the slower recovery is authored.
+	const float BlendTime = ActiveMontage->BlendOut.GetBlendTime();
+	return FMath::Max(Remaining / (TargetSeconds + BlendTime), TDMinPlayRate);
+}
+
+float UTDMeleeAttackAbility::GetMontagePosition() const
+{
+	const FGameplayAbilityActorInfo* ActorInfo = GetCurrentActorInfo();
+	UAnimInstance* AnimInstance = ActorInfo ? ActorInfo->GetAnimInstance() : nullptr;
+	UAnimMontage* ActiveMontage = GetActiveAttackMontage();
+	return (AnimInstance && ActiveMontage) ? AnimInstance->Montage_GetPosition(ActiveMontage) : -1.0f;
+}
+
+void UTDMeleeAttackAbility::SetMontagePlayRate(float PlayRate) const
+{
+	const FGameplayAbilityActorInfo* ActorInfo = GetCurrentActorInfo();
+	UAnimInstance* AnimInstance = ActorInfo ? ActorInfo->GetAnimInstance() : nullptr;
+	UAnimMontage* ActiveMontage = GetActiveAttackMontage();
+	if (AnimInstance && ActiveMontage && AnimInstance->Montage_IsPlaying(ActiveMontage))
+	{
+		AnimInstance->Montage_SetPlayRate(ActiveMontage, FMath::Max(PlayRate, TDMinPlayRate));
+	}
+}
+

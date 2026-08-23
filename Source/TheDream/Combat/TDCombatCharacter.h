@@ -159,6 +159,29 @@ enum class ETDDebugDefendMode : uint8
 };
 
 /**
+ *  Which get-up option a debug defender takes, pressed once per knockdown at the choice window's
+ *  start plus DebugGetUpDelaySeconds. One mode, one press, so a knockdown log reads as one choice.
+ */
+UENUM(BlueprintType)
+enum class ETDDebugGetUpMode : uint8
+{
+	/** Press nothing; the auto-rise takes it. */
+	Wait,
+
+	/** Tap the dodge input: the directional get-up, or the kip-up under the hard grade. */
+	DodgeGetUp,
+
+	/** Press and hold the block input through the rise. */
+	BlockGetUp,
+
+	/** Tap the attack input: the get-up attack. */
+	AttackGetUp,
+
+	/** Tap the jump input: the neutral stand. */
+	StandGetUp
+};
+
+/**
  *  Base class for anything that can fight: the player and the training dummy alike.
  *
  *  Locomotion and the third person camera come from ATheDreamCharacter; this adds the Ability
@@ -282,6 +305,9 @@ public:
 
 	/** Whether get-up options are currently legal -- past the jail, before any rise. */
 	bool IsInKnockdownChoiceWindow() const;
+
+	/** Asks the resume tick to retry held inputs on its next pass. */
+	void RequestResumePass() { bResumePending = true; }
 
 	/**
 	 *  Put this character on the floor. Supersedes hitstun rather than joining it.
@@ -1072,6 +1098,14 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat|Debug")
 	FGameplayTag DebugJumpInputTag;
 
+	/** The get-up option this pawn presses when knocked down. Debug only; see ETDDebugGetUpMode. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat|Debug")
+	ETDDebugGetUpMode DebugGetUpMode = ETDDebugGetUpMode::Wait;
+
+	/** Seconds after the jail ends before DebugGetUpMode presses. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat|Debug", meta=(ClampMin="0.0"))
+	float DebugGetUpDelaySeconds = 0.05f;
+
 	/**
 	 *  Seconds between one auto-parry and the next. Debug only.
 	 *
@@ -1298,6 +1332,10 @@ private:
 	/** Taps the jump input, then releases it a frame later. See bDebugPeriodicJump. */
 	void DebugAutoJumpPress();
 	void DebugAutoJumpRelease();
+
+	/** Presses the input DebugGetUpMode names, then releases it on DebugGetUpReleaseTimerHandle. */
+	void DebugGetUpPress();
+	void DebugGetUpRelease();
 
 	/**
 	 *  One PeriodicParry cycle. Raises a guard first when DebugParryPreBlockSeconds is set.
@@ -1826,6 +1864,13 @@ private:
 
 	FTimerHandle DebugAutoJumpTimerHandle;
 	FTimerHandle DebugAutoJumpReleaseTimerHandle;
+	FTimerHandle DebugGetUpReleaseTimerHandle;
+
+	/** Input DebugGetUpPress is holding, for its release. */
+	FGameplayTag DebugGetUpHeldTag;
+
+	/** True once DebugGetUpMode has pressed for the current knockdown. */
+	bool bDebugGetUpPressed = false;
 
 	/**
 	 *  Where a debug fixture started, captured once, so each swing or dodge begins from the same

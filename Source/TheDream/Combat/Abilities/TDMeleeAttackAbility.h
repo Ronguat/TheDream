@@ -14,6 +14,12 @@ class UAbilityTask_MeleeTrace;
 class UCurveFloat;
 class UGameplayEffect;
 
+/** Play rate floor. Zero would stop the montage, which banks time and then spends it in one frame. */
+constexpr float TDMinPlayRate = 0.01f;
+
+/** How far the notify may sit from ReleaseStartSeconds before it is worth complaining about. */
+constexpr float TDReleaseStartTolerance = 0.03f;
+
 /**
  *  A single melee swing: play a montage, trace during its active frames, apply damage.
  *
@@ -317,6 +323,44 @@ protected:
 	 *  because moving a UPROPERTY orphans every Blueprint CDO override of it.
 	 */
 	virtual void ReleaseCommitmentTag() {}
+
+	/**
+	 *  Axis the knockback destination sits on: the attacker's facing by default, the attacker-to-
+	 *  target bearing when true.
+	 */
+	virtual bool UsesRadialKnockback() const { return false; }
+
+	/** Whether a window event came from the montage this attack is playing. */
+	bool IsWindowForThisAttack(const FGameplayEventData& Payload) const;
+
+
+	/**
+	 *  Recovery rate: carries the montage from where it actually is to the blend-out boundary in the
+	 *  branch's authored RecoverySeconds. Takes the measured position rather than assuming the
+	 *  release ended where the notify says -- the window closes a frame or two late, and a rate from
+	 *  the assumed end compounds that error across the longest phase.
+	 *
+	 *  Returns negative when the montage has no room left, a real authoring outcome rather than an
+	 *  error: a clip whose tail is shorter than the blend cannot host any recovery. The caller warns
+	 *  and leaves the rate alone.
+	 */
+	float ComputeRecoveryPlayRate(float FromPosition, float TargetSeconds) const;
+
+	/**
+	 *  Montage position at which blend-out begins, which is where the ability ends.
+	 *
+	 *  Takes a play rate because the boundary is not fixed: unless the montage authors a
+	 *  BlendOutTriggerTime, the engine blends when the remaining time at the current rate equals the
+	 *  blend's duration, so a slower recovery pushes the boundary later. The wrong rate here
+	 *  silently misplaces the end of the ability.
+	 */
+	float GetBlendOutStartSeconds(float PlayRate) const;
+
+	/** Montage playhead position in seconds, or -1 if there is nothing to read. */
+	float GetMontagePosition() const;
+
+	/** Sets the montage's play rate, if one is playing. Never called with 0. */
+	void SetMontagePlayRate(float PlayRate) const;
 
 	/**
 	 *  This swing was parried. Set in the hit path, cleared on every activation.

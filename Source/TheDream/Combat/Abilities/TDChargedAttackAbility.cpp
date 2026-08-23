@@ -14,12 +14,6 @@
 
 namespace
 {
-	/** Play rate floor. Zero would stop the montage, which banks time and then spends it in one frame. */
-	constexpr float TDMinPlayRate = 0.01f;
-
-	/** How far the notify may sit from ReleaseStartSeconds before it is worth complaining about. */
-	constexpr float TDReleaseStartTolerance = 0.03f;
-
 	/** The rate actually in force on the montage, so a rate that failed to apply is visible. */
 	float ActualMontageRate(const FGameplayAbilityActorInfo* ActorInfo, UAnimMontage* Montage)
 	{
@@ -362,35 +356,6 @@ void UTDChargedAttackAbility::CommitAttack()
 	}
 }
 
-bool UTDChargedAttackAbility::IsWindowForThisAttack(const FGameplayEventData& Payload) const
-{
-	// The notify broadcasts to the whole ASC and carries no ownership, so without this any montage
-	// carrying a Release Window would drive this attack's play rate -- harmless while exactly one
-	// montage carries the notify, silently wrong the moment a second does. UAbilityTask_MeleeTrace
-	// guards the same way. Null means accept any. The comparison is against the *active* montage:
-	// with per-swing montages, filtering on the authored first-hit field would reject every window
-	// swing 2 onward fires, silently and as no damage.
-	const UAnimMontage* ActiveMontage = GetActiveAttackMontage();
-	if (!ActiveMontage)
-	{
-		return true;
-	}
-
-	if (Payload.OptionalObject == ActiveMontage)
-	{
-		return true;
-	}
-
-	// Ungated: a mismatch here means the attack never applies its release rate and never
-	// takes it off again -- both silent, and the second is the bug this guard shipped with.
-	UE_LOG(LogTDCombatTiming, Warning,
-		TEXT("Release Window from '%s' ignored; this attack is playing '%s'."),
-		Payload.OptionalObject ? *Payload.OptionalObject->GetName() : TEXT("<none>"),
-		*ActiveMontage->GetName());
-
-	return false;
-}
-
 void UTDChargedAttackAbility::HandleReleaseWindowEnded(FGameplayEventData Payload)
 {
 	if (!IsWindowForThisAttack(Payload))
@@ -514,96 +479,10 @@ float UTDChargedAttackAbility::ComputeWindupPlayRate() const
 	return FMath::Max(SwingReleaseStart / Branches[0].ReleaseAtSeconds, TDMinPlayRate);
 }
 
-float UTDChargedAttackAbility::GetBlendOutStartSeconds(float PlayRate) const
-{
-	const UAnimMontage* ActiveMontage = GetActiveAttackMontage();
-	if (!ActiveMontage)
-	{
-		return -1.0f;
-	}
-
-	const float Length = ActiveMontage->GetPlayLength();
-	const float TriggerTime = ActiveMontage->BlendOutTriggerTime;
-
-	// A trigger time is an authored montage position, measured back from the end, and it does
-	// not care how fast the montage is playing.
-	if (TriggerTime >= 0.0f)
-	{
-		return Length - TriggerTime;
-	}
-
-	// **Without one, the boundary moves with the play rate**, the whole subtlety here. A negative
-	// trigger means "blend so it finishes as the montage does", and the engine tests that in *time*
-	// rather than position: it blends once the remaining montage would take less than the blend's
-	// duration to play. Halve the rate and the blend starts half as far from the end.
-	//
-	// **Treating this as the fixed position `Length - BlendTime` is right only at rate 1.0**, so the
-	// error hides at rates near it and grows as recovery is authored slower -- a few percent at
-	// 0.94, about half again at 0.50.
-	return Length - ActiveMontage->BlendOut.GetBlendTime() * FMath::Max(PlayRate, TDMinPlayRate);
-}
-
-float UTDChargedAttackAbility::ComputeRecoveryPlayRate(float FromPosition, float TargetSeconds) const
-{
-	const UAnimMontage* ActiveMontage = GetActiveAttackMontage();
-	if (!ActiveMontage || FromPosition < 0.0f || TargetSeconds <= 0.0f)
-	{
-		return -1.0f;
-	}
-
-	const float Length = ActiveMontage->GetPlayLength();
-	const float Remaining = Length - FromPosition;
-	if (Remaining <= KINDA_SMALL_NUMBER)
-	{
-		return -1.0f;
-	}
-
-	const float TriggerTime = ActiveMontage->BlendOutTriggerTime;
-	if (TriggerTime >= 0.0f)
-	{
-		// Fixed boundary: cover the montage up to it in the authored time.
-		const float ToBoundary = (Length - TriggerTime) - FromPosition;
-		return (ToBoundary <= KINDA_SMALL_NUMBER)
-			? -1.0f
-			: FMath::Max(ToBoundary / TargetSeconds, TDMinPlayRate);
-	}
-
-	// Rate-dependent boundary. Solving for the rate R that makes recovery last exactly
-	// TargetSeconds, the blend beginning BlendTime*R before the montage's end:
-	//
-	//     (Length - BlendTime*R - FromPosition) / R = TargetSeconds
-	//  => Length - FromPosition = R * (TargetSeconds + BlendTime)
-	//  => R = (Length - FromPosition) / (TargetSeconds + BlendTime)
-	//
-	// The blend cancels out of the position but not the time, which is why the naive form is wrong
-	// and wrong by more the slower recovery is authored.
-	const float BlendTime = ActiveMontage->BlendOut.GetBlendTime();
-	return FMath::Max(Remaining / (TargetSeconds + BlendTime), TDMinPlayRate);
-}
-
 float UTDChargedAttackAbility::GetElapsedSeconds() const
 {
 	const UWorld* World = GetWorld();
 	return World ? World->GetTimeSeconds() - ActivationWorldTime : 0.0f;
-}
-
-float UTDChargedAttackAbility::GetMontagePosition() const
-{
-	const FGameplayAbilityActorInfo* ActorInfo = GetCurrentActorInfo();
-	UAnimInstance* AnimInstance = ActorInfo ? ActorInfo->GetAnimInstance() : nullptr;
-	UAnimMontage* ActiveMontage = GetActiveAttackMontage();
-	return (AnimInstance && ActiveMontage) ? AnimInstance->Montage_GetPosition(ActiveMontage) : -1.0f;
-}
-
-void UTDChargedAttackAbility::SetMontagePlayRate(float PlayRate) const
-{
-	const FGameplayAbilityActorInfo* ActorInfo = GetCurrentActorInfo();
-	UAnimInstance* AnimInstance = ActorInfo ? ActorInfo->GetAnimInstance() : nullptr;
-	UAnimMontage* ActiveMontage = GetActiveAttackMontage();
-	if (AnimInstance && ActiveMontage && AnimInstance->Montage_IsPlaying(ActiveMontage))
-	{
-		AnimInstance->Montage_SetPlayRate(ActiveMontage, FMath::Max(PlayRate, TDMinPlayRate));
-	}
 }
 
 float UTDChargedAttackAbility::GetAttackDamage() const

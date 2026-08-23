@@ -958,6 +958,7 @@ void ATDCombatCharacter::EnterKnockdown(ETDKnockdownGrade Grade, AActor* Attacke
 	KnockdownJailEndsAt = Now + GetKnockdownJailSeconds();
 	KnockdownChoiceEndsAt = KnockdownJailEndsAt + GetKnockdownChoiceSeconds();
 	KnockdownRiseEndsAt = 0.0f;
+	bDebugGetUpPressed = false;
 
 	// Cancels through the death path's funnel, and for the same reason. Server-only and outside the
 	// Apply half: a client's OnRep must not cancel predicted copies out from under a correction.
@@ -1216,6 +1217,14 @@ void ATDCombatCharacter::TickKnockdown()
 			EndKnockdown();
 		}
 		return;
+	}
+
+	// The fixture's press, once per knockdown, just inside the choice window.
+	if (DebugGetUpMode != ETDDebugGetUpMode::Wait && !bDebugGetUpPressed
+		&& Now >= KnockdownJailEndsAt + DebugGetUpDelaySeconds)
+	{
+		bDebugGetUpPressed = true;
+		DebugGetUpPress();
 	}
 
 	// The auto-rise: the choice window closed without anything being chosen. Committed, vulnerable
@@ -3814,4 +3823,46 @@ bool ATDCombatCharacter::GetFacingHomingYaw(float& OutYaw) const
 	const FVector Delta = Target->GetActorLocation() - GetActorLocation();
 	OutYaw = FMath::RadiansToDegrees(FMath::Atan2(Delta.Y, Delta.X));
 	return true;
+}
+
+void ATDCombatCharacter::DebugGetUpPress()
+{
+	FGameplayTag Tag;
+	float HoldSeconds = 0.05f;
+	const TCHAR* Mode = TEXT("wait");
+	switch (DebugGetUpMode)
+	{
+	case ETDDebugGetUpMode::AttackGetUp: Tag = DebugAutoAttackInputTag;  Mode = TEXT("attack"); break;
+	case ETDDebugGetUpMode::DodgeGetUp:  Tag = DebugDefendDodgeInputTag; Mode = TEXT("dodge");  break;
+	case ETDDebugGetUpMode::StandGetUp:  Tag = DebugJumpInputTag;        Mode = TEXT("stand");  break;
+	case ETDDebugGetUpMode::BlockGetUp:
+		Tag = DebugDefendBlockInputTag;
+		Mode = TEXT("block");
+		// Held through the rise and a little past the stand, so the guard is up when it matters.
+		HoldSeconds = KnockdownRiseSeconds + 0.25f;
+		break;
+	default:
+		return;
+	}
+
+	if (!Tag.IsValid())
+	{
+		UE_LOG(LogTDCombatTiming, Warning, TEXT("%s: DebugGetUpMode %s has no input tag set on this pawn."), *GetName(), Mode);
+		return;
+	}
+
+	TD_TIMING_LOG(TEXT("[%.3f] DEBUG GETUP  %s mode=%s"),
+		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f, *GetName(), Mode);
+
+	DebugGetUpHeldTag = Tag;
+	OnAbilityInputPressed(Tag);
+	GetWorldTimerManager().SetTimer(DebugGetUpReleaseTimerHandle, this, &ATDCombatCharacter::DebugGetUpRelease, HoldSeconds, false);
+}
+
+void ATDCombatCharacter::DebugGetUpRelease()
+{
+	if (DebugGetUpHeldTag.IsValid())
+	{
+		OnAbilityInputReleased(DebugGetUpHeldTag);
+	}
 }
