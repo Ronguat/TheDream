@@ -225,15 +225,21 @@ hook cannot tell who wrote a change.
 
 Execution order, the only line that changes when the order does:
 
-> **~~Attack Ladder~~ → ~~Dodge~~ → ~~Sword & Shield~~ → ~~Input Buffer~~ → ~~Death~~ → ~~Dodge Distance~~ → ~~Attack Swap~~ → ~~[hover bug]~~ → ~~[facing pass]~~ → ~~Recovery~~ + ~~Lunge~~ → ~~Target Lock~~ → ~~Block~~ → ~~Light String~~ → ~~Parry~~ → Knockdown → Polish → Death-full → Settings → Netcode → Tuning Rig → Interplay**
+> **~~Attack Ladder~~ → ~~Dodge~~ → ~~Sword & Shield~~ → ~~Input Buffer~~ → ~~Death~~ → ~~Dodge Distance~~ → ~~Attack Swap~~ → ~~[hover bug]~~ → ~~[facing pass]~~ → ~~Recovery~~ + ~~Lunge~~ → ~~Target Lock~~ → ~~Block~~ → ~~Light String~~ → ~~Parry~~ → ~~Knockdown~~ → Polish → Death-full → Settings → Netcode → Tuning Rig → Interplay**
 
-**Pick up at Knockdown's closing package — `Docs/Plan-Animation.md`'s re-scope section is the
-list.** A–E shipped 2026-08-20, verified in play; **F is green** — the get-up attack fires from the
-floor, `s6-getup` reads **7/7 on the rough**, and the rough **ships as the interim clip** under the
-2026-08-24 verification bar (functionality plus legibility; visuals defer to Polish, feel to
-Tuning-Rig — the dated entry). The package: commit F's bundle, D's option scenarios, the legibility
-glance, `s4-360`'s exclusion lift, then I's spec rewrite and routing. **The animation pipeline is
-`Docs/Plan-Animation.md`**: authored in Cascadeur, transferred by the scripts in `Tools/AnimPipeline/`.
+**Pick up at Polish**, which has no plan yet — its brief is the slice-briefs section of
+`Docs/Combat-Decisions.md`, and it is the fullest one on the roster. It carries the bespoke windup
+pass, the parried attacker's recoil, all of Knockdown's presentation, and the three items the
+2026-08-24 legibility glance routed to it.
+
+**The verification bar every slice now ships against** *(2026-08-24, the dated entry)*: verified
+functionality, with animations legible enough to tell which mechanic is firing. Visual refinement
+defers to Polish, feel refinement to Tuning-Rig. **Polish is where the first half of that debt comes
+due**, so expect it to be large.
+
+**The animation pipeline is `Docs/Plan-Animation.md`**: authored in Cascadeur, transferred by the
+scripts in `Tools/AnimPipeline/`. `AS_GetUpAttack` is its first output and the project's first
+authored clip; `Docs/Animation-Library.md` carries what that means for the library correspondence.
 
 **Structure Audit has no roster position and keeps a trigger**; its brief is in the same section.
 

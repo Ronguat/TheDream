@@ -324,6 +324,35 @@ so an unattended parrier never spends and its bar never leaves 100, and the clam
 reward. That is the clamp working. It is also why the reward's magnitude is a filed trap rather
 than an assertion — see `Docs/Combat-Decisions.md`.
 
+**Knockdown adds seven, and the pairing to read is entry → rise → stand** *(2026-08-24, enumerated
+from the source rather than remembered)*. `KNOCKDOWN` opens the down state and carries the whole
+shape at once — `type=`, `lockout=`, `inputWindow=`, `rise=`, `spacing=`, `bearing=`, `z=` and
+`airborne=`. A second form, `KNOCKDOWN <name> retyped type=`, fires when an already-down body is
+re-floored: the tag is already correct, but the new type's clock would otherwise start invisibly.
+`KNOCKDOWN RISE` names the exit in `by=` — **`auto` `stand` `dodge` `kipup` `block` `attack`**, six
+tokens covering the wait, the neutral stand and the four options — and prints `stands=` as the
+timestamp the rise completes. `KNOCKDOWN STAND` is that instant, and carries `z=` for the airborne
+comparison. `KNOCKDOWN MONTAGE` prints per clip with its fitted rate.
+
+**`by=` is the whole discrimination and two of its tokens come from one ability.** `GA_Dodge`
+answers `dodge` or `kipup` depending on the type it reads off the character, which is why the base
+class *asks* for the label rather than storing a constant — the scenarios assert kip-up travel is
+about zero and roll travel is not, and they need to know which they are looking at.
+
+**`HOME RESET` is the fixture, not the game** — `bDebugHomeAtStand`, default **true**, returning a
+dummy to its placed transform at every stand and **never moving a player pawn**. It prints
+`moved=`, which separates a real reset from a no-op. Read it before attributing anything to
+geometry: it is what puts a riser back inside the attacker's reach, and `s4-360`'s later bursts and
+`s6-getup`'s landed hit both depend on it.
+
+**`DEBUG GETUP <name> mode=`** is the get-up fixture's press, naming which option it intended —
+without it the log cannot tell a get-up dodge from an ordinary one. **`FACING FORCED`** is **one line per hit,
+printed at the end** of the turn every cleanly hit victim takes toward its attacker, carrying
+`toward`, the `span=` actually covered and the `rate=`. The span is what the derivation wants
+checking against — a rate that cannot finish 180° inside the shortest *felt* hitstun leaves a body
+still turning when it regains control.
+
+
 **The waiver adds two, and they are deliberately not simultaneous.** `WAIVER` fires at contact and
 names the tag it dropped; `MOVE UNLOCK` fires later, at contact plus that swing's `HitstunSeconds`.
 **The gap between them is the derivation, so it is the thing to check** — measured 0.557 against

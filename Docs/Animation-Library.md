@@ -91,6 +91,41 @@ So: if a clip appears in the index but not under `/Game/GDHBundle/` in this proj
 exists and needs migrating — it is not missing. Check with
 `find Content/GDHBundle -iname "*<term>*"` before assuming either way.
 
+## Authored clips — the third source, as of 2026-08-24
+
+**Not everything in this project came from the library any more.** `AS_GetUpAttack` was authored
+rather than migrated: assembled in UE from keyed anchors, round-tripped through Cascadeur for the
+inbetweening, and imported onto our skeleton. It is the first, and the pipeline that made it is
+permanent infrastructure rather than a one-off — a second weapon makes it so.
+
+**So a clip in `/Game/TheDream/Combat/Animations/` may have no library counterpart**, and the
+name-based library↔project correspondence described above **does not apply to it**. The tell is the
+folder: `/Game/GDHBundle/` is migrated and read-only, `/Game/TheDream/` is ours. Authored clips take
+the correct spelling and are named for the **mechanic**, like the montages — `AS_GetUpAttack`, not a
+pack-and-move name, because there is no pack.
+
+**How they are made is `Docs/Plan-Animation.md`'s pipeline**, driven by the scripts in
+`Tools/AnimPipeline/`; the endpoints, the round-trip fidelity and the −90° root-roll fix are
+recorded there.
+
+### `Combat/Animations/Scratch/` is the pipeline's working area
+
+**Permanent folder, disposable contents — and deliberately *not* gitignored** (the designer's
+ruling, 2026-08-24). Round-trip experiments, exported endpoints, notify probes and in-progress
+clips live here. Two things follow:
+
+- **In-progress work is versioned like anything else.** An authored clip can cost a Cascadeur round
+  trip to produce, and excluding the folder by mechanism would drop that silently on a machine loss.
+  *Disposable* is a convention about the contents, not a rule enforced by `.gitignore` — which
+  carries an explicit banner against ignoring `Content/` for exactly this reason.
+- **Anything here may be deleted without ceremony once its question is answered**, and its answer
+  belongs in a doc rather than in the folder. Deleting is still a designer's call, being
+  irreversible.
+
+**Promoting out of it is a rename, not a copy**: the clip moves to
+`/Game/TheDream/Combat/Animations/` under its mechanic name, referencers fix up, and redirectors get
+resolved. `AS_GetUpAttack` and `AM_GetUpAttack` went that way.
+
 ## The complete index
 
 `Docs/Animation-Library-Index.tsv` lists every one of the 6,576 assets —
@@ -574,8 +609,8 @@ direction is the correct one and the property is explicitly **not bi-directional
 the skeletons whose animation *it* may consume. The source packs' own `compatibleSkeletons` are
 empty, which is right rather than broken — they consume nobody's.
 
-**So the first preview of a migrated clip is also the compat-link play check**, exactly as
-`Docs/Plan-Knockdown.md` intended: if the clip animates correctly on `SKM_Manny`, the link is proven
+**So the first preview of a migrated clip is also the compat-link play check**, which is how the
+knockdown migration was verified: if the clip animates correctly on `SKM_Manny`, the link is proven
 end to end.
 
 **Not scriptable, checked rather than assumed** *(2026-08-20)*. `USkeleton::PreviewSkeletalMesh` is

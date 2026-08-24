@@ -14,8 +14,8 @@
  *  hitbox; the three authored phase durations drive the play rates, derived from where the window
  *  sits in the clip. Knockback is radial: each victim leaves along its own bearing from the riser.
  *
- *  GA_GetUpAttack's CDO is authoritative for every value here; the numbers and their derivations
- *  are in Docs/Plan-Knockdown.md, sub-slice F.
+ *  GA_GetUpAttack's CDO is authoritative for every value here; the mechanics are in
+ *  Docs/Combat-Spec.md under Stun & Knockdown, and the reasoning in Docs/Combat-Decisions.md.
  */
 UCLASS()
 class UTDGetUpAttackAbility : public UTDMeleeAttackAbility
