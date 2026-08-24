@@ -464,9 +464,33 @@ was **not built by Knockdown's ship** — said plainly, because the slice closed
 covers the *jump* half through lockout refusals, and the *walking* half has no assertion because
 **nothing in the loop measures a defender's displacement during a stun**: `DODGE END`'s `dist=`
 belongs to the dodge, and `HOME RESET`'s `moved=` fires at a stand boundary a stun never reaches.
-**The discharge is a position sample inside the stun** — a trace line, so a code change, the same
-shape as the carve-out's. `IsMovementLocked()` covering `bInHitstun || bGuardBroken || bKnockedDown`
-means one such line would settle all three at once.
+**The mechanic is verified; what is missing is loop coverage** *(2026-08-24 — the designer tested it
+by hand, "had to get a bit creative", and **you cannot move while guard broken**)*. That moves this
+from unverified to human-verified, the same standing the airborne carry held.
+
+**The test, stated plainly: can a player walk out of their own guard break?** Hold a movement input,
+break the guard, assert no movement for the stun's 1.0 s — **and that the same held input moves them
+the instant it ends.** The control is the whole test: these dummies never move anyway, so *"did not
+move while stunned"* alone measures an inert pawn and calls it a lock.
+
+**The fixture, designed by the designer and recorded so it is not re-derived: single heavies, no
+chaining, against `HoldBlock`.** Two blocked heavies at 50 stamina damage break a full guard; a
+blocked hit never knocks down, so the break's window is not also a knockdown's; and no chaining
+leaves the stun room to breathe before the next attack. **Lights are the wrong tool** — the string's
+ender knocks down, and a knockdown locks movement for its own reasons.
+
+**One correction to the reasoning behind it, and it makes the design more right rather than less.**
+Blockstun does **not** lock movement: `IsMovementLocked()` is `bInHitstun || bGuardBroken ||
+bKnockedDown`, and the spec has blockstun *"disabling offense and nothing else"*. What reads as being
+stuck in blockstun is the **guard's speed cap** — the guard stays up throughout, so the defender
+moves at `BlockingMaxWalkSpeed` against a normal 500. So the contaminants are the knockdown and
+hitstun, not blockstun.
+
+**Still blocked on one knob.** Nothing presses a direction — the fixtures press attack, block, dodge,
+parry, jump and every get-up option, and nothing walks — and nothing samples position across an
+arbitrary window: `DODGE END`'s `dist=` belongs to the dodge, `HOME RESET`'s `moved=` to a teleport,
+`KNOCKBACK`'s `spacing=` to a destination. **One knob and one line discharge three assertions**,
+`IsMovementLocked()` covering guard break, hitstun and knockdown alike.
 
 **Sub-slice F shipped 2026-08-24** on the authored clip, and `s6-getup` reads 7/7 against it. *The notify half of that step gained a scripted candidate on 2026-08-22 —
 `AnimationLibrary`, in `Working-In-Unreal.md` — verified on a scratch montage the same day.*

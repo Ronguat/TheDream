@@ -163,11 +163,20 @@ check_trailers() { # -> prints trailer-less commits since origin/main
 # --- C8 (WARN): budgets ------------------------------------------------------
 # Backstops, never gates: the criterion is the closedown questions. A line count is
 # checkable in a second and fitness is not, so the number crowds out the criterion
-# unless it is explicitly demoted. ~280 / ~534 per Closing-Down.
-check_budget() { # $1=file $2=limit
+# unless it is explicitly demoted.
+#
+# The two files are policed for different things, which is why the numbers differ by
+# more than their sizes do. CLAUDE.md is read in full every session, so its number is
+# a real cost and stays tight. Working-In-Unreal is triggered, and it is *expected* to
+# grow -- every engine limit re-measured lands in it. Its number is therefore a prompt
+# to subdivide rather than a request to cut: the file has clean seams (driving the
+# editor, building C++, writing assets, what is scriptable, measuring, git), and
+# crossing the line means it is time to consider splitting one out, not to trim prose
+# that earned its place.
+check_budget() { # $1=file $2=limit $3=what crossing it means
   local n; n=$(wc -l < "$1")
   [ "$n" -le "$2" ] && return 0
-  echo "  $1 at $n lines against ~$2 backstop"; return 1
+  echo "  $1 at $n lines against ~$2 -- $3"; return 1
 }
 
 # ==== self-test ===============================================================
@@ -235,8 +244,8 @@ out=$(check_ngrams CLAUDE.md Docs/Working-In-Unreal.md) && ok "always-read-dup" 
 
 out=$(check_trailers) && ok "trailers" "all commits since origin/main carry parsed trailers" || { warn "trailers" "confirm these are not Claude-authored:"; printf '%s\n' "$out"; }
 
-out=$(check_budget CLAUDE.md 280) && ok "budget" "CLAUDE.md inside backstop" || warn "budget" "$out"
-out=$(check_budget Docs/Working-In-Unreal.md 534) && ok "budget" "Working-In-Unreal.md inside backstop" || warn "budget" "$out"
+out=$(check_budget CLAUDE.md 280 "read in full every session; audit it against the closedown questions") && ok "budget" "CLAUDE.md inside backstop" || warn "budget" "$out"
+out=$(check_budget Docs/Working-In-Unreal.md 750 "growth is expected; consider subdividing along its section seams") && ok "budget" "Working-In-Unreal.md inside backstop" || warn "budget" "$out"
 
 echo
 if [ "$FAILS" -gt 0 ]; then echo "RESULT: $FAILS FAIL, $WARNS WARN"; exit 1; fi
