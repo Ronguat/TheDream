@@ -16,7 +16,7 @@
 #            s6-knockdown s6-hard s6-stand s6-getup
 #            s6-dodge s6-kipup s6-block s6-hard-stand      (sub-slice D's options)
 #            s6-exhausted s6-exhausted-kipup s6-exhausted-block s6-exhausted-attack
-#            s6-airborne
+#            s6-airborne s6-exhaust-regen
 # Exit 0 = all assertions passed, 1 = at least one failed, 2 = usage/no data.
 
 set -uo pipefail
@@ -178,6 +178,15 @@ BAND_ELAPSED_GETUP=1.250
 # S6 -- the airborne knockdown. The floor is measured in-run from grounded stands, so a level edit
 # cannot silently invalidate the comparison. The height minimum is what separates "airborne by the
 # flag" from "airborne with room for a pinned Z to show" -- a body 2cm up proves only the former.
+# S6 -- the exhaustion exception, asserted as time that fails to appear. An exhausted player's
+# recovery is StaminaRegenPauseSeconds then MaxStamina/ExhaustedStaminaRegenPerSecond, plus the
+# guard-break stun when a break caused it, since regen is suppressed across that. Sources are
+# BP_TrainingDummy's CDO: 0.5 pause, 25/s exhausted regen, 100 max, 1.0 break stun.
+BAND_EXHAUST_PAUSE=0.5
+BAND_EXHAUST_REGEN_SECONDS=4.0
+BAND_EXHAUST_BREAK_STUN=1.0
+BAND_EXHAUST_SPAN_TOL=0.100
+
 BAND_AIRBORNE_STAND_TOL=1.0
 BAND_AIRBORNE_MIN_HEIGHT=20.0
 
@@ -1670,6 +1679,52 @@ run_s6_airborne() {
 	fi
 }
 
+# --- S6: the exhaustion exception -------------------------------------------
+# Knockdown suppresses regen -- unless you are already exhausted. That exception is what stops
+# repeated knockdowns locking a player out forever, regen being exhaustion's only exit.
+#
+# **Asserted as time that fails to appear, which is why it needs no new trace line.** Nothing prints
+# the stamina ledger inside a down-span, and it does not have to: if a knockdown suppressed an
+# exhausted player's regen, every EXHAUSTED -> EXHAUSTION END span containing one would run longer
+# by that knockdown's duration. The endpoints both print, so the span is measurable and the
+# prediction is arithmetic.
+
+exhaust_spans_with_knockdown() { # "<span> <predicted>" per exhaustion that contained a knockdown
+	awk -v pause="$BAND_EXHAUST_PAUSE" -v regen="$BAND_EXHAUST_REGEN_SECONDS" \
+	    -v stun="$BAND_EXHAUST_BREAK_STUN" '
+		$2 == "EXHAUSTED" { t=$1; gsub(/[\[\]]/,"",t); start=t+0; open=1; brk=0; kd=0; next }
+		open && $2 == "GUARD" && $3 == "BREAK" {
+			t=$1; gsub(/[\[\]]/,"",t); if ((t+0)-start < 0.05) brk=1; next
+		}
+		open && $2 == "KNOCKDOWN" && $3 != "RISE" && $3 != "STAND" && $3 != "MONTAGE" { kd++; next }
+		open && $2 == "EXHAUSTION" && $3 == "END" {
+			t=$1; gsub(/[\[\]]/,"",t)
+			if (kd > 0) printf "%.3f %.3f\n", (t+0)-start, pause + regen + (brk ? stun : 0)
+			open=0
+		}' "$SLICE"
+}
+
+run_s6_exhaust_regen() {
+	local rows n bad worst
+	rows=$(exhaust_spans_with_knockdown)
+	n=$(printf '%s\n' "$rows" | grep -c . || true)
+
+	# n=0 fails: a run where nobody was floored while exhausted says nothing about the exception.
+	check "exhaustions containing a knockdown" "$([ "$n" -gt 0 ] && echo 0 || echo 1)" \
+		"$n spans with a knockdown inside"
+	[ "$n" -gt 0 ] || return
+
+	# **The whole assertion.** Predicted is the recovery an exhausted player owes with the knockdown
+	# contributing nothing. Suppression would add the down-span, which is 2.5s -- an order above the
+	# tolerance, so this cannot pass by luck.
+	bad=$(printf '%s\n' "$rows" | awk -v t="$BAND_EXHAUST_SPAN_TOL" \
+		'NF && ($1-$2 > t || $2-$1 > t) { n++ } END { print n+0 }')
+	worst=$(printf '%s\n' "$rows" | awk 'NF { d=$1-$2; if (d<0) d=-d; if (d>m) m=d } END { printf "%.3f", m+0 }')
+	check "a knockdown costs an exhausted player no recovery" \
+		"$([ "$bad" -eq 0 ] && echo 0 || echo 1)" \
+		"$bad of $n spans off prediction by more than ${BAND_EXHAUST_SPAN_TOL}s; worst ${worst}s"
+}
+
 # --- self-test: the checker must be seen to fail ----------------------------
 self_test() {
 	echo "Self-test: asserting the checker reports FAIL on a band it cannot meet."
@@ -1754,6 +1809,7 @@ case "$SCENARIO" in
 	s6-exhausted-block)  run_s6_exhausted block  block  no ;;
 	s6-exhausted-attack) run_s6_exhausted attack attack yes ;;
 	s6-airborne)    run_s6_airborne ;;
+	s6-exhaust-regen) run_s6_exhaust_regen ;;
 	*) echo "regression-check: unknown scenario '$SCENARIO'" >&2; usage ;;
 esac
 

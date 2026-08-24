@@ -551,8 +551,27 @@ the s1 bands were calibrated with. **`s6-getup` 7/7 on the rough** — totals n=
 [1.255, 1.285], the rate visibly adapting per swing (0.453 at pos 0.6414, 0.397 at 0.6609).
 
 
-**Before trusting the exhausted carve-out -- *nothing prints the stamina ledger while a character is
-down.*** Filed 2026-08-24 while building sub-slice D's scenarios. Knockdown's plan promised the
+**~~Before trusting the exhausted carve-out — nothing prints the stamina ledger while a character is
+down~~ — DISCHARGED 2026-08-24**, same day, by `s6-exhaust-regen`. **The premise was true and
+irrelevant: the ledger was never the measurement.** If a knockdown suppressed an exhausted player's
+regen, every `EXHAUSTED` → `EXHAUSTION END` span containing one would run longer by that knockdown's
+duration — and both endpoints print, so the span is measurable and the prediction is arithmetic.
+**The knockdown's contribution shows up as time that fails to appear.**
+
+**Measured: 6 spans, each with a full knockdown inside, worst deviation 7 ms** from
+`StaminaRegenPauseSeconds` + `MaxStamina ÷ ExhaustedStaminaRegenPerSecond` + the guard-break stun
+where a break caused it — 0.5 + 4.0 + 1.0 = 5.5 s. Inverting the band to what suppression would
+predict puts every span **exactly 2.500 s** off, which is precisely the down-span, so the assertion
+is measuring the right quantity rather than passing by slack. Confirmed independently by the
+designer watching it in play.
+
+**The general lesson, which is why this stays: I looked for the measurement I expected instead of
+the one available.** Same shape as searching for a blockstun *montage* and concluding there was no
+animation. Ask what the quantity would *do* to something already logged before concluding it needs
+new instrumentation.
+
+*(Original filing follows, kept because its reasoning about what the endpoints cannot separate is
+correct and still worth knowing.)* Filed 2026-08-24 while building sub-slice D's scenarios. Knockdown's plan promised the
 carve-out as *"the stamina ledger rises during the down-span -- the carve-out observable in one
 assertion"*, and it is **not observable**: `EXHAUSTED` and `EXHAUSTION END` bracket the state from
 *outside* the down-span, and both the regen pause and the guard-break stun sit between them, so the
