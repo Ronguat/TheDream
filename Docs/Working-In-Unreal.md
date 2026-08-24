@@ -63,6 +63,10 @@ forced kill, and **saving covers assets only**: in-progress asset-editor state d
 `Saved/Autosaves/PackageRestoreData.json` reading `Packages: []` confirms nothing was stranded;
 **`Packages` is the field that matters, not `RestoreEnabled`**, which is not a stable signal.
 
+**Before an unattended relaunch, reset that file to `{"RestoreEnabled": false, "Packages": []}`** —
+a forced kill after an autosave leaves it populated and the reopened editor blocks on a restore
+dialog nobody is there to answer *(bit 2026-08-24)*; declining restore is already the standing rule.
+
 **Announce before closing, every time — an announcement, not a request**: reading it is what stops
 the user working in a dying editor. Announce and proceed in the same turn; opening needs no
 announcement.

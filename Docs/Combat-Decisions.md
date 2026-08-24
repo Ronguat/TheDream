@@ -437,6 +437,28 @@ The three non-green assertions, in descending order of how much they matter:
   `windowLen ÷ ReleaseSeconds` release rate ignores the overshoot, so the release plays ~25–45 ms
   short. A WHAT question — fix in the subclass, the base, or the band — left for the user.
 
+**Update 2026-08-24 — re-measured unattended after the defender-homing change: 6/7, the only red
+the under-run above.** The contamination red dissolved: every `by=attack` rise names the configured
+`_C_1`, so the killed run's `_C_0` rises were the user playing inside the measured session — an
+attended-run artefact, not fixture state. The geometry red closed outright: with `bDebugHomeAtStand`
+restoring placed spacing each cycle the attacker's chase arrives inside the release, and **the
+riser's hit landed 3/3** — witnessed, no longer accepted by construction. Totals 1.245–1.250 against
+[1.255, 1.285]: the under-run stands, the WHAT above unanswered.
+
+
+**`s5-parry-reward` cannot be trusted as fixtured — the mechanic is verified, the scenario is not.**
+Filed 2026-08-24. Knockdown post-dates the scenario: at taps 3 the ender floors the parrier and a
+pre-block landing in the jail is refused (`REFUSED GA_Block: knocked down (jail)`), so that cycle
+spends nothing and its success credits 0; at taps 1 a delayed guard spends short and a success
+credited 20. The reward paid exactly 25 both times the bar sat under the clamp, and **the user
+verified it in play the same day** — the red is the fixture's timers, out of sync with the
+knockdown-era exchange. Until the timers are redesigned its FAIL is expected output.
+
+
+**`REFUSED` prints undeduped under a parry lockout** *(observed 2026-08-24, filed not chased)*: 64
+`parry lockout` refusals in one ~75 s run, bursts of 11 inside 80 ms — the half-second per-reason
+dedup did not apply on that path. Every assertion around it was green; the cost is log volume.
+
 
 **Whenever a second attacker becomes possible — *knockdown's 1vX half has never been observed
 either.*** Filed 2026-08-20, owed from Knockdown's plan and **discharged in the same sitting as the

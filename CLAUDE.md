@@ -231,8 +231,8 @@ rise, floor invincibility, the movement and facing locks, the parried attacker's
 opens its Release Window and commits, on a **rough scratch montage** (`Scratch/AM_GetUpAttack_Rough`,
 untracked). **What remains for F to ship**: the designer's polished clip replacing the rough
 (`Saved/AnimPipeline/GetUpAttack.casc` is the Cascadeur scene to polish), then `s6-getup` green —
-today 4/7, the reds a contaminated fixture, an in-fixture geometry limit, and a timing under-run,
-all in the trap. **The animation pipeline that unblocked it is `Docs/Plan-Animation.md`**: authored
+2026-08-24's unattended re-run reads 6/7, the sole red the release under-run, a WHAT waiting on the
+user; the trap holds the evidence. **The animation pipeline that unblocked it is `Docs/Plan-Animation.md`**: authored
 in Cascadeur, transferred by the scripts in `Tools/AnimPipeline/`.
 
 **Also owed**: `s4-360`'s first-burst exclusion, sub-slice I's spec rewrite, and the get-up options
