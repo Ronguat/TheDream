@@ -447,15 +447,17 @@ play. It is not the attacker's chase arriving inside the release. **`bDebugHomeA
 the *riser* into range mid-release**: `HOME RESET moved=327.0cm` and the riser's `DAMAGED` share a
 timestamp, twice over, with `RELEASE BEGIN` 0.2 s earlier and `RELEASE END` 0.16 s later.
 
-**What that exercises, stated exactly, because the difference decides what `s6-getup`'s damage row
-means.** Proven: `StartMeleeTrace` runs, selects a target, applies the authored 10, and resolves
-against a **genuine 150 cm separation** — the teleport lands the body on its placed spacing, inside
-the volume's 150 reach, so the volume math ran on real geometry. Not proven: that a riser reaches a
-target that arrived under its own power. And the hit's **timing is fixture-determined** — it lands
-at the stand boundary because that is when the teleport fires, not because of anything the attack
-does. So the row is stronger than *accepted by construction* and weaker than *witnessed*: it says
-the path works end to end, not that a get-up attack can reach anybody in play. **The reach question
-stays with the 1vX owed traps**, where the pre-`bDebugHomeAtStand` reading already put it. Totals 1.245–1.250 against
+**The functionality is proven and that is what this slice owed** — the package's stated obligation
+was that the hitbox opens and the attack commits. `StartMeleeTrace` runs, selects a target, applies
+the authored 10, and resolves against a **genuine 150 cm separation**: the teleport lands the body
+on its placed spacing, inside the volume's 150 reach, so the volume math ran on real geometry.
+
+**What the mechanism does not settle is range, which was never Knockdown's question.** The hit's
+timing is fixture-determined — it lands at the stand boundary because that is when the teleport
+fires — so nothing here says what distance a riser can cover unaided. That belongs to the
+reach/travel/spacing trap above, whose own reading is *everything mechanical about it is discharged;
+what remains is design*, and whose home is the Tuning Rig's greening. Recorded so the next reader
+does not mistake a tuning question for an unverified mechanic. Totals 1.245–1.250 against
 [1.255, 1.285]: the under-run stands, the WHAT above unanswered.
 
 **Answered 2026-08-24, same day — (a), the subclass.** `UTDGetUpAttackAbility` derives its release
