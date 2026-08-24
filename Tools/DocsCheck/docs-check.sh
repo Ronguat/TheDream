@@ -67,7 +67,7 @@ Docs/Combat-Decisions.md:::## Tuning map:::CLAUDE.md routing table sends knob ro
 Docs/Combat-Decisions.md:::## What has been superseded:::the supersession check reads this table
 Docs/Combat-Decisions.md:::## Symbol index:::CLAUDE.md names it as a working section
 Docs/Combat-Decisions.md:::## Slice briefs:::CLAUDE.md sends every slice pickup here
-Docs/Combat-Decisions.md:::- **Knockdown**:::CLAUDE.md Current Focus points at this brief -- MOVE THIS ROW when a slice ships
+Docs/Combat-Decisions.md:::- **Polish**:::CLAUDE.md Current Focus points at this brief -- MOVE THIS ROW when a slice ships
 Docs/Combat-Decisions.md:::- **Netcode**:::CLAUDE.md network section defers status to this brief
 Docs/Debug-Instruments.md:::### Scenario matrix:::Working-In-Unreal sends verification here
 Tools/RegressionCheck/regression-check.sh:::--self-test:::CLAUDE.md and W-I-U both name the script and its self-test
