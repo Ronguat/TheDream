@@ -389,7 +389,16 @@ fails differently (`no attribute 'get_node_title'`), so **transition *direction*
 any route** — check it against a picture.
 
 `list_graphs` enumerates states and transitions regardless, so the tree is visible even where its
-graphs are not. **Prove the instrument before believing an empty `find_nodes`** — it returns 8 nodes
+graphs are not.
+
+**A mechanic's animation may therefore be invisible to every search you would think to run**
+*(2026-08-24, wrong twice in one exchange)*. Blockstun's tell is a Locomotion **state**, so there is
+no asset named for it and no `*Montage` property pointing at it — `find Content -iname "*lockstun*"`
+and a source grep both return nothing while the animation plays perfectly on screen. **Absence of a
+montage is not absence of an animation.** Before concluding a mechanic has no tell, ask the designer
+what they see, or check whether its state getter is `BlueprintPure` — that is the tell that the state
+machine can reach it.
+ **Prove the instrument before believing an empty `find_nodes`** — it returns 8 nodes
 on `ABP_Combat:AnimGraph` and `[]` on `Locomotion`, which is how you tell real emptiness from a
 silent refusal. And **a creation `type_id` is not the one a node reports** —
 `get_node_infos` gives `|GetGroundSpeed` where `create_node` wants `Variables|Default|GetGroundSpeed`;
