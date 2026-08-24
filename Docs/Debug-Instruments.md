@@ -57,12 +57,12 @@ pawn that blocks *and* jumps, or is floored *and* jumps. So it sits beside the e
 parry's interval is) and `DebugJumpInputTag`. It reaches the neutral stand and nothing else; the
 other get-up options still have no fixture — see the traps.
 
-**A knocked-down fixture is brought home at the stand boundary** *(2026-08-20)*, and without it a
-defensive fixture leaves the exchange permanently after its first knockdown. The mechanism, the
-measurement and why the stand is the only safe hook are in the trap; what matters here is that
-**`bDebugPeriodicJump` counts as a fixture for the home-transform capture as well as the reset** —
-those two conditions are one rule written twice, and a pawn sent home without having recorded a
-home teleports to the world origin.
+**Every dummy is brought home at the stand boundary by default** *(widened 2026-08-24 from
+fixture-armed pawns only; `bDebugHomeAtStand`, instance-writable)*. The home transform is captured
+for every pawn at BeginPlay, so the world-origin teleport is gone by construction, and a player
+pawn is never teleported. Before the widening a knob-less victim was never homed, each knockdown's
+450 cm carry compounded, and the attacker eventually re-targeted the parked player —
+**displacement measurements do not span 2026-08-24.**
 
 **Placed-actor fixture knobs are level state, and an editor restart reverts every one of them**
 *(2026-08-20, after it silently invalidated a control run)*. They are `EditAnywhere` instance
@@ -134,8 +134,9 @@ spacing chain a *connecting* string produces, which a mid-burst teleport severs.
 lunge distance, spacing, knockback. If a travel figure looks impossibly small, check where it was
 standing before believing it.
 
-**Spawn the player pawn out of the exchange — `startTransform` (0, 800, 100), not the old
-(0, 0, 100)** *(2026-08-16)*. The attacker re-focuses on the **nearest living pawn**, so during a
+**Spawn the player pawn out of the exchange — `startTransform` (−3000, −3000, 100)** *(moved
+2026-08-24: knockdown's 450 carry let the defender drift past 800, and the attacker then chased the
+player onto the ramp; (0, 800, 100) was 2026-08-16's answer to the same failure at (0, 0, 100))*. The attacker re-focuses on the **nearest living pawn**, so during a
 dead defender's revive window it turns on the player; at the old spawn (200 cm out, inside a
 heavy's 400 travel + 150 reach) it *farmed* the player — whose `DAMAGED`/`REVIVE` lines then
 poisoned the defender's ledgers. Two checker assertions failed exactly this way before the spawn
@@ -519,13 +520,14 @@ looks ignored.
 | `s4-block` | 0.1, **taps 3** | `HoldBlock` | `BLOCKED` staminaDamage exactly 5; `BLOCKSTUN` spans 0.350 ±20 ms; knockback never inward |
 | `s4-360` | 0.1, **taps 3**, `FacingMode` **Never**, **`bDebugSuppressLunge`** | `Off`, plus the player spawned at (200, 150) opposite the defender | **first burst only**: attacks 1–2 damage **zero** distinct targets, attack 3 damages **two** |
 | `s5-parry` | 0.1, **taps 3** | `PeriodicParry` | `PARRY WINDOW` span 0.300 ±25 ms; at least one `PARRY SUCCESS` (**n=0 fails**); credited reward inside [0, 25]; **zero `STRING` link window after a parried swing**; **every `PARRY GESTURE` inside its own window (n=0 fails)** ; **`PARRY GRACE` span 0.150 ±25 ms**; every `by=window` success starts exactly one tail; **Grace never re-arms** (no tail from a `by=grace` catch, none overlapping) |
-| `s5-parry-reward` | 0.1, **taps 3** | `PeriodicParry`, `DebugParryPreBlockSeconds` **4.0**, `DebugParryIntervalSeconds` **5.3** | at least one `PARRY SUCCESS`; `gained` **exactly 25** on every one |
+| `s5-parry-reward` | 0.1, **taps 3** | `PeriodicParry`, `DebugParryPreBlockSeconds` **4.0**, `DebugParryIntervalSeconds` **5.3** | at least one `PARRY SUCCESS`; `gained` **exactly 25** on every one. **Unreliable as fixtured since Knockdown — see the 2026-08-24 trap**; its FAIL is expected until the timers are redesigned |
 | `s5-parry-whiff` | 0.1, **taps 3** | `PeriodicParry`, `DebugParryIntervalSeconds` **0.5**, **and the defender also auto-attacks** (`bDebugAutoAttack`, interval **0.7**, `bDebugSuppressLunge`) | `PARRY RECOVERY` span 0.600 ±25 ms; `REFUSED` naming **the jail** (`parrying` or `parry recovery`) at least once; **nothing activates inside a recovery span (n=0 fails)**; **nothing activates inside a parry window either (n=0 fails)** |
 | `s5-cancel` | 0.1, **`bDebugCancelAttackIntoBlock`** | `Off` | zero `RELEASE BEGIN`; zero `DAMAGED`; `BLOCK cost` at least once |
 | `s5-waiver` | 0.1, **`bDebugDodgeAfterHit`** | `Off` | attacker `DODGE` within 100 ms of its own `DAMAGED`; `MOVE UNLOCK` present |
 | `s6-knockdown` | 0.1, **taps 3** | `Off` | the ender's knockdown: every `KNOCKDOWN` reads `grade=normal`; entry→rise **2.000 ±25 ms**; rise→stand **0.500 ±25 ms**; **zero `DAMAGED` between a knockdown and its rise** (floor invincibility, and it fails on n=0 knockdowns rather than passing vacuously); every rise `by=auto` |
 | `s6-hard` | 0.22 | `Off` | the same spans from the other grade — `grade=hard`, entry→rise 2.000, rise→stand 0.500. **The total is grade-invariant by design**, which is why this cannot see the 1.5/0.5 split and `s6-stand` exists |
 | `s6-stand` | 0.1, **taps 3** | `Off`, plus **`bDebugPeriodicJump`** (interval **1.3**) | the jail made observable: presses inside it are `REFUSED … knocked down (jail)`, and the first press after it fires `RISE by=stand`. Chosen stands must land in **[jail, auto-rise)** — measured n=9 all within [1.000, 1.975] s |
+| `s6-getup` | **0.22** (hard singles) | `Off`, plus **`DebugGetUpMode` `AttackGetUp`** | the fixture's press inside the **hard** choice window; rise `by=attack`; press→`RELEASE BEGIN` 300 ms ±30; the authored 1.250 total; the riser's hit landing; no `STRING` after. **Run unattended** — a human's floor presses rise `by=attack` on their own pawn and poison the counts |
 
 **`s5-parry-whiff` needs its own interval, and finding out why cost a run** *(2026-08-18)*. At the
 default 1.7 the recovery is **never exercised**: a whiff closes 0.3 s after the press and its

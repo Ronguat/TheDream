@@ -1108,7 +1108,7 @@ void ATDCombatCharacter::EndKnockdown()
 	// would resolve the hit at a distance nobody aimed at. Hitstun's end will not serve either --
 	// a graded hit knocks down instead of stunning, so that hook never fires.
 	//
-	// Self-guarding: ReturnToDebugAutoAttackHome does nothing without a debug fixture.
+	// Self-guarding: ReturnToDebugAutoAttackHome never moves a player pawn.
 	ReturnToDebugAutoAttackHome();
 }
 
@@ -2188,9 +2188,9 @@ void ATDCombatCharacter::ClearDeathState()
 	// behind. Order is the whole correctness argument here.
 	StopRagdoll();
 
-	// An auto-attacker revives where it was placed rather than wherever its last root motion carried
-	// it; without this it stands up displaced and only drifts home on its next cycle. No-op for
-	// anything that is not an auto-attacker, so the player revives where they fell.
+	// A dummy revives where it was placed rather than wherever its last root motion carried it;
+	// without this it stands up displaced. The player is never teleported and revives where they
+	// fell.
 	ReturnToDebugAutoAttackHome();
 
 	// Falling rather than Walking: the character may have died mid-air, and forcing Walking there
@@ -2584,19 +2584,11 @@ void ATDCombatCharacter::SeedAbilitySystemDefaults()
 	AbilitySystem->OnAbilityEnded.AddUObject(this, &ATDCombatCharacter::HandleAbilityEndedForResume);
 
 	const bool bDebugAttacker = bDebugAutoAttack && DebugAutoAttackInputTag.IsValid();
-	const bool bDebugDefender = DebugAutoDefendMode != ETDDebugDefendMode::Off;
 
 	// Captured before the first swing or dodge, so it is the placed transform rather than wherever
-	// root motion has carried us. Taken for either fixture: with no movement input every dodge
-	// resolves backward, so an unattended defender reverses out of the exchange.
-	//
-	// A jump-only fixture counts too, and MUST be included here if it is included in
-	// ReturnToDebugAutoAttackHome's guard -- the two conditions are one rule written twice, and a
-	// pawn sent home without having recorded one goes to the world origin.
-	if (bDebugAttacker || bDebugDefender || bDebugPeriodicJump)
-	{
-		DebugAutoAttackHomeTransform = GetActorTransform();
-	}
+	// root motion has carried us. Taken for every pawn, so any path that sends one home has a real
+	// transform to send it to -- an uncaptured home is the world origin.
+	DebugAutoAttackHomeTransform = GetActorTransform();
 
 	if (bDebugAttacker)
 	{
@@ -2835,14 +2827,10 @@ void ATDCombatCharacter::DebugCancelIntoBlockRelease()
 
 void ATDCombatCharacter::ReturnToDebugAutoAttackHome()
 {
-	// Guarded on there being a debug fixture at all, as well as on the reset flag, because
-	// HomeTransform is only captured for one: calling it on anything else -- the player, on revive --
-	// teleports to an identity transform, the world origin.
-	//
-	// bDebugPeriodicJump counts as a fixture. It is orthogonal to DebugAutoDefendMode by design, so
-	// a jump-only defender would otherwise fall through this guard and never be brought home.
-	if (!bDebugAutoAttackResetPosition
-		|| (!bDebugAutoAttack && !bDebugPeriodicJump && DebugAutoDefendMode == ETDDebugDefendMode::Off))
+	// Guarded on the reset flag, and a player pawn is never teleported. bDebugHomeAtStand homes a
+	// dummy with no other fixture armed; the fixture flags cover their own call sites.
+	if (!bDebugAutoAttackResetPosition || IsPlayerControlled()
+		|| (!bDebugHomeAtStand && !bDebugAutoAttack && !bDebugPeriodicJump && DebugAutoDefendMode == ETDDebugDefendMode::Off))
 	{
 		return;
 	}

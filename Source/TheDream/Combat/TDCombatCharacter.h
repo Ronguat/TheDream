@@ -1106,6 +1106,10 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat|Debug", meta=(ClampMin="0.0"))
 	float DebugGetUpDelaySeconds = 0.05f;
 
+	/** Home to the placed transform at the stand boundary even with no other debug fixture armed. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat|Debug")
+	bool bDebugHomeAtStand = true;
+
 	/**
 	 *  Seconds between one auto-parry and the next. Debug only.
 	 *
