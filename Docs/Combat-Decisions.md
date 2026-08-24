@@ -445,6 +445,12 @@ restoring placed spacing each cycle the attacker's chase arrives inside the rele
 riser's hit landed 3/3** — witnessed, no longer accepted by construction. Totals 1.245–1.250 against
 [1.255, 1.285]: the under-run stands, the WHAT above unanswered.
 
+**Answered 2026-08-24, same day — (a), the subclass.** `UTDGetUpAttackAbility` derives its release
+rate from the remaining window at the measured `RELEASE BEGIN` position (its `RELEASE` line prints
+`remaining=`); the base and the charged keep the authored-length formula, whose ~10 ms loss at 1×
+the s1 bands were calibrated with. **`s6-getup` 7/7 on the rough** — totals n=4 all inside
+[1.255, 1.285], the rate visibly adapting per swing (0.453 at pos 0.6414, 0.397 at 0.6609).
+
 
 **`s5-parry-reward` cannot be trusted as fixtured — the mechanic is verified, the scenario is not.**
 Filed 2026-08-24. Knockdown post-dates the scenario: at taps 3 the ender floors the parrier and a

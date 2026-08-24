@@ -230,9 +230,9 @@ Execution order, the only line that changes when the order does:
 rise, floor invincibility, the movement and facing locks, the parried attacker's lockout. **F's code shipped 2026-08-22** (`5b08169` + a wedge fix): the get-up attack fires from the floor,
 opens its Release Window and commits, on a **rough scratch montage** (`Scratch/AM_GetUpAttack_Rough`,
 untracked). **What remains for F to ship**: the designer's polished clip replacing the rough
-(`AnimSource/GetUpAttack.casc` is the Cascadeur scene to polish), then `s6-getup` green —
-2026-08-24's unattended re-run reads 6/7, the sole red the release under-run, a WHAT waiting on the
-user; the trap holds the evidence. **The animation pipeline that unblocked it is `Docs/Plan-Animation.md`**: authored
+(`AnimSource/GetUpAttack.casc` is the Cascadeur scene to polish) — `s6-getup` reads **7/7 on the
+rough** (2026-08-24: the release under-run answered in the subclass, the fixture reds resolved; the
+trap holds the evidence). **The animation pipeline that unblocked it is `Docs/Plan-Animation.md`**: authored
 in Cascadeur, transferred by the scripts in `Tools/AnimPipeline/`.
 
 **Also owed**: `s4-360`'s first-burst exclusion, sub-slice I's spec rewrite, and the get-up options

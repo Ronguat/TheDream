@@ -158,11 +158,23 @@ void UTDGetUpAttackAbility::HandleReleaseWindowBegan(FGameplayEventData Payload)
 		return;
 	}
 
-	const float ReleaseRate = FMath::Max(WindowLength / ReleaseSeconds, TDMinPlayRate);
+	// Rate from the *remaining* window at the measured position, not the authored length: the
+	// notify opens up to a frame late at this windup rate, and the authored-length formula -- the
+	// base's and the charged ability's, whose ~10 ms loss at 1x sits inside the s1 bands -- plays
+	// the release 25-45 ms short here. Falls back to the authored length when the position is
+	// unreadable.
+	const float WindowEnd = ReleaseStartSeconds + WindowLength;
+	const float Remaining = (ActualStart >= 0.0f) ? WindowEnd - ActualStart : WindowLength;
+	if (Remaining <= KINDA_SMALL_NUMBER)
+	{
+		return;
+	}
+
+	const float ReleaseRate = FMath::Max(Remaining / ReleaseSeconds, TDMinPlayRate);
 	SetMontagePlayRate(ReleaseRate);
 
-	TD_TIMING_LOG(TEXT("[%.3f] RELEASE    pos=%.4f windowLen=%.4f rate=%.3f (want %.3fs)"),
-		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f, ActualStart, WindowLength, ReleaseRate, ReleaseSeconds);
+	TD_TIMING_LOG(TEXT("[%.3f] RELEASE    pos=%.4f windowLen=%.4f remaining=%.4f rate=%.3f (want %.3fs)"),
+		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f, ActualStart, WindowLength, Remaining, ReleaseRate, ReleaseSeconds);
 }
 
 void UTDGetUpAttackAbility::HandleReleaseWindowEnded(FGameplayEventData Payload)
