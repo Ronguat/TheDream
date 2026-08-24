@@ -177,9 +177,6 @@ BAND_ELAPSED_GETUP=1.250
 BAND_GETUP_DODGE_COST=50.0
 BAND_KIPUP_TRAVEL_MAX=25.0
 BAND_BLOCK_GUARD_GAP=0.100
-# How close a refusal must follow a get-up press to be attributed to it. Wide enough for a frame
-# of scheduling, far short of the choice window that would let a standing refusal drift in.
-BAND_GETUP_REFUSAL_GAP=0.200
 
 # ---------------------------------------------------------------------------
 
