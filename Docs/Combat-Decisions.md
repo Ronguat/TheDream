@@ -531,7 +531,17 @@ pre-block landing in the lockout is refused (`REFUSED GA_Block: knocked down (lo
 spends nothing and its success credits 0; at taps 1 a delayed guard spends short and a success
 credited 20. The reward paid exactly 25 both times the bar sat under the clamp, and **the user
 verified it in play the same day** — the red is the fixture's timers, out of sync with the
-knockdown-era exchange. Until the timers are redesigned its FAIL is expected output.
+knockdown-era exchange. Until the timers are retuned its FAIL is expected output — **and it stays in
+the suite reporting FAIL every run, which is the cost**: a suite with a known-failing member teaches
+you to skim, and skimming is how the next real failure gets missed.
+
+**It is a retune, not a redesign** *(assessed 2026-08-24)*. At **taps 1** the interference disappears
+outright — only swing 0 fires and the light branch's knockdown type is `None`, so nothing floors the
+parrier and no pre-block lands in a lockout. What remains is arithmetic: the bar must sit **under
+75** at the catch or the clamp trims the reward, and the observed `gained=20` means it sat at 80.
+Raising a guard costs 10 and holding drains 10/s, so `DebugParryPreBlockSeconds` wants lengthening —
+and the parry must still land immediately after the guard drops, since regen at 40/s crosses back
+over 75 in about a second. Change the fixture, never the band.
 
 
 **`REFUSED` prints undeduped under a parry lockout** *(observed 2026-08-24, filed not chased)*: 64
@@ -559,12 +569,21 @@ knockdown.*** Filed 2026-08-24, owed from Knockdown's plan at sub-slice G. The r
 airborne victim is floored mid-air with the Z axis left to gravity, no ground snap, and the
 structural fix is `IgnoreZAccumulate` on the shared root motion source — an Override source
 overrides *velocity*, gravity included, so any pinned Z hangs the body for the source's duration.
-**Human-verified once at build and never since.** Nothing in `regression-check.sh` produces an
-airborne victim; every fixture floors a standing dummy.
+**Lightly exercised, never at height** — corrected 2026-08-24, the designer pointing out that
+`bDebugPeriodicJump` is exactly the scheduled-airborne knob, and that airborne interactions were
+audited this way before, catching knockback still authoring Z and producing air combos. **The knob
+exists, `s6-stand` already uses it, and the path has fired**: three `airborne=1` knockdowns across
+422 logged, every one reading `z=96.1` at entry against `z=98.2` at the stand.
 
-**The assertion is already available and only the fixture is missing.** `KNOCKDOWN` carries `z=` and
-`airborne=`, and `KNOCKDOWN STAND` carries `z=` — **equal heights across a carry mean the body hung**.
-Discharging it needs a knob that gets a victim off the ground on a schedule, which nothing has.
+**All three pass the test, and the test is the right one** — `KNOCKDOWN` carries `z=` and `airborne=`,
+`KNOCKDOWN STAND` carries `z=`, and **equal heights across a carry mean the body hung**. They are not
+equal, so gravity kept the vertical and `IgnoreZAccumulate` held.
+
+**What is actually untested is height.** Ground is `z=98.3`, so those bodies were **2.2 cm** off the
+deck — airborne by the flag and barely airborne in fact. Nothing has yet floored a victim at jump
+apex, where a pinned Z would have room to show. **Discharging it is a fixture, not a capability**:
+`bDebugPeriodicJump` on the defender against knockdown swings, with the jump interval set so hits
+arrive mid-arc rather than at the edges, plus the z-comparison as a scenario assertion.
 
 
 **Whenever a second attacker becomes possible — *knockdown's 1vX half has never been observed
