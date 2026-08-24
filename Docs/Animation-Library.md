@@ -620,6 +620,69 @@ refuses it by name. `SkeletalMeshTools` was enumerated in full (21 tools) and ha
 setter; Persona's picker calls `USkeleton::SetPreviewMesh()`, which nothing exposes. **Assigning a
 preview mesh is a human step.**
 
+### The five skeletons are one rig, measured 2026-08-24
+
+**Audited before the Skeleton Merge slice, read-only, through the editor's Python.** The project
+carries **five** `Skeleton` assets, every one named `SK_Mannequin` — Epic's plus one per GDH pack.
+They are **the same rig, to the bit**: 161 bones, identical names in identical order, no bone
+missing or extra in any pair, **worst reference-pose deviation 0.000000** across all 161×4
+comparisons, and zero per-bone `TranslationRetargetingMode` differences. The designer's read that
+they are identical is confirmed on the bone side without qualification.
+
+**Sockets are owned by the skeleton, not the mesh** — checked by reading each socket's outer, which
+comes back `Skeleton` in every case. So the socket sets are what the merge has to reconcile:
+
+| Skeleton | Sockets | Bone |
+|---|---|---|
+| SwordShield | `Sword`, `Shield`, `Sheath` | `hand_r`, `hand_l`, `thigh_l` |
+| Epic | `HandGrip_L`, `HandGrip_R` | `hand_l`, `hand_r` |
+| both | `foot_l_Socket`, `foot_r_Socket`, `weapon_r_muzzle` | `foot_l`, `foot_r`, `weapon_r` |
+
+**No collision exists**: the two unique sets share no name, and the three common names carry
+**identical transforms** on both. The union is 8 sockets and is lossless.
+
+**`Unarmed`, `GreatSword` and `Dagger` have unmeasured socket sets**, and the reason is structural:
+`find_socket` resolves through a SkeletalMesh, those three packs ship none, and binding a mesh to
+them is a write. Their sets are unknown rather than empty — do not read the table above as covering
+them. Settling it means binding a mesh temporarily, which is a human step or an explicit go-ahead.
+
+**Two instruments returned a confident zero and were wrong**, both recorded because the shape
+repeats: `Skeleton.sockets` and `SkeletalMesh.sockets` are **protected** and refuse reflection reads
+with an error that scans like an empty list; and `AnimPose.get_socket_names()` off
+`Skeleton.get_reference_pose()` returns **0 for every skeleton including the one with 6**, which is
+the proof it reports nothing rather than evidence of nothing. `get_all_socket_names()` on a
+transient `SkeletalMeshComponent` is the route that works — **minus the bone names, which it also
+returns.**
+
+**Where the content actually sits**, and the reason the merge is smaller than it looks:
+
+| Skeleton | Total assets | Authored under `/Game/TheDream` |
+|---|---|---|
+| SwordShield | 1023 | 24 — nine montages, the blend spaces, every authored clip |
+| Epic | 105 | **1 — `ABP_Combat`** |
+| Unarmed | 4 | 3 — `AM_Rise`, `AM_KipUp`, `AM_NotifyProbe` |
+| GreatSword | 2 | 1 — `AM_RiseHard` |
+| Dagger | 1 | 0 |
+
+**`ABP_Combat` is on Epic's skeleton while the mesh it drives is on SwordShield's.** Both
+`BP_PlayerCharacter` and `BP_TrainingDummy` run `SKM_Manny` (SwordShield) through `ABP_Combat_C`
+(Epic), and the project's own montages span **four** of the five skeletons. Nothing is broken —
+`compatibleSkeletons` is what holds it together, and this is the *"real `CompatibleSkeletons`
+dependency"* the 2026-08-12 hover entry names in passing. **It is also load-bearing right now:**
+SwordShield lists the other four, which is the only reason a `Unarmed` `AM_Rise` plays on a
+SwordShield mesh. Clearing that list before the merge lands breaks the knockdown get-ups.
+
+**So the project's own repoint is five assets** — `ABP_Combat`, `AM_Rise`, `AM_KipUp`, `AM_RiseHard`
+and `AM_NotifyProbe` — with the remaining 1130 being vendor and template content whose consolidation
+is a separate, optional question.
+
+**Correcting the preview-mesh claim directly above** *(2026-08-24)*: it is accurate about the MCP
+surface and **not** about the engine. `USkeleton` exposes both `get_skeleton_preview_mesh` and
+**`set_skeleton_preview_mesh`** to editor Python, so assigning one is scriptable after all. Untested
+— reading it is what the audit needed. `copy_bones_from_skeleton`, `add_compatible_skeleton` and a
+`SkeletonModifier` class with full bone add/rename/reparent are on the same surface, and
+`unreal.SkeletonMergeParams` exists.
+
 ## Getting an animation into this project
 
 Use **Asset Actions → Migrate** from `AnimLibrary`, targeting `TheDream/Content`. Migrate

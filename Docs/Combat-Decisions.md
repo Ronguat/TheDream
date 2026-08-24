@@ -144,6 +144,23 @@ stays here and misdirects the next person, which is worse than never having file
 discharged it and keep anything from it that is still true. Removing a trap silently is the one
 edit here that cannot be reviewed, because nothing is left to review.
 
+**Before clearing any `compatibleSkeletons` list — SwordShield's is load-bearing today.** Filed
+2026-08-24 from the skeleton audit, owner **Skeleton Merge**. `AM_Rise` and `AM_KipUp` are on the
+**Unarmed** skeleton and `AM_RiseHard` is on **GreatSword**, while both characters run a
+**SwordShield** mesh — so all three knockdown get-ups play only because SwordShield's skeleton lists
+the other four as compatible. **The tell if it is cleared early is get-ups silently failing to
+play**, which reads as a montage or state-machine fault rather than an asset-reference one. The
+merge is what makes the list unnecessary; until it lands, the list is the mechanism.
+
+**`Unarmed`, `GreatSword` and `Dagger` have *unmeasured* socket sets, not empty ones.** Filed
+2026-08-24, same owner. The audit enumerated SwordShield's six and Epic's five by reading each
+socket's outer, and **could not reach the other three**: `find_socket` resolves through a
+SkeletalMesh, those packs ship none, and binding one is a write. **The lossless-union finding covers
+two skeletons, not five** — do not carry it to the other three. Settling it is a bind-a-mesh step,
+which needs a human or an explicit go-ahead. **And two instruments return a confident zero here**:
+`Skeleton.sockets` is protected, and `AnimPose.get_socket_names()` returns 0 even on the skeleton
+that has 6.
+
 **Each trap is trigger, live claim, and status.** The arguments and the evidence live in the dated
 entries; the hunts that produced them live in git. *(Compressed 2026-08-14 from 534 lines, which
 was long enough that the section asking most to be re-read had become the hardest to. No trap was
@@ -1453,6 +1470,90 @@ long.
 | `bUseControllerRotationYaw` | 08-12 |
 | `compositeSections` | 08-15, 08-18 |
 | `gEComponents` | 08-10, 08-11 |
+
+---
+
+## 2026-08-24 — The megaslice's remaining order, an art pass, and the skeleton merge under it
+
+**Raised by the designer at wind-down**, as a question about whether Knockdown shipping completed
+the gameplay functionality of this megaslice. It did not, and answering it re-scoped the rest.
+
+**The megaslice is the entire remaining roster.** The designer's ruling, correcting my reading of
+Settings' brief — whose *"Last of the megaslice"* clause is now wrong and has been struck.
+Everything from here to Interplay is one arc.
+
+**Two mechanical items survive Knockdown inside Polish and Death-full**, which is what makes the
+"all gameplay functionality is done" reading false: the **guard-break waiver** for the attacker,
+filed the same day and explicitly mechanical rather than presentational; and Death-full, still
+running on a debug ragdoll.
+
+**An art pass joins the roster, because Interplay's premise cannot survive without one.** The
+designer's argument, from experience: *"Actual gamers have their feedback substantially
+contaminated by a lack of art."* Interplay's brief already rests on **"the naive player's reads
+outweigh the designer's"** — which is precisely the judgement lack-of-art corrupts, so running
+Interplay unarted spends the one slice whose entire value is an uncontaminated outside verdict.
+Scope is **low-poly, four routes**: meshes, UI that looks designed, particle FX, SFX. **The target
+is frozen** — *"without any new weapons or abilities or anything new that would warrant new art"*
+— so the pass covers a fixed list rather than chasing a moving one. It is distinct from Polish,
+which is combat *legibility* and animation; nothing on the roster covered characters, environment,
+VFX, audio or UI style before this.
+
+**Its placement was argued twice and moved once.** I first put it after Tuning Rig, immediately
+before Interplay, on the grounds that Netcode's tempo measurement is arithmetic and art cannot
+contaminate a latency number. **That was wrong, on a ground I missed and the designer's instinct
+had:** *cosmetic events are netcode work.* A hit spark, an impact sound and a parry flash each has
+to fire on every client — multicast or replicated-state-driven — so art landing **before** Netcode
+gets absorbed by that pass once, and art landing after it means a second netcode pass or ad-hoc
+replication. It should precede **Tuning Rig** for a second reason of the same family as Polish's own
+placement argument: **audio and VFX are part of the tell**, and greening a reactability band with no
+SFX greens against a tell that is not the shipping one.
+
+**Death-full moves ahead of Polish**, the designer's call, and the briefs already argued for it:
+**the hit-reaction animation is double-claimed.** Polish's flinch tell and Death-full's hit reaction
+are plausibly one job — Polish's own brief says whoever picks up either should read the other.
+Death-full first means Polish inherits it; Polish first means it builds one flinch state via the
+blockstun route and Death-full then arrives holding four directional `Hit_<DIR>` clips that
+supersede it. Second reason: Polish is the slice whose job is making things read, and running it
+while death is a debug ragdoll leaves a hole in the surface it is not allowed to fill. Nothing bound
+Polish to its old position — its *"sits early deliberately"* clause rests on **before Interplay**,
+which still holds by five slices.
+
+**And a Skeleton Merge slice goes first**, which began as the designer's prerequisite for Meshy
+assets and turned out to belong earlier than that. The approach is theirs: **merge every skeleton
+into one master that becomes the project's only skeleton**, then configure Meshy output against it.
+**It precedes Death-full and Polish because the merge gets more expensive with every slice that
+authors clips**, and those two are the roster's clip-authoring slices — Polish's brief alone
+promises bespoke heavy and charged clips plus the knockdown batch. The project has the fewest
+animation assets it will ever have right now.
+
+**The audit ran the same day and is in `Docs/Animation-Library.md`.** Its findings, in the order
+they change the plan:
+
+- **The five skeletons are one rig, to the bit** — 161 bones, identical order, **worst reference-pose
+  deviation 0.000000**, zero retargeting-mode differences. The designer's read was right, and the
+  merge is a **repoint**, not a retarget: no animation data is resampled, so nothing can drift.
+- **Sockets are skeleton-owned**, and the union is **lossless** — SwordShield's three and Epic's two
+  share no name, and the three common sockets carry identical transforms. The collision I flagged as
+  the real risk **does not exist** between the two measured sets.
+- **Three packs' socket sets are unmeasured**, not empty. They ship no mesh, `find_socket` resolves
+  through one, and binding a mesh is a write.
+- **`ABP_Combat` is on Epic's skeleton while the mesh it drives is on SwordShield's**, and the
+  project's own montages span four of the five. **The project's repoint is five assets**; the other
+  1130 are vendor and template content whose consolidation is a separate question.
+
+**What the audit did not settle, and is a WHAT rather than a HOW:** whether the master absorbs the
+1130 vendor assets or the project consolidates only its own and leaves the rest; where the master
+lives, given the convention that authored content sits under `/Game/TheDream/` and the de-facto
+master today is vendor content under `/Game/GDHBundle/`; and **whether Meshy touches characters at
+all** — keeping the master skeleton and pointing generation at props and environment is a different
+slice from generating characters and skinning them onto it. **The merge removes the retarget
+problem, not the skinning one.**
+
+**One caution recorded about the pipeline ambition itself.** Cascadeur's integration works because
+its scripts perform a deterministic transformation — same input, same output, no judgement. Meshy
+generates, and generation needs someone to choose among results. Submission, polling, download and
+import all automate; taste does not. And Meshy covers **one** of the four routes: UI, particle FX
+and SFX need their own answers and do not inherit its toolset.
 
 ---
 
@@ -7184,8 +7285,27 @@ long it is held, and block and parry will share a button.
 a brief binds the session that picks that slice up and no other, so it was triggered content
 sitting in the always-read file.
 
+- **Skeleton Merge** *(added 2026-08-24, the designer's approach; first on the roster)* — **merge
+  every skeleton into one master that becomes the project's only skeleton**, then configure
+  Meshy-generated assets against it. **The audit is already done** and lives in
+  `Docs/Animation-Library.md`: the five `SK_Mannequin` assets are **one rig to the bit** (161 bones,
+  identical order, worst reference-pose deviation **0.000000**, no retargeting-mode differences), so
+  this is a **repoint, not a retarget** — no animation data is resampled and nothing can drift.
+  **Sockets are skeleton-owned and the union is lossless**: SwordShield's `Sword`/`Shield`/`Sheath`
+  and Epic's `HandGrip_L`/`HandGrip_R` share no name, and the three common sockets carry identical
+  transforms. **The project's own repoint is five assets** — `ABP_Combat` (on **Epic's** skeleton
+  while the mesh it drives is on SwordShield's), `AM_Rise`, `AM_KipUp`, `AM_RiseHard`,
+  `AM_NotifyProbe` — against 1130 vendor and template assets. **It runs first because the merge gets
+  more expensive with every slice that authors clips**, and Death-full and Polish are the roster's
+  clip-authoring slices. **Three open WHATs it must not answer alone**, all in the 2026-08-24 entry:
+  whether the master absorbs the vendor content or only the project's; where the master lives, given
+  that authored content belongs under `/Game/TheDream/` and today's de-facto master is vendor
+  content under `/Game/GDHBundle/`; and whether Meshy touches characters at all. **Two packs' socket
+  sets are unmeasured rather than empty** — see the trap.
 - **Polish** *(style over substance; split from Knockdown 2026-08-18, the designer's call)* — deferred work that changes how something *reads* rather than what it does. **Carries the bespoke windup pass**: heavy and charged get their own clips, their windups become **blended transitions** into real anticipation, and **coil is deprecated**. It belongs here rather than in Knockdown because the reactability arithmetic is untouched — the blend occupies exactly the window the coil did, 350 ms light→heavy and 300 ms heavy→charged — so only the tell's *expression* changes, freeze to visible repositioning. **Sits early deliberately**, right after Knockdown: it must precede Interplay or the feel verdict is taken with both tiers still playing the light's clip. **Clip-fitting values are Polish's; whole-surface greening is not** — the hypothesis dataset lands at the Tuning Rig (2026-08-18). Spec, candidate pool and the two measured findings behind it are in `Docs/Combat-Decisions.md`, 2026-08-18. **Inherited from Parry when it shipped 2026-08-19:** the parried attacker's **recoil tell** and all parry presentation — a parry currently reads only on the parrier, so the victim of one has no tell at all; and the open preview question of **whether V3's parry pose reads consistently beside V1's held guard**, which is a pack mix that shipped without being judged. Neither needs a search — both need looking at. **Knockdown's presentation is inherited whole (2026-08-20)**: the designer's verdict on the shipped state machine was *"needs polish, but the functionality is there"*, and specifically that the transition into the down state reads **abrupt** — there is no impact moment, the fall simply starts. Also here *(clause updated 2026-08-24 — an authored source now exists)*: polishing the get-up clip in its authored scene (`AnimSource/GetUpAttack.casc`; the rough ships as Knockdown's interim per that day's verification-bar entry), plus **Knockdown's re-scope inheritance**: the knockdown/fall/rise clip batch and the get-up options' look — everything past the tell-what-fired legibility bar; and the two rises deliberately blend into idle over their second half, which is a choice to revisit once idle poses are real. **Two more from the legibility glance of 2026-08-24, both of which *passed* the tell-what-fired bar, so neither is a defect:** the **block get-up** does blend to a guard on standing -- contradicting the assumption, mine, that it showed nothing at all -- and the designer's verdict on it is *"underwhelming and looks a tad undeliberate"*; and the **dodge get-up's roll ends before the dodge does**. `AM_KnockdownRoll` fits the whole 0.900 s of `AS_SwordAndShieldAnimV1_Roll_Fw_RM` to `DodgeSeconds`, so at 2.25x the clip's recovery-to-stance -- frames 18-26, 31% of it -- runs while the body is still travelling, and auto blend-out triggers at frame 18.8 and replaces it with idle pose. **The designer's fix, ruled the same day: mark where the roll ends and fit that portion**, leaving the recovery to play out after the dodge without i-frames. I-frames stay at `DodgeSeconds` and nothing about play changes -- it is the section-fitting precedent `AM_Dodge` already uses, applied where there is no section boundary. Measured marker candidate **frame 18, t = 0.623 s**: the pelvis minimum (15.5) sits behind it and the rise to 81.8 is monotonic after; **frame 17 is equally defensible**, the pitch zero-crossing falling between them, so the frame is a judgement about the animation rather than a number the data settles. **The blend-out then wants its own look**: at the resulting 1.56x it triggers at 0.417 s, clear of the dodge, but starts eating the recovery instead. **Two stun tells, filed by the designer 2026-08-24, and both take the same route as blockstun's.** Blockstun's animation is a **state in the Locomotion machine, not a montage** — `AM_Blockstun` was built, tested and deleted at `eb658ee` because the montage route *"cost more than it buys"*, and a state needs no C++ at all: one state and two transitions in the editor, keyed off a `BlueprintPure` getter. **Hitstun / flinch has no tell**, and its route is open **today with zero C++**, `IsInHitstun()` already being `BlueprintPure` exactly as `IsInBlockstun()` is — and it is the *easier* case than blockstun was, because that one's recorded caveat is a full-body state freezing the legs while moving, and blockstun leaves movement free where **hitstun takes the movement lock**, so nothing fights it. **A parried attacker has no tell either**, which is the recoil gap named above now with a state to hang it on: `State.ParryLockout` went live with Knockdown's sub-slice E, but **`IsInParryLockout()` is not `BlueprintPure`** — one `UFUNCTION` line opens the same route. **Both are human jobs by construction**: `Working-In-Unreal.md` records that a state machine's states, transitions and rules are all unreachable by script, and that a state's interior reads back empty rather than erroring — which is also why a search for a blockstun *asset* finds nothing and proves nothing. **Death-full's brief also claims the hit-reaction animation**; whoever picks up either should read the other, since the flinch is plausibly the same work. **And one that is mechanical rather than presentational, filed here so it is not forgotten** *(the designer, 2026-08-24)*: **a guard break should count as a hit for the *attacker's* input freedom.** A blocked hit returns before the on-hit waiver, so the attacker stays pinned for the full recovery — the waiver's own comment keeps recovery as the punish window *"against whiffs and against blocks."* A **break** should not sit on that side of the line: it waives like a connect. **The defender side is unchanged.** **And the target windups, which Polish needs *before* it selects clips** *(the designer, 2026-08-24; not previously recorded anywhere — searched)*: **heavy to 400 ms and charged to 800 ms**, against the live 350 and 750. It belongs here because clip selection is fitted to the duration and never the reverse, so choosing against today's numbers and moving them afterwards wastes the pass. **Two couplings come with it.** The parry window's anti-option-select ceiling is the fast↔charged gap, 750 − 350 = 400 ms, and bumping both tiers by 50 leaves it at 800 − 400 = **400** — untouched, which it would not be if only one tier moved. And the heavy's tell window grows from 350 − 150 = **200 ms** to 400 − 150 = **250 ms**, which partially walks back the 2026-08-18 re-pole's *"that shortening is the point rather than a side effect"* — plausibly intended, the bespoke windup pass being what makes a longer tell readable rather than merely longer, but worth saying out loud rather than discovering afterwards.
-- **Death-full** *(from the same split)* — death's real treatment replacing the debug ragdoll, hit-reaction animation, and the questions **Death** deferred. `SwordSwordAnimV3` has **four directional** `Hit_<DIR>` and **four directional** `Death_<DIR>` clips, not single standalone ones (verified 2026-08-10). **Hitstun ships with Light String** (settled 2026-08-16); what this slice owes it is the reaction *animation*.
+- **Death-full** *(from the same split; **moved ahead of Polish** 2026-08-24, the designer's call —
+  the hit-reaction animation is double-claimed by both, so running this first means Polish inherits
+  it rather than building a flinch state that four directional `Hit_<DIR>` clips then supersede)* — death's real treatment replacing the debug ragdoll, hit-reaction animation, and the questions **Death** deferred. `SwordSwordAnimV3` has **four directional** `Hit_<DIR>` and **four directional** `Death_<DIR>` clips, not single standalone ones (verified 2026-08-10). **Hitstun ships with Light String** (settled 2026-08-16); what this slice owes it is the reaction *animation*.
 - **Settings menu.** Raised 2026-08-12. Mouse sensitivity is the immediate want, and it should own
   **`TurnRateDegrees`** too — that number stopped being cosmetic the moment attacks began pointing
   wherever it had turned to, so exposing it is a balance decision rather than a comfort one, and a
@@ -7193,7 +7313,26 @@ sitting in the always-read file.
   home for a **turn cap** if fast-spin inputs ever need bounding, which single-rate facing already
   provides incidentally. **A remote playtester's packaged build has no editor and no cvars — this
   menu is their only tuning surface** (2026-08-15); it precedes Netcode's real-remote milestone by
-  construction. Last of the megaslice.
+  construction. **Not last of the megaslice** — that clause was struck 2026-08-24 on the designer's
+  ruling that the entire remaining roster is one megaslice; Art, Netcode, Tuning Rig and Interplay
+  all follow. **Its UI is also the art pass's input**, which is why Art sits directly after it: a
+  menu that does not exist yet cannot be styled.
+- **Art** *(added 2026-08-24, the designer's call)* — a **low-poly art pass across four routes**:
+  meshes, UI that looks designed, particle FX, SFX. **The target is frozen** — *"without any new
+  weapons or abilities or anything new that would warrant new art"* — so the pass covers a fixed
+  list rather than chasing one; the freeze is on gameplay content, not on art output. **Distinct
+  from Polish**, which is combat legibility and animation; nothing covered characters, environment,
+  VFX, audio or UI style before this. **It exists because Interplay's premise cannot survive without
+  it** — that slice rests on *"the naive player's reads outweigh the designer's"*, and lack of art
+  is precisely what corrupts a naive read. **Placement is argued, not incidental**: it precedes
+  **Netcode** because *cosmetic events are netcode work* — a hit spark, an impact sound and a parry
+  flash each has to fire on every client, so Netcode absorbs that surface once instead of running
+  twice; and it precedes **Tuning Rig** because *audio and VFX are part of the tell*, and greening a
+  reactability band with no SFX greens against a tell that is not the shipping one. **The ambition
+  is Meshy on the Cascadeur model**, an autonomous pipeline — with two limits recorded up front:
+  Meshy covers **one** of the four routes, and its automation ceiling is lower than Cascadeur's
+  because generation needs someone to choose among results where a transformation does not.
+  **Depends on Skeleton Merge** for anything touching characters. Reasoning: the 2026-08-24 entry.
 - **Netcode** — the behavioural pass the 2026-08-15 recon mapped: the two `SetTimer` sites and
   i-frame lag compensation (one problem twice), prediction windows, client stamina prediction, the
   loose-tag aim-assist asymmetry, and a shareable direct-connect build.

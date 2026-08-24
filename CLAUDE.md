@@ -234,12 +234,14 @@ hook cannot tell who wrote a change.
 
 Execution order, the only line that changes when the order does:
 
-> **~~Attack Ladder~~ → ~~Dodge~~ → ~~Sword & Shield~~ → ~~Input Buffer~~ → ~~Death~~ → ~~Dodge Distance~~ → ~~Attack Swap~~ → ~~[hover bug]~~ → ~~[facing pass]~~ → ~~Recovery~~ + ~~Lunge~~ → ~~Target Lock~~ → ~~Block~~ → ~~Light String~~ → ~~Parry~~ → ~~Knockdown~~ → Polish → Death-full → Settings → Netcode → Tuning Rig → Interplay**
+> **~~Attack Ladder~~ → ~~Dodge~~ → ~~Sword & Shield~~ → ~~Input Buffer~~ → ~~Death~~ → ~~Dodge Distance~~ → ~~Attack Swap~~ → ~~[hover bug]~~ → ~~[facing pass]~~ → ~~Recovery~~ + ~~Lunge~~ → ~~Target Lock~~ → ~~Block~~ → ~~Light String~~ → ~~Parry~~ → ~~Knockdown~~ → Skeleton Merge → Death-full → Polish → Settings → Art → Netcode → Tuning Rig → Interplay**
 
-**Pick up at Polish**, which has no plan yet — its brief is the slice-briefs section of
-`Docs/Combat-Decisions.md`, and it is the fullest one on the roster. It carries the bespoke windup
-pass, the parried attacker's recoil, all of Knockdown's presentation, and the three items the
-2026-08-24 legibility glance routed to it.
+**Pick up at Skeleton Merge**, whose brief is the slice-briefs section of
+`Docs/Combat-Decisions.md` and whose **audit is already done** — `Docs/Animation-Library.md` carries
+it. **The whole remaining roster is one megaslice** *(2026-08-24, the designer's ruling)*, and
+**three of its items are new or moved that day**: Skeleton Merge and Art are new, and Death-full now
+precedes Polish because they double-claim the hit-reaction animation. Polish stays the fullest brief
+on the roster.
 
 **The verification bar every slice now ships against** *(2026-08-24, the dated entry)*: verified
 functionality, with animations legible enough to tell which mechanic is firing. Visual refinement
