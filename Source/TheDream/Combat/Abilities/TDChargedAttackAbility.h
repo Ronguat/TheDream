@@ -442,7 +442,6 @@ private:
 	/** Real seconds since this activation. */
 	float GetElapsedSeconds() const;
 
-
 	/** Stretches the release window to the selected branch's ReleaseSeconds. */
 	UFUNCTION()
 	void HandleReleaseWindowBegan(FGameplayEventData Payload);
@@ -454,7 +453,6 @@ private:
 	 */
 	UFUNCTION()
 	void HandleReleaseWindowEnded(FGameplayEventData Payload);
-
 
 	/**
 	 *  Shared windup rate: fast enough that the first branch reaches ReleaseStartSeconds exactly on

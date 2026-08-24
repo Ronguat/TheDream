@@ -333,7 +333,6 @@ protected:
 	/** Whether a window event came from the montage this attack is playing. */
 	bool IsWindowForThisAttack(const FGameplayEventData& Payload) const;
 
-
 	/**
 	 *  Recovery rate: carries the montage from where it actually is to the blend-out boundary in the
 	 *  branch's authored RecoverySeconds. Takes the measured position rather than assuming the
