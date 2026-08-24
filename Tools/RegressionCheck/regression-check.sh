@@ -126,7 +126,7 @@ BAND_DODGE_REMAINING_FROM_FULL=50.0
 BAND_EXHAUST_ENTER=0.0; BAND_EXHAUST_EXIT=100.0
 BAND_STAMINA_TOL=0.5
 
-# S4 -- the light string. Fixture is DebugAutoAttackStringTaps 3, so each cycle is a burst of
+# S4 -- the light string. Fixture is DebugAutoAttackStringTaps 3, so each cycle throws a string of
 # three swings rather than one. **Every band here is derived from GA_Attack's CDO, never from a
 # plan's proposals** -- proposals go stale as soon as anything downstream is re-derived.
 BAND_STRING_SWINGS=3
@@ -445,13 +445,13 @@ waiver_dodge_latency_ms() { # ms from each DAMAGED to the next DODGE, the waiver
 		}' "$SLICE"
 }
 
-swing_index_counts() { # "<count> <swing index>" per index, so a burst shows equal counts
+swing_index_counts() { # "<count> <swing index>" per index, so a string shows equal counts
 	grep -oE "ACTIVATE +[A-Za-z_0-9]+ +swing=[0-9]+" "$SLICE" | cut -d= -f2 | sort | uniq -c
 }
 
 chain_gaps() { # seconds between an ACTIVATE and the chained ACTIVATE after it
-	# Emitted only when the *arriving* swing index is non-zero: index 0 opens a new burst, and the
-	# gap from the previous burst's ender is the fixture's 3 s interval, not a cadence sample.
+	# Emitted only when the *arriving* swing index is non-zero: index 0 opens a new string, and the
+	# gap from the previous cycle's ender is the fixture's 3 s interval, not a cadence sample.
 	awk '
 		/^\[[0-9.]+\] ACTIVATE/ {
 			t=$1; gsub(/[\[\]]/,"",t)
@@ -494,18 +494,18 @@ dodges_inside_hitstun() { # DODGE lines falling between a HITSTUN and its HITSTU
 }
 
 
-targets_per_window() { # "<burst> <attack index> <distinct targets damaged in that window>"
-	# **Every burst.** The radial carry sends each victim out along its own bearing rather than onto
+targets_per_window() { # "<string> <attack index> <distinct targets damaged in that window>"
+	# **Every string.** The radial carry sends each victim out along its own bearing rather than onto
 	# the attacker's facing axis, so nobody ends up inside the 60-degree wedge and the
-	# discrimination survives every burst rather than only the first.
+	# discrimination survives every string rather than only the first.
 	awk '
 		/^\[[0-9.]+\] ACTIVATE/ {
 			for (i=1;i<=NF;i++) if ($i ~ /^swing=/) { split($i,a,"="); sw=a[2] }
-			if (sw+0 == 0) { burst++ }
+			if (sw+0 == 0) { strung++ }
 			next
 		}
 		/^\[[0-9.]+\] RELEASE BEGIN/ { inwin=1; delete seen; n=0; next }
-		/^\[[0-9.]+\] RELEASE END/   { if (inwin) print burst " " sw " " n; inwin=0; next }
+		/^\[[0-9.]+\] RELEASE END/   { if (inwin) print strung " " sw " " n; inwin=0; next }
 		inwin && /^\[[0-9.]+\] DAMAGED/ { if (!($3 in seen)) { seen[$3]=1; n++ } }' "$SLICE"
 }
 
@@ -991,7 +991,7 @@ run_s5_waiver() {
 	fi
 }
 
-assert_burst_shape() { # every swing index in the string fires the same number of times
+assert_string_shape() { # every swing index in the string fires the same number of times
 	local counts n_idx uneven
 	counts=$(swing_index_counts)
 	n_idx=$(printf '%s\n' "$counts" | grep -c '[0-9]')
@@ -999,7 +999,7 @@ assert_burst_shape() { # every swing index in the string fires the same number o
 		check "string is $BAND_STRING_SWINGS swings" 1 "saw $n_idx distinct swing indices: $(echo $counts | tr '\n' ' ')"
 		return
 	fi
-	# A burst cut off by StopPIE leaves the earlier indices one ahead; tolerate exactly that.
+	# A string cut off by StopPIE leaves the earlier indices one ahead; tolerate exactly that.
 	uneven=$(printf '%s\n' "$counts" | awk '{print $1}' | sort -n | awk 'NR==1{lo=$1} {hi=$1} END{print hi-lo}')
 	if [ "$uneven" -le 1 ]; then
 		check "string is $BAND_STRING_SWINGS swings" 0 "$(echo $counts | tr '\n' ' ')"
@@ -1025,7 +1025,7 @@ assert_never_inward() {
 }
 
 run_s4_string() {
-	assert_burst_shape
+	assert_string_shape
 	assert_all_in_band "chain gap (cadence)" "chain_gaps" \
 		"$(awk -v v="$BAND_CHAIN_GAP" -v t="$BAND_CHAIN_GAP_TOL" 'BEGIN{printf "%.3f", v-t}')" \
 		"$(awk -v v="$BAND_CHAIN_GAP" -v t="$BAND_CHAIN_GAP_TOL" 'BEGIN{printf "%.3f", v+t}')" "s"
@@ -1049,7 +1049,7 @@ run_s4_string() {
 
 run_s4_guarantee() {
 	local refused inside
-	assert_burst_shape
+	assert_string_shape
 	refused=$(grep -c ": hitstun" "$SLICE" || true)
 	check "REFUSED names hitstun" "$([ "$refused" -gt 0 ] && echo 0 || echo 1)" \
 		"$refused refusals attributed to State.Hitstun"
@@ -1070,36 +1070,36 @@ run_s4_360() {
 	# Requires bDebugAutoAttackHomeBetweenAttacks: an attacker whiffing into open space has an open
 	# standoff gate and runs its full authored lunge, which would carry it away from both.
 	#
-	# **What burst 1 and the rest assert differently is reach, not the wedge.** After the finisher
+	# **What string 1 and the rest assert differently is reach, not the wedge.** After the finisher
 	# floors both, bDebugHomeAtStand returns the dummy to its placed spacing at every stand and
 	# never moves a player pawn -- so the player stays out at the carry's 450 and only the dummy
-	# comes back within reach. Burst 1 therefore reaches two and every later burst exactly one,
+	# comes back within reach. String 1 therefore reaches two and every later string exactly one,
 	# while attacks 1-2 reach nobody throughout.
-	local rows early first_late later_late bursts kdns
+	local rows early first_late later_late strings kdns
 	rows=$(targets_per_window)
-	bursts=$(printf '%s\n' "$rows" | awk 'NF {print $1}' | sort -un | tail -1)
-	bursts=${bursts:-0}
+	strings=$(printf '%s\n' "$rows" | awk 'NF {print $1}' | sort -un | tail -1)
+	strings=${strings:-0}
 
-	# The whole point of lifting the exclusion is sampling past burst 1, so one burst fails here
+	# The whole point of lifting the exclusion is sampling past string 1, so one fails here
 	# rather than passing on the old shape.
-	check "more than one burst observed" "$([ "${bursts:-0}" -gt 1 ] && echo 0 || echo 1)" \
-		"$bursts bursts"
+	check "more than one string observed" "$([ "${strings:-0}" -gt 1 ] && echo 0 || echo 1)" \
+		"$strings strings"
 
 	early=$(printf '%s\n' "$rows" | awk '$2 < 2 {print $3}' | sort -u | tr '\n' ' ')
 	first_late=$(printf '%s\n' "$rows" | awk '$1 == 1 && $2 == 2 {print $3}' | sort -u | tr '\n' ' ')
 	later_late=$(printf '%s\n' "$rows" | awk '$1 > 1 && $2 == 2 {print $3}' | sort -u | tr '\n' ' ')
 
-	check "60-degree attacks reach neither, in every burst" \
+	check "60-degree attacks reach neither, in every string" \
 		"$([ "$(echo $early)" = "0" ] && echo 0 || echo 1)" \
-		"attacks 1-2 damaged: ${early:-none} distinct targets across $bursts bursts"
-	check "the 360 finisher reaches both in burst 1" \
+		"attacks 1-2 damaged: ${early:-none} distinct targets across $strings strings"
+	check "the 360 finisher reaches both in string 1" \
 		"$([ "$(echo $first_late)" = "2" ] && echo 0 || echo 1)" \
-		"burst 1 attack 3 damaged: ${first_late:-none} distinct targets"
+		"string 1 attack 3 damaged: ${first_late:-none} distinct targets"
 	check "and exactly the re-homed body after that" \
 		"$([ "$(echo $later_late)" = "1" ] && echo 0 || echo 1)" \
-		"later bursts' attack 3 damaged: ${later_late:-none} distinct targets"
+		"later strings' attack 3 damaged: ${later_late:-none} distinct targets"
 
-	# The ender's displacement is a knockdown now, so burst 1 floors both bodies rather than
+	# The ender's displacement is a knockdown now, so string 1 floors both bodies rather than
 	# knocking them back. Asserted here because it is what lifted the exclusion.
 	kdns=$(kd_types | grep -c "^normal$" || true)
 	check "the finisher floors both bodies" "$([ "$kdns" -ge 2 ] && echo 0 || echo 1)" \
@@ -1107,7 +1107,7 @@ run_s4_360() {
 }
 
 run_s4_block() {
-	assert_burst_shape
+	assert_string_shape
 	assert_all_equal "BLOCKED staminaDamage" "stamina_damage_values" "$BAND_STAMDMG_LIGHT"
 	assert_all_in_band "BLOCKSTUN span" "blockstun_spans" \
 		"$(awk -v v="$BAND_BLOCKSTUN_LIGHT" -v t="$BAND_BLOCKSTUN_TOL" 'BEGIN{printf "%.3f", v-t}')" \

@@ -41,11 +41,11 @@ links them. `CoilTurnRateDegrees` is set to the
 player's 600 so a raised hold does not silently inherit half-rate tracking, and is **unverified
 until something actually coils**.
 
-**`DebugAutoAttackStringTaps` makes each cycle a burst** *(2026-08-16, inert at its default 1)*.
+**`DebugAutoAttackStringTaps` makes each cycle throw a string** *(2026-08-16, inert at its default 1)*.
 Above 1, the dummy re-presses every `DebugAutoAttackStringTapIntervalSeconds` (0.25) so each tap
 lands mid-previous-swing — the buffer extension and chain-out exercised as a masher exercises
-them. **The home reset waits for the burst**: taps remaining or an open link window suppress it,
-or a teleport would sever the spacing chain s4 measures. The whole burst must fit inside
+them. **The home reset waits for the string**: taps remaining or an open link window suppress it,
+or a teleport would sever the spacing chain s4 measures. The whole string must fit inside
 `DebugAutoAttackInterval`, exactly as the single attack must.
 
 
@@ -121,13 +121,13 @@ whatever the last attack went to, and prints a `ROTATE` line; it advances in
 press path ticks twice as fast and lands back where it started. **It does not steer the attack**:
 AI focus and the aim-assist target are independent systems, measured with `ROTATE` choosing one body
 while `TARGET commit` picked another at −89.3°. `bDebugAutoAttackHomeBetweenAttacks` re-homes after
-every attack rather than at burst end, which is how a **stationary** attacker is obtained; an
+every attack rather than at string end, which is how a **stationary** attacker is obtained; an
 attacker whiffing into open space has an open standoff gate and runs its full authored lunge.
 
-**Between bursts, positions are the safe thing to reset; health and stamina are not.** `s3` and
+**Between cycles, positions are the safe thing to reset; health and stamina are not.** `s3` and
 `s2-*` assert depletion accumulating — exhaustion entering at 0, breaks landing as the bar empties,
 the health ledger stepping — while `s4-string` is the one position exception: it measures the
-spacing chain a *connecting* string produces, which a mid-burst teleport severs.
+spacing chain a *connecting* string produces, which a mid-string teleport severs.
 
 **The attacker sometimes wedges against the ramp and goes stationary mid-attack** *(the designer,
 2026-08-18)*. Nothing warns about it, and it silently corrupts anything measuring attacker travel —
@@ -342,7 +342,7 @@ about zero and roll travel is not, and they need to know which they are looking 
 **`HOME RESET` is the fixture, not the game** — `bDebugHomeAtStand`, default **true**, returning a
 dummy to its placed transform at every stand and **never moving a player pawn**. It prints
 `moved=`, which separates a real reset from a no-op. Read it before attributing anything to
-geometry: it is what puts a riser back inside the attacker's reach, and `s4-360`'s later bursts and
+geometry: it is what puts a riser back inside the attacker's reach, and `s4-360`'s later strings and
 `s6-getup`'s landed hit both depend on it.
 
 **`DEBUG GETUP <name> mode=`** is the get-up fixture's press, naming which option it intended —
@@ -547,7 +547,7 @@ looks ignored.
 | `s4-string` | 0.1, **taps 3** | `Off` | three swing indices in equal counts; chain gap 0.500 ±45 ms and chain latency 125–175 ms; `DAMAGED` exactly 15 with the ledger stepping; `HITSTUN` spans 0.550 ±20 ms; **`KNOCKBACK` spacing never below the authored value it prints, and n=0 fails** |
 | `s4-guarantee` | 0.1, **taps 3** | `PeriodicDodge` | `REFUSED` lines attributed to `State.Hitstun`; **zero `DODGE` between `HITSTUN` and `HITSTUN END`** — the string's guarantee, observable; `HITSTUN` spans as above |
 | `s4-block` | 0.1, **taps 3** | `HoldBlock` | `BLOCKED` staminaDamage exactly 5; `BLOCKSTUN` spans 0.350 ±20 ms; knockback never inward |
-| `s4-360` | 0.1, **taps 3**, `FacingMode` **Never**, **`bDebugSuppressLunge`** | `Off`, plus the player spawned at (200, 150) opposite the defender | **every burst**, since 2026-08-24: attacks 1–2 damage **zero** distinct targets throughout; attack 3 damages **two** in burst 1 and **exactly one** after; at least two normal-grade `KNOCKDOWN` lines. A single burst **fails** — sampling past the first is the point |
+| `s4-360` | 0.1, **taps 3**, `FacingMode` **Never**, **`bDebugSuppressLunge`** | `Off`, plus the player spawned at (200, 150) opposite the defender | **every string**, since 2026-08-24: attacks 1–2 damage **zero** distinct targets throughout; attack 3 damages **two** in string 1 and **exactly one** after; at least two normal-grade `KNOCKDOWN` lines. A single string **fails** — sampling past the first is the point |
 | `s5-parry` | 0.1, **taps 3** | `PeriodicParry` | `PARRY WINDOW` span 0.300 ±25 ms; at least one `PARRY SUCCESS` (**n=0 fails**); credited reward inside [0, 25]; **zero `STRING` link window after a parried swing**; **every `PARRY GESTURE` inside its own window (n=0 fails)** ; **`PARRY GRACE` span 0.150 ±25 ms**; every `by=window` success starts exactly one tail; **Grace never re-arms** (no tail from a `by=grace` catch, none overlapping) |
 | `s5-parry-reward` | 0.1, **taps 3** | `PeriodicParry`, `DebugParryPreBlockSeconds` **4.0**, `DebugParryIntervalSeconds` **5.3** | at least one `PARRY SUCCESS`; `gained` **exactly 25** on every one. **Unreliable as fixtured since Knockdown — see the 2026-08-24 trap**; its FAIL is expected until the timers are redesigned |
 | `s5-parry-whiff` | 0.1, **taps 3** | `PeriodicParry`, `DebugParryIntervalSeconds` **0.5**, **and the defender also auto-attacks** (`bDebugAutoAttack`, interval **0.7**, `bDebugSuppressLunge`) | `PARRY RECOVERY` span 0.600 ±25 ms; `REFUSED` naming **the lockout** (`parrying` or `parry recovery`) at least once; **nothing activates inside a recovery span (n=0 fails)**; **nothing activates inside a parry window either (n=0 fails)** |
@@ -621,12 +621,12 @@ proposals were stale by the time they were built — cadence 350 → **500 ms** 
 the designer, hitstun 0.400 → **0.550** forced up to outlast it, blockstun 0.400 → **0.350**
 re-derived against it. Read the CDO when adding a band; do not copy a plan.
 
-**`s4-360`'s first-burst exclusion lifted 2026-08-24, and the assertion got stronger rather than
+**`s4-360`'s first-string exclusion lifted 2026-08-24, and the assertion got stronger rather than
 merely wider.** It existed because the old ender knocked both bodies onto the attacker's facing
 axis, where the 60° wedge reached them and the discrimination vanished. Knockdown replaced that
 displacement with a **radial** carry — each victim leaves along its own bearing — so nobody parks in
-front of the attacker and attacks 1–2 reach zero targets in *every* burst. Measured across **23**:
-`0` distinct targets for attacks 1–2 throughout, `2` for attack 3 in burst 1, `1` in all 22 after.
+front of the attacker and attacks 1–2 reach zero targets in *every* string. Measured across **23**:
+`0` distinct targets for attacks 1–2 throughout, `2` for attack 3 in string 1, `1` in all 22 after.
 
 **The step from two to one is the fixture, not the mechanic.** `bDebugHomeAtStand` returns a dummy
 to its placed spacing at every stand and **never moves a player pawn**, so the player stays out at
