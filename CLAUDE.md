@@ -205,7 +205,9 @@ the asset, the registry, the running editor — and treat its description as a p
 went wrong once.
 
 **At startup, check that the previous session wound down, and say so if it did not** — a dirty
-working tree, or stranded packages in `Saved/Autosaves/PackageRestoreData.json`.
+working tree the handoff does not account for, or `Saved/Autosaves/PackageRestoreData.json`
+**modified before the running editor started**. A live editor populates that file by autosaving, so
+it indicts only a session whose editor is gone.
 
 **MCP tools register only if the editor was open when Claude Code started.** Opening it later does
 not fix that session; restarting Claude Code does.

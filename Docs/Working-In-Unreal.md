@@ -62,6 +62,8 @@ There is **no graceful quit** — checked across the whole toolset registry. So 
 forced kill, and **saving covers assets only**: in-progress asset-editor state dies unasked.
 `Saved/Autosaves/PackageRestoreData.json` reading `Packages: []` confirms nothing was stranded;
 **`Packages` is the field that matters, not `RestoreEnabled`**, which is not a stable signal.
+**Read it only against a closed editor**: a running one populates it by autosaving a dirty package,
+so its mtime against the editor's start time is what separates bookkeeping from wreckage.
 
 **Before an unattended relaunch, reset that file to `{"RestoreEnabled": false, "Packages": []}`** —
 a forced kill after an autosave leaves it populated and the reopened editor blocks on a restore
