@@ -96,7 +96,7 @@ bool UTDGameplayAbility::CanActivateAbility(const FGameplayAbilitySpecHandle Han
 		return false;
 	}
 
-	// **The parry jail, first half: the window itself.** The commitment runs from *activation*, not
+	// **State.Parrying, the window itself.** The commitment runs from *activation*, not
 	// from window close, so a parry cannot be attacked, blocked or dodged out of once thrown --
 	// which is what stops the read being free. The other two exits need no code here, both already
 	// removing this tag: a success ends the ability at the catch, and an attacker's punishment
@@ -112,7 +112,7 @@ bool UTDGameplayAbility::CanActivateAbility(const FGameplayAbilitySpecHandle Han
 		return false;
 	}
 
-	// **The jail's second half: a whiffed parry's recovery**, which is what makes the recovery a
+	// **The whiff recovery, its self-inflicted counterpart**, which is what makes the recovery a
 	// *price* rather than a pause. A parry costs no stamina, so the whole cost of a missed read is
 	// the time, and time you can act during is not a cost. A parry that connected charges no
 	// recovery at all, so this state never arises for one.
@@ -158,20 +158,20 @@ bool UTDGameplayAbility::CanActivateAbility(const FGameplayAbilitySpecHandle Han
 		return false;
 	}
 
-	// **The knockdown jail, and the choice window that follows it. Three phases, two answers.** The
-	// jail refuses everything, and so does the rise, a rise being committed the moment it starts.
-	// Between them the choice window admits exactly the abilities that opted in as get-up options.
-	// Deliberately *not* exempted from the input buffer: a press made in the jail is the defender
-	// asking for their get-up, and firing it on the frame the jail ends is the design.
+	// **The knockdown lockout, and the input window that follows it. Three phases, two answers.** The
+	// lockout refuses everything, and so does the rise, a rise being committed the moment it starts.
+	// Between them the input window admits exactly the abilities that opted in as get-up options.
+	// Deliberately *not* exempted from the input buffer: a press made in the lockout is the defender
+	// asking for their get-up, and firing it on the frame the lockout ends is the design.
 	if (const ATDCombatCharacter* Downed = Cast<ATDCombatCharacter>(ActorInfo ? ActorInfo->AvatarActor.Get() : nullptr))
 	{
-		if (Downed->IsKnockedDown() && !(bAllowedFromKnockdown && Downed->IsInKnockdownChoiceWindow()))
+		if (Downed->IsKnockedDown() && !(bAllowedFromKnockdown && Downed->IsInKnockdownInputWindow()))
 		{
 			TD_TIMING_LOG(TEXT("[%.3f] REFUSED    %s on %s: knocked down (%s)"),
 				Downed->GetWorld() ? Downed->GetWorld()->GetTimeSeconds() : 0.0f,
 				*GetName(),
 				*GetNameSafe(Downed),
-				Downed->IsInKnockdownChoiceWindow() ? TEXT("not a get-up option") : TEXT("jail"));
+				Downed->IsInKnockdownInputWindow() ? TEXT("not a get-up option") : TEXT("lockout"));
 			return false;
 		}
 	}
@@ -187,7 +187,7 @@ bool UTDGameplayAbility::CanActivateAbility(const FGameplayAbilitySpecHandle Han
 	{
 		const ATheDreamCharacter* Character = ActorInfo ? Cast<ATheDreamCharacter>(ActorInfo->AvatarActor.Get()) : nullptr;
 		const ATDCombatCharacter* Combatant = Cast<const ATDCombatCharacter>(Character);
-		const bool bLegalGetUp = bAllowedFromKnockdown && Combatant && Combatant->IsInKnockdownChoiceWindow();
+		const bool bLegalGetUp = bAllowedFromKnockdown && Combatant && Combatant->IsInKnockdownInputWindow();
 		if (Character && Character->IsMovementLocked() && !bLegalGetUp)
 		{
 			TD_TIMING_LOG(TEXT("[%.3f] REFUSED    %s on %s: movement locked"),

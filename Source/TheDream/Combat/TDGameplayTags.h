@@ -71,9 +71,9 @@ namespace TDTags
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_DodgeRecovery);
 
 	/**
-	 *  On the floor. Refuses every ability for the jail, then only some of them for the
-	 *  choice window; supersedes hitstun and takes movement for the whole span. One tag
-	 *  spans both phases -- the jail and the choice window are timestamps beneath it.
+	 *  On the floor. Refuses every ability for the lockout, then only some of them for the
+	 *  input window; supersedes hitstun and takes movement for the whole span. One tag
+	 *  spans both phases -- the lockout and the input window are timestamps beneath it.
 	 *  Clears at the stand boundary, not when a rise begins.
 	 */
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_KnockedDown);

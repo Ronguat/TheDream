@@ -117,7 +117,7 @@ and not the order anyone reads in. Keep it sorted when adding.)*
 | 2026-08-16 — Knockback is a spacing reset | the blocked hit is an active per-swing lateral deflection with no re-centring — written as the primary reading, with a surviving-offset alternative flagged | 2026-08-16 — The blocked reading, corrected by the veto it asked for (both readings were wrong: full centring identical to a clean hit, smaller backward distance — one mechanism, two authored spacings) |
 | 2026-08-16 — Knockback is a spacing reset | hard knockdown is **the charged's** distinction — "the charged's knockdown is hard, with fewer get-up options" | 2026-08-19 — Knockdown's plan session (the heavy also knocks down hard; the grade rule restates as *committed single hits knock down hard, the string's volume finisher normal*. Ruled at the plan's review; ships with Knockdown) |
 | 2026-08-18 — A parry makes them whiff at your feet | the reward is **derived** — the parried attacker rides their own attack into recovery, and an authored form exists only if play demands compensation | 2026-08-19 — Knockdown's plan session (the rework, locked at review: a catch **ends** the attack — its release was staying live against bystanders — and inflicts `State.ParryLockout`, duration derived as the swing's remaining planned total, so the per-tier punish survives inside the new structure. Ships with Knockdown's sub-slice E) |
-| 2026-08-18 — A parry makes them whiff at your feet | a whiffed parry "pays a **defensive** lockout", and the parry is refused only while blocking, exhausted and inside the post-dodge gap | 2026-08-19 — Parry recovery commits you, then the jail (two widenings the same day: the whiff's tail refuses **every** ability and holds the movement lock, and the commitment starts at the *press* rather than at window close, so the window refuses everything too. The pricing symmetry and the floor derivation are untouched — only what the price *buys* changed) |
+| 2026-08-18 — A parry makes them whiff at your feet | a whiffed parry "pays a **defensive** lockout", and the parry is refused only while blocking, exhausted and inside the post-dodge gap | 2026-08-19 — Parry recovery commits you, then the lockout (two widenings the same day: the whiff's tail refuses **every** ability and holds the movement lock, and the commitment starts at the *press* rather than at window close, so the window refuses everything too. The pricing symmetry and the floor derivation are untouched — only what the price *buys* changed) |
 | 2026-08-18 — The bespoke windup pass deprecates the coil | "the surviving invariant: the parry window must be ≥ the longest authored `ReleaseSeconds`" | 2026-08-19 — Knockdown's plan session (the floor retires with the parry rework — it bought tell-timing sufficiency, a forgiveness guarantee rather than correctness, at the price of capping every release; the designer's prior-art argument. The window keeps only the anti-option-select ceiling; the tuning-map row updates when the rework ships) |
 | 2026-08-19 — The instrument finding: one refusal now shadows the other | the shadowing is "a finding rather than laziness", an accepted property to assert around | 2026-08-19 — `State.Parrying` marks the window, not the ability that opens it (same day, on the designer's question: it was a **defect**, not a property. The tag rode in GA_Parry's ActivationOwnedTags and re-scoped itself when the ability began outliving the window. The superseded subsection is left standing deliberately — its reasoning is the trap it describes) |
 | 2026-08-19 — The parry recovery commits you | `State.ParryLockout` is reserved and unused, pending the derived reward proving under-authored | 2026-08-19 — Knockdown's plan session (proven as predicted: the reservation resolves and the tag goes live as the parried attacker's state, with Knockdown's sub-slice E) |
@@ -292,6 +292,29 @@ the predicate to chain-eligible attacks is the third of the subslice's three one
 a defect and not yet felt** — recorded so the subslice inherits it as a known property rather than
 rediscovering it.
 
+**Whenever a `UPROPERTY` is renamed — *Blueprint-authored values are orphaned, and the properties
+cheapest to verify are exactly the ones that cannot break.*** Filed 2026-08-24, from the knockdown
+vocabulary rename, found by the designer in play rather than by any check.
+
+Renaming a reflected property drops whatever a Blueprint stored against the old name; the value
+falls back to the C++ default. **The trap is the verification, not the rename.** Seven knockdown
+timing properties were read off `BP_PlayerCharacter`'s CDO after the rename and all seven were
+correct — because every one already equalled its C++ default, so losing an override landed on the
+same number. That proved nothing, and it was generalised into a claim about the whole rename.
+
+**What actually broke was the authored data**: `FTDAttackBranch::KnockdownType` and
+`FTDStringSwing::KnockdownType`, authored in `GA_Attack` as heavy **Hard**, charged **Hard**, ender
+**Normal**, all three silently reverted to **None**. Nothing in the game knocked down. Restored by
+writing both arrays whole and restarting; verified back through Python rather than the toolset that
+wrote them.
+
+**The general form, which is why this stays filed: a rename audit must enumerate the properties
+whose values *differ* from their defaults, which is the opposite of the set that is cheap to
+check.** A property matching its default is invulnerable to the rename and tells you nothing; a
+property someone authored is the only kind that can break. **Struct members inside arrays are where
+authored data hides** — they do not appear in a CDO property listing the way scalars do, and both
+casualties here were array elements.
+
 **Whenever an ability's input binding is changed** — *`IA_Attack` carries an `InputTriggerDown`,
 which holds the action Triggered every frame the button is down.* Nothing spams today only because
 the C++ binds `Started` and `Completed`. Rebinding to `ETriggerEvent::Triggered` — an
@@ -382,7 +405,7 @@ goes quiet. Sub-slice H's montages are what makes these observable by eye; until
 a character standing still, unable to act, with nothing showing why.
 
 `s6-knockdown`, `s6-hard` and `s6-stand` cover the state machine: grades, the 2.5 s total, the 0.5 s
-rise, floor invincibility across 13 knockdowns, and the jail boundary via refusals. **What they do
+rise, floor invincibility across 13 knockdowns, and the lockout boundary via refusals. **What they do
 not touch is sub-slice D.** The dodge get-up, the kip-up, the block get-up and every exhaustion
 refusal are written, compiled, armed on their CDOs — and have never run. The neutral stand is the
 lone exception, because the jump fixture happens to exercise it.
@@ -393,7 +416,7 @@ was. Pressing dodge or block on a schedule is not equivalent, because those inpu
 down-state too and the log cannot tell a get-up from an ordinary dodge without the mode saying which
 was intended.
 
-**Specifically untested:** that `GA_Dodge` from the floor is i-framed and costs 50; that hard grade
+**Specifically untested:** that `GA_Dodge` from the floor is i-framed and costs 50; that hard type
 turns it into a kip-up travelling ≈0; that hard **refuses** the directional dodge and the free
 stand; that `GA_Block` comes up guarded from activation; that exhaustion refuses block, dodge and
 kip-up while leaving the get-up attack and the wait.
@@ -489,7 +512,7 @@ rather than a checker change, which is why this is filed rather than fixed. Unti
 
 **`s5-parry-reward` cannot be trusted as fixtured — the mechanic is verified, the scenario is not.**
 Filed 2026-08-24. Knockdown post-dates the scenario: at taps 3 the ender floors the parrier and a
-pre-block landing in the jail is refused (`REFUSED GA_Block: knocked down (jail)`), so that cycle
+pre-block landing in the lockout is refused (`REFUSED GA_Block: knocked down (lockout)`), so that cycle
 spends nothing and its success credits 0; at taps 1 a delayed guard spends short and a success
 credited 20. The reward paid exactly 25 both times the bar sat under the clamp, and **the user
 verified it in play the same day** — the red is the fixture's timers, out of sync with the
@@ -905,7 +928,8 @@ kept in their own notes. What belongs here is only what to move once a verdict a
 | Movement comes back too early or too late after landing a hit | **Nothing — it is derived.** The on-hit waiver returns movement at contact + *that swing's* `HitstunSeconds`. Earlier lets the attacker erode the authored spacing the fixed-destination knockback just paid for; later is dead freedom, since the victim is out of hitstun and the exchange has restarted | A separate waiver duration. Authoring it apart immediately allows the pair that makes no sense — movement returning while the victim is still stunned for it, or staying locked after they can act |
 | A parried attacker gets away with too much | **Nothing — the reward is derived and already per-tier.** Recovery *is* the punish window, so a parried charged pays more than a parried light without anyone authoring it; the string reset is what compensates at the light end | A per-branch parry bonus. Raised 2026-08-18 and rejected: the derived model pays by the victim's commitment rather than by the read's difficulty, and an authored bonus exists only if play demands read-difficulty compensation |
 | The charged feels unreactable, or trivially reactable | **Nothing, without re-deriving it.** It must arrive at or after coil + reaction + dodge duration — 750 = 150 + 200 + 400, exactly on the line today, so it has no slack downward at all | Moving it for feel. Below the derived value the slow layer stops being answerable by the defence it exists to reward, and the ladder loses the pole that makes the fast layer mean anything |
-| A knockdown holds you down too long, or lets you up too early | That grade's `KnockdownJailSeconds*` and `KnockdownChoiceSeconds*` **as a pair summing to the same total** — each grade's split is its own dial | The total, or `KnockdownRiseSeconds`. Both grades spend 2.5 s down and begin rising at 2.0 **by design**, and every derivation keyed to the total is grade-blind because of it: the exhausted player's ~62 stamina return, the netcode window. Move the split, never the sum. |
+| A knockdown holds you down too long, or lets you up too early | That grade's `KnockdownLockoutSeconds*` and `KnockdownInputWindowSeconds*` **as a pair summing to the same total** — each type's split is its own dial | The total, or `KnockdownRiseSeconds`. Both types spend 2.5 s down and begin rising at 2.0 **by design**, and every derivation keyed to the total is grade-blind because of it: the exhausted player's ~62 stamina return, the netcode window. Move the split, never the sum. |
+| The fall looks rushed, or the knockdown reads too brief | **`KnockdownFallSeconds`**, freely — it is a **first attempt**, not derived. `Plan-Knockdown` gave its basis as only *"inside the fall segment; knockback's contract"*, and the clip is fitted to it, so 0.35 crushes a 0.900 s clip to **2.571×**. At 0.7 it plays ~1.29×. **Ceiling is the lockout it sits inside** — 1.0 s on normal type — or a get-up starts mid-slide | Reading it as coupled to `HitstunSeconds`. On a graded swing that value never touches the victim (`TDMeleeAttackAbility.cpp:448` takes the knockdown branch and never reaches 452); it keys only the **attacker's** movement return. The two are independent timers on the same contact. Lengthening the fall does change what oki *looks* like — the attacker is free while the victim still slides — but nothing enforces a relationship, and today's 0.35 matching the heavy's 0.35 exactly is coincidence |
 | A knockdown feels escapable in the wrong way | The split again — jail buys lockout, choice buys agency | `KnockdownRiseSeconds`. The rise is committed, vulnerable and unactionable whichever way it started; shortening it shrinks the meaty window that is the whole of the oki, and the clips are rate-fitted to it. |
 | Re-engaging a knocked-down player feels wrong | **Nothing, without re-deriving the whole relationship.** `KnockdownSpacingCm` (450) is set against each tier's covered range — light 410, heavy 510, charged 610, each `100 base lunge + branch lunge + 150 reach − 40 standoff`. The intent is that the heavy and charged **lunge** the gap and the light **walks** it | Any one of the five numbers alone. They are one coupling written in five places with nothing enforcing it, and the margins are the same size as the gap — the light misses by 40, the heavy clears by 60. Move one and you silently change *which tiers can reach a riser at all*, which presents as "oki feels wrong" rather than as a number being wrong. |
 | The forced turn after a hit reads too slow or too snappy | `ForcedFacingTurnRateDegrees`, but **re-derive first**: 180° must complete well inside the shortest hitstun a victim can actually *feel* | The ladder's minimum `HitstunSeconds`. **The basis moved on 2026-08-20 and the number did not.** It was derived against the heavy's 0.50 (floor ≈ 655); knockdown repurposed the heavy's and charged's into attacker-side oki knobs no victim ever feels, so the binding value is now the light's 0.55 and the floor is nearer 330. 720 clears both. Re-derive against the *felt* hitstun, not the smallest one in the table. |
@@ -973,6 +997,11 @@ concludes the log is wrong rather than merely old. Add a row whenever a name cha
 | Entries say | Code now |
 |---|---|
 | **Not scriptable at all** (`Working-In-Unreal.md` section) | **What is and is not scriptable** — retitled because most of the section refutes limits rather than asserting them. |
+| **jail** (knockdown's first phase) | **knockdown lockout**, and `KnockdownLockoutSeconds*`. Renamed 2026-08-24 at the designer's ruling: *jail* was a session's word for a span the project's own vocabulary already names — a lockout is an input restriction someone else inflicted — and it was the one tag in that family classifying itself as nothing. It entered as a rename of the old spec's *"1.5 s default get-up"*. |
+| **choice window** | **knockdown input window**, *input window* inside knockdown's own section, and `KnockdownInputWindowSeconds*`. Same ruling. Sits beside the **input buffer**, which is the thing that carries a press *through* the lockout *into* it. |
+| **carry** (knockdown's displacement) | **fall**, and `KnockdownFallSeconds`. The two were coextensive — the fall montage is fitted to the carry duration, so one span wore two names. |
+| **grade** (of a knockdown) | **type**, and `ETDKnockdownType` / `KnockdownType`. *Grade* implied an ordering that *type* drops; **tier** was unavailable, being the attack ladder's. |
+| **the parry jail** (source comments only) | Nothing — the grouping noun is retired rather than replaced. It covered `State.Parrying` and the whiff recovery, which are named individually now. Never a misclassification: both are self-inflicted, so both were always recoveries. |
 | **Knockdown & Oki** (roster item) | Split 2026-08-18 into **Knockdown** (functionality: knockdown and its grades, get-up options, the get-up attack, the guard-break lockout, jump-as-ability, hitstun's movement lock, the string's terminator) and **Polish** (style over substance, carrying the bespoke windup pass). Entries naming "Knockdown & Oki" predate the split and usually mean the functionality half. |
 | **Stun** (roster item) | Split 2026-08-15 into Knockdown & Oki and Death-full; those two split again 2026-08-18, see the row above. |
 | `CoilPlayRate` | Derived at runtime from distance and time remaining. The authored knob is `CoilEndSeconds`. |
@@ -1089,7 +1118,7 @@ long.
 | `DodgeTargetDistanceCm` | 08-11, 08-12, 08-13 |
 | `ECC_Camera` | 08-12, 08-13 |
 | `ETDDebugFacingMode` | 08-21 |
-| `ETDKnockdownGrade` | 08-20 |
+| `ETDKnockdownType` | 08-20 |
 | `ETriggerEvent::Started` | 08-11 |
 | `EffectOnEnd` | 08-10 |
 | `EffectOnStart` | 08-10 |
@@ -1160,7 +1189,7 @@ long.
 | `IsInBlockstun` | 08-15 |
 | `IsMovementLocked` | 08-20 |
 | `JumpRegenPauseSeconds` | 08-10 |
-| `KnockdownCarrySeconds` | 08-20 |
+| `KnockdownFallSeconds` | 08-20 |
 | `KnockdownRiseSeconds` | 08-20 |
 | `KnockdownSpacingCm` | 08-20 |
 | `LastRequestedMoveInput` | 08-16 |

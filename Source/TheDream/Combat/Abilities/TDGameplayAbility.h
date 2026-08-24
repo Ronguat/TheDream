@@ -71,12 +71,12 @@ public:
 
 	/**
 	 *  Trace label for the rise this ability starts when used as a get-up. See BeginKnockdownRise.
-	 *  Takes the character because the dodge answers with two labels depending on grade.
+	 *  Takes the character because the dodge answers with two labels depending on type.
 	 */
 	virtual const TCHAR* GetKnockdownRiseLabel(const class ATDCombatCharacter* Character) const { return TEXT("unknown"); }
 
 	/**
-	 *  Whether this get-up plays its own rise animation instead of the grade's shared one. The
+	 *  Whether this get-up plays its own rise animation instead of the type's shared one. The
 	 *  character plays RiseMontage (or RiseHardMontage), which is right for the auto-rise, the
 	 *  neutral stand and the block get-up. The dodge animates itself: a roll on normal, a kip-up on
 	 *  hard.
@@ -103,15 +103,15 @@ protected:
 	bool bBlockedWhileMovementLocked = false;
 
 	/**
-	 *  Whether this ability may start from the floor, during the knockdown's choice window.
+	 *  Whether this ability may start from the floor, during the knockdown's input window.
 	 *
-	 *  Three phases, two answers: the jail refuses everything regardless, and so does the rise,
-	 *  committed once started. Only the choice window consults this. Off by default, so the down
+	 *  Three phases, two answers: the lockout refuses everything regardless, and so does the rise,
+	 *  committed once started. Only the input window consults this. Off by default, so the down
 	 *  state refuses anything nobody has thought about; the four that take it are the dodge, guard,
 	 *  jump and get-up attack, each pricing its own rise.
 	 *
-	 *  Grade restrictions are not here -- hard knockdown's removals are answered by the option
-	 *  itself against the grade it reads off the character.
+	 *  Type restrictions are not here -- hard knockdown's removals are answered by the option
+	 *  itself against the type it reads off the character.
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Activation")
 	bool bAllowedFromKnockdown = false;

@@ -108,7 +108,7 @@ void ATDCombatCharacter::Tick(float DeltaSeconds)
 		}
 
 		// The ninth of the family, and the only one that is a small state machine rather than a
-		// deadline: jail, choice window, rise and stand are four boundaries under one tag.
+		// deadline: lockout, input window, rise and stand are four boundaries under one tag.
 		TickKnockdown();
 
 		// Server-side, so the turn replicates as ordinary actor rotation. Unlike the facing *lock*,
@@ -919,30 +919,30 @@ void ATDCombatCharacter::OnRep_Hitstun()
 	}
 }
 
-float ATDCombatCharacter::GetKnockdownJailSeconds() const
+float ATDCombatCharacter::GetKnockdownLockoutSeconds() const
 {
-	return KnockdownGrade == ETDKnockdownGrade::Hard ? KnockdownJailSecondsHard : KnockdownJailSecondsNormal;
+	return KnockdownType == ETDKnockdownType::Hard ? KnockdownLockoutSecondsHard : KnockdownLockoutSecondsNormal;
 }
 
-float ATDCombatCharacter::GetKnockdownChoiceSeconds() const
+float ATDCombatCharacter::GetKnockdownInputWindowSeconds() const
 {
-	return KnockdownGrade == ETDKnockdownGrade::Hard ? KnockdownChoiceSecondsHard : KnockdownChoiceSecondsNormal;
+	return KnockdownType == ETDKnockdownType::Hard ? KnockdownInputWindowSecondsHard : KnockdownInputWindowSecondsNormal;
 }
 
-bool ATDCombatCharacter::IsInKnockdownChoiceWindow() const
+bool ATDCombatCharacter::IsInKnockdownInputWindow() const
 {
 	const UWorld* World = GetWorld();
 	if (!World || !bKnockedDown || bKnockdownRising)
 	{
 		return false;
 	}
-	return World->GetTimeSeconds() >= KnockdownJailEndsAt;
+	return World->GetTimeSeconds() >= KnockdownLockoutEndsAt;
 }
 
-void ATDCombatCharacter::EnterKnockdown(ETDKnockdownGrade Grade, AActor* Attacker)
+void ATDCombatCharacter::EnterKnockdown(ETDKnockdownType Type, AActor* Attacker)
 {
 	UWorld* World = GetWorld();
-	if (!World || !HasAuthority() || Grade == ETDKnockdownGrade::None || bDead)
+	if (!World || !HasAuthority() || Type == ETDKnockdownType::None || bDead)
 	{
 		return;
 	}
@@ -950,13 +950,13 @@ void ATDCombatCharacter::EnterKnockdown(ETDKnockdownGrade Grade, AActor* Attacke
 	const float Now = World->GetTimeSeconds();
 
 	// Last hit wins, as the knockback slide already ruled. A knockdown on a body already down
-	// restarts the clock at the new grade rather than extending -- unlike hitstun, which
+	// restarts the clock at the new type rather than extending -- unlike hitstun, which
 	// max-extends. Hitstun is a duration; this is a state machine, and extending would leave a body
-	// in a jail whose choice window was computed against a different grade.
-	KnockdownGrade = Grade;
+	// in a lockout whose input window was computed against a different type.
+	KnockdownType = Type;
 	bKnockdownRising = false;
-	KnockdownJailEndsAt = Now + GetKnockdownJailSeconds();
-	KnockdownChoiceEndsAt = KnockdownJailEndsAt + GetKnockdownChoiceSeconds();
+	KnockdownLockoutEndsAt = Now + GetKnockdownLockoutSeconds();
+	KnockdownInputWindowEndsAt = KnockdownLockoutEndsAt + GetKnockdownInputWindowSeconds();
 	KnockdownRiseEndsAt = 0.0f;
 	bDebugGetUpPressed = false;
 
@@ -979,15 +979,15 @@ void ATDCombatCharacter::EnterKnockdown(ETDKnockdownGrade Grade, AActor* Attacke
 	OverrideParryRecovery(TEXT("knockdown"));
 
 	// **Carry first, then the tag.** ApplyKnockdownState prints the bearing, and the bearing
-	// is a product of the carry -- so the trace line has to come after the geometry it
+	// is a product of the fall -- so the trace line has to come after the geometry it
 	// reports, not before it.
-	ApplyKnockdownCarry(Attacker);
+	ApplyKnockdownFall(Attacker);
 	BeginForcedFacing(Attacker);
 
-	// Fitted to the carry, so the body reaches the floor as the displacement finishes. The clip
+	// Fitted to the fall, so the body reaches the floor as the displacement finishes. The clip
 	// authors bEnableAutoBlendOut false, which is what holds its last frame as the ground pose for
-	// the jail and the choice window that follow.
-	PlayKnockdownMontage(KnockdownMontage, KnockdownCarrySeconds, TEXT("fall"));
+	// the lockout and the input window that follow.
+	PlayKnockdownMontage(KnockdownMontage, KnockdownFallSeconds, TEXT("fall"));
 
 	if (!bKnockedDown)
 	{
@@ -997,9 +997,9 @@ void ATDCombatCharacter::EnterKnockdown(ETDKnockdownGrade Grade, AActor* Attacke
 	else
 	{
 		// Already down and re-floored: the tag is present and correct, but the trace still owes a
-		// line or the new grade's clock would start invisibly.
-		TD_TIMING_LOG(TEXT("[%.3f] KNOCKDOWN  %s regraded  grade=%s"),
-			Now, *GetName(), KnockdownGrade == ETDKnockdownGrade::Hard ? TEXT("hard") : TEXT("normal"));
+		// line or the new type's clock would start invisibly.
+		TD_TIMING_LOG(TEXT("[%.3f] KNOCKDOWN  %s retyped  type=%s"),
+			Now, *GetName(), KnockdownType == ETDKnockdownType::Hard ? TEXT("hard") : TEXT("normal"));
 	}
 
 }
@@ -1014,12 +1014,12 @@ void ATDCombatCharacter::ApplyKnockdownState()
 	// Bearing is the assertable half: the radial axis's angle off the attacker's facing. In a 1v1
 	// the two coincide near zero; in the ender's 360-degree finish the two victims diverge to about
 	// plus and minus ninety, which makes "the axis radiates" observable rather than intended.
-	TD_TIMING_LOG(TEXT("[%.3f] KNOCKDOWN  %s  grade=%s jail=%.3f choice=%.3f rise=%.3f spacing=%.0f bearing=%.1f z=%.1f airborne=%d"),
+	TD_TIMING_LOG(TEXT("[%.3f] KNOCKDOWN  %s  type=%s lockout=%.3f inputWindow=%.3f rise=%.3f spacing=%.0f bearing=%.1f z=%.1f airborne=%d"),
 		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f,
 		*GetName(),
-		KnockdownGrade == ETDKnockdownGrade::Hard ? TEXT("hard") : TEXT("normal"),
-		GetKnockdownJailSeconds(),
-		GetKnockdownChoiceSeconds(),
+		KnockdownType == ETDKnockdownType::Hard ? TEXT("hard") : TEXT("normal"),
+		GetKnockdownLockoutSeconds(),
+		GetKnockdownInputWindowSeconds(),
 		KnockdownRiseSeconds,
 		KnockdownSpacingCm,
 		LastKnockdownBearingDegrees,
@@ -1035,7 +1035,7 @@ void ATDCombatCharacter::ClearKnockdownState()
 	}
 
 	// Height at the stand, against the height at entry: **the two-point measurement that
-	// makes the airborne rule checkable.** Equal heights across a carry mean the body hung
+	// makes the airborne rule checkable.** Equal heights across a fall mean the body hung
 	// -- the juggling IgnoreZAccumulate exists to prevent -- and nothing else in the trace
 	// could tell you.
 	TD_TIMING_LOG(TEXT("[%.3f] KNOCKDOWN STAND  %s  z=%.1f"),
@@ -1074,11 +1074,11 @@ void ATDCombatCharacter::BeginKnockdownRise(const TCHAR* By, bool bPlayRiseMonta
 		World->GetTimeSeconds(), *GetName(), By, KnockdownRiseEndsAt);
 
 	// **Only for exits that do not animate themselves.** The auto-rise, the neutral stand and the
-	// block get-up all use the grade's rise clip; the dodge brings its own roll or kip-up, and
+	// block get-up all use the type's rise clip; the dodge brings its own roll or kip-up, and
 	// playing this first would be a frame of the wrong animation before it replaced us.
 	if (bPlayRiseMontage)
 	{
-		UAnimMontage* Rise = (KnockdownGrade == ETDKnockdownGrade::Hard) ? RiseHardMontage : RiseMontage;
+		UAnimMontage* Rise = (KnockdownType == ETDKnockdownType::Hard) ? RiseHardMontage : RiseMontage;
 		PlayKnockdownMontage(Rise, KnockdownRiseSeconds, TEXT("rise"));
 	}
 }
@@ -1092,7 +1092,7 @@ void ATDCombatCharacter::EndKnockdown()
 
 	bKnockedDown = false;
 	bKnockdownRising = false;
-	KnockdownGrade = ETDKnockdownGrade::None;
+	KnockdownType = ETDKnockdownType::None;
 	ClearKnockdownState();
 
 	// **The fixture's way back into the fight, and it has to be here.**
@@ -1106,7 +1106,7 @@ void ATDCombatCharacter::EndKnockdown()
 	// **The stand is the only safe moment.** The dodge fixture re-homes on its press because that
 	// press precedes the attack; a parry's press is timed *into* one, and teleporting mid-swing
 	// would resolve the hit at a distance nobody aimed at. Hitstun's end will not serve either --
-	// a graded hit knocks down instead of stunning, so that hook never fires.
+	// a typed hit knocks down instead of stunning, so that hook never fires.
 	//
 	// Self-guarding: ReturnToDebugAutoAttackHome never moves a player pawn.
 	ReturnToDebugAutoAttackHome();
@@ -1219,17 +1219,17 @@ void ATDCombatCharacter::TickKnockdown()
 		return;
 	}
 
-	// The fixture's press, once per knockdown, just inside the choice window.
+	// The fixture's press, once per knockdown, just inside the input window.
 	if (DebugGetUpMode != ETDDebugGetUpMode::Wait && !bDebugGetUpPressed
-		&& Now >= KnockdownJailEndsAt + DebugGetUpDelaySeconds)
+		&& Now >= KnockdownLockoutEndsAt + DebugGetUpDelaySeconds)
 	{
 		bDebugGetUpPressed = true;
 		DebugGetUpPress();
 	}
 
-	// The auto-rise: the choice window closed without anything being chosen. Committed, vulnerable
+	// The auto-rise: the input window closed without anything being chosen. Committed, vulnerable
 	// and locked from here, exactly like a chosen stand -- the difference is only who decided.
-	if (Now >= KnockdownChoiceEndsAt)
+	if (Now >= KnockdownInputWindowEndsAt)
 	{
 		BeginKnockdownRise(TEXT("auto"));
 	}
@@ -1343,7 +1343,7 @@ void ATDCombatCharacter::PlayKnockdownMontage(UAnimMontage* Montage, float Targe
 		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f,
 		*GetName(), Label, Length, Rate, TargetSeconds);
 }
-void ATDCombatCharacter::ApplyKnockdownCarry(AActor* Attacker)
+void ATDCombatCharacter::ApplyKnockdownFall(AActor* Attacker)
 {
 	if (!Attacker || KnockdownSpacingCm <= 0.0f)
 	{
@@ -1397,9 +1397,9 @@ void ATDCombatCharacter::ApplyKnockdownCarry(AActor* Attacker)
 	// would be driven toward the attacker's feet; passing the victim's own contact height makes the
 	// vector purely horizontal. What stops that height being *held* is IgnoreZAccumulate on the
 	// root motion source -- see ReceiveKnockback, where the juggling it prevents is explained. An
-	// airborne victim is knocked down mid-air and falls while the carry moves them.
+	// airborne victim is knocked down mid-air and falls while the fall moves them.
 	Destination.Z = GetActorLocation().Z;
-	ReceiveKnockback(Destination, KnockdownCarrySeconds, KnockdownCarryTimeMappingCurve);
+	ReceiveKnockback(Destination, KnockdownFallSeconds, KnockdownFallTimeMappingCurve);
 }
 
 void ATDCombatCharacter::OpenParryWindow(float DurationSeconds, float WhiffRecoverySeconds)
@@ -2058,7 +2058,7 @@ void ATDCombatCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& O
 	DOREPLIFETIME(ATDCombatCharacter, bInBlockstun);
 	DOREPLIFETIME(ATDCombatCharacter, bInHitstun);
 	DOREPLIFETIME(ATDCombatCharacter, bKnockedDown);
-	DOREPLIFETIME(ATDCombatCharacter, KnockdownGrade);
+	DOREPLIFETIME(ATDCombatCharacter, KnockdownType);
 	DOREPLIFETIME(ATDCombatCharacter, bInParryLockout);
 	DOREPLIFETIME(ATDCombatCharacter, bParryWindowOpen);
 	DOREPLIFETIME(ATDCombatCharacter, bInParryRecovery);

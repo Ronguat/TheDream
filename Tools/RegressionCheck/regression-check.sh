@@ -152,16 +152,16 @@ BAND_CHAIN_LATENCY_MIN_MS=125; BAND_CHAIN_LATENCY_MAX_MS=175
 BAND_SPACING_SLACK=0.5
 
 # --- S6: knockdown ----------------------------------------------------------
-# Both grades total 2.5s and begin their forced rise at 2.0 -- the split between
-# jail and choice is what the grade changes, not the total. Sources: the
+# Both types total 2.5s and begin their forced rise at 2.0 -- the split between
+# lockout and input window is what the type changes, not the total. Sources: the
 # Knockdown* properties on ATDCombatCharacter, read off the CDO at build time.
-BAND_KD_ENTRY_TO_RISE=2.000     # jail + choice, grade-invariant by design
+BAND_KD_ENTRY_TO_RISE=2.000     # lockout + input window, type-invariant by design
 BAND_KD_RISE=0.500              # KnockdownRiseSeconds, shared
 BAND_KD_SPAN_TOL=0.025
-# The jail is only observable through a press: refusals name their phase, and a
-# stand fires the frame the choice window opens. Normal 1.0, hard 1.5.
-BAND_KD_JAIL_NORMAL=1.000
-BAND_KD_JAIL_HARD=1.500
+# The lockout is only observable through a press: refusals name their phase, and a
+# stand fires the frame the input window opens. Normal 1.0, hard 1.5.
+BAND_KD_LOCKOUT_NORMAL=1.000
+BAND_KD_LOCKOUT_HARD=1.500
 
 # S6 -- the get-up attack's authored phases: press to RELEASE BEGIN in WindupSeconds, and the
 # ability's own ABILITY END at WindupSeconds + ReleaseSeconds + RecoverySeconds. Source:
@@ -309,7 +309,7 @@ parry_recovery_spans() { # same, for State.ParryRecovery
 }
 
 acts_during_parry_window() { # anything that activated while a parry window was live
-	# **The jail's first half.** Throwing a parry commits you from activation, not from window close,
+	# **The lockout's first half.** Throwing a parry commits you from activation, not from window close,
 	# so an attack, dodge or block starting inside a live window is the failure. The window ends on
 	# any of the three exits: a catch (PARRY SUCCESS), the whiff charging (PARRY WHIFF), or an
 	# attacker's punishment cancelling it (HITSTUN / GUARD BREAK). Disarming on all of them matters
@@ -495,9 +495,8 @@ dodges_inside_hitstun() { # DODGE lines falling between a HITSTUN and its HITSTU
 
 
 targets_per_window() { # "<burst> <attack index> <distinct targets damaged in that window>"
-	# **Every burst.** The first-burst restriction was lifted 2026-08-24 when the ender became a
-	# knockdown: the radial carry sends each victim out along its own bearing instead of parking it
-	# on the attacker's facing axis, so nobody ends up inside the 60-degree wedge and the
+	# **Every burst.** The radial carry sends each victim out along its own bearing rather than onto
+	# the attacker's facing axis, so nobody ends up inside the 60-degree wedge and the
 	# discrimination survives every burst rather than only the first.
 	awk '
 		/^\[[0-9.]+\] ACTIVATE/ {
@@ -555,8 +554,8 @@ kd_rise_to_stand() { # seconds from each RISE to that victim's STAND
 	' "$SLICE"
 }
 
-kd_grades() { # one grade token per KNOCKDOWN entry
-	grep '^\[[0-9.]*\] KNOCKDOWN  ' "$SLICE" | grep -oE 'grade=[a-z]+' | sed 's/grade=//'
+kd_types() { # one type token per KNOCKDOWN entry
+	grep '^\[[0-9.]*\] KNOCKDOWN  ' "$SLICE" | grep -oE 'type=[a-z]+' | sed 's/type=//'
 }
 
 kd_rise_reasons() { # one by= token per RISE
@@ -802,8 +801,8 @@ run_s5_parry_whiff() {
 		"$(awk -v v="$BAND_PARRY_RECOVERY" -v t="$BAND_PARRY_SPAN_TOL" 'BEGIN{printf "%.3f", v-t}')" \
 		"$(awk -v v="$BAND_PARRY_RECOVERY" -v t="$BAND_PARRY_SPAN_TOL" 'BEGIN{printf "%.3f", v+t}')" "s"
 
-	# The jail has to actually refuse something, or it is a rule nobody reads. The fixture presses
-	# on its own schedule, so presses land inside a running jail by construction.
+	# The lockout has to actually refuse something, or it is a rule nobody reads. The fixture presses
+	# on its own schedule, so presses land inside a running lockout by construction.
 	#
 	# **Matched on the reason string, not the tag name.** Both halves are refused in
 	# UTDGameplayAbility::CanActivateAbility rather than through ActivationBlockedTags, so neither
@@ -812,7 +811,7 @@ run_s5_parry_whiff() {
 	# being broken.
 	#
 	# **Both halves are asserted separately**, the tag tracking the window rather than the ability,
-	# so each phase refuses under its own name. **A single count passing tells you the jail refused
+	# so each phase refuses under its own name. **A single count passing tells you the lockout refused
 	# something; two tell you which half.**
 	win_refusals=$(grep "^\[[0-9.]*\] REFUSED" "$SLICE" | grep -c ": parrying" || true)
 	rec_refusals=$(grep "^\[[0-9.]*\] REFUSED" "$SLICE" | grep -c "parry recovery" || true)
@@ -1102,9 +1101,9 @@ run_s4_360() {
 
 	# The ender's displacement is a knockdown now, so burst 1 floors both bodies rather than
 	# knocking them back. Asserted here because it is what lifted the exclusion.
-	kdns=$(kd_grades | grep -c "^normal$" || true)
+	kdns=$(kd_types | grep -c "^normal$" || true)
 	check "the finisher floors both bodies" "$([ "$kdns" -ge 2 ] && echo 0 || echo 1)" \
-		"$kdns normal-grade KNOCKDOWN lines"
+		"$kdns normal-type KNOCKDOWN lines"
 }
 
 run_s4_block() {
@@ -1161,27 +1160,27 @@ exhaust_exit_stamina() {
 
 
 # --- S6: knockdown ----------------------------------------------------------
-# The spans are grade-invariant on purpose: both grades total 2.5s and rise at
-# 2.0. What the grade changes is the jail/choice split inside that, and the jail
+# The spans are type-invariant on purpose: both types total 2.5s and rise at
+# 2.0. What the type changes is the lockout/input-window split inside that, and the lockout
 # is only observable through a press -- see run_s6_stand.
 
-run_s6() { # run_s6 <grade>
-	local want="$1" grades wrong dmg kdn
-	grades=$(kd_grades)
-	kdn=$(printf '%s\n' "$grades" | grep -c . || true)
+run_s6() { # run_s6 <type>
+	local want="$1" types wrong dmg kdn
+	types=$(kd_types)
+	kdn=$(printf '%s\n' "$types" | grep -c . || true)
 
 	# **Fails on n=0 rather than passing vacuously.** A run where nothing was
 	# floored would otherwise report a clean sheet on every assertion below while
 	# exercising none of them -- the class --self-test exists to rule out.
 	if [ "$kdn" -eq 0 ]; then
-		check "KNOCKDOWN fires" 1 "no KNOCKDOWN lines -- the swing's grade is None, or nothing connected"
+		check "KNOCKDOWN fires" 1 "no KNOCKDOWN lines -- the swing's type is None, or nothing connected"
 	else
-		wrong=$(printf '%s\n' "$grades" | grep -vc "^${want}$" || true)
+		wrong=$(printf '%s\n' "$types" | grep -vc "^${want}$" || true)
 		if [ "$wrong" -eq 0 ]; then
-			check "KNOCKDOWN grade" 0 "n=$kdn all grade=$want"
+			check "KNOCKDOWN type" 0 "n=$kdn all type=$want"
 		else
-			check "KNOCKDOWN grade" 1 \
-				"expected $want, saw:$(printf '%s\n' "$grades" | sort | uniq -c | tr -s ' \n' ' ')"
+			check "KNOCKDOWN type" 1 \
+				"expected $want, saw:$(printf '%s\n' "$types" | sort | uniq -c | tr -s ' \n' ' ')"
 		fi
 	fi
 
@@ -1225,22 +1224,22 @@ run_s6_hard() {
 }
 
 run_s6_stand() {
-	# The jail made observable: a jump press inside it is refused and names the
+	# The lockout made observable: a jump press inside it is refused and names the
 	# phase, and the first press *after* it fires the neutral stand. So the stand's
-	# arrival is a lower bound on the jail and an upper bound below the auto-rise.
-	local jail_refusals stands
-	jail_refusals=$(grep -c "knocked down (jail)" "$SLICE" || true)
-	check "REFUSED names the jail" "$([ "$jail_refusals" -gt 0 ] && echo 0 || echo 1)" \
-		"$jail_refusals presses refused inside the jail"
+	# arrival is a lower bound on the lockout and an upper bound below the auto-rise.
+	local lockout_refusals stands
+	lockout_refusals=$(grep -c "knocked down (lockout)" "$SLICE" || true)
+	check "REFUSED names the lockout" "$([ "$lockout_refusals" -gt 0 ] && echo 0 || echo 1)" \
+		"$lockout_refusals presses refused inside the lockout"
 
 	stands=$(kd_rise_reasons | grep -c '^stand$' || true)
 	check "stand fires as a get-up" "$([ "$stands" -gt 0 ] && echo 0 || echo 1)" \
 		"$stands rises by=stand"
 
-	# A chosen stand must land inside the choice window: at or after the jail's end
+	# A chosen stand must land inside the input window: at or after the lockout's end
 	# and strictly before the auto-rise would have taken it.
-	assert_all_in_band "stand inside choice window" \
-		"kd_entry_to_rise_by stand" "$BAND_KD_JAIL_NORMAL" \
+	assert_all_in_band "stand inside input window" \
+		"kd_entry_to_rise_by stand" "$BAND_KD_LOCKOUT_NORMAL" \
 		"$(awk -v v="$BAND_KD_ENTRY_TO_RISE" -v t="$BAND_KD_SPAN_TOL" 'BEGIN{printf "%.3f", v-t}')" "s"
 }
 
@@ -1272,7 +1271,7 @@ getup_string_lines_after_rise() { # STRING lines naming a riser after its attack
 }
 
 run_s6_getup() {
-	# The get-up attack as a get-up: the fixture presses it just inside the hard choice
+	# The get-up attack as a get-up: the fixture presses it just inside the hard input
 	# window, and it must rise the body, open its window on the authored clock, run to the
 	# authored total, land on the attacker, and never join a string.
 	local presses rises damaged strings
@@ -1284,8 +1283,8 @@ run_s6_getup() {
 	check "get-up attack fires as a get-up" "$([ "$rises" -gt 0 ] && echo 0 || echo 1)" \
 		"$rises rises by=attack"
 
-	assert_all_in_band "rise inside the hard choice window" \
-		"kd_entry_to_rise_by attack" "$BAND_KD_JAIL_HARD" \
+	assert_all_in_band "rise inside the hard input window" \
+		"kd_entry_to_rise_by attack" "$BAND_KD_LOCKOUT_HARD" \
 		"$(awk -v v="$BAND_KD_ENTRY_TO_RISE" -v t="$BAND_KD_SPAN_TOL" 'BEGIN{printf "%.3f", v-t}')" "s"
 
 	assert_all_in_band "press to RELEASE BEGIN" getup_press_to_release \
@@ -1387,7 +1386,7 @@ configured_defender() { # the pawn this fixture drives, read off its own DEBUG G
 	grep -m1 "DEBUG GETUP  " "$SLICE" | awk '{print $4}'
 }
 
-run_s6_getup_exit() { # shared spine: $1 mode, $2 by= token(s), $3 jail floor
+run_s6_getup_exit() { # shared spine: $1 mode, $2 by= token(s), $3 lockout floor
 	local presses rises
 	presses=$(getup_mode_presses "$1")
 	check "fixture pressed the $1 get-up" "$([ "$presses" -gt 0 ] && echo 0 || echo 1)" \
@@ -1396,7 +1395,7 @@ run_s6_getup_exit() { # shared spine: $1 mode, $2 by= token(s), $3 jail floor
 	rises=$(getup_rises_by "$2")
 	check "get-up fires as by=$2" "$([ "$rises" -gt 0 ] && echo 0 || echo 1)" "$rises rises"
 
-	assert_all_in_band "rise inside the choice window" \
+	assert_all_in_band "rise inside the input window" \
 		"kd_entry_to_rise_by $2" "$3" \
 		"$(awk -v v="$BAND_KD_ENTRY_TO_RISE" -v t="$BAND_KD_SPAN_TOL" 'BEGIN{printf "%.3f", v-t}')" "s"
 }
@@ -1404,9 +1403,9 @@ run_s6_getup_exit() { # shared spine: $1 mode, $2 by= token(s), $3 jail floor
 run_s6_dodge() {
 	# The dodge get-up on a normal knockdown: a real roll, i-framed, and priced.
 	local kipups damaged
-	run_s6_getup_exit dodge dodge "$BAND_KD_JAIL_NORMAL"
+	run_s6_getup_exit dodge dodge "$BAND_KD_LOCKOUT_NORMAL"
 
-	# The conversion is grade-gated, so a normal knockdown must never produce one. Asserted here
+	# The conversion is type-gated, so a normal knockdown must never produce one. Asserted here
 	# rather than only in s6-kipup: a kip-up appearing on normal is the same defect seen from the
 	# other side, and only this fixture can see it.
 	rises=$(getup_rises_by dodge)
@@ -1437,7 +1436,7 @@ run_s6_dodge() {
 run_s6_kipup() {
 	# The same input on a hard knockdown: stationary, and the held direction ignored.
 	local dodges
-	run_s6_getup_exit dodge kipup "$BAND_KD_JAIL_HARD"
+	run_s6_getup_exit dodge kipup "$BAND_KD_LOCKOUT_HARD"
 
 	kipups=$(getup_rises_by kipup)
 	dodges=$(getup_rises_by dodge)
@@ -1459,7 +1458,7 @@ run_s6_kipup() {
 
 run_s6_block() {
 	# The block get-up: the guard is live from activation rather than from the top of the rise.
-	run_s6_getup_exit block block "$BAND_KD_JAIL_NORMAL"
+	run_s6_getup_exit block block "$BAND_KD_LOCKOUT_NORMAL"
 
 	assert_all_in_band "guard is up from activation" rise_to_block_up \
 		0 "$BAND_BLOCK_GUARD_GAP" "s"
@@ -1530,7 +1529,7 @@ run_s6_exhausted() { # run_s6_exhausted <mode> <by-token> <survives: yes|no>
 		check "no $mode rise while exhausted" "$([ "$rises" -eq 0 ] && echo 0 || echo 1)" \
 			"$rises rises by=$token across $exhpresses exhausted presses"
 		# The wait survives by construction: refusing every option leaves the forced rise, and its
-		# absence would mean the refusal had jailed the victim rather than declined the option.
+		# absence would mean the refusal had refused the victim rather than declined the option.
 		check "the wait still rises them" \
 			"$([ "$(getup_rises_by auto)" -gt 0 ] && echo 0 || echo 1)" \
 			"$(getup_rises_by auto) rises by=auto"

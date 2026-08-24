@@ -37,7 +37,7 @@ clean hit with a grade
     Z natural; never-inward clamp; zero-radial degenerate falls back to attacker facing
   → JAIL    everything refused, movement+jump locked, invincible, presses buffer
   → CHOICE  options legal — dodge, block, attack, or a free neutral STAND (jump);
-    a buffered press fires the frame the jail ends; still invincible until any rise begins
+    a buffered press fires the frame the lockout ends; still invincible until any rise begins
   → AUTO-RISE [last 0.5] committed, vulnerable, locked; a press buffers and fires at stand
 
   normal: jail 1.0 → choice 1.0 → rise 0.5      hard: jail 1.5 → choice 0.5 → rise 0.5
@@ -70,7 +70,7 @@ clean hit with a grade
   runs — one down-cycle returns ~62 stamina.
 - Knockdown supersedes hitstun, cancels the victim's abilities through the death-path funnel,
   resets their string (`ResetString` — a mid-string attacker stands up to swing 0; a stale
-  chain tap expires inside the jail; a *held* attack button legitimately fires the get-up attack
+  chain tap expires inside the lockout; a *held* attack button legitimately fires the get-up attack
   at the boundary), and calls `OverrideParryRecovery`.
 - Airborne victims are knocked down mid-air: the carry's XY applies, Z follows gravity, no
   ground snap.
@@ -82,10 +82,10 @@ clean hit with a grade
 
 **Edge composition — all of it falls out of standing rules; none needs code of its own.** A
 wrong-facing guard is a clean hit, the guard dying in the entry cancel — and the still-held
-button resumes at the choice window, so held-guard *is* the block get-up, uniform with
+button resumes at the input window, so held-guard *is* the block get-up, uniform with
 held-attack. A correctly-facing guard is never knocked down (clean hits only; the heavy stays
 plus-on-block, the charged breaks). Mid-blockstun and mid-guard-break compose as overlapping
-refusals the jail outlasts. Mid-hitstun supersedes; mid-dodge negates; the parry window and
+refusals the lockout outlasts. Mid-hitstun supersedes; mid-dodge negates; the parry window and
 Grace are unreachable; parry recovery is overridden by the schema's own call. A knockdown
 landing mid-knockback-slide replaces the slide (last hit wins). The dead no-op.
 
@@ -94,13 +94,13 @@ landing mid-knockback-slide replaces the slide (last hit wins). The dead no-op.
 | Value | Current | Plan | Basis |
 |---|---|---|---|
 | Jail / choice, **normal** | — | **1.0 / 1.0** | the lockout held to its minimum, the agency doubled — the fast layer's knockdowns are escape-rich, and boundary oki is light-only |
-| Jail / choice, **hard** | — | **1.5 / 0.5** | the meaner split at the same total: it holds every exit back far enough that a committed follow-up's arrival window **overlaps the forced rise window** (a delayed heavy or a charged both reach it) — hard oki needs the setup time and the hit that bought it earned it. Authored per grade; each grade's split is its own dial |
-| `KnockdownRiseSeconds` | — | **0.5**, shared | clips rate-fit to it; auto-rise begins at 2.0 and both grades stand at 2.5, keeping every total-keyed derivation (the exhausted ~62, the netcode line) grade-invariant |
+| Jail / choice, **hard** | — | **1.5 / 0.5** | the meaner split at the same total: it holds every exit back far enough that a committed follow-up's arrival window **overlaps the forced rise window** (a delayed heavy or a charged both reach it) — hard oki needs the setup time and the hit that bought it earned it. Authored per type; each type's split is its own dial |
+| `KnockdownRiseSeconds` | — | **0.5**, shared | clips rate-fit to it; auto-rise begins at 2.0 and both types stand at 2.5, keeping every total-keyed derivation (the exhausted ~62, the netcode line) type-invariant |
 | `HitSpacingCm` / `BlockedSpacingCm` | 150 / 100 | **350 / 225** | the knockback re-author, folded in: you are beating your target up and *moving* them — 350 pushes to the edge of the string's connect envelope (the inequality's ceiling is ~410; the margin narrows to 60 and the connect trap runs hot, re-annotated at ship). Blocked keeps the notably-less ratio |
 | `KnockdownSpacingCm` | — | **450** | radial fixed destination, shared across grades; farther still than the re-authored knockback — a full light's coverage of separation, so re-engaging the riser costs real travel. Sanity-check at build against `Death_Bw`'s baked travel |
-| `KnockdownCarrySeconds` | — | **0.35** | inside the fall segment; optional time-mapping curve, knockback's contract |
+| `KnockdownFallSeconds` | — | **0.35** | inside the fall segment; optional time-mapping curve, knockback's contract |
 | Forced-facing turn rate | — | **720°/s** | **derived floor ≈ 655**: 180° must complete well inside the shortest hitstun (0.50) — re-derive if any `HitstunSeconds` drops |
-| `ETDKnockdownGrade` per branch / ender swing | — | light **None**, heavy **Hard**, charged **Hard**, ender **Normal** | committed single hits knock down hard; the string's volume finisher knocks down normal — the string already extracted its 45, and generous escape is the volume trade. This is also what prices the rise-catch ladder (45+normal by reaction, 25+hard by read, 40+hard by callout) and the mid-string hold-conversion (55+hard but escapable, against the ender's guaranteed 45+normal) as choices instead of dominances. The geometry pairing — the kit's one AoE knockdown carrying the gentle grade, so a crowd can never be hard-floored — is authored per swing, not structural; a future weapon may pair them differently |
+| `ETDKnockdownType` per branch / ender swing | — | light **None**, heavy **Hard**, charged **Hard**, ender **Normal** | committed single hits knock down hard; the string's volume finisher knocks down normal — the string already extracted its 45, and generous escape is the volume trade. This is also what prices the rise-catch ladder (45+normal by reaction, 25+hard by read, 40+hard by callout) and the mid-string hold-conversion (55+hard but escapable, against the ender's guaranteed 45+normal) as choices instead of dominances. The geometry pairing — the kit's one AoE knockdown carrying the gentle type, so a crowd can never be hard-floored — is authored per swing, not structural; a future weapon may pair them differently |
 | `ParryLockoutFloorSeconds` | — | **0, reserved** | the lockout is derived (planned total − elapsed at catch), preserving per-tier punish for free; the floor is the authored half, spent only if play asks |
 | Get-up attack: release at | — | **0.30 from press** | fast or it is unthreatening; no coil, no hold |
 | Get-up attack: release live / blocked spacing | — | **0.35 / 100** | the long release deters **lunging hitboxes, never parries** — a parrier cannot walk an open window into the volume (movement lock), and dedup decides the whole parry question at release-open, where the rise's tell precedes it by a full window-width. The split's only trade is ward vs whiff-punish width under the fixed total |
@@ -141,7 +141,7 @@ the flinch race unaffected.
 
 - `bKnockedDown` + replicated grade: **ninth member of the state family**, same contract —
   server decides, bool replicates, `OnRep` applies the native `State.KnockedDown` tag,
-  Tick-checked timestamps for the jail/choice/rise boundaries.
+  Tick-checked timestamps for the lockout/input-window/rise boundaries.
 - `EnterKnockdown(Grade, Attacker)` from the hit path when the swing's grade ≠ None: replaces
   `EnterHitstun` for that hit, cancels through the death-path funnel, resets the victim's
   string, calls `OverrideParryRecovery`, starts the radial carry, begins forced facing. The
@@ -165,7 +165,7 @@ the flinch race unaffected.
   (chain-out is time-gated, not position-gated). The connect margin narrows to 60 cm — the
   inequality's trap annotation updates at ship, and any reach/travel retune from here on must
   check it first.
-- The jail refuses everything from the shared base; presses buffer; parry never buffers.
+- The lockout refuses everything from the shared base; presses buffer; parry never buffers.
 - **Trace**: `KNOCKDOWN` (grade, spacing, **bearing** — the radial axis's angle off the
   attacker's facing, so the 1v1 coincidence ≈0° and the s4-360 divergence ≈±90° are both
   assertable), `KNOCKDOWN RISE` (auto|dodge|block|attack|kipup|stand), `KNOCKDOWN STAND`,
@@ -197,7 +197,7 @@ exit** — no shared pre-rise.
 - **Kip-up** (hard only): the dodge input while hard-down — stationary, i-framed, 50 stamina,
   the kip-up clip playing **with its own root motion** (the one deliberate exception to the
   migrated flag pair). Directional input not honoured.
-- **Neutral stand**: the jump input — the default rise fired anywhere in the choice window.
+- **Neutral stand**: the jump input — the default rise fired anywhere in the input window.
   Free, no protection, committed once started — pure timing variance against the meaty, and the
   autonomy to use a window a teammate buys in 1vX. Held movement input was rejected as the
   trigger: incidental WASD would manufacture rises nobody called; a jump press is deliberate.
@@ -275,20 +275,20 @@ no fixture — filed as untested, human-verified once at build.
   `AttackGetUp` / `StandGetUp` — pressing its input at jail-end + ε when knocked down. The
   attacker needs nothing new: `…HoldSeconds` 0.22 throws knockdown heavies, 0.8 hard chargeds.
 - Scenarios (bands from CDOs at build time, never from this plan):
-  - `s6-knockdown` — the ender (taps 3) vs `Wait`: `KNOCKDOWN grade=normal`, jail/choice/rise
+  - `s6-knockdown` — the ender (taps 3) vs `Wait`: `KNOCKDOWN type=normal`, lockout/input-window/rise
     spans at 1.0/1.0/0.5 ±25 ms, carry spacing ≥ authored, **zero `DAMAGED` on the victim
     between `KNOCKDOWN` and `RISE`** while the attacker keeps swinging (floor invincibility
-    observable; n=0 of attacker swings fails), `REFUSED` naming knockdown inside the jail,
+    observable; n=0 of attacker swings fails), `REFUSED` naming knockdown inside the lockout,
     `MOVE UNLOCK` at contact + the ender's 0.55.
   - `s6-getup` — heavy vs `DodgeGetUp`: `RISE by=dodge` within ε of jail end, i-frames hold, 50
     on the ledger. Vs `AttackGetUp`: release ≤ 0.30 + band from press, attacker `DAMAGED`,
     recovery span 0.60, no `STRING`/chain lines after it, ever. Vs `StandGetUp`: `RISE by=stand`
-    inside the choice window, strictly earlier than the auto-rise's clock, no cost on the
+    inside the input window, strictly earlier than the auto-rise's clock, no cost on the
     ledger.
-  - `s6-hard` — heavy vs `DodgeGetUp`: `grade=hard`, jail/choice spans at 1.5/0.5 ±25 ms,
+  - `s6-hard` — heavy vs `DodgeGetUp`: `type=hard`, lockout/input window spans at 1.5/0.5 ±25 ms,
     directional dodge `REFUSED`, kip-up fires with travel ≈ 0; a `StandGetUp` pass asserts the
     stand `REFUSED` under hard and the auto-rise arriving on the full clock; one charged pass
-    asserts `grade=hard` from the other source.
+    asserts `type=hard` from the other source.
   - `s6-exhausted` — pre-drained defender (the `s5-parry-reward` pre-block trick) knocked down:
     **the stamina ledger rises during the down-span** — the carve-out observable in one
     assertion — block/dodge presses `REFUSED` naming exhaustion, get-up attack fires.
@@ -330,7 +330,7 @@ phaseRate` must clear every phase boundary.
 Spec: the Stun & Knockdown section rewritten from the entries (anatomy, grades, options,
 invincibility boundary, forced facing, the exhausted carve-out, the airborne rule); the parry
 section gains the lockout model and loses the floor; the hitstun/blockstun deferral clauses
-resolve. Tuning map rows: the jail/choice/rise dials; the forced-facing rate (derived);
+resolve. Tuning map rows: the lockout/input-window/rise dials; the forced-facing rate (derived);
 `KnockdownSpacingCm` vs `MaxReachCm` coupling; the `HitstunSeconds` repurposing on graded
 swings; the kip-up's root-motion exception; the carry-axis rule (centres vs radiates, never
 unified); the parry window's floor replaced by the ceiling-only rule with the first-contact
@@ -339,7 +339,7 @@ filed; `s4-360`'s exclusion note deleted and the matrix updated with the `s6` ro
 names: the ride-your-own-recovery reward model → the parry lockout; `State.ParryLockout`'s
 reservation resolves. CLAUDE.md: strike Knockdown from the roster, route consequences, delete
 this file. Interplay brief inherits: floor vulnerability, regen-paused-while-down,
-parry-as-get-up, the hard-grade experiment and each grade's split dial, the meaty loop, the
+parry-as-get-up, the hard-grade experiment and each type's split dial, the meaty loop, the
 carve-out's generosity, the block get-up's latched aim (camera-tracked rise as fallback) — and one for the DKO verdict itself: the clean-hit tier choice is now **damage versus grade**
 (the light string's 45 + normal, the heavy's 25 + hard, the charged's 40 + hard, the
 hold-conversion's escapable 55 + hard against the ender's guaranteed 45 + normal) — whether

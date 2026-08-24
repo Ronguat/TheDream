@@ -531,22 +531,22 @@ float UTDChargedAttackAbility::GetAttackHitstunSeconds() const
 	return Branches.IsValidIndex(SelectedBranchIndex) ? Branches[SelectedBranchIndex].HitstunSeconds : HitstunSeconds;
 }
 
-ETDKnockdownGrade UTDChargedAttackAbility::GetAttackKnockdownGrade() const
+ETDKnockdownType UTDChargedAttackAbility::GetAttackKnockdownType() const
 {
 	// Same resolution as the stun values above: swing value for a mid-string light, branch value
 	// for the tiers, ability fallback on an invalid index. None everywhere means hitstun instead,
 	// which is what every attack did before knockdown existed.
 	if (SelectedBranchIndex == 0 && StringSwings.IsValidIndex(CurrentSwingIndex - 1))
 	{
-		return StringSwings[CurrentSwingIndex - 1].KnockdownGrade;
+		return StringSwings[CurrentSwingIndex - 1].KnockdownType;
 	}
-	return Branches.IsValidIndex(SelectedBranchIndex) ? Branches[SelectedBranchIndex].KnockdownGrade : KnockdownGrade;
+	return Branches.IsValidIndex(SelectedBranchIndex) ? Branches[SelectedBranchIndex].KnockdownType : KnockdownType;
 }
 
 
 float UTDChargedAttackAbility::GetAttackParryLockoutSeconds() const
 {
-	// Same resolution as the stun values and the grade: swing value for a mid-string light, branch
+	// Same resolution as the stun values and the type: swing value for a mid-string light, branch
 	// value for the tiers, ability fallback on an invalid index. **Authored at every level** -- no
 	// level of this ladder computes the number.
 	if (SelectedBranchIndex == 0 && StringSwings.IsValidIndex(CurrentSwingIndex - 1))
@@ -559,7 +559,7 @@ float UTDChargedAttackAbility::GetAttackParryLockoutSeconds() const
 float UTDChargedAttackAbility::GetKnockbackSpacingCm(bool bBlocked) const
 {
 	// The spacing reset belongs to non-final string lights alone. The ender, the heavies and the
-	// charged all carry a knockdown grade, so their clean hits never reach ApplyKnockbackToTarget:
+	// charged all carry a knockdown type, so their clean hits never reach ApplyKnockbackToTarget:
 	// EnterKnockdown's radial carry replaces it, on a different axis by design. What still routes
 	// through here is the blocked case, where nothing is knocked down.
 	if (!IsNonFinalStringLight())

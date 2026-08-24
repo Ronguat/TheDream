@@ -59,14 +59,14 @@ void UTDDodgeAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, c
 	}
 
 	// Resolved once, before the direction is, because a kip-up does not consult held input at all.
-	// Read off the *character's* grade rather than stored on the ability, so neither flag can be
+	// Read off the *character's* type rather than stored on the ability, so neither flag can be
 	// left armed on the next ordinary dodge.
 	bIsKnockdownGetUp = false;
 	bIsKnockdownKipUp = false;
 	if (const ATDCombatCharacter* Downed = Cast<ATDCombatCharacter>(GetAvatarActorFromActorInfo()))
 	{
 		bIsKnockdownGetUp = Downed->IsKnockedDown();
-		bIsKnockdownKipUp = bIsKnockdownGetUp && Downed->GetKnockdownGrade() == ETDKnockdownGrade::Hard;
+		bIsKnockdownKipUp = bIsKnockdownGetUp && Downed->GetKnockdownType() == ETDKnockdownType::Hard;
 	}
 
 	DodgeDirection = bIsKnockdownKipUp ? ETDDodgeDirection::Bw : ResolveDodgeDirection();
@@ -97,7 +97,7 @@ void UTDDodgeAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, c
 	//
 	// **Kip-up: the same ability, stationary.** From a hard knockdown the directional dodge is
 	// removed and this replaces it -- i-framed and full-cost like any dodge, but travelling nothing
-	// and ignoring held direction, so hard's narrow choice window cannot also buy repositioning. It
+	// and ignoring held direction, so hard's narrow input window cannot also buy repositioning. It
 	// is the one exception to authored displacement: the kip-up clip keeps its own root motion,
 	// which suppresses the authored source, so the zero passed here is moot.
 	const bool bKipUp = bIsKnockdownKipUp;
@@ -344,7 +344,7 @@ const TCHAR* UTDDodgeAbility::GetKnockdownRiseLabel(const ATDCombatCharacter* Ch
 	// Two labels from one ability, which is why the base asks rather than storing a constant: the
 	// scenarios assert kip-up travel is about zero and dodge travel is not, and they need to know
 	// which one they are looking at.
-	return (Character && Character->GetKnockdownGrade() == ETDKnockdownGrade::Hard)
+	return (Character && Character->GetKnockdownType() == ETDKnockdownType::Hard)
 		? TEXT("kipup")
 		: TEXT("dodge");
 }

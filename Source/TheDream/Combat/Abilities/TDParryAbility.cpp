@@ -190,7 +190,7 @@ void UTDParryAbility::EndAbility(
 		//
 		// **The window is left running rather than torn down**, the protection living on the
 		// character and surviving its ability perfectly well. Tick expires it on schedule and bills
-		// the whiff as usual, so the parry still resolves honestly; what is lost is the jail, the
+		// the whiff as usual, so the parry still resolves honestly; what is lost is the lockout, the
 		// lesser harm and the one that fails visibly.
 		//
 		// Ungated, because this is the sacredness violation detector and there is nothing else.

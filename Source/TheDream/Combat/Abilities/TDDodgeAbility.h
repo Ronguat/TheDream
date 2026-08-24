@@ -49,7 +49,7 @@ public:
 	virtual void ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData) override;
 
 	/**
-	 *  Knockdown's directional get-up, and its kip-up. Decided at activation from the grade: normal
+	 *  Knockdown's directional get-up, and its kip-up. Decided at activation from the type: normal
 	 *  gives the directional dodge, hard a stationary kip-up. Both cost full; the exhausted are
 	 *  refused either way.
 	 */
@@ -64,7 +64,7 @@ protected:
 	/** Whether this activation is a hard knockdown's kip-up rather than a directional dodge. */
 	bool bIsKnockdownKipUp = false;
 
-	/** Whether this activation is a get-up off the floor at all (either grade). */
+	/** Whether this activation is a get-up off the floor at all (either type). */
 	bool bIsKnockdownGetUp = false;
 
 	/**

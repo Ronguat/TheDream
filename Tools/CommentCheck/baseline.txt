@@ -60,5 +60,5 @@ Source/TheDream/TheDream.cpp	1	7
 Source/TheDream/TheDream.h	2	15
 Tools/AnimPipeline/casc-run.sh	3	34
 Tools/DocsCheck/docs-check.sh	72	662
-Tools/RegressionCheck/regression-check.sh	360	4358
+Tools/RegressionCheck/regression-check.sh	435	5290
 Tools/RegressionCheck/session-count.sh	3	36

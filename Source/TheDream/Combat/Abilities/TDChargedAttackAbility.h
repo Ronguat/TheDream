@@ -152,7 +152,7 @@ struct FTDAttackBranch
 	 *  mid-string would end the string it belongs to.
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Attack")
-	ETDKnockdownGrade KnockdownGrade = ETDKnockdownGrade::None;
+	ETDKnockdownType KnockdownType = ETDKnockdownType::None;
 
 	/** Seconds locked out when this branch is parried. Authored; see UTDMeleeAttackAbility. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Attack", meta=(ClampMin="0.0"))
@@ -230,12 +230,12 @@ struct FTDStringSwing
 	/**
 	 *  Whether this position's clean hit knocks down. The ender authors Normal; the rest None.
 	 *
-	 *  The string's volume finisher knocks down on the gentle grade, and it is the kit's only
+	 *  The string's volume finisher knocks down on the gentle type, and it is the kit's only
 	 *  360-degree knockdown -- that pairing is what stops a crowd being hard-floored. Authored here
 	 *  rather than structural; a future weapon may differ.
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Swing")
-	ETDKnockdownGrade KnockdownGrade = ETDKnockdownGrade::None;
+	ETDKnockdownType KnockdownType = ETDKnockdownType::None;
 
 	/** Seconds locked out when this position is parried. Authored; see UTDMeleeAttackAbility. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Swing", meta=(ClampMin="0.0"))
@@ -391,7 +391,7 @@ protected:
 	virtual float GetAttackStaminaDamage() const override;
 	virtual float GetAttackBlockstunSeconds() const override;
 	virtual float GetAttackHitstunSeconds() const override;
-	virtual ETDKnockdownGrade GetAttackKnockdownGrade() const override;
+	virtual ETDKnockdownType GetAttackKnockdownType() const override;
 	virtual float GetAttackParryLockoutSeconds() const override;
 	virtual float GetKnockbackSpacingCm(bool bBlocked) const override;
 

@@ -437,15 +437,15 @@ void UTDMeleeAttackAbility::HandleTraceHit(const FHitResult& Hit)
 	// The hit's effect on the victim beyond the bar. After the damage deliberately, so a killing
 	// blow resolves death first -- every call below no-ops on the dead.
 	//
-	// **Knockdown and hitstun are alternatives, not layers.** A swing that authored a grade floors
+	// **Knockdown and hitstun are alternatives, not layers.** A swing that authored a type floors
 	// the victim instead of stunning them and carries them radially instead of pushing along the
 	// facing axis, which leaves that swing's HitstunSeconds with exactly one remaining job: keying
 	// the *attacker's* movement return through the waiver below.
 	if (ATDCombatCharacter* Victim = Cast<ATDCombatCharacter>(HitActor))
 	{
-		if (GetAttackKnockdownGrade() != ETDKnockdownGrade::None)
+		if (GetAttackKnockdownType() != ETDKnockdownType::None)
 		{
-			Victim->EnterKnockdown(GetAttackKnockdownGrade(), GetAvatarActorFromActorInfo());
+			Victim->EnterKnockdown(GetAttackKnockdownType(), GetAvatarActorFromActorInfo());
 		}
 		else
 		{

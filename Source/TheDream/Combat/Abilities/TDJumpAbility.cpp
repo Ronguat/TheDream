@@ -37,14 +37,14 @@ bool UTDJumpAbility::CanActivateAbility(const FGameplayAbilitySpecHandle Handle,
 		return false;
 	}
 
-	// **Hard knockdown removes the free stand.** The grade's whole shape is a narrower, meaner
+	// **Hard knockdown removes the free stand.** The type's whole shape is a narrower, meaner
 	// split, and a costless exit would give back exactly the timing pressure the 1.5/0.5 buys. Hard
 	// keeps the kip-up, the guard and the get-up attack -- all priced -- plus waiting. Sited here
 	// rather than on the base's flag because it is a question about *this* option, and splitting
 	// one ruling across two files is how the pair drifts apart. See bAllowedFromKnockdown.
 	if (const ATDCombatCharacter* Downed = Cast<ATDCombatCharacter>(ActorInfo ? ActorInfo->AvatarActor.Get() : nullptr))
 	{
-		if (Downed->IsKnockedDown() && Downed->GetKnockdownGrade() == ETDKnockdownGrade::Hard)
+		if (Downed->IsKnockedDown() && Downed->GetKnockdownType() == ETDKnockdownType::Hard)
 		{
 			TD_TIMING_LOG(TEXT("[%.3f] REFUSED    %s on %s: no stand from a hard knockdown"),
 				Downed->GetWorld() ? Downed->GetWorld()->GetTimeSeconds() : 0.0f,

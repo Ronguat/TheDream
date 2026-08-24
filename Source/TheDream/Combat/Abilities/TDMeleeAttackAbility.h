@@ -106,12 +106,12 @@ protected:
 
 	/**
 	 *  Whether a clean hit from this attack knocks its victim down, and how hard. **None -- the
-	 *  default -- means the hit hitstuns instead.** A graded hit knocks down and *never* hitstuns:
+	 *  default -- means the hit hitstuns instead.** A typed hit knocks down and *never* hitstuns:
 	 *  alternatives resolved at the hit, not layers. The ability-level fallback; branches and string
 	 *  swings override it, and the charged ability resolves which one applies.
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Attack")
-	ETDKnockdownGrade KnockdownGrade = ETDKnockdownGrade::None;
+	ETDKnockdownType KnockdownType = ETDKnockdownType::None;
 
 	/**
 	 *  How long this attack's owner is locked out when a parrier catches it. Authored, not derived.
@@ -236,8 +236,8 @@ protected:
 	/** Hitstun for the swing currently being thrown, imposed on a clean hit. Zero means none. */
 	virtual float GetAttackHitstunSeconds() const { return HitstunSeconds; }
 
-	/** Knockdown grade for the swing being resolved. See ETDKnockdownGrade. */
-	virtual ETDKnockdownGrade GetAttackKnockdownGrade() const { return KnockdownGrade; }
+	/** Knockdown type for the swing being resolved. See ETDKnockdownType. */
+	virtual ETDKnockdownType GetAttackKnockdownType() const { return KnockdownType; }
 
 	/** Parry lockout for the swing being resolved. Authored; see ParryLockoutSeconds. */
 	virtual float GetAttackParryLockoutSeconds() const { return ParryLockoutSeconds; }

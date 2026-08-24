@@ -23,7 +23,7 @@ class UAnimMontage;
  *  Not refused by State.Blockstun; blockstun and parry never know about each other. It *is* refused
  *  while blocking, which is a property of the guard rather than of blockstun.
  *
- *  Throwing one jails you until it resolves. State.Parrying spans the window and
+ *  Throwing one refuses your every action until it resolves. State.Parrying spans the window and
  *  State.ParryRecovery the whiff tail, and the shared base refuses every ability on both; movement
  *  is locked across the same span by bLocksMovement, separately, because WASD is not an ability.
  *  The three exits are the recovery expiring, a catch (NotifyParrySuccess ends the ability at

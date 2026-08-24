@@ -7,7 +7,7 @@
 #include "TDGetUpAttackAbility.generated.h"
 
 /**
- *  The attack thrown from the floor: knockdown's offensive exit. Legal only in the choice window
+ *  The attack thrown from the floor: knockdown's offensive exit. Legal only in the input window
  *  (bAllowedFromKnockdown), its activation is the rise (BringsOwnRiseMontage), and it plays one
  *  fixed swing -- no hold conversion, no chain, no string membership -- committed from the first
  *  frame and waived on a clean hit like every attack. The montage's Release Window drives the
