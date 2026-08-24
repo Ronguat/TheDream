@@ -695,6 +695,48 @@ off the deck is airborne by the flag and has nothing to fall, so it can neither 
 to — the three samples logged before this scenario existed were all of that kind. Only samples
 clearing the height bar carry the hang assertion.
 
+## Build a scenario from a human demonstration, not from intuition about the fixture
+
+**Ruled 2026-08-24, by the designer, after watching the alternative fail three times in a row.**
+When a new scenario needs a defender to *do* something at a *time* — parry, jump, get up — have a
+human perform it first, measure their timing off the trace, and configure the fixture to reproduce
+it. Do not guess at intervals.
+
+**The reason is structural, not a matter of skill.** A fixture presses on a blind periodic timer
+against a periodic world, and there are only two outcomes. Set the periods equal and it **aliases**
+— every press lands at the same phase forever, so it either always hits or always misses and the
+sample is one observation repeated. Set them unequal and it **sweeps** — phases drift, most presses
+miss, and successes arrive at whatever rate the arithmetic allows. Neither resembles a human, who
+presses *reactively* and therefore at a **consistent offset from the tell**.
+
+**That offset is the thing worth having, because it transfers directly.** Once measured, set the
+fixture's period equal to the attacker's — aliasing *deliberately*, which is the one case where it
+is correct — and its phase to the measured offset. For the parry fixture the phase control is
+`DebugParryPreBlockSeconds`, since the parry fires that far into each cycle; it doubles as the
+stamina drain.
+
+**Ask for failures as well as successes.** The gap between the offsets that land and the ones that
+miss is the slack the model has, and it is what tells you whether a band is tight or generous.
+
+**The method, in order:**
+
+1. Configure the *attacker* exactly as the scenario will have it. Everything measured is relative
+   to its cycle, so changing it afterwards invalidates the reference.
+2. Make every other pawn inert, so nothing competes for aim assist or the trace.
+3. The human plays the defender's part, deliberately mixing outcomes.
+4. Measure the press against the attacker's `ACTIVATE` and `RELEASE BEGIN`, split by what followed.
+5. Set the fixture's period and phase from that, then run it unattended and compare.
+
+**A human-in-the-loop log is a reference measurement and never a scenario run.** Human presses
+poison the counts — `s6-getup`'s matrix row already says so — so label the log as reference and
+re-run unattended before trusting any assertion against it.
+
+**What it cost not to do this**, kept because the shape recurs: `s5-parry-reward` was retuned blind
+three times, each wrong for a different reason — a pre-block that monopolised the parry's own
+window, a taps setting that removed the interference *and* the spacing maintenance together, and a
+non-aliasing period that swept phases into a 1-in-20 success rate. All three were reasoned about
+rather than measured.
+
 ## The post-change verification checklist
 
 **Moved here from `Docs/Working-In-Unreal.md` on 2026-08-18**, by that file's own rule that its
