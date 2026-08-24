@@ -497,21 +497,19 @@ dodges_inside_hitstun() { # DODGE lines falling between a HITSTUN and its HITSTU
 }
 
 
-first_burst_targets_per_window() { # "<attack index> <distinct targets damaged in that window>"
-	# **First burst only, and that is the assertion's whole shape.** The finisher's 360 hits both
-	# bodies and then knocks them to the attacker's facing axis, so from the second burst onward
-	# they sit inside the 60-degree wedge and the earlier attacks hit them too -- the discrimination
-	# is gone. The ender's displacement is Knockdown & Oki's to replace; when it does, widen this.
-	# Do not "fix" a failure here by taking more bursts: that samples contaminated geometry.
+targets_per_window() { # "<burst> <attack index> <distinct targets damaged in that window>"
+	# **Every burst.** The first-burst restriction was lifted 2026-08-24 when the ender became a
+	# knockdown: the radial carry sends each victim out along its own bearing instead of parking it
+	# on the attacker's facing axis, so nobody ends up inside the 60-degree wedge and the
+	# discrimination survives every burst rather than only the first.
 	awk '
 		/^\[[0-9.]+\] ACTIVATE/ {
 			for (i=1;i<=NF;i++) if ($i ~ /^swing=/) { split($i,a,"="); sw=a[2] }
-			if (sw+0 == 0) { bursts++ }
-			if (bursts > 1) { exit }
+			if (sw+0 == 0) { burst++ }
 			next
 		}
 		/^\[[0-9.]+\] RELEASE BEGIN/ { inwin=1; delete seen; n=0; next }
-		/^\[[0-9.]+\] RELEASE END/   { if (inwin) print sw " " n; inwin=0; next }
+		/^\[[0-9.]+\] RELEASE END/   { if (inwin) print burst " " sw " " n; inwin=0; next }
 		inwin && /^\[[0-9.]+\] DAMAGED/ { if (!($3 in seen)) { seen[$3]=1; n++ } }' "$SLICE"
 }
 
@@ -1075,22 +1073,41 @@ run_s4_360() {
 	#
 	# Requires bDebugAutoAttackHomeBetweenAttacks: an attacker whiffing into open space has an open
 	# standoff gate and runs its full authored lunge, which would carry it away from both.
-	local rows early late
-	rows=$(first_burst_targets_per_window)
-	if [ -z "$rows" ]; then
-		check "first burst observed" 1 "no release windows in the first burst"
-		return
-	fi
+	#
+	# **What burst 1 and the rest assert differently is reach, not the wedge.** After the finisher
+	# floors both, bDebugHomeAtStand returns the dummy to its placed spacing at every stand and
+	# never moves a player pawn -- so the player stays out at the carry's 450 and only the dummy
+	# comes back within reach. Burst 1 therefore reaches two and every later burst exactly one,
+	# while attacks 1-2 reach nobody throughout.
+	local rows early first_late later_late bursts kdns
+	rows=$(targets_per_window)
+	bursts=$(printf '%s\n' "$rows" | awk 'NF {print $1}' | sort -un | tail -1)
+	bursts=${bursts:-0}
 
-	early=$(printf '%s\n' "$rows" | awk '$1 < 2 {print $2}' | sort -u | tr '\n' ' ')
-	late=$(printf '%s\n' "$rows" | awk '$1 == 2 {print $2}' | sort -u | tr '\n' ' ')
+	# The whole point of lifting the exclusion is sampling past burst 1, so one burst fails here
+	# rather than passing on the old shape.
+	check "more than one burst observed" "$([ "${bursts:-0}" -gt 1 ] && echo 0 || echo 1)" \
+		"$bursts bursts"
 
-	check "60-degree attacks reach neither" \
+	early=$(printf '%s\n' "$rows" | awk '$2 < 2 {print $3}' | sort -u | tr '\n' ' ')
+	first_late=$(printf '%s\n' "$rows" | awk '$1 == 1 && $2 == 2 {print $3}' | sort -u | tr '\n' ' ')
+	later_late=$(printf '%s\n' "$rows" | awk '$1 > 1 && $2 == 2 {print $3}' | sort -u | tr '\n' ' ')
+
+	check "60-degree attacks reach neither, in every burst" \
 		"$([ "$(echo $early)" = "0" ] && echo 0 || echo 1)" \
-		"attacks 1-2 damaged: ${early:-none} distinct targets"
-	check "the 360 finisher reaches both" \
-		"$([ "$(echo $late)" = "2" ] && echo 0 || echo 1)" \
-		"attack 3 damaged: ${late:-none} distinct targets"
+		"attacks 1-2 damaged: ${early:-none} distinct targets across $bursts bursts"
+	check "the 360 finisher reaches both in burst 1" \
+		"$([ "$(echo $first_late)" = "2" ] && echo 0 || echo 1)" \
+		"burst 1 attack 3 damaged: ${first_late:-none} distinct targets"
+	check "and exactly the re-homed body after that" \
+		"$([ "$(echo $later_late)" = "1" ] && echo 0 || echo 1)" \
+		"later bursts' attack 3 damaged: ${later_late:-none} distinct targets"
+
+	# The ender's displacement is a knockdown now, so burst 1 floors both bodies rather than
+	# knocking them back. Asserted here because it is what lifted the exclusion.
+	kdns=$(kd_grades | grep -c "^normal$" || true)
+	check "the finisher floors both bodies" "$([ "$kdns" -ge 2 ] && echo 0 || echo 1)" \
+		"$kdns normal-grade KNOCKDOWN lines"
 }
 
 run_s4_block() {

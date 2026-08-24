@@ -518,7 +518,7 @@ looks ignored.
 | `s4-string` | 0.1, **taps 3** | `Off` | three swing indices in equal counts; chain gap 0.500 ±45 ms and chain latency 125–175 ms; `DAMAGED` exactly 15 with the ledger stepping; `HITSTUN` spans 0.550 ±20 ms; **`KNOCKBACK` spacing never below the authored value it prints, and n=0 fails** |
 | `s4-guarantee` | 0.1, **taps 3** | `PeriodicDodge` | `REFUSED` lines attributed to `State.Hitstun`; **zero `DODGE` between `HITSTUN` and `HITSTUN END`** — the string's guarantee, observable; `HITSTUN` spans as above |
 | `s4-block` | 0.1, **taps 3** | `HoldBlock` | `BLOCKED` staminaDamage exactly 5; `BLOCKSTUN` spans 0.350 ±20 ms; knockback never inward |
-| `s4-360` | 0.1, **taps 3**, `FacingMode` **Never**, **`bDebugSuppressLunge`** | `Off`, plus the player spawned at (200, 150) opposite the defender | **first burst only**: attacks 1–2 damage **zero** distinct targets, attack 3 damages **two** |
+| `s4-360` | 0.1, **taps 3**, `FacingMode` **Never**, **`bDebugSuppressLunge`** | `Off`, plus the player spawned at (200, 150) opposite the defender | **every burst**, since 2026-08-24: attacks 1–2 damage **zero** distinct targets throughout; attack 3 damages **two** in burst 1 and **exactly one** after; at least two normal-grade `KNOCKDOWN` lines. A single burst **fails** — sampling past the first is the point |
 | `s5-parry` | 0.1, **taps 3** | `PeriodicParry` | `PARRY WINDOW` span 0.300 ±25 ms; at least one `PARRY SUCCESS` (**n=0 fails**); credited reward inside [0, 25]; **zero `STRING` link window after a parried swing**; **every `PARRY GESTURE` inside its own window (n=0 fails)** ; **`PARRY GRACE` span 0.150 ±25 ms**; every `by=window` success starts exactly one tail; **Grace never re-arms** (no tail from a `by=grace` catch, none overlapping) |
 | `s5-parry-reward` | 0.1, **taps 3** | `PeriodicParry`, `DebugParryPreBlockSeconds` **4.0**, `DebugParryIntervalSeconds` **5.3** | at least one `PARRY SUCCESS`; `gained` **exactly 25** on every one. **Unreliable as fixtured since Knockdown — see the 2026-08-24 trap**; its FAIL is expected until the timers are redesigned |
 | `s5-parry-whiff` | 0.1, **taps 3** | `PeriodicParry`, `DebugParryIntervalSeconds` **0.5**, **and the defender also auto-attacks** (`bDebugAutoAttack`, interval **0.7**, `bDebugSuppressLunge`) | `PARRY RECOVERY` span 0.600 ±25 ms; `REFUSED` naming **the jail** (`parrying` or `parry recovery`) at least once; **nothing activates inside a recovery span (n=0 fails)**; **nothing activates inside a parry window either (n=0 fails)** |
@@ -592,11 +592,18 @@ proposals were stale by the time they were built — cadence 350 → **500 ms** 
 the designer, hitstun 0.400 → **0.550** forced up to outlast it, blockstun 0.400 → **0.350**
 re-derived against it. Read the CDO when adding a band; do not copy a plan.
 
-**`s4-360` asserts the first burst and nothing after it, and that is the design rather than a
-shortcut.** The finisher hits both bodies and then knocks them onto the attacker's facing axis, so
-from the second burst they sit inside the 60° wedge and the earlier attacks reach them too. **Do not
-"fix" a failure by widening the sample** — that measures contaminated geometry. The exclusion lifts
-when Knockdown & Oki replaces the ender's displacement with a knockdown.
+**`s4-360`'s first-burst exclusion lifted 2026-08-24, and the assertion got stronger rather than
+merely wider.** It existed because the old ender knocked both bodies onto the attacker's facing
+axis, where the 60° wedge reached them and the discrimination vanished. Knockdown replaced that
+displacement with a **radial** carry — each victim leaves along its own bearing — so nobody parks in
+front of the attacker and attacks 1–2 reach zero targets in *every* burst. Measured across **23**:
+`0` distinct targets for attacks 1–2 throughout, `2` for attack 3 in burst 1, `1` in all 22 after.
+
+**The step from two to one is the fixture, not the mechanic.** `bDebugHomeAtStand` returns a dummy
+to its placed spacing at every stand and **never moves a player pawn**, so the player stays out at
+the carry's 450 cm while the dummy comes back into reach. Asserted as *exactly* one: two would mean
+the carry had stopped separating, zero that the re-home had stopped working. **The plan predicted
+zero** — written before the re-home became unconditional, and corrected by measurement.
 
 **Its fixture is unlike every other scenario's and all three parts are load-bearing.** `FacingMode`
 **Never** holds the placed yaw so both targets sit ~90° off-axis, outside the 60° wedge even with
