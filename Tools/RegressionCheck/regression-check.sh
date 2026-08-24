@@ -14,6 +14,8 @@
 #            s4-string s4-guarantee s4-block s4-360   (all need StringTaps 3)
 #            s5-parry s5-parry-reward s5-parry-whiff s5-cancel s5-waiver
 #            s6-knockdown s6-hard s6-stand s6-getup
+#            s6-dodge s6-kipup s6-block s6-hard-stand      (sub-slice D's options)
+#            s6-exhausted s6-exhausted-kipup s6-exhausted-block s6-exhausted-attack
 # Exit 0 = all assertions passed, 1 = at least one failed, 2 = usage/no data.
 
 set -uo pipefail
@@ -166,6 +168,18 @@ BAND_KD_JAIL_HARD=1.500
 # GA_GetUpAttack's CDO, defaults in UTDGetUpAttackAbility.
 BAND_RELEASE_GETUP=300
 BAND_ELAPSED_GETUP=1.250
+
+# S6 -- the get-up options. The cost is GA_Dodge's, shared by the roll and the kip-up. The kip-up
+# ceiling is slack for capsule settle rather than a travel budget: the authored displacement is
+# zero, so this exists to make "stationary" falsifiable rather than assumed. The guard gap is one
+# frame at 60 plus slack -- the block get-up's whole claim is that the guard is live from
+# activation, not from the top of the rise.
+BAND_GETUP_DODGE_COST=50.0
+BAND_KIPUP_TRAVEL_MAX=25.0
+BAND_BLOCK_GUARD_GAP=0.100
+# How close a refusal must follow a get-up press to be attributed to it. Wide enough for a frame
+# of scheduling, far short of the choice window that would let a standing refusal drift in.
+BAND_GETUP_REFUSAL_GAP=0.200
 
 # ---------------------------------------------------------------------------
 
@@ -1276,6 +1290,239 @@ run_s6_getup() {
 		"$strings STRING lines"
 }
 
+# --- S6: the get-up options (sub-slice D) -----------------------------------
+# Each option gets its own fixture and its own scenario. They are not folded together because a
+# scenario whose assertions depend on which DebugGetUpMode ran can pass vacuously on the mode it
+# was not given -- the same shape as the n=0 guards above.
+#
+# Every helper anchors on the RISE rather than on the DEBUG GETUP press: the press only proves the
+# fixture fired, while the rise proves the option was actually taken. A refused press produces the
+# first and not the second, which is exactly what the exhaustion scenarios assert.
+
+getup_mode_presses() { # DEBUG GETUP lines the fixture emitted in mode $1
+	grep -c "DEBUG GETUP  .* mode=$1" "$SLICE" || true
+}
+
+getup_rises_by() { # count of rises whose by= token matches $1
+	kd_rise_reasons | grep -cE "^($1)$" || true
+}
+
+getup_dodge_remaining() { # remaining= on the DODGE each $1 get-up opened with
+	awk -v want="$1" '
+		$2 == "KNOCKDOWN" && $3 == "RISE" { split($5,b,"="); armed = (b[2] ~ "^(" want ")$"); next }
+		armed && $2 == "DODGE" && $3 ~ /^dir=/ {
+			for (i=1;i<=NF;i++) if ($i ~ /^remaining=/) { split($i,a,"="); print a[2] }
+			armed=0
+		}' "$SLICE"
+}
+
+getup_dodge_travel() { # dist= on the DODGE END that closed each $1 get-up
+	awk -v want="$1" '
+		$2 == "KNOCKDOWN" && $3 == "RISE" { split($5,b,"="); armed = (b[2] ~ "^(" want ")$"); next }
+		armed && $2 == "DODGE" && $3 == "END" {
+			for (i=1;i<=NF;i++) if ($i ~ /^dist=/) { split($i,a,"="); d=a[2]; sub(/uu$/,"",d); print d }
+			armed=0
+		}' "$SLICE"
+}
+
+damage_during_getup_exit() { # DAMAGED landing on the riser between its $1 rise and that exit ending
+	awk -v want="$1" '
+		$2 == "KNOCKDOWN" && $3 == "RISE" {
+			split($5,b,"="); if (b[2] ~ "^(" want ")$") { armed=1; who=$4 } next
+		}
+		armed && $2 == "DAMAGED" && $3 == who { n++; next }
+		armed && $2 == "DODGE" && $3 == "END" { armed=0 }
+		END { print n+0 }' "$SLICE"
+}
+
+rise_to_block_up() { # seconds from each by=block rise to that pawn's next BLOCK up
+	awk '
+		$2 == "KNOCKDOWN" && $3 == "RISE" {
+			split($5,b,"=")
+			if (b[2] == "block") { t=$1; gsub(/[\[\]]/,"",t); start=t+0; who=$4; armed=1 }
+			next
+		}
+		armed && $2 == "BLOCK" && $3 == "up" && $5 == who {
+			t=$1; gsub(/[\[\]]/,"",t); printf "%.3f\n", (t+0)-start; armed=0
+		}' "$SLICE"
+}
+
+getup_presses_while_exhausted() { # mode-$1 presses landing while that pawn carries State.Exhausted
+	awk -v want="$1" '
+		$2 == "EXHAUSTED"                  { ex[$3]=1; next }
+		$2 == "EXHAUSTION" && $3 == "END"  { delete ex[$4]; next }
+		$2 == "DEBUG" && $3 == "GETUP" { split($5,m,"="); if (m[2]==want && ($4 in ex)) n++ }
+		END { print n+0 }' "$SLICE"
+}
+
+getup_rises_while_exhausted() { # rises by=$2 that followed a mode-$1 press made while exhausted
+	awk -v want="$1" -v token="$2" '
+		$2 == "EXHAUSTED"                  { ex[$3]=1; next }
+		$2 == "EXHAUSTION" && $3 == "END"  { delete ex[$4]; next }
+		$2 == "DEBUG" && $3 == "GETUP" {
+			split($5,m,"="); armed=(m[2]==want && ($4 in ex)); who=$4; next
+		}
+		armed && $2 == "KNOCKDOWN" && $3 == "RISE" && $4 == who {
+			split($5,b,"="); if (b[2]==token) n++
+			armed=0
+		}
+		END { print n+0 }' "$SLICE"
+}
+
+configured_defender() { # the pawn this fixture drives, read off its own DEBUG GETUP lines
+	grep -m1 "DEBUG GETUP  " "$SLICE" | awk '{print $4}'
+}
+
+run_s6_getup_exit() { # shared spine: $1 mode, $2 by= token(s), $3 jail floor
+	local presses rises
+	presses=$(getup_mode_presses "$1")
+	check "fixture pressed the $1 get-up" "$([ "$presses" -gt 0 ] && echo 0 || echo 1)" \
+		"$presses presses"
+
+	rises=$(getup_rises_by "$2")
+	check "get-up fires as by=$2" "$([ "$rises" -gt 0 ] && echo 0 || echo 1)" "$rises rises"
+
+	assert_all_in_band "rise inside the choice window" \
+		"kd_entry_to_rise_by $2" "$3" \
+		"$(awk -v v="$BAND_KD_ENTRY_TO_RISE" -v t="$BAND_KD_SPAN_TOL" 'BEGIN{printf "%.3f", v-t}')" "s"
+}
+
+run_s6_dodge() {
+	# The dodge get-up on a normal knockdown: a real roll, i-framed, and priced.
+	local kipups damaged
+	run_s6_getup_exit dodge dodge "$BAND_KD_JAIL_NORMAL"
+
+	# The conversion is grade-gated, so a normal knockdown must never produce one. Asserted here
+	# rather than only in s6-kipup: a kip-up appearing on normal is the same defect seen from the
+	# other side, and only this fixture can see it.
+	rises=$(getup_rises_by dodge)
+	kipups=$(getup_rises_by kipup)
+	if [ "$rises" -eq 0 ]; then
+		check "no kip-up on a normal knockdown" 1 "no dodge get-ups -- the conversion had no chance to fire"
+	else
+		check "no kip-up on a normal knockdown" "$([ "$kipups" -eq 0 ] && echo 0 || echo 1)" \
+			"$kipups rises by=kipup across $rises dodge get-ups"
+	fi
+
+	assert_all_equal "dodge get-up costs its 50" "getup_dodge_remaining dodge" \
+		"$BAND_GETUP_DODGE_COST"
+
+	assert_all_in_band "dodge get-up travels" "getup_dodge_travel dodge" \
+		"$BAND_DODGE_MIN" "$BAND_DODGE_MAX" "cm"
+
+	# The i-frames, observable: the attacker keeps swinging through the roll and none of it lands.
+	damaged=$(damage_during_getup_exit dodge)
+	if [ "$rises" -eq 0 ]; then
+		check "i-frames hold across the dodge get-up" 1 "no dodge get-ups -- nothing was ever i-framed"
+	else
+		check "i-frames hold across the dodge get-up" "$([ "$damaged" -eq 0 ] && echo 0 || echo 1)" \
+			"$damaged DAMAGED across $rises dodge get-ups"
+	fi
+}
+
+run_s6_kipup() {
+	# The same input on a hard knockdown: stationary, and the held direction ignored.
+	local dodges
+	run_s6_getup_exit dodge kipup "$BAND_KD_JAIL_HARD"
+
+	kipups=$(getup_rises_by kipup)
+	dodges=$(getup_rises_by dodge)
+	if [ "$kipups" -eq 0 ]; then
+		check "hard never yields the directional dodge" 1 "no kip-ups -- the conversion never ran"
+	else
+		check "hard never yields the directional dodge" "$([ "$dodges" -eq 0 ] && echo 0 || echo 1)" \
+			"$dodges rises by=dodge across $kipups kip-ups"
+	fi
+
+	# "Stationary" made falsifiable. The ceiling is slack for capsule settle, not a travel budget --
+	# the authored displacement is zero and anything approaching the roll's 400 is the conversion
+	# having silently not happened.
+	assert_all_in_band "kip-up travels about zero" "getup_dodge_travel kipup" \
+		0 "$BAND_KIPUP_TRAVEL_MAX" "cm"
+
+	assert_all_equal "kip-up costs its 50" "getup_dodge_remaining kipup" "$BAND_GETUP_DODGE_COST"
+}
+
+run_s6_block() {
+	# The block get-up: the guard is live from activation rather than from the top of the rise.
+	run_s6_getup_exit block block "$BAND_KD_JAIL_NORMAL"
+
+	assert_all_in_band "guard is up from activation" rise_to_block_up \
+		0 "$BAND_BLOCK_GUARD_GAP" "s"
+}
+
+run_s6_hard_stand() {
+	# Hard removes the free stand outright. The jump ability refuses by name, so the refusal and
+	# the absent rise are two independent halves -- a silent no-op would pass one and fail the other.
+	local presses refused stands
+	presses=$(getup_mode_presses stand)
+	check "fixture pressed the stand" "$([ "$presses" -gt 0 ] && echo 0 || echo 1)" "$presses presses"
+
+	refused=$(grep -c "no stand from a hard knockdown" "$SLICE" || true)
+	check "hard refuses the stand by name" "$([ "$refused" -gt 0 ] && echo 0 || echo 1)" \
+		"$refused refusals"
+
+	stands=$(getup_rises_by stand)
+	if [ "$presses" -eq 0 ]; then
+		check "no rise by=stand under hard" 1 "nothing pressed the stand -- the refusal had no chance to fire"
+	else
+		check "no rise by=stand under hard" "$([ "$stands" -eq 0 ] && echo 0 || echo 1)" \
+			"$stands rises by=stand across $presses presses"
+	fi
+
+	# And the refusal costs the victim nothing but time: the auto-rise still arrives on the full
+	# clock, which is what makes this a removed option rather than a broken one.
+	assert_all_in_band "auto-rise still arrives on the full clock" "kd_entry_to_rise_by auto" \
+		"$(awk -v v="$BAND_KD_ENTRY_TO_RISE" -v t="$BAND_KD_SPAN_TOL" 'BEGIN{printf "%.3f", v-t}')" \
+		"$(awk -v v="$BAND_KD_ENTRY_TO_RISE" -v t="$BAND_KD_SPAN_TOL" 'BEGIN{printf "%.3f", v+t}')" "s"
+}
+
+run_s6_exhausted() { # run_s6_exhausted <mode> <by-token> <survives: yes|no>
+	# The exhausted carve-out, from both sides. A defensive option is refused naming the tag; the
+	# get-up attack and the wait are not. The press always fires -- what differs is whether a rise
+	# follows it, which is why every assertion here is anchored on the rise.
+	local mode="$1" token="$2" survives="$3" who presses exhpresses rises
+	presses=$(getup_mode_presses "$mode")
+	check "fixture pressed the $mode get-up" "$([ "$presses" -gt 0 ] && echo 0 || echo 1)" \
+		"$presses presses"
+
+	who=$(configured_defender)
+	check "defender identified from the trace" "$([ -n "$who" ] && echo 0 || echo 1)" "${who:-none}"
+
+	# **The exhausted carve-out is deliberately not asserted here**, and its absence is a filed
+	# trap rather than an oversight. Nothing prints the stamina ledger while a character is down:
+	# EXHAUSTED and EXHAUSTION END bracket the state from outside the down-span, and the regen
+	# pause and the guard-break stun both sit between them, so the endpoints cannot separate
+	# "regen ran while down" from "regen ran after standing".
+
+	# The fixture drains the defender but cannot hold it exhausted indefinitely -- a successful
+	# get-up refills, and the cycle can settle with the tag down at every press. So the presses
+	# that carry the claim are the subset made while the tag was actually up, counted rather than
+	# assumed: n=0 fails, because a run where nothing was pressed while exhausted proves nothing.
+	exhpresses=$(getup_presses_while_exhausted "$mode")
+	check "presses landed while exhausted" "$([ "$exhpresses" -gt 0 ] && echo 0 || echo 1)" \
+		"$exhpresses of $presses presses made while State.Exhausted was up"
+
+	rises=$(getup_rises_while_exhausted "$mode" "$token")
+	if [ "$survives" = "yes" ]; then
+		check "the $mode get-up survives exhaustion" \
+			"$([ "$exhpresses" -gt 0 ] && [ "$rises" -eq "$exhpresses" ] && echo 0 || echo 1)" \
+			"$rises of $exhpresses exhausted presses rose by=$token"
+	else
+		# **Asserted behaviourally, not by the REFUSED line.** That line dedups per reason for half
+		# a second, so a defend mode pressing the same ability swallows the get-up press's own
+		# refusal -- observed on HoldBlock plus BlockGetUp. A rise that does not happen is the same
+		# fact and cannot be deduped.
+		check "no $mode rise while exhausted" "$([ "$rises" -eq 0 ] && echo 0 || echo 1)" \
+			"$rises rises by=$token across $exhpresses exhausted presses"
+		# The wait survives by construction: refusing every option leaves the forced rise, and its
+		# absence would mean the refusal had jailed the victim rather than declined the option.
+		check "the wait still rises them" \
+			"$([ "$(getup_rises_by auto)" -gt 0 ] && echo 0 || echo 1)" \
+			"$(getup_rises_by auto) rises by=auto"
+	fi
+}
+
 # --- self-test: the checker must be seen to fail ----------------------------
 self_test() {
 	echo "Self-test: asserting the checker reports FAIL on a band it cannot meet."
@@ -1351,6 +1598,14 @@ case "$SCENARIO" in
 	s6-hard)        run_s6_hard ;;
 	s6-stand)       run_s6_stand ;;
 	s6-getup)       run_s6_getup ;;
+	s6-dodge)       run_s6_dodge ;;
+	s6-kipup)       run_s6_kipup ;;
+	s6-block)       run_s6_block ;;
+	s6-hard-stand)  run_s6_hard_stand ;;
+	s6-exhausted)        run_s6_exhausted dodge  dodge  no ;;
+	s6-exhausted-kipup)  run_s6_exhausted dodge  kipup  no ;;
+	s6-exhausted-block)  run_s6_exhausted block  block  no ;;
+	s6-exhausted-attack) run_s6_exhausted attack attack yes ;;
 	*) echo "regression-check: unknown scenario '$SCENARIO'" >&2; usage ;;
 esac
 

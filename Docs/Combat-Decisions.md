@@ -453,6 +453,26 @@ the s1 bands were calibrated with. **`s6-getup` 7/7 on the rough** — totals n=
 [1.255, 1.285], the rate visibly adapting per swing (0.453 at pos 0.6414, 0.397 at 0.6609).
 
 
+**Before trusting the exhausted carve-out -- *nothing prints the stamina ledger while a character is
+down.*** Filed 2026-08-24 while building sub-slice D's scenarios. Knockdown's plan promised the
+carve-out as *"the stamina ledger rises during the down-span -- the carve-out observable in one
+assertion"*, and it is **not observable**: `EXHAUSTED` and `EXHAUSTION END` bracket the state from
+*outside* the down-span, and both the regen pause and the guard-break stun sit between them, so the
+endpoints cannot separate *regen ran while down* from *regen ran after standing*. Measured on one
+cycle: exhausted 6.732, floored ~7.2, rose 9.233, `EXHAUSTION END` **12.245** -- three seconds after
+standing, consistent with either reading.
+
+**The refusal half is verified and the regen half is not.** `s6-exhausted`, `-kipup` and `-block`
+show an exhausted downed player's dodge, kip-up and block presses producing **zero** rises (n=3, 1
+and 2 presses made while the tag was up), and `s6-exhausted-attack` shows the get-up attack rising
+**5 of 5**. What no scenario reaches is whether being down is the one lockout that does not deny an
+exhausted player their regen.
+
+**The discharge is a stamina reading inside the down-span** -- a new trace line, so a code change
+rather than a checker change, which is why this is filed rather than fixed. Until then the
+`s6-exhausted*` family deliberately asserts nothing about the ledger.
+
+
 **`s5-parry-reward` cannot be trusted as fixtured — the mechanic is verified, the scenario is not.**
 Filed 2026-08-24. Knockdown post-dates the scenario: at taps 3 the ender floors the parrier and a
 pre-block landing in the jail is refused (`REFUSED GA_Block: knocked down (jail)`), so that cycle

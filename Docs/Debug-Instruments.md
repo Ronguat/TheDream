@@ -528,6 +528,11 @@ looks ignored.
 | `s6-hard` | 0.22 | `Off` | the same spans from the other grade — `grade=hard`, entry→rise 2.000, rise→stand 0.500. **The total is grade-invariant by design**, which is why this cannot see the 1.5/0.5 split and `s6-stand` exists |
 | `s6-stand` | 0.1, **taps 3** | `Off`, plus **`bDebugPeriodicJump`** (interval **1.3**) | the jail made observable: presses inside it are `REFUSED … knocked down (jail)`, and the first press after it fires `RISE by=stand`. Chosen stands must land in **[jail, auto-rise)** — measured n=9 all within [1.000, 1.975] s |
 | `s6-getup` | **0.22** (hard singles) | `Off`, plus **`DebugGetUpMode` `AttackGetUp`** | the fixture's press inside the **hard** choice window; rise `by=attack`; press→`RELEASE BEGIN` 300 ms ±30; the authored 1.250 total; the riser's hit landing; no `STRING` after. **Run unattended** — a human's floor presses rise `by=attack` on their own pawn and poison the counts |
+| `s6-dodge` | 0.1, **taps 3**, **interval 6.0** | `Off`, plus **`DebugGetUpMode` `DodgeGetUp`** | rise `by=dodge` inside the normal choice window; **zero rises `by=kipup`**; `remaining=` exactly **50** on every get-up dodge; travel 400–420 cm; **zero `DAMAGED` on the riser between its rise and its `DODGE END`** — the i-frames, observable. **The 6.0 interval is load-bearing**: at the default 3.0 the attacker re-engages before regen tops the bar, and the cost assertion then reads a partly-regenerated bar instead of the 50 |
+| `s6-kipup` | **0.22**, **taps 1**, **interval 6.0** | `Off`, plus **`DebugGetUpMode` `DodgeGetUp`** | the same input on hard: rise `by=kipup` inside the hard choice window; **zero rises `by=dodge`**, the directional form never yielded; travel **0–25 cm** — slack for capsule settle, not a travel budget; cost exactly 50 |
+| `s6-block` | 0.1, **taps 3**, interval 6.0 | `Off`, plus **`DebugGetUpMode` `BlockGetUp`** | rise `by=block` inside the normal choice window; **`BLOCK up` within 100 ms of that rise** — the guard live from activation rather than from the top of the rise, which is the option's whole claim |
+| `s6-hard-stand` | **0.22**, **taps 1** | `Off`, plus **`DebugGetUpMode` `StandGetUp`** | hard removes the free stand: `REFUSED … no stand from a hard knockdown` at least once, **zero rises `by=stand`**, and the auto-rise still arriving on the full 2.000 clock — a removed option rather than a broken one. The refusal and the absent rise are asserted separately, so a silent no-op fails |
+| `s6-exhausted` (`-kipup`, `-block`, `-attack`) | 0.1 taps 3; **0.22 taps 1** for `-kipup` | **`PeriodicParry`, `DebugParryPreBlockSeconds` 12.0, `DebugParryIntervalSeconds` 13.0** — `s5-parry-reward`'s pre-block trick used for its side effect, plus the matching `DebugGetUpMode` | of the presses landing **while `State.Exhausted` is up** (**n=0 fails**), the three defensive options produce **zero** rises and the get-up attack produces one every time. **The refusal is asserted as the absent rise, not as a `REFUSED` line** — see the note below |
 
 **`s5-parry-whiff` needs its own interval, and finding out why cost a run** *(2026-08-18)*. At the
 default 1.7 the recovery is **never exercised**: a whiff closes 0.3 s after the press and its
@@ -624,6 +629,22 @@ band to admit them** — that is fitting the band to contamination. **A duration
 it** *(2026-08-15)*: the final dodge before `StopPIE` ends mid-travel with *zero* drift — measured
 141 cm at 0.14 s — so only dodges running at least `BAND_DODGE_MIN_DURATION` (DodgeSeconds minus a
 frame) count as travel samples at all.
+
+**A refusal is asserted as the rise that did not happen, never as the `REFUSED` line** *(2026-08-24,
+learned by watching one go missing)*. That line dedups per reason for half a second, so any defend
+mode pressing the same ability the get-up mode presses swallows the get-up press's own refusal:
+`HoldBlock` with `BlockGetUp` refused a press at 8.274 whose line did not print until 8.733, already
+attributed to the guard spam. **The absent rise is the same fact and cannot be deduped**, so every
+`s6-exhausted*` scenario asserts behaviour rather than logging.
+
+**The exhausted fixtures cannot hold the tag up, so the assertion is scoped to the presses where it
+was.** A get-up that succeeds refills the bar, and the loop then settles with the defender never
+re-exhausting -- `HoldBlock` with `BlockGetUp` exhausted once in sixty seconds and not again, while
+`PeriodicDodge` never exhausted it at all. Each scenario therefore counts only presses made while
+`State.Exhausted` was up and **fails on n=0** rather than passing on a run where the defender was
+never exhausted. Measured on the pre-block drain: **2 of 6** presses for `-block`, **5 of 8** for
+`-attack`. The `-block` sample is small and known to be; the n=0 gate is what stops it degrading
+silently.
 
 ## The post-change verification checklist
 
