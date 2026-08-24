@@ -91,6 +91,10 @@ wrong.
 - **`Docs/Animation-Library.md`** — where animations come from, the naming convention, what the
   library does *not* contain, how to migrate without dragging a duplicate skeleton behind it.
   *Trigger: before asking for or importing any animation.*
+- **`Docs/Anim-Pipeline.md`** — authoring a clip the library does not have: the Cascadeur route, the
+  measured tooling surface, the round trip's conditional roll fix, and the root-motion constraint
+  that decides whether a clip can serve an authored distance at all. *Trigger: before authoring a
+  clip, or moving one between Unreal and Cascadeur.*
 - **`Docs/Closing-Down.md`** — ending a session, including the audit that keeps this file honest.
   *Trigger: the user says to wind down, and nothing else — whether a session concludes is theirs to
   decide, never yours to infer.*
@@ -237,7 +241,7 @@ functionality, with animations legible enough to tell which mechanic is firing. 
 defers to Polish, feel refinement to Tuning-Rig. **Polish is where the first half of that debt comes
 due**, so expect it to be large.
 
-**The animation pipeline is `Docs/Plan-Animation.md`**: authored in Cascadeur, transferred by the
+**The animation pipeline is `Docs/Anim-Pipeline.md`**: authored in Cascadeur, transferred by the
 scripts in `Tools/AnimPipeline/`. `AS_GetUpAttack` is its first output and the project's first
 authored clip; `Docs/Animation-Library.md` carries what that means for the library correspondence.
 

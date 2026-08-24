@@ -104,9 +104,8 @@ folder: `/Game/GDHBundle/` is migrated and read-only, `/Game/TheDream/` is ours.
 the correct spelling and are named for the **mechanic**, like the montages — `AS_GetUpAttack`, not a
 pack-and-move name, because there is no pack.
 
-**How they are made is `Docs/Plan-Animation.md`'s pipeline**, driven by the scripts in
-`Tools/AnimPipeline/`; the endpoints, the round-trip fidelity and the −90° root-roll fix are
-recorded there.
+**How they are made is `Docs/Anim-Pipeline.md`**, driven by the scripts in `Tools/AnimPipeline/`;
+the endpoints, the round-trip fidelity and the −90° root-roll fix are recorded there.
 
 ### `Combat/Animations/Scratch/` is the pipeline's working area
 
