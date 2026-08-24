@@ -116,8 +116,9 @@ owns the middle. `Timeline.Remove frames` ignores the API's frame selection, whi
 assembly moved to UE. Stationary, in place, no baked travel; duration free — E rate-fits it.
 **The loop closed 2026-08-22**: the AI fill computed (pelvis 12.6 → 78 cm across frames 3–10),
 the processed clip re-imported as `Scratch/AS_GetUpAttack_Casc` matching the rough on every anchor
-to ≤0.07°, and the scene is saved as `Saved/AnimPipeline/GetUpAttack.casc` (`view.Scene.save`;
-`DataSourceManager.save_scene_as` does not write). The designer's polish happens in that scene.
+to ≤0.07°, and the scene is saved via `view.Scene.save` (`DataSourceManager.save_scene_as` does not
+write). The designer's polish happens in that scene — **tracked at `AnimSource/GetUpAttack.casc`**,
+moved 2026-08-24 out of disposable `Saved/`.
 
 **E — assemble `AM_GetUpAttack`.** **Montage-from-clip is scriptable**: `AnimMontageFactory` with
 `target_skeleton` and `source_animation` through `AssetTools.create_asset` (2026-08-22,
