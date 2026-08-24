@@ -547,7 +547,11 @@ rather than a checker change, which is why this is filed rather than fixed. Unti
 `s6-exhausted*` family deliberately asserts nothing about the ledger.
 
 
-**`s5-parry-reward` cannot be trusted as fixtured — the mechanic is verified, the scenario is not.**
+**~~`s5-parry-reward` cannot be trusted as fixtured~~ — DISCHARGED 2026-08-24**, same day, by rebuilding the
+fixture from human timing rather than retuning it blind. **6 of 6 catches, every one crediting exactly 25**,
+against the 1-in-20 the blind versions managed. The derivation is in `Debug-Instruments.md`; what follows is
+kept because the obstacle it describes is real and recurs.
+
 Filed 2026-08-24. Knockdown post-dates the scenario: at taps 3 the ender floors the parrier and a
 pre-block landing in the lockout is refused (`REFUSED GA_Block: knocked down (lockout)`), so that cycle
 spends nothing and its success credits 0; at taps 1 a delayed guard spends short and a success

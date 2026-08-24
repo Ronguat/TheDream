@@ -549,7 +549,7 @@ looks ignored.
 | `s4-block` | 0.1, **taps 3** | `HoldBlock` | `BLOCKED` staminaDamage exactly 5; `BLOCKSTUN` spans 0.350 ±20 ms; knockback never inward |
 | `s4-360` | 0.1, **taps 3**, `FacingMode` **Never**, **`bDebugSuppressLunge`** | `Off`, plus the player spawned at (200, 150) opposite the defender | **every string**, since 2026-08-24: attacks 1–2 damage **zero** distinct targets throughout; attack 3 damages **two** in string 1 and **exactly one** after; at least two normal-grade `KNOCKDOWN` lines. A single string **fails** — sampling past the first is the point |
 | `s5-parry` | 0.1, **taps 3** | `PeriodicParry` | `PARRY WINDOW` span 0.300 ±25 ms; at least one `PARRY SUCCESS` (**n=0 fails**); credited reward inside [0, 25]; **zero `STRING` link window after a parried swing**; **every `PARRY GESTURE` inside its own window (n=0 fails)** ; **`PARRY GRACE` span 0.150 ±25 ms**; every `by=window` success starts exactly one tail; **Grace never re-arms** (no tail from a `by=grace` catch, none overlapping) |
-| `s5-parry-reward` | 0.1, **taps 3** | `PeriodicParry`, `DebugParryPreBlockSeconds` **4.0**, `DebugParryIntervalSeconds` **5.3** | at least one `PARRY SUCCESS`; `gained` **exactly 25** on every one. **Unreliable as fixtured since Knockdown — see the 2026-08-24 trap**; its FAIL is expected until the timers are redesigned |
+| `s5-parry-reward` | 0.1, **taps 3**, interval **3.0** | `PeriodicParry`, **`DebugParryIntervalSeconds` 6.0**, **`DebugParryPreBlockSeconds` 3.935** | every `PARRY SUCCESS` following a *released* guard credits `gained` **exactly 25**. **The period is locked to the attacker's and the phase is derived from human timing** — 6.0 is two attack cycles, which is what lets the pre-block be both correctly phased and long enough to drain. Measured **6 of 6 catches**, all crediting 25, bar 60.6–70.6 |
 | `s5-parry-whiff` | 0.1, **taps 3** | `PeriodicParry`, `DebugParryIntervalSeconds` **0.5**, **and the defender also auto-attacks** (`bDebugAutoAttack`, interval **0.7**, `bDebugSuppressLunge`) | `PARRY RECOVERY` span 0.600 ±25 ms; `REFUSED` naming **the lockout** (`parrying` or `parry recovery`) at least once; **nothing activates inside a recovery span (n=0 fails)**; **nothing activates inside a parry window either (n=0 fails)** |
 | `s5-cancel` | 0.1, **`bDebugCancelAttackIntoBlock`** | `Off` | zero `RELEASE BEGIN`; zero `DAMAGED`; `BLOCK cost` at least once |
 | `s5-waiver` | 0.1, **`bDebugDodgeAfterHit`** | `Off` | attacker `DODGE` within 100 ms of its own `DAMAGED`; `MOVE UNLOCK` present |
@@ -601,6 +601,22 @@ other row treats as a fixture error. They are the exception on purpose: the pre-
 the on-hit waiver are both rules about what an attacker may do mid-swing, and no arrangement of one
 attacker and one defender can witness them otherwise. Both knobs default off, so no existing
 scenario changes.
+
+**`s5-parry-reward`'s fixture is the worked example of building one from human timing** *(2026-08-24)*.
+It was retuned blind three times and never got past a 1-in-20 catch rate. The reference run settled
+it: across 15 successful human parries, **every one** had a hitbox aimed at the parrier inside the
+300 ms window, at a median of **+206 ms** into it — which is where the light's release lands if you
+press on the attacker's activation, since the hitbox opens at ACTIVATE **+207 ms**. Six of seven
+human misses had **no hitbox at all**; only one was a timing loss, at the window's exact +300 ms edge.
+
+**Locking the period made the error measurable instead of random.** At `DebugParryIntervalSeconds`
+3.0 against a 3.0 s attack cycle the hitbox arrived a stable **−365 ms** before every window opened
+— eight samples spanning 23 ms. A sweep gives you noise; a lock gives you an offset you can correct.
+
+**The period is 6.0 rather than 3.0 because the pre-block does two jobs.** It sets the phase *and*
+drains the bar, and those wanted 0.935 s and ≥1.5 s respectively. Two attack cycles keeps the lock
+while giving the pre-block room for both: **3.935 s** put the hitbox at **+202 ms** on the first
+attempt, 2 ms off the human median, and the catch rate went from 1-in-20 to 6-of-6.
 
 **`s5-parry-reward` exists because a parry costs nothing, and that makes its own reward invisible.**
 An unattended parrier never spends, so its bar sits at 100 and the clamp trims the whole +25 —
