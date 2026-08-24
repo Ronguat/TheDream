@@ -16,6 +16,7 @@
 #            s6-knockdown s6-hard s6-stand s6-getup
 #            s6-dodge s6-kipup s6-block s6-hard-stand      (sub-slice D's options)
 #            s6-exhausted s6-exhausted-kipup s6-exhausted-block s6-exhausted-attack
+#            s6-airborne
 # Exit 0 = all assertions passed, 1 = at least one failed, 2 = usage/no data.
 
 set -uo pipefail
@@ -174,6 +175,12 @@ BAND_ELAPSED_GETUP=1.250
 # zero, so this exists to make "stationary" falsifiable rather than assumed. The guard gap is one
 # frame at 60 plus slack -- the block get-up's whole claim is that the guard is live from
 # activation, not from the top of the rise.
+# S6 -- the airborne knockdown. The floor is measured in-run from grounded stands, so a level edit
+# cannot silently invalidate the comparison. The height minimum is what separates "airborne by the
+# flag" from "airborne with room for a pinned Z to show" -- a body 2cm up proves only the former.
+BAND_AIRBORNE_STAND_TOL=1.0
+BAND_AIRBORNE_MIN_HEIGHT=20.0
+
 BAND_GETUP_DODGE_COST=50.0
 BAND_KIPUP_TRAVEL_MAX=25.0
 BAND_BLOCK_GUARD_GAP=0.100
@@ -385,6 +392,21 @@ acts_during_parry_recovery() { # anything that activated while a recovery was ru
 }
 
 parry_success_gained() { grep "^\[[0-9.]*\] PARRY SUCCESS" "$SLICE" | grep -o "gained=[0-9.-]*" | cut -d= -f2; }
+
+parry_success_gained_after_spend() { # gained= on successes whose pre-block actually spent
+	# **Selected by position, never by the value under test.** A cycle whose guard was refused into
+	# the knockdown lockout spends nothing, so its bar sits at full and the clamp eats the whole
+	# reward -- correctly. Those cycles are identifiable before looking at gained= at all: the guard
+	# either released or it did not. Filtering on the reward instead would leave an assertion that
+	# can only fail via "no samples".
+	awk '
+		$2 == "BLOCK" && $3 == "down" && /\(released\)/ { spent=1; next }
+		$2 == "REFUSED" && /knocked down/              { spent=0; next }
+		$2 == "PARRY" && $3 == "SUCCESS" {
+			if (spent) { for (i=1;i<=NF;i++) if ($i ~ /^gained=/) { split($i,a,"="); print a[2] } }
+			spent=0
+		}' "$SLICE"
+}
 
 parry_grace_spans() { # Grace's authored tail, read off until= like the recoveries
 	awk '
@@ -775,7 +797,7 @@ run_s5_parry() {
 }
 
 run_s5_parry_reward() {
-	local successes
+	local successes spent
 
 	# n=0 fails: a run with no successes proves nothing about a reward, and this fixture is the
 	# fussier of the two -- the parry has to land in the ~1.1 s after the guard drops and before
@@ -790,7 +812,22 @@ run_s5_parry_reward() {
 	# **The magnitude, not the clamp.** This is the assertion s5-parry cannot make, and the whole
 	# reason DebugParryPreBlockSeconds exists. A sample reading 0.0 here means the parrier was at
 	# full stamina when it parried -- the pre-block did not spend, or regen had already refilled it.
-	assert_all_equal "parry reward credits in full" "parry_success_gained" \
+	#
+	# **Scoped to cycles whose guard spent, because knockdown shares this fixture.** The ender floors
+	# the parrier, a pre-block landing in the lockout is refused, and that cycle legitimately credits
+	# 0. Those cycles are not failures and asserting across them measures the fixture rather than the
+	# reward. The floored cycles are also what keeps this scenario runnable at all -- bDebugHomeAtStand
+	# restores the placed spacing at each stand, and without it the defender ratchets out of reach
+	# within a dozen attacks.
+	spent=$(parry_success_gained_after_spend | grep -c . || true)
+	if [ "$spent" -gt 0 ]; then
+		check "a pre-block actually spent" 0 "$spent of $successes successes followed a released guard"
+	else
+		check "a pre-block actually spent" 1 \
+			"0 of $successes successes -- every guard was refused, so nothing tests the magnitude"
+	fi
+
+	assert_all_equal "parry reward credits in full" "parry_success_gained_after_spend" \
 		"$BAND_PARRY_GAINED_EXACT"
 }
 
@@ -1536,6 +1573,87 @@ run_s6_exhausted() { # run_s6_exhausted <mode> <by-token> <survives: yes|no>
 	fi
 }
 
+# --- S6: the airborne knockdown ---------------------------------------------
+# The ruling is that an airborne victim is floored mid-air with the Z axis left to gravity -- no
+# ground snap. The structural fix is IgnoreZAccumulate on the shared root motion source: an Override
+# source overrides *velocity*, gravity included, so any pinned Z hangs the body for the source's
+# duration. What that predicts is a body which leaves the ground high and stands at ground level.
+
+kd_airborne_pairs() { # "<entry z> <stand z>" for each knockdown that began airborne
+	awk '
+		$2 == "KNOCKDOWN" && $3 != "STAND" && $3 != "RISE" && $3 != "MONTAGE" {
+			z=""; air=""
+			for (i=1;i<=NF;i++) {
+				if ($i ~ /^z=/)        { split($i,a,"="); z=a[2] }
+				if ($i ~ /^airborne=/) { split($i,b,"="); air=b[2] }
+			}
+			if (air == "1") down[$3]=z
+			next
+		}
+		$2 == "KNOCKDOWN" && $3 == "STAND" && ($4 in down) {
+			for (i=1;i<=NF;i++) if ($i ~ /^z=/) { split($i,a,"="); print down[$4] " " a[2] }
+			delete down[$4]
+		}' "$SLICE"
+}
+
+kd_ground_stand_z() { # stand z of every knockdown that began grounded -- the floor, measured in-run
+	awk '
+		$2 == "KNOCKDOWN" && $3 != "STAND" && $3 != "RISE" && $3 != "MONTAGE" {
+			air=""
+			for (i=1;i<=NF;i++) if ($i ~ /^airborne=/) { split($i,b,"="); air=b[2] }
+			if (air == "0") down[$3]=1
+			next
+		}
+		$2 == "KNOCKDOWN" && $3 == "STAND" && ($4 in down) {
+			for (i=1;i<=NF;i++) if ($i ~ /^z=/) { split($i,a,"="); print a[2] }
+			delete down[$4]
+		}' "$SLICE"
+}
+
+run_s6_airborne() {
+	local pairs n floor hung high worst
+	pairs=$(kd_airborne_pairs)
+	n=$(printf '%s\n' "$pairs" | grep -c . || true)
+
+	check "airborne knockdowns observed" "$([ "$n" -gt 0 ] && echo 0 || echo 1)" \
+		"$n knockdowns entered with airborne=1"
+	[ "$n" -gt 0 ] || return
+
+	# **The floor is the *lowest* stand, not the highest.** Grounded stands cluster at ground level,
+	# but the test level has raised geometry and a stand occasionally happens on it -- taking the
+	# maximum picks that outlier and shifts the reference by 40cm.
+	floor=$(kd_ground_stand_z | sort -n | head -1)
+	if [ -z "$floor" ]; then
+		check "floor reference available" 1 "no grounded knockdown in this run to measure it from"
+		return
+	fi
+	check "floor reference available" 0 "z=$floor, the lowest of this run's grounded stands"
+
+	# **Being airborne by the flag is not being airborne at height.** A body 2cm off the deck
+	# exercises the code path and proves nothing about a pinned Z, which needs room to show. This
+	# runs first because the hang test below is only meaningful on samples that had height to lose.
+	high=$(printf '%s\n' "$pairs" | awk -v f="$floor" -v m="$BAND_AIRBORNE_MIN_HEIGHT" \
+		'NF && ($1 - f >= m) { n++ } END { print n+0 }')
+	worst=$(printf '%s\n' "$pairs" | awk -v f="$floor" 'NF { d=$1-f; if (d>m) m=d } END { printf "%.1f", m+0 }')
+	check "at least one floored at height" "$([ "$high" -gt 0 ] && echo 0 || echo 1)" \
+		"$high of $n cleared ${BAND_AIRBORNE_MIN_HEIGHT}cm; highest was ${worst}cm above the floor"
+
+	# **The rule, as the trap states it: equal heights across a carry mean the body hung.** Compared
+	# against each victim's *own* stand rather than a global floor, which is both what the rule says
+	# and immune to where in the level the body happened to come down. Scoped to the samples that
+	# cleared the height bar: a body floored 2cm up has nothing to fall, so it can neither hang nor
+	# be seen not to.
+	hung=$(printf '%s\n' "$pairs" | awk -v f="$floor" -v m="$BAND_AIRBORNE_MIN_HEIGHT" \
+		-v t="$BAND_AIRBORNE_STAND_TOL" \
+		'NF && ($1 - f >= m) && ($1 - $2 < m - t) { n++ } END { print n+0 }')
+	if [ "$high" -eq 0 ]; then
+		check "no airborne body hung" 1 "no sample cleared ${BAND_AIRBORNE_MIN_HEIGHT}cm -- nothing had height to lose"
+	else
+		check "no airborne body hung" "$([ "$hung" -eq 0 ] && echo 0 || echo 1)" \
+			"$hung of $high high samples failed to fall back to their own stand"
+	fi
+}
+
 # --- self-test: the checker must be seen to fail ----------------------------
 self_test() {
 	echo "Self-test: asserting the checker reports FAIL on a band it cannot meet."
@@ -1619,6 +1737,7 @@ case "$SCENARIO" in
 	s6-exhausted-kipup)  run_s6_exhausted dodge  kipup  no ;;
 	s6-exhausted-block)  run_s6_exhausted block  block  no ;;
 	s6-exhausted-attack) run_s6_exhausted attack attack yes ;;
+	s6-airborne)    run_s6_airborne ;;
 	*) echo "regression-check: unknown scenario '$SCENARIO'" >&2; usage ;;
 esac
 

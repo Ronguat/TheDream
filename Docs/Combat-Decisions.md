@@ -579,11 +579,20 @@ exists, `s6-stand` already uses it, and the path has fired**: three `airborne=1`
 `KNOCKDOWN STAND` carries `z=`, and **equal heights across a carry mean the body hung**. They are not
 equal, so gravity kept the vertical and `IgnoreZAccumulate` held.
 
-**What is actually untested is height.** Ground is `z=98.3`, so those bodies were **2.2 cm** off the
-deck — airborne by the flag and barely airborne in fact. Nothing has yet floored a victim at jump
-apex, where a pinned Z would have room to show. **Discharging it is a fixture, not a capability**:
-`bDebugPeriodicJump` on the defender against knockdown swings, with the jump interval set so hits
-arrive mid-arc rather than at the edges, plus the z-comparison as a scenario assertion.
+**Discharged 2026-08-24 by `s6-airborne`**, which is the fixture that was missing —
+`bDebugPeriodicJump` at 1.3 s against a 3.0 s attack cycle, deliberately non-aliasing so hits sweep
+the jump arc. **Measured at height**: a victim floored at `z=181.0` against a floor of `z=98.2` and
+standing back at `98.2` — an **82.8 cm fall**, four times the 20 cm the scenario requires before it
+will treat a sample as testing anything.
+
+**What the scenario keeps from this trap.** The height bar runs *before* the hang check, because a
+body 2 cm off the deck has nothing to fall and can neither hang nor be seen not to — which is what
+the three pre-existing samples were. And the floor is the **lowest** grounded stand of the same run,
+never the highest: the level has raised geometry, a stand occasionally happens on it, and taking the
+maximum shifted the reference 41 cm and failed a correct run.
+
+**Still thin: n=1 at height.** Airborne knockdowns run about **1 in 20**, so a short run reads zero
+and the n=0 gate fails rather than passing vacuously. Budget minutes.
 
 
 **Whenever a second attacker becomes possible — *knockdown's 1vX half has never been observed

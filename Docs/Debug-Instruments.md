@@ -561,6 +561,7 @@ looks ignored.
 | `s6-kipup` | **0.22**, **taps 1**, **interval 6.0** | `Off`, plus **`DebugGetUpMode` `DodgeGetUp`** | the same input on hard: rise `by=kipup` inside the hard input window; **zero rises `by=dodge`**, the directional form never yielded; travel **0–25 cm** — slack for capsule settle, not a travel budget; cost exactly 50 |
 | `s6-block` | 0.1, **taps 3**, interval 6.0 | `Off`, plus **`DebugGetUpMode` `BlockGetUp`** | rise `by=block` inside the normal input window; **`BLOCK up` within 100 ms of that rise** — the guard live from activation rather than from the top of the rise, which is the option's whole claim |
 | `s6-hard-stand` | **0.22**, **taps 1** | `Off`, plus **`DebugGetUpMode` `StandGetUp`** | hard removes the free stand: `REFUSED … no stand from a hard knockdown` at least once, **zero rises `by=stand`**, and the auto-rise still arriving on the full 2.000 clock — a removed option rather than a broken one. The refusal and the absent rise are asserted separately, so a silent no-op fails |
+| `s6-airborne` | 0.1, **taps 3** | `Off`, plus **`bDebugPeriodicJump`** (interval **1.3**) | the airborne carry: at least one knockdown entering `airborne=1` (**n=0 fails**), and of the samples clearing **20 cm** above the floor, every one falling back to its own stand — *equal heights across a carry mean the body hung*. **The floor is the lowest grounded stand in the same run**, never the highest: the level has raised geometry and a stand occasionally happens on it. **Rare by nature** — measured 1 airborne in 20 knockdowns, so budget minutes |
 | `s6-exhausted` (`-kipup`, `-block`, `-attack`) | 0.1 taps 3; **0.22 taps 1** for `-kipup` | **`PeriodicParry`, `DebugParryPreBlockSeconds` 12.0, `DebugParryIntervalSeconds` 13.0** — `s5-parry-reward`'s pre-block trick used for its side effect, plus the matching `DebugGetUpMode` | of the presses landing **while `State.Exhausted` is up** (**n=0 fails**), the three defensive options produce **zero** rises and the get-up attack produces one every time. **The refusal is asserted as the absent rise, not as a `REFUSED` line** — see the note below |
 
 **`s5-parry-whiff` needs its own interval, and finding out why cost a run** *(2026-08-18)*. At the
@@ -681,6 +682,18 @@ re-exhausting -- `HoldBlock` with `BlockGetUp` exhausted once in sixty seconds a
 never exhausted. Measured on the pre-block drain: **2 of 6** presses for `-block`, **5 of 8** for
 `-attack`. The `-block` sample is small and known to be; the n=0 gate is what stops it degrading
 silently.
+
+**`s6-airborne` is rare and that is the fixture being honest.** The jump and the attack cycle are
+deliberately non-aliasing, so hits sweep the jump arc rather than meeting the same phase every time
+— which is what produces a range of entry heights, and also why most hits land on a grounded body.
+Measured **1 airborne in 20** knockdowns, the airborne one entering at `z=181.0` against a floor of
+`z=98.2` and standing back at `98.2`: an 82.8 cm fall, with `IgnoreZAccumulate` letting gravity keep
+the vertical.
+
+**The height test runs before the hang test, and that ordering is the design.** A body floored 2 cm
+off the deck is airborne by the flag and has nothing to fall, so it can neither hang nor be seen not
+to — the three samples logged before this scenario existed were all of that kind. Only samples
+clearing the height bar carry the hang assertion.
 
 ## The post-change verification checklist
 
