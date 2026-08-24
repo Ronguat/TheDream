@@ -1162,10 +1162,8 @@ void ATDCombatCharacter::ApplyParryLockoutState()
 		AbilitySystem->AddLooseGameplayTag(TDTags::State_ParryLockout);
 	}
 
-	// Movement goes too, and through the ability-side lock rather than a third mechanism: this is
-	// externally inflicted, total, and lasts exactly as long as the tag.
-	SetAbilityMovementLocked(true);
-
+	// Movement goes too, and is taken by the flag rather than by a call: IsMovementLocked reads
+	// bInParryLockout, so the lock lasts exactly as long as the tag and nothing else can clear it.
 	TD_TIMING_LOG(TEXT("[%.3f] PARRY LOCKOUT  %s  until=%.3f"),
 		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f,
 		*GetName(),
@@ -1178,8 +1176,6 @@ void ATDCombatCharacter::ClearParryLockoutState()
 	{
 		AbilitySystem->RemoveLooseGameplayTag(TDTags::State_ParryLockout);
 	}
-
-	SetAbilityMovementLocked(false);
 
 	TD_TIMING_LOG(TEXT("[%.3f] PARRY LOCKOUT END  %s"),
 		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f,

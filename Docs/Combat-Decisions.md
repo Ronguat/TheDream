@@ -125,6 +125,7 @@ and not the order anyone reads in. Keep it sorted when adding.)*
 | 2026-08-19 — Knockdown's plan session | the parry lockout's duration is **derived** as the swing's remaining planned total, "so the per-tier punish survives inside the new structure" | 2026-08-20 — The parry lockout is authored (it never survived: a catch only lands once the hitbox is live, so the windup always cancelled out and what remained was `Release + Recovery` — 0.75 / 0.65 / 0.75 across the ladder, measured at light **0.736** n=14 and heavy **0.636** n=15. The derivation retired in favour of an authored `ParryLockoutSeconds` per branch and swing, seeded at those values; `ParryLockoutFloorSeconds` retired unused) |
 | 2026-08-19 — Knockdown's plan session | `KnockdownSpacingCm` 450 is justified as "a full light's coverage of separation" | 2026-08-20 — measured against the ladder: the light covers **410**, so 450 is *past* its full coverage and the light must walk the last 40 cm. The heavy (510) and charged (610) lunge it. The three-way split is intended and now recorded in the tuning map as a five-number coupling |
 | 2026-08-22 — The get-up attack is authored in Cascadeur | the designer's polish precedes F shipping — the plan's gate, and the ship-with-the-polished-clip-or-not-at-all bundle rule that rode on it | 2026-08-24 — The verification bar (F ships on the rough, which meets functionality-plus-legibility; the polish is Polish's work; the authoring route and the endpoint argument are untouched) |
+| 2026-08-24 — The parry handed movement back | the structural fix "was declined rather than missed", and **two** hand-orderings hold the hazard shut | 2026-08-24 — The parry lockout stops sharing the movement bool (same day, on the designer's call: its first step was taken, so one hand-ordering is gone and the decline now covers only the ability-side residue) |
 
 ---
 
@@ -364,18 +365,26 @@ holds the lock at a time. Whichever holder ends first hands movement back for bo
 
 **Four abilities hold it today** — `GA_Attack`, `GA_Dodge`, `GA_Parry` and `GA_GetUpAttack`, each
 CDO-verified 2026-08-24; `GA_Block` deliberately takes none and `GA_Jump` authors no displacement.
-**Overlap is prevented by hand, in two places and neither of them the lock**: the dodge and, since
-this fix, the parry both cancel `Ability.Attack` in `CancelAbilitiesWithTag`, so GAS ends the attack
-in `PreActivate` *before* the new holder takes the lock; and the parried attacker's lockout is
-ordered deliberately *after* `EndAbility` in `UTDMeleeAttackAbility`'s catch path, with a comment
-saying why. **A fifth holder that does neither reopens this**, and its symptom is free movement
-during someone else's commitment — which points at that ability, never at the lock.
+**The lock has two caller classes, not three**: abilities, paired around their own lifetime, and the
+on-hit waiver, which is a release with no matching take. **The parry lockout left on 2026-08-24** —
+it is a replicated state like hitstun, the guard break and knockdown, and now joins them in
+`ATDCombatCharacter::IsMovementLocked`'s OR instead of writing the shared bool. That discharged half
+of this trap: the ordering in `UTDMeleeAttackAbility`'s catch path stopped being load-bearing, and a
+latent release-side instance went with it — `ClearParryLockoutState` used to hand movement back to
+whatever else was holding it, reachable only once the lockout stopped refusing every activation.
 
-**The structural fix was considered and declined 2026-08-24**, not overlooked: a count or an owner
-on the character composes correctly and would retire both hand-orderings, but an unbalanced release
-strands movement permanently, which is a worse failure than the bug. **Revisit when a holder appears
-that cannot be hand-ordered** — or when Netcode reaches this, since `bAbilityMovementLocked` is
-already owed a replicated form for a separate reason.
+**What is still live is overlap between two *abilities*, prevented by hand in one place and not the
+lock**: the dodge and the parry both cancel `Ability.Attack` in `CancelAbilitiesWithTag`, so GAS ends
+the attack in `PreActivate` before the new holder takes it. **A fifth ability holder that does
+neither reopens this**, and its symptom is free movement during someone else's commitment — which
+points at that ability, never at the lock.
+
+**The rest of the structural fix stays declined 2026-08-24**, not overlooked. A count over the
+remaining callers fails outright: the waiver releases without ever having taken, so one attack
+produces two decrements against one increment and the underflow either strands movement or, clamped,
+restores the bug silently. An owner-set composes and is the shape to reach for **when a holder
+appears that cannot be hand-ordered** — or when Netcode reaches this, `bAbilityMovementLocked` being
+owed a replicated form for a separate reason, which the four ORed states already have.
 
 **Nothing automated will catch a recurrence.** `SetAbilityMovementLocked` does not log, no scenario
 asserts the lock, and `s5-cancel` cancels into the *guard* rather than a parry — so the only
@@ -1246,9 +1255,10 @@ long.
 | `AM_Parry` | 08-24 |
 | `animSegments` | 08-21 |
 | `APawn::FaceRotation` | 08-12 |
+| `ApplyParryLockoutState` | 08-24 |
 | `ATDCombatCharacter::Jump` | 08-12 |
 | `ATDCombatCharacter::StartRagdoll` | 08-13 |
-| `ATDCombatCharacter` | 08-10, 08-12 |
+| `ATDCombatCharacter` | 08-10, 08-12, 08-24 |
 | `ATDPlayerState` | 08-11 |
 | `ATheDreamCharacter::ApplyCameraCollisionExemption` | 08-13 |
 | `ATheDreamCharacter` | 08-12, 08-13, 08-24 |
@@ -1284,6 +1294,7 @@ long.
 | `ChainOpenAfterRecoverySeconds` | 08-16, 08-18 |
 | `ClampVelocity` | 08-14 |
 | `ClearExhaustionState` | 08-11 |
+| `ClearParryLockoutState` | 08-24 |
 | `CoilEndSeconds` | 08-09, 08-12 |
 | `CoilTurnRateDegrees` | 08-12 |
 | `CommitAttack` | 08-13, 08-18 |
@@ -1369,7 +1380,7 @@ long.
 | `IsGuardFacing` | 08-14 |
 | `IsIdle` | 08-12, 08-16 |
 | `IsInBlockstun` | 08-15 |
-| `IsMovementLocked` | 08-20 |
+| `IsMovementLocked` | 08-20, 08-24 |
 | `JumpRegenPauseSeconds` | 08-10 |
 | `KnockdownFallSeconds` | 08-20 |
 | `KnockdownRiseSeconds` | 08-20 |
@@ -1420,6 +1431,7 @@ long.
 | `SKM_Manny_Simple` | 08-11 |
 | `SKM_Manny` | 08-11, 08-12 |
 | `SetAbilityFacingLocked` | 08-13 |
+| `SetAbilityMovementLocked` | 08-24 |
 | `SetActorLocation` | 08-12 |
 | `SetTimer` | 08-11 |
 | `ShieldMesh` | 08-11 |
@@ -1480,7 +1492,7 @@ long.
 | `bAllowedFromKnockdown` | 08-20 |
 | `bAttackCommitted` | 08-12 |
 | `bBlockedWhileAirborne` | 08-10, 08-12 |
-| `bBlockedWhileMovementLocked` | 08-20, 08-21 |
+| `bBlockedWhileMovementLocked` | 08-20, 08-21, 08-24 |
 | `bChainsIntoString` | 08-16 |
 | `bDead` | 08-11, 08-15 |
 | `bDebugAutoAttackResetPosition` | 08-11 |
@@ -1493,6 +1505,7 @@ long.
 | `bGuardBroken` | 08-15 |
 | `bInBlockstun` | 08-14, 08-15 |
 | `bInHitstun` | 08-16 |
+| `bInParryLockout` | 08-24 |
 | `bInRecovery` | 08-16 |
 | `bJumpRegenPauseActive` | 08-11, 08-12 |
 | `bLocksMovement` | 08-12, 08-24 |
@@ -1506,6 +1519,54 @@ long.
 | `gEComponents` | 08-10, 08-11 |
 
 ---
+
+## 2026-08-24 — The parry lockout stops sharing the movement bool, and the pattern was already in the file
+
+**Supersedes the decline in the entry below, same day and on the designer's call.** That entry
+filed the non-compositional movement lock as a trap and declined the structural fix, naming a
+count or an owner on the character as the options. Asked to describe the fix properly, the first
+of those turned out to be wrong and the third option turned out to be already written.
+
+**A count cannot work, and the reason is the on-hit waiver.** `ATDCombatCharacter`'s waiver clears
+the movement lock mid-attack while the attack ability is still alive and still holds
+`bTookMovementLock`, so the ability releases again at `EndAbility`. Against a bool that second
+release is harmlessly idempotent; against a counter it is two decrements for one increment, and the
+underflow either strands movement unlocked or, clamped, restores the original bug in silence.
+Making a count work would need the character reaching into the ability to clear its claim.
+
+**The pattern that composes was already in `IsMovementLocked`.** Hitstun, the guard break and
+knockdown each own a replicated bool and are ORed at the *read* — nothing shared, nothing to
+clobber, no ordering. `bInParryLockout` has exactly that shape and is commented as *"tenth of the
+replicated state family, same contract"*, but it was the one member not in the chain: it pushed
+into the shared ability bool instead, deliberately, to avoid *"a third mechanism"*.
+
+**So the fix is mostly deletion.** `bInParryLockout` joins the OR; `ApplyParryLockoutState` and
+`ClearParryLockoutState` stop calling `SetAbilityMovementLocked`. Behaviour is unchanged —
+`bBlockedWhileMovementLocked` and `Jump()` both read `IsMovementLocked()`, which still answers true
+for the same spans — and three things follow:
+
+- **The hand-ordering in `UTDMeleeAttackAbility`'s catch path stops being load-bearing.** It existed
+  only because the lockout took the ability lock and the ending attack released it. The call order
+  is kept, because tearing the swing down before the lockout starts is still the sensible sequence;
+  its comment no longer claims the order carries the movement lock.
+- **A latent release-side instance closes.** `ClearParryLockoutState` used to hand movement back to
+  whatever else held it. Unreachable today only because the lockout refuses every activation, so
+  nothing could be running to have taken it — the same hand-argument one layer down.
+- **It is netcode-correct by construction.** `bInParryLockout` replicates; `bAbilityMovementLocked`
+  is recorded two sections up as a local-state exception that does not meet this project's own rule
+  and is still owed a replicated form. Moving a lockout off the unreplicated bool onto the
+  replicated one is the direction that debt already points.
+
+**What is not fixed, and stays on the trap.** Two abilities overlapping still clobber each other,
+and that is now held shut in exactly one place — the dodge's and the parry's
+`CancelAbilitiesWithTag`. The residue is abilities plus the waiver: one paired take/release in one
+file with one irregular caller, which an owner-set would close whenever a holder appears that
+cannot be hand-ordered.
+
+**Verified by compile and by inspection, not by play.** The rebuild is clean and the DLL is newer
+than every source. `SetAbilityMovementLocked` still has no instrument, so the assertion that a
+parried attacker cannot walk is unchanged rather than re-measured — the same gap the entry below
+records, and the reason both halves of this hazard remain play-only.
 
 ## 2026-08-24 — The parry handed movement back, because a movement lock is a bool two abilities can both hold
 

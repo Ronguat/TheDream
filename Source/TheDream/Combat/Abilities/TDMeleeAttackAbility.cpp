@@ -347,10 +347,9 @@ void UTDMeleeAttackAbility::HandleTraceHit(const FHitResult& Hit)
 			// *everyone*, so a caught swing cannot keep killing bystanders on its way out.
 			EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, /*bWasCancelled=*/true);
 
-			// **After EndAbility, and the order is load-bearing.** The lockout takes the movement
-			// lock; the ending attack *releases* the movement lock it took at activation. Locking
-			// first would have the attack's own teardown hand movement straight back, leaving an
-			// attacker refused every ability while free to walk.
+			// After EndAbility, so the swing is fully torn down before the lockout starts. The
+			// order is not load-bearing for movement: the lockout is taken by bInParryLockout,
+			// which IsMovementLocked reads, so the ending attack's own release cannot reach it.
 			if (ParriedAttacker)
 			{
 				ParriedAttacker->EnterParryLockout(LockoutSeconds);

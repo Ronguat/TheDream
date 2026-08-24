@@ -537,15 +537,18 @@ protected:
 	 *  Lockouts take movement, not just abilities.
 	 *
 	 *  ORed with Super, following IsFacingLocked above: the base holds the ability-side lock, so
-	 *  returning only these three would let an attack's own commitment be walked out of.
+	 *  returning only these four would let an attack's own commitment be walked out of.
 	 *
-	 *  Hitstun, the guard break and knockdown -- not blockstun, which costs initiative only and
-	 *  leaves the defender free to walk.
+	 *  Hitstun, the guard break, knockdown and the parry lockout -- not blockstun, which costs
+	 *  initiative only and leaves the defender free to walk.
 	 *
 	 *  Knockdown covers the whole down state. Movement returns at the stand boundary and nowhere
 	 *  earlier: the input window buys options, not steps, and a rise is committed once started.
+	 *
+	 *  Each of the four is read here rather than pushed into the ability-side lock, so a state and
+	 *  an ability can hold movement at the same time without either clearing the other.
 	 */
-	virtual bool IsMovementLocked() const override { return bInHitstun || bGuardBroken || bKnockedDown || Super::IsMovementLocked(); }
+	virtual bool IsMovementLocked() const override { return bInHitstun || bGuardBroken || bKnockedDown || bInParryLockout || Super::IsMovementLocked(); }
 
 	/**
 	 *  Idle additionally means no ability running and no press waiting.
