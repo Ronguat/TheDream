@@ -316,6 +316,28 @@ property someone authored is the only kind that can break. **Struct members insi
 authored data hides** — they do not appear in a CDO property listing the way scalars do, and both
 casualties here were array elements.
 
+**Whenever an ability overrides `ActivateAbility` without calling its immediate `Super` — *it
+inherits none of that base's per-activation resets, and nothing will tell you which ones
+mattered.*** Filed 2026-08-24, from the parry-disables-chaining defect; the dated entry has the
+hunt.
+
+Two classes do this today and both are deliberate. `UTDChargedAttackAbility` calls
+`UTDGameplayAbility::ActivateAbility` because the melee base traces immediately while the branch,
+and so the trace radius, is unknown until commit. `UTDGetUpAttackAbility` calls the same grandparent
+because the base lunges and plays at rate 1. **Both skip `bParried = false`, and only one of them
+noticed** — the get-up attack sets it explicitly, the charged did not, and a parry silently ended
+chaining for the rest of the session.
+
+**The hazard is any state whose lifetime is a *swing* living on an instance whose lifetime is a
+*pawn*.** Attack abilities are `InstancedPerActor`, so one object serves every swing a character
+ever throws; a flag left standing outlives the thing it described. The compiler is no help — a
+skipped reset is a call that was never made, not a call that failed.
+
+**The check when adding a bypass, or a field:** diff the bypassed base's `ActivateAbility` against
+the override and account for **every** line, separating deliberate behavioural differences from
+state hygiene that should have been carried across. `bParried` was the only reset dropped in the
+charged case; the base's other three actions were intentional.
+
 **Whenever an ability's input binding is changed** — *`IA_Attack` carries an `InputTriggerDown`,
 which holds the action Triggered every frame the button is down.* Nothing spams today only because
 the C++ binds `Started` and `Completed`. Rebinding to `ETriggerEvent::Triggered` — an
@@ -1383,6 +1405,62 @@ long.
 | `gEComponents` | 08-10, 08-11 |
 
 ---
+
+## 2026-08-24 — A parry disabled the light string for the rest of the session
+
+**Found by the designer playing for six minutes, and not by two hundred automated attacks.** The
+report was that the dummy *"got stuck in a mode where it was throwing two staggered lights instead
+of a three chain"* — accurate and understated. Measured off that run: **eight strings chained in the
+first 25 seconds**, at 3.5, 6.5, 9.5, 12.5, 15.5, 18.5, 21.5 and 24.5, then **zero across the
+remaining 218 seconds and 123 attacks**.
+
+**The mechanism.** `IsChainOutOpen()` refuses while `bParried` is set, correctly — a parried attack
+must not race its own chain and arrive again before the punish it just earned.
+`UTDMeleeAttackAbility::ActivateAbility` clears the flag per activation and its comment names this
+precise hazard: *"these instances are InstancedPerActor and therefore reused, so a parry suffered by
+a previous swing would otherwise forbid this one from chaining."* But `GA_Attack` is a
+`UTDChargedAttackAbility`, and that class's `ActivateAbility` deliberately calls
+`UTDGameplayAbility::ActivateAbility` — the **grandparent** — because the base starts tracing
+immediately while the branch, and therefore the trace radius, is unknown until commit. So the
+clearing line never ran. The class reads `bParried` twice and cleared it never.
+
+**The severity is the part worth recording.** One successful parry removed the victim's light string
+for the rest of the session: a core mechanic gone, silently, with no message and no visible cause.
+Against a human it would have read as the game breaking rather than as a bug with a shape. It
+survived Light String shipping, Parry shipping, Knockdown shipping and a full documentation audit.
+
+**Two wrong hypotheses were killed before the right one, and both were reasonable.** The designer's
+first read was that the parry *lockout* had broken the string's tempo; the tempo was clean — attacks
+held their 3.0 s interval throughout and the taps kept their 0.25 s spacing, before and after. The
+assistant's was that the on-hit waiver dropping `State.Attacking.Committed` was to blame; chaining
+correlated with **neither** the swing's outcome nor the waiver, occurring on clean, blocked and
+whiffed swings alike. The only predictor was *time*, and the only event at that boundary was the
+parry.
+
+**Why the loop could not see it.** `s4-string` asserts the three swing indices in equal counts and
+runs with defence **Off**, so it never faces a parried attacker at all. `s5-parry` asserts the
+string is *lost* with the parried swing — the intended half, green before and after. Nothing
+asserted the other half: that chaining **resumes** on the next attack. One rule, two halves, one
+covered.
+
+**The fix and how it was verified.** `bParried = false` joins the seven sibling flags
+`UTDChargedAttackAbility::ActivateAbility` already resets — `bAttackCommitted`, `bCoiling`,
+`bInRecovery` and the rest — where its absence is obvious in hindsight. It is the **only** reset the
+bypass dropped; the base's other three actions are deliberate behavioural differences with stated
+reasons. `s5-parry` gains **`chaining resumes after a parry`**, and that assertion was verified
+against the **pre-fix log** rather than an inverted band: `0 chain-outs after the first PARRY
+SUCCESS`, failing on real defective data. After the rebuild it reads **42**, with its sibling still
+green.
+
+**The general form, filed as a trap: a class that bypasses its base's activation inherits none of
+that base's per-activation resets, and nothing will tell you which ones mattered.** The hazard is
+any state whose lifetime is *a swing* living on an instance whose lifetime is *a pawn*.
+`UTDGetUpAttackAbility` bypasses the same base and sets `bParried = false` explicitly, so the
+pattern was known and applied — once.
+
+**And it is the argument for the practice ruled the same day.** A human standing in as the defender
+found this in minutes; the automated loop had run this fixture hundreds of times without seeing it,
+because the loop only ever asserted the half of the rule somebody had thought to write down.
 
 ## 2026-08-24 — The verification bar: functionality plus legibility; visuals to Polish, feel to Tuning-Rig
 

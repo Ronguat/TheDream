@@ -34,6 +34,10 @@ void UTDChargedAttackAbility::ActivateAbility(const FGameplayAbilitySpecHandle H
 	bInputHeld = true;
 	bCoiling = false;
 	bInRecovery = false;
+	// InstancedPerActor reuses one instance for every swing, and IsChainOutOpen refuses while this
+	// is set -- so it clears per activation, or a parry ends chaining for the session rather than
+	// for its own string. The melee base clears it in the ActivateAbility this class bypasses.
+	bParried = false;
 	RecoveryStartedAt = 0.0f;
 	AppliedAttackTag = FGameplayTag();
 

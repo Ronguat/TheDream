@@ -471,6 +471,13 @@ swing_index_counts() { # "<count> <swing index>" per index, so a string shows eq
 	grep -oE "ACTIVATE +[A-Za-z_0-9]+ +swing=[0-9]+" "$SLICE" | cut -d= -f2 | sort | uniq -c
 }
 
+chains_after_first_parry() { # chain-outs occurring after the first PARRY SUCCESS in the run
+	awk '
+		/^\[[0-9.]+\] PARRY SUCCESS/ { seen=1; next }
+		seen && /^\[[0-9.]+\] STRING     chain out of swing/ { n++ }
+		END { print n+0 }' "$SLICE"
+}
+
 chain_gaps() { # seconds between an ACTIVATE and the chained ACTIVATE after it
 	# Emitted only when the *arriving* swing index is non-zero: index 0 opens a new string, and the
 	# gap from the previous cycle's ender is the fixture's 3 s interval, not a cadence sample.
@@ -753,7 +760,7 @@ run_s3() {
 # Fixture for all four: DebugAutoAttackStringTaps 3. The defender differs per scenario.
 
 run_s5_parry() {
-	local successes violations
+	local resumed successes violations
 
 	# The window itself. Mechanical, not a notify, so this is the one place its length is visible.
 	assert_all_in_band "PARRY WINDOW span" "parry_window_spans" \
@@ -780,6 +787,15 @@ run_s5_parry() {
 	# "No more games": a parried swing takes the string with it, so no link window may follow one.
 	violations=$(parried_string_violations | grep -c '[0-9]' || true)
 	assert_count "no STRING continuation after a parry" "$violations" 0
+
+	# **The other half of the same rule, and the half that regressed.** A parried swing takes its
+	# string with it -- asserted directly above -- but the *next* attack must chain normally. The
+	# flag that forbids chaining is per-instance, and attack abilities are InstancedPerActor, so one
+	# left standing disables chaining for the session rather than for one string. Nothing else in
+	# the loop would see it: s4-string runs with defence Off and never faces a parried attacker.
+	resumed=$(chains_after_first_parry)
+	check "chaining resumes after a parry" "$([ "$resumed" -gt 0 ] && echo 0 || echo 1)" \
+		"$resumed chain-outs after the first PARRY SUCCESS"
 	# **The lockout is authored, so this asserts a CDO value rather than an arithmetic result.** A
 	# derived one would vary with the elapsed time at the catch, so **a span that starts wobbling
 	# again means something is computing it**.
