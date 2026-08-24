@@ -285,7 +285,7 @@ void ATDCombatCharacter::TickStaminaRegen(float DeltaSeconds)
 
 	// Knockdown suppresses regen -- unless you are already exhausted.
 	//
-	// The carve-out prices a vortex out. Every other suppressor is bounded: an action pause is
+	// The exception prices a vortex out. Every other suppressor is bounded: an action pause is
 	// self-inflicted and ends, and the guard break's holds only until the stun does, because every
 	// break exhausts you and an exhausted player cannot raise a guard to be broken again. Knockdown
 	// is the first an opponent can refresh indefinitely, and a player who can neither act nor
@@ -2075,7 +2075,7 @@ void ATDCombatCharacter::EnterDeath()
 	}
 	bDead = true;
 
-	// Death is the single carve-out to "parry is sacred", on the house: the window closes and no
+	// Death is the single exception to "parry is sacred", on the house: the window closes and no
 	// recovery is charged, because dying resets your starting conditions anyway.
 	//
 	// Explicitly before the cancel below -- the cancel runs GA_Parry's EndAbility, which warns about

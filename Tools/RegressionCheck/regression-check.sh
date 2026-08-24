@@ -1553,7 +1553,7 @@ run_s6_hard_stand() {
 }
 
 run_s6_exhausted() { # run_s6_exhausted <mode> <by-token> <survives: yes|no>
-	# The exhausted carve-out, from both sides. A defensive option is refused naming the tag; the
+	# The exhaustion exception, from both sides. A defensive option is refused naming the tag; the
 	# get-up attack and the wait are not. The press always fires -- what differs is whether a rise
 	# follows it, which is why every assertion here is anchored on the rise.
 	local mode="$1" token="$2" survives="$3" who presses exhpresses rises
@@ -1564,11 +1564,11 @@ run_s6_exhausted() { # run_s6_exhausted <mode> <by-token> <survives: yes|no>
 	who=$(configured_defender)
 	check "defender identified from the trace" "$([ -n "$who" ] && echo 0 || echo 1)" "${who:-none}"
 
-	# **The exhausted carve-out is deliberately not asserted here**, and its absence is a filed
-	# trap rather than an oversight. Nothing prints the stamina ledger while a character is down:
-	# EXHAUSTED and EXHAUSTION END bracket the state from outside the down-span, and the regen
-	# pause and the guard-break stun both sit between them, so the endpoints cannot separate
-	# "regen ran while down" from "regen ran after standing".
+	# **The exhaustion exception's regen half is asserted by s6-exhaust-regen, not here.** Nothing
+	# prints the stamina ledger while a character is down: EXHAUSTED and EXHAUSTION END bracket the
+	# state from outside the down-span, and the regen pause and the guard-break stun both sit between
+	# them, so from in here the endpoints cannot separate "regen ran while down" from "regen ran
+	# after standing". That scenario measures the span itself, which suppression would lengthen.
 
 	# The fixture drains the defender but cannot hold it exhausted indefinitely -- a successful
 	# get-up refills, and the cycle can settle with the tag down at every press. So the presses

@@ -87,7 +87,7 @@ enum class ETDParryCloseReason : uint8
 	Caught,
 
 	/**
-	 *  Died. The single carve-out to "sacred", on the house -- no recovery charged.
+	 *  Died. The single exception to "sacred", on the house -- no recovery charged.
 	 *
 	 *  Unreachable today: nothing damages you through an open window, so only a damage-over-time
 	 *  effect could kill you inside one, and none exists. Goes live when the ranged/DoT question does.

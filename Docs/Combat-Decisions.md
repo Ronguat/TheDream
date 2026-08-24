@@ -423,8 +423,10 @@ tested~~ — DISCHARGED 2026-08-24** by eight scenarios, one fixture each: `s6-d
 `s6-exhausted*` (5/5, 5/5, 5/5, 4/4). Each option gets its own scenario because one whose assertions
 depend on which `DebugGetUpMode` ran passes vacuously on the mode it was not given.
 
-**What the discharge does not cover, and is filed separately**: the exhausted **carve-out's regen
+**What the discharge does not cover, and was filed separately**: the exhaustion **exception's regen
 half** — the refusals are verified, the ledger is not, because nothing prints it inside a down-span.
+*(That one was itself discharged the same day by `s6-exhaust-regen`, below — the ledger was never the
+measurement.)*
 And the `-block` and `-kipup` samples are **n=2 and n=1** presses made while the tag was up; the
 fixture cannot hold a defender exhausted, since a get-up that succeeds refills the bar. The n=0 gate
 is what stops that degrading silently.
@@ -551,7 +553,7 @@ the s1 bands were calibrated with. **`s6-getup` 7/7 on the rough** — totals n=
 [1.255, 1.285], the rate visibly adapting per swing (0.453 at pos 0.6414, 0.397 at 0.6609).
 
 
-**~~Before trusting the exhausted carve-out — nothing prints the stamina ledger while a character is
+**~~Before trusting the exhaustion exception — nothing prints the stamina ledger while a character is
 down~~ — DISCHARGED 2026-08-24**, same day, by `s6-exhaust-regen`. **The premise was true and
 irrelevant: the ledger was never the measurement.** If a knockdown suppressed an exhausted player's
 regen, every `EXHAUSTED` → `EXHAUSTION END` span containing one would run longer by that knockdown's
@@ -572,7 +574,7 @@ new instrumentation.
 
 *(Original filing follows, kept because its reasoning about what the endpoints cannot separate is
 correct and still worth knowing.)* Filed 2026-08-24 while building sub-slice D's scenarios. Knockdown's plan promised the
-carve-out as *"the stamina ledger rises during the down-span -- the carve-out observable in one
+exception as *"the stamina ledger rises during the down-span -- the exception observable in one
 assertion"*, and it is **not observable**: `EXHAUSTED` and `EXHAUSTION END` bracket the state from
 *outside* the down-span, and both the regen pause and the guard-break stun sit between them, so the
 endpoints cannot separate *regen ran while down* from *regen ran after standing*. Measured on one
@@ -724,7 +726,7 @@ the same sitting. Failing that, a debug knob that fires two overlapping hits wou
 serve both.
 
 **Before ranged, DoTs, or anything that damages without inflicting a lockout — *three parry rules
-are currently indistinguishable, and one carve-out is unreachable.*** Filed 2026-08-19, owner
+are currently indistinguishable, and one exception is unreachable.*** Filed 2026-08-19, owner
 **Interplay**, with Knockdown as the likelier first tripwire.
 
 A whiffed parry's recovery ends when an attacker inflicts punishment, hooked as **"any lockout
@@ -744,7 +746,7 @@ it the same evening on the grounds that flinch already has durations and is itse
 lockout, and that ranged behaviour is undecided. *"I don't know what will happen to players when
 they are hit by ranged attacks yet."*
 
-**And the unreachable carve-out travels with it:** death is the sole exception to "parry is sacred",
+**And the unreachable exception travels with it:** death is the sole exception to "parry is sacred",
 and nothing can damage you through an open parry window — so a DoT is the only way to die inside
 one. `ETDParryCloseReason::Death` has never executed. Both go live together.
 
@@ -1127,6 +1129,7 @@ concludes the log is wrong rather than merely old. Add a row whenever a name cha
 | **`State.ParryLockout` “reserved, unused”** | **Live since Knockdown's sub-slice E** — the tenth replicated family member, inflicted on an attacker who has been parried, refusing everything and taking the full movement lock. Entries up to 2026-08-19 describe it as held in reserve. |
 | **`Docs/Plan-Knockdown.md`** | **Gone, and its contents split three ways** — deleted on delivery 2026-08-24 as it always said it would be. The mechanics are `Docs/Combat-Spec.md`'s Stun & Knockdown section; the reasoning stayed in this file's dated entries all along; the one ruling that existed nowhere else — the dodge roll's unbuilt yaw-snap — was rehomed to the traps above before deletion. Entries citing it by sub-slice letter are describing a file that no longer exists. |
 | **`Docs/Plan-Animation.md`** | **`Docs/Anim-Pipeline.md`** — the plan was deleted on delivery 2026-08-24 and its durable half became a triggered reference: the route, the measured surface, the round trip's conditional roll fix, clip assembly, and what stays deferred. The plan bookkeeping — sub-slices, order, the re-scope section — died with it. |
+| **carve-out** | **exception** — which is all it ever meant. Renamed 2026-08-24 at the designer's ruling, on learning the word: session-coined 2026-08-19, never in `CLAUDE.md`'s vocabulary, and borrowed from the legal sense of an exception written into a rule. It named two unrelated ones — **the exhaustion exception** (knockdown suppresses regen, unless you are already exhausted) and **death's exception to “parry is sacred”** — and obscured both. Docs and comments only; no symbol carried it. |
 | **burst** (the fixture's attack cycle) | **string** for the swings, **cycle** for the loop iteration. Renamed 2026-08-24 at the designer's ruling: *burst* was a session's word layered on top of *cycle*, which the checker's own comments already used, and it read as a mechanic while naming a fixture. It carried no combat content — whiffs chain, so a three-swing sequence is a string whether or not it connects. Confined to `Docs/Debug-Instruments.md` and the checker; **dated entries using “burst” in the ordinary English sense are untouched and mean what they say.** |
 | **jail** (knockdown's first phase) | **knockdown lockout**, and `KnockdownLockoutSeconds*`. Renamed 2026-08-24 at the designer's ruling: *jail* was a session's word for a span the project's own vocabulary already names — a lockout is an input restriction someone else inflicted — and it was the one tag in that family classifying itself as nothing. It entered as a rename of the old spec's *"1.5 s default get-up"*. |
 | **choice window** | **knockdown input window**, *input window* inside knockdown's own section, and `KnockdownInputWindowSeconds*`. Same ruling. Sits beside the **input buffer**, which is the thing that carries a press *through* the lockout *into* it. |
@@ -7239,7 +7242,7 @@ sitting in the always-read file.
   Kept on probation rather than settled, because none of it is felt yet; see the decision log.
   **Knockdown's deferrals arrive here whole (2026-08-24)**, every one a feel verdict nothing
   mechanical can settle: **floor vulnerability** and whether the down state should be invincible at
-  all; **regen paused while down** except for the exhausted carve-out, whose generosity — a knockdown
+  all; **regen paused while down** except for the exhaustion exception, whose generosity — a knockdown
   nearly curing the exhaustion it lands on — is the designer's *one guaranteed loop at worst* and is
   untested against a human; **parry as a get-up**, considered and not built; **the hard type's
   experiment**, whether 1.5/0.5 against 1.0/1.0 reads as meaner rather than merely different, and

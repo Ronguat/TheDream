@@ -200,7 +200,10 @@ cause over one that only observes it.
 **Never claim something does not exist based on a filtered or derived view.** A search that finds
 nothing proves only that your filter did not match. Search the authoritative source unfiltered, try
 synonyms and known misspellings, **quote the command you ran**, and **date every absence claim with
-what you searched** — absence claims rot faster than any other kind.
+what you searched** — absence claims rot faster than any other kind. **The same trap wears a second
+face: concluding a thing cannot be *measured*.** Before asking for new instrumentation, ask what the
+quantity would do to something already logged — suppressed regen shows up as time that fails to
+appear, and an animation that is a state has no asset to find.
 
 **When a doc describes something that exists, read the thing.** The same failure wearing a positive
 claim: a document is accurate about the moment it was written, and describes a limit that has since

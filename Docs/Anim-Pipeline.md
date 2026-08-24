@@ -51,16 +51,20 @@ spec's displacement rule and the tuning map's row.
 Confirmed 2026-08-22 unless noted.
 
 **Python in the editor** — 3.11.8. `py <file>` runs a script file; `ProgrammaticToolset` is **not** a
-route, its sandbox refusing `import unreal`. **Remote execution is on and verified**: switched on
-through the settings CDO, and `Tools/AnimPipeline/run-in-editor.py` wraps Epic's
-`remote_execution.py` under the engine's own Python. That is the workhorse — the fallback is `py`
+route, its sandbox refusing `import unreal`. **Remote execution is on and verified**, and
+`Tools/AnimPipeline/run-in-editor.py` wraps Epic's `remote_execution.py` under the engine's own
+Python. **It has to be enabled in `Config/DefaultEngine.ini`, not by toggling the settings CDO** — a
+live toggle dies with the editor, so the next launch finds it off and every call fails with
+`Unable to connect`. That is the workhorse — the fallback is `py`
 through the editor's Cmd box with `LogPython` read back.
 
 **Cascadeur Pro** — `%LOCALAPPDATA%\Cascadeur`, user-mode, bundled Python 3.11,
 `samples/UE5_Manny.casc`. Its **native MCP server listens on `127.0.0.1:8765`**: `POST /mcp`
 (JSON-RPC, one tool — `run_script(code)`, run on the next scene-idle event) and `POST /run
 {"code"}`. Source under `resources/scripts/python/scripts/mcp`; it ships its own `.mcp.json`.
-`Tools/AnimPipeline/casc-run.sh` drives it over HTTP. Community bridges do the same job
+`Tools/AnimPipeline/casc-run.sh` drives it over HTTP. **Starting it needs no human**:
+`cascadeur.exe --run-script scripts.mcp.start_server` forwards into the already-running instance
+rather than spawning a second, comes up in about 30 s, and `GET /health` answers once it has. Community bridges do the same job
 (`ysk424/cascadeur-mcp`, TCP with viewport capture; `BYGGOLDENSTONE/cascadeur-mcp-bridge`,
 file-polling). **Registering any of them takes a Claude Code restart** — the startup rule.
 
