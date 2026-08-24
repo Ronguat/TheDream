@@ -355,6 +355,34 @@ the override and account for **every** line, separating deliberate behavioural d
 state hygiene that should have been carried across. `bParried` was the only reset dropped in the
 charged case; the base's other three actions were intentional.
 
+**Whenever a new ability takes `bLocksMovement`, or an existing holder learns to overlap another —
+*the lock is a bool, and two holders cannot share it.*** Filed 2026-08-24, from the parry-cancel
+defect; the dated entry has the mechanism. `bAbilityMovementLocked` on `ATheDreamCharacter` is a
+plain bool, and `UTDGameplayAbility::EndAbility` releases it guarded on the per-instance
+`bTookMovementLock` — *"did **I** take this"*, which is the right question only while one ability
+holds the lock at a time. Whichever holder ends first hands movement back for both.
+
+**Four abilities hold it today** — `GA_Attack`, `GA_Dodge`, `GA_Parry` and `GA_GetUpAttack`, each
+CDO-verified 2026-08-24; `GA_Block` deliberately takes none and `GA_Jump` authors no displacement.
+**Overlap is prevented by hand, in two places and neither of them the lock**: the dodge and, since
+this fix, the parry both cancel `Ability.Attack` in `CancelAbilitiesWithTag`, so GAS ends the attack
+in `PreActivate` *before* the new holder takes the lock; and the parried attacker's lockout is
+ordered deliberately *after* `EndAbility` in `UTDMeleeAttackAbility`'s catch path, with a comment
+saying why. **A fifth holder that does neither reopens this**, and its symptom is free movement
+during someone else's commitment — which points at that ability, never at the lock.
+
+**The structural fix was considered and declined 2026-08-24**, not overlooked: a count or an owner
+on the character composes correctly and would retire both hand-orderings, but an unbalanced release
+strands movement permanently, which is a worse failure than the bug. **Revisit when a holder appears
+that cannot be hand-ordered** — or when Netcode reaches this, since `bAbilityMovementLocked` is
+already owed a replicated form for a separate reason.
+
+**Nothing automated will catch a recurrence.** `SetAbilityMovementLocked` does not log, no scenario
+asserts the lock, and `s5-cancel` cancels into the *guard* rather than a parry — so the only
+instrument that ever touches it is the on-hit waiver's single `MOVE UNLOCK` line, which this hazard
+does not pass through. The symptom is free movement rather than a refusal, so it surfaces in play or
+not at all: **this trap is the standing record.**
+
 **Whenever an ability's input binding is changed** — *`IA_Attack` carries an `InputTriggerDown`,
 which holds the action Triggered every frame the button is down.* Nothing spams today only because
 the C++ binds `Started` and `Completed`. Rebinding to `ETriggerEvent::Triggered` — an
@@ -1212,9 +1240,10 @@ long.
 | `AM_Attack_S2` | 08-16 |
 | `AM_Attack_S3` | 08-16 |
 | `AM_Attack_S4` | 08-16 |
-| `AM_Attack` | 08-12 |
+| `AM_Attack` | 08-12, 08-24 |
 | `AM_Dodge` | 08-10, 08-11, 08-12, 08-13, 08-21 |
 | `AM_GetUpAttack` | 08-21, 08-22 |
+| `AM_Parry` | 08-24 |
 | `animSegments` | 08-21 |
 | `APawn::FaceRotation` | 08-12 |
 | `ATDCombatCharacter::Jump` | 08-12 |
@@ -1222,8 +1251,8 @@ long.
 | `ATDCombatCharacter` | 08-10, 08-12 |
 | `ATDPlayerState` | 08-11 |
 | `ATheDreamCharacter::ApplyCameraCollisionExemption` | 08-13 |
-| `ATheDreamCharacter` | 08-12, 08-13 |
-| `ActivateAbility` | 08-10, 08-12 |
+| `ATheDreamCharacter` | 08-12, 08-13, 08-24 |
+| `ActivateAbility` | 08-10, 08-12, 08-24 |
 | `ActivationBlockedTags` | 08-10, 08-11, 08-12, 08-19 |
 | `ActorsHitThisWindow` | 08-18 |
 | `AddMovementInput` | 08-12, 08-16 |
@@ -1250,6 +1279,7 @@ long.
 | `BlueprintPure` | 08-15 |
 | `CanActivateAbility` | 08-10, 08-11 |
 | `CancelAbilities` | 08-14 |
+| `CancelAbilitiesWithTag` | 08-24 |
 | `CancelAllAbilities` | 08-11, 08-12 |
 | `ChainOpenAfterRecoverySeconds` | 08-16, 08-18 |
 | `ClampVelocity` | 08-14 |
@@ -1273,7 +1303,7 @@ long.
 | `ETriggerEvent::Started` | 08-11 |
 | `EffectOnEnd` | 08-10 |
 | `EffectOnStart` | 08-10 |
-| `EndAbility` | 08-12 |
+| `EndAbility` | 08-12, 08-24 |
 | `EndHitstun` | 08-21 |
 | `EndParryLockout` | 08-21 |
 | `EndParryRecovery` | 08-19 |
@@ -1308,11 +1338,12 @@ long.
 | `FacingLockFadeSeconds` | 08-12 |
 | `FinishVelocityParams` | 08-14 |
 | `ForcedFacingTurnRateDegrees` | 08-20 |
-| `GA_Attack` | 08-09, 08-10, 08-11, 08-12, 08-14 |
-| `GA_Block` | 08-14 |
-| `GA_Dodge` | 08-10, 08-11, 08-13, 08-14 |
+| `GA_Attack` | 08-09, 08-10, 08-11, 08-12, 08-14, 08-24 |
+| `GA_Block` | 08-14, 08-24 |
+| `GA_Dodge` | 08-10, 08-11, 08-13, 08-14, 08-24 |
+| `GA_GetUpAttack` | 08-24 |
 | `GA_Jump` | 08-20 |
-| `GA_Parry` | 08-19 |
+| `GA_Parry` | 08-19, 08-24 |
 | `GetActorForwardVector` | 08-12 |
 | `GetAimYawDegrees` | 08-13 |
 | `GetAttackParryLockoutSeconds` | 08-20 |
@@ -1369,6 +1400,7 @@ long.
 | `ParryWindowSeconds` | 08-19 |
 | `PeriodicDodge` | 08-15 |
 | `PhysicsRotation` | 08-12 |
+| `PlayParryMontage` | 08-24 |
 | `PreAttributeBaseChange` | 08-10 |
 | `PreAttributeChange` | 08-10 |
 | `PrepareRootMotion` | 08-12 |
@@ -1429,19 +1461,21 @@ long.
 | `UTDGameplayAbility::CanActivateAbility` | 08-19 |
 | `UTDGameplayAbility::InputTag` | 08-09 |
 | `UTDGameplayAbility::StartLunge` | 08-13 |
-| `UTDGameplayAbility` | 08-12, 08-14 |
+| `UTDGameplayAbility` | 08-12, 08-14, 08-24 |
 | `UTDJumpAbility` | 08-20 |
 | `UTDMeleeAttackAbility::HandleTraceHit` | 08-14 |
 | `UTDMeleeAttackAbility::LungeDistanceCm` | 08-12 |
 | `UTDMeleeAttackAbility::LungeDurationSeconds` | 08-13 |
 | `UTDMeleeAttackAbility::RootMotionScale` | 08-12 |
-| `UTDMeleeAttackAbility` | 08-10 |
+| `UTDMeleeAttackAbility` | 08-10, 08-24 |
+| `UTDParryAbility` | 08-24 |
 | `UpdateCameraRelativeFacing` | 08-11, 08-12 |
 | `UpdateStateFrom` | 08-14 |
 | `WeaponMesh` | 08-11 |
 | `WithNetSerializer` | 08-12 |
 | `YawOffsetDegrees` | 08-13 |
 | `bAbilityFacingLocked` | 08-12 |
+| `bAbilityMovementLocked` | 08-24 |
 | `bAllowPhysicsRotationDuringAnimRootMotion` | 08-12 |
 | `bAllowedFromKnockdown` | 08-20 |
 | `bAttackCommitted` | 08-12 |
@@ -1461,17 +1495,75 @@ long.
 | `bInHitstun` | 08-16 |
 | `bInRecovery` | 08-16 |
 | `bJumpRegenPauseActive` | 08-11, 08-12 |
-| `bLocksMovement` | 08-12 |
+| `bLocksMovement` | 08-12, 08-24 |
 | `bOrientRotationToMovement` | 08-10 |
 | `bRagdollOnDeath` | 08-11 |
 | `bResumeWhileInputHeld` | 08-21 |
-| `bTookMovementLock` | 08-12 |
+| `bTookMovementLock` | 08-12, 08-24 |
 | `bUseControllerDesiredRotation` | 08-12 |
 | `bUseControllerRotationYaw` | 08-12 |
 | `compositeSections` | 08-15, 08-18 |
 | `gEComponents` | 08-10, 08-11 |
 
 ---
+
+## 2026-08-24 — The parry handed movement back, because a movement lock is a bool two abilities can both hold
+
+**The report, from the designer playing:** *"when I parry cancel an attack's windup, I'm able to
+move during parry recovery."* Both halves of the spec it breaks are explicit —
+`Docs/Combat-Spec.md` says the parry's window and its 600 ms whiff recovery each hold the movement
+lock, and that *"time you can act during is not a price."*
+
+**The mechanism is an ordering, and the lock's own design is what makes ordering matter.**
+`bAbilityMovementLocked` on `ATheDreamCharacter` is a plain bool, and
+`UTDGameplayAbility::EndAbility` releases it guarded on the per-instance `bTookMovementLock`. That
+flag answers *"did **I** take this"*, which is the right question only while one ability holds the
+lock at a time. Two holders overlapping, and whichever ends first hands movement back for both.
+
+A parry thrown during an uncommitted windup produced exactly that overlap. `GA_Parry` blocks on
+`State.Attacking.Committed` rather than `State.Attacking`, so the windup admits it;
+`UTDParryAbility::ActivateAbility` calls `Super::` — taking the lock — and then, on the next line,
+`PlayParryMontage()` plays `AM_Parry` straight through the `AnimInstance`. `AM_Parry` and
+`AM_Attack` both live on `DefaultSlot`, so that play stops the attack montage interrupted, which
+fires the attack's `PlayMontageAndWait` `OnInterrupted`, `HandleMontageInterrupted`, and
+`EndAbility`. The attack's teardown then cleared the lock the parry had taken microseconds earlier,
+for the whole remaining 900 ms.
+
+**`GA_Parry` was the only ability exposed, and the dodge is why.** `GA_Dodge` carries
+`Ability.Attack` in `CancelAbilitiesWithTag`, so GAS cancels the attack in `PreActivate` — *before*
+`ActivateAbility` — and the attack's release lands ahead of the dodge's take. `GA_Parry`'s container
+was empty, so its attack died late and by side effect. `GA_Block` never takes the lock at all.
+
+**The fix is the dodge's arrangement, applied to the parry**: `Ability.Attack` added to `GA_Parry`'s
+`CancelAbilitiesWithTag`. **It changes nothing else about play** — a *committed* attack already
+refuses the parry outright, so the set of attacks cancelled is identical to what the montage was
+cancelling; only the teardown's position relative to the lock moves. `GA_Attack` is the only ability
+carrying `Ability.Attack`, so the blast radius is one.
+
+**The structural fix was declined rather than missed.** A count or an owner on the character
+composes correctly and would retire the hand-ordering this project already does in two places — but
+its failure mode is an unbalanced release stranding movement permanently, which is worse than the
+bug it replaces, and it touches every ability's lock path in a change whose brief was one defect.
+Filed as a trap instead.
+
+**How it was verified, and what still is not covered.** The CDO write was confirmed on the
+**runtime instance** in PIE — `TDPlayerState_0.GA_Parry_C_0` reads
+`CancelAbilitiesWithTag: [Ability.Attack]`, `bLocksMovement: true` — which is the artefact that
+matters for a CDO and the one the "partially live" trap of 2026-08-14 bit on this exact property
+type. **The behaviour was then confirmed in play by the designer.** The ordering it rests on is
+GAS's rather than this project's — `PreActivate` runs `ApplyAbilityBlockAndCancelTags` before
+`ActivateAbility` — and the dodge has relied on it since it shipped. **The loop still covers none
+of this**: no fixture drives a parry into an attack windup, `s5-cancel` cancels into the *guard*
+and asserts the swing rather than the lock, and `SetAbilityMovementLocked` does not log — so the
+movement lock has no instrument at all beyond the on-hit waiver's single `MOVE UNLOCK` line. A
+regression here returns silently and in play only.
+
+**A tooling finding came out of it**, recorded in `Docs/Working-In-Unreal.md`: `AssetTools`'
+`exists`, `is_dirty`, `get_asset_class` and **named `save_assets`** now answer *"Asset does not
+exist"* for paths that `find_assets` and `load_asset` resolve in the same session, `GA_Attack`
+included. The 2026-08-21 note recording those functions as working no longer holds, and the
+empty-list `save_assets` is currently the only save route — which is the form that carries the
+level-save trap.
 
 ## 2026-08-24 — The megaslice's remaining order, an art pass, and the skeleton merge under it
 
