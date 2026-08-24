@@ -225,18 +225,13 @@ Execution order, the only line that changes when the order does:
 
 > **~~Attack Ladder~~ → ~~Dodge~~ → ~~Sword & Shield~~ → ~~Input Buffer~~ → ~~Death~~ → ~~Dodge Distance~~ → ~~Attack Swap~~ → ~~[hover bug]~~ → ~~[facing pass]~~ → ~~Recovery~~ + ~~Lunge~~ → ~~Target Lock~~ → ~~Block~~ → ~~Light String~~ → ~~Parry~~ → Knockdown → Polish → Death-full → Settings → Netcode → Tuning Rig → Interplay**
 
-**Pick up at Knockdown's sub-slice F, the get-up attack** — `Docs/Plan-Knockdown.md` is still live.
-**A–E shipped 2026-08-20**, the state machine verified in play: grades, the 2.5 s total, the 0.5 s
-rise, floor invincibility, the movement and facing locks, the parried attacker's lockout. **F's code shipped 2026-08-22** (`5b08169` + a wedge fix): the get-up attack fires from the floor,
-opens its Release Window and commits, on a **rough scratch montage** (`Scratch/AM_GetUpAttack_Rough`,
-untracked). **What remains for F to ship**: the designer's polished clip replacing the rough
-(`AnimSource/GetUpAttack.casc` is the Cascadeur scene to polish) — `s6-getup` reads **7/7 on the
-rough** (2026-08-24: the release under-run answered in the subclass, the fixture reds resolved; the
-trap holds the evidence). **The animation pipeline that unblocked it is `Docs/Plan-Animation.md`**: authored
-in Cascadeur, transferred by the scripts in `Tools/AnimPipeline/`.
-
-**Also owed**: `s4-360`'s first-burst exclusion, sub-slice I's spec rewrite, and the get-up options
-— dodge, kip-up, block, every exhaustion refusal — built and never run, which is a filed trap.
+**Pick up at Knockdown's closing package — `Docs/Plan-Animation.md`'s re-scope section is the
+list.** A–E shipped 2026-08-20, verified in play; **F is green** — the get-up attack fires from the
+floor, `s6-getup` reads **7/7 on the rough**, and the rough **ships as the interim clip** under the
+2026-08-24 verification bar (functionality plus legibility; visuals defer to Polish, feel to
+Tuning-Rig — the dated entry). The package: commit F's bundle, D's option scenarios, the legibility
+glance, `s4-360`'s exclusion lift, then I's spec rewrite and routing. **The animation pipeline is
+`Docs/Plan-Animation.md`**: authored in Cascadeur, transferred by the scripts in `Tools/AnimPipeline/`.
 
 **Structure Audit has no roster position and keeps a trigger**; its brief is in the same section.
 

@@ -118,22 +118,27 @@ assembly moved to UE. Stationary, in place, no baked travel; duration free — E
 the processed clip re-imported as `Scratch/AS_GetUpAttack_Casc` matching the rough on every anchor
 to ≤0.07°, and the scene is saved via `view.Scene.save` (`DataSourceManager.save_scene_as` does not
 write). The designer's polish happens in that scene — **tracked at `AnimSource/GetUpAttack.casc`**,
-moved 2026-08-24 out of disposable `Saved/`.
+moved 2026-08-24 out of disposable `Saved/`, and **Polish's work now, not this plan's** (the
+re-scope below).
 
 **E — assemble `AM_GetUpAttack`.** **Montage-from-clip is scriptable**: `AnimMontageFactory` with
 `target_skeleton` and `source_animation` through `AssetTools.create_asset` (2026-08-22,
 `ue_make_montage.py`, which also places the window and prints the derived rates and the blend-out
-check). `Scratch/AM_GetUpAttack_Rough` is that script's output on the rough — a fixture for E/F's
-mechanical proof, never the shipped asset. Single-segment montage from D's clip, fitted to
+check). `Scratch/AM_GetUpAttack_Rough` is that script's output on the rough — built as E/F's
+mechanical fixture, **promoted 2026-08-24 to the shipping interim clip** (the re-scope below; the
+verification bar lifted the old never-the-shipped-asset gate). Single-segment montage from D's clip, fitted to
 `Plan-Knockdown.md`'s authored phases at derived rates; the notify's start and the ability's
 `ReleaseStartSeconds` written from one number if A3 holds, by hand if not; the blend-out condition
 checked like any montage.
 
 **F — unblock Knockdown's sub-slice F.** `UTDGetUpAttackAbility` per `Plan-Knockdown.md`; the
-get-up attack commits and its hitbox opens.
+get-up attack commits and its hitbox opens. **Done 2026-08-22–24**: fires from the floor, the wedge
+opens, `s6-getup` reads 7/7 on the rough.
 
 **G — route the docs.** `Working-In-Unreal.md` gains the pipe, the Cascadeur surface and whatever
-A2′ and A3 promote from inherited; `Animation-Library.md` gains authored clips as a source.
+A2′ and A3 promote from inherited; `Animation-Library.md` gains authored clips as a source. **Half
+done 2026-08-24**: the Working-In-Unreal half landed; the Animation-Library half rides the closing
+package below.
 
 ## The regression obligation, decided at plan time
 
@@ -141,7 +146,37 @@ Sub-slice F shipping a real capability means this package owes **`regression-che
 the same package**: a get-up attack thrown from the floor, asserting the hitbox opens and the
 attack commits. Not a dated trap — the trap list already carries *"the get-up options are built and
 none of them is tested,"* whose stated trigger is the animations landing. This package is that
-trigger, so it discharges rather than extends it.
+trigger, so it discharges rather than extends it. **Discharged for the attack itself**: `s6-getup`
+shipped in F's package (`5b08169`) and reads 7/7 (2026-08-24); the *options'* scenarios are item 2
+of the closing package below.
+
+## The remainder, re-scoped 2026-08-24
+
+**The verification bar, ruled by the user: verified functionality, with animations legible enough
+to tell which mechanic is firing.** All visual refinement defers to Polish; all feel refinement to
+Tuning-Rig — both already expect the work (the dated entry has the argument). The rough get-up clip
+meets the bar, so **F ships on it**; polishing `AnimSource/GetUpAttack.casc` is Polish's.
+
+**Knockdown's closing package, in order — next session picks up here:**
+
+1. **Ship F's bundle on the rough**: promote the clip pair out of `Scratch/` to tracked names per
+   `Animation-Library.md`'s conventions, commit with `GA_GetUpAttack` and both characters' grants.
+   `s6-getup` is already 7/7 against this exact clip.
+2. **D's mechanical scenarios, in-package** (the `DebugGetUpMode` fixture shipped with F's code):
+   dodge get-up i-framed and costing 50; hard converting it to a kip-up travelling ≈0; hard
+   refusing the directional dodge and the free stand; the block get-up guarded from activation;
+   exhaustion refusing block, dodge and kip-up while the attack and the wait survive.
+3. **The legibility glance**: run each option, capture what plays, the user says whether the
+   mechanics read apart. Anything illegible gets the cheapest distinct stand-in through this
+   pipeline — explicitly not polish.
+4. **Lift `s4-360`'s first-burst exclusion** — its condition arrived when the ender became a
+   knockdown.
+5. **I: the spec rewrite and ship routing**, including G's leftover (`Animation-Library.md` gains
+   authored clips as a source) and the focus.
+
+**Moved out**: the get-up clip's polish, the knockdown/fall/rise batch, and the options' look →
+**Polish**; every feel verdict on the knockdown numbers → **Tuning-Rig**. The 1vX half and
+death-while-down keep their filed triggers.
 
 ## Order, and what is deferred
 

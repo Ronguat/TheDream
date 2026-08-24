@@ -6,6 +6,11 @@ direction is ruled; **execution awaits a greenlight at the session that picks th
 animation migration is the one piece already shipped (`97f4acb`, verified on disk). Numbers are
 first attempts unless marked derived.
 
+**Re-scoped 2026-08-24**: the closing package, and what moved to Polish and Tuning-Rig, is
+`Plan-Animation.md`'s re-scope section; the verification bar is that day's decision entry. Read
+this file's F, H and D through it — F ships on the rough, H is a legibility check, D's mechanical
+scenarios stay in-package.
+
 ---
 
 ## What exists today, measured
