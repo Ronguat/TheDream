@@ -59,6 +59,6 @@ Source/TheDream/Core/TheDreamPlayerController.h	13	75
 Source/TheDream/TheDream.cpp	1	7
 Source/TheDream/TheDream.h	2	15
 Tools/AnimPipeline/casc-run.sh	3	34
-Tools/DocsCheck/docs-check.sh	72	662
+Tools/DocsCheck/docs-check.sh	81	769
 Tools/RegressionCheck/regression-check.sh	470	5880
 Tools/RegressionCheck/session-count.sh	3	36
