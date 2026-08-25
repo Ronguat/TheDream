@@ -143,7 +143,7 @@ Timings land within about a frame, biased late.
     compromise** — every cleanly hit victim is turned toward its attacker inside 250 ms. The four
     directional `Hit_<DIR>` clips are therefore unused.
 - **Knockdown** replaces what a graded hit does to its victim wholesale: it knocks down and **never** hitstuns.
-  - **Death supersedes it on the same contact** *(observed 2026-08-24)*. A graded swing that also
+  - **Death supersedes it on the same contact** *(ruled 2026-08-24 after observing it)* -- a killing blow does **not** route through the down state. A graded swing that also
     kills produces death and **no knockdown**: damage resolves before the knockdown branch and
     `EnterKnockdown` returns early once dead. **Dying *while* down is unreachable** — floor
     invincibility forbids damage there, and nothing else in the game deals any.

@@ -196,6 +196,11 @@ BAND_KIPUP_TRAVEL_MAX=25.0
 # DebugAutoReviveSeconds on the placed dummy -- so this band tracks the fixture, not the game.
 BAND_REVIVE_DELAY=3.000
 BAND_REVIVE_TOL=0.060
+# The settle distance is physics rather than an authored number, so the band is wide on purpose:
+# measured 396-449 across six deaths at DeathImpulseStrength 30000. It exists to catch a *change*,
+# not to pin a value -- a halved impulse lands near 200 and bVelChange sends the corpse past 18000.
+BAND_DEATH_SETTLE_LO=300
+BAND_DEATH_SETTLE_HI=560
 BAND_BLOCK_GUARD_GAP=0.100
 
 # ---------------------------------------------------------------------------
@@ -1774,14 +1779,14 @@ EOF
 [ $# -ge 1 ] || usage
 [ "$1" = "--self-test" ] && self_test
 
-# --- s7: death and its supersession of knockdown -----------------------------
-# The killing DAMAGED shares a timestamp with DEATH and is logged *after* it, which is
-# what makes "damage while dead" separable from the blow that killed: only a strictly
-# later timestamp counts.
+# --- s7: death, its impulse, and its supersession of knockdown ----------------
+# Every extractor here must exclude DEATH SETTLE, which shares the DEATH prefix and would
+# otherwise be counted as a death by an actor named "SETTLE".
+
 
 death_revive_spans() { # seconds from each DEATH to that actor's REVIVE
 	awk '
-		/^\[[0-9.]+\] DEATH /  { t=$1; gsub(/[\[\]]/,"",t); dead[$3]=t+0; next }
+		/^\[[0-9.]+\] DEATH / && $3 != "SETTLE" { t=$1; gsub(/[\[\]]/,"",t); dead[$3]=t+0; next }
 		/^\[[0-9.]+\] REVIVE / { t=$1; gsub(/[\[\]]/,"",t)
 			if ($3 in dead) { printf "%.3f\n", (t+0)-dead[$3]; delete dead[$3] } }
 	' "$SLICE"
@@ -1789,7 +1794,7 @@ death_revive_spans() { # seconds from each DEATH to that actor's REVIVE
 
 death_health() { # the health reading on the blow that killed, one per death
 	awk '
-		/^\[[0-9.]+\] DEATH /   { t=$1; gsub(/[\[\]]/,"",t); dt[$3]=t+0; next }
+		/^\[[0-9.]+\] DEATH / && $3 != "SETTLE" { t=$1; gsub(/[\[\]]/,"",t); dt[$3]=t+0; next }
 		/^\[[0-9.]+\] DAMAGED / { t=$1; gsub(/[\[\]]/,"",t)
 			if (($3 in dt) && (t+0)==dt[$3]) {
 				for (i=1;i<=NF;i++) if ($i ~ /^health=/) { h=$i; sub(/^health=/,"",h); print h+0 }
@@ -1797,9 +1802,14 @@ death_health() { # the health reading on the blow that killed, one per death
 	' "$SLICE"
 }
 
+death_settles() { # the horizontal distance each corpse ended from its capsule
+	awk '/^\[[0-9.]+\] DEATH SETTLE/ {
+		for (i=1;i<=NF;i++) if ($i ~ /^drift=/) { d=$i; sub(/^drift=/,"",d); print d+0 } }' "$SLICE"
+}
+
 damage_while_dead() { # DAMAGED landing strictly after a DEATH and before that actor's REVIVE
 	awk '
-		/^\[[0-9.]+\] DEATH /   { t=$1; gsub(/[\[\]]/,"",t); dead[$3]=t+0; next }
+		/^\[[0-9.]+\] DEATH / && $3 != "SETTLE" { t=$1; gsub(/[\[\]]/,"",t); dead[$3]=t+0; next }
 		/^\[[0-9.]+\] REVIVE /  { delete dead[$3]; next }
 		/^\[[0-9.]+\] DAMAGED / { t=$1; gsub(/[\[\]]/,"",t)
 			if (($3 in dead) && (t+0) > dead[$3]) n++ }
@@ -1809,7 +1819,7 @@ damage_while_dead() { # DAMAGED landing strictly after a DEATH and before that a
 
 deaths_that_also_floored() { # deaths whose own contact still produced a KNOCKDOWN
 	awk '
-		/^\[[0-9.]+\] DEATH /      { t=$1; gsub(/[\[\]]/,"",t); dt[$3]=t+0; next }
+		/^\[[0-9.]+\] DEATH / && $3 != "SETTLE" { t=$1; gsub(/[\[\]]/,"",t); dt[$3]=t+0; next }
 		/^\[[0-9.]+\] REVIVE /     { delete dt[$3]; next }
 		/^\[[0-9.]+\] KNOCKDOWN  / { t=$1; gsub(/[\[\]]/,"",t)
 			if (($3 in dt) && (t+0)==dt[$3]) n++ }
@@ -1817,11 +1827,12 @@ deaths_that_also_floored() { # deaths whose own contact still produced a KNOCKDO
 	' "$SLICE"
 }
 
+count_deaths() { awk '/^\[[0-9.]+\] DEATH / && $3 != "SETTLE" { n++ } END { print n+0 }' "$SLICE"; }
 count_tag() { grep -c "^\[[0-9.]*\] $1 " "$SLICE" 2>/dev/null || true; }
 
 run_s7_death() {
-	local deaths revives orphans
-	deaths=$(count_tag DEATH)
+	local deaths revives orphans dmg
+	deaths=$(count_deaths)
 	if [ "$deaths" -eq 0 ]; then
 		check "DEATH fires" 1 "no DEATH lines -- nothing died, so every assertion below is vacuous"
 		return
@@ -1841,9 +1852,14 @@ run_s7_death() {
 		"$(awk -v v="$BAND_REVIVE_DELAY" -v t="$BAND_REVIVE_TOL" 'BEGIN{printf "%.3f", v-t}')" \
 		"$(awk -v v="$BAND_REVIVE_DELAY" -v t="$BAND_REVIVE_TOL" 'BEGIN{printf "%.3f", v+t}')" "s"
 
+	# **The impulse, made assertable.** Its magnitude would not catch the failure that matters:
+	# bVelChange does not change the number, it changes what the number means. The settle
+	# distance is the observable, read at teardown while the resting place still exists.
+	assert_all_in_band "death impulse carries the corpse" death_settles \
+		"$BAND_DEATH_SETTLE_LO" "$BAND_DEATH_SETTLE_HI" "cm"
+
 	# A corpse must not be hittable. The killing blow shares the death's timestamp and is
 	# excluded by the strict comparison in the extractor.
-	local dmg
 	dmg=$(damage_while_dead)
 	check "zero DAMAGED while dead" "$([ "$dmg" -eq 0 ] && echo 0 || echo 1)" \
 		"$dmg DAMAGED across $deaths deaths"
@@ -1851,7 +1867,7 @@ run_s7_death() {
 
 run_s7_death_grade() {
 	local deaths floored kdn
-	deaths=$(count_tag DEATH)
+	deaths=$(count_deaths)
 	kdn=$(count_tag KNOCKDOWN)
 
 	if [ "$deaths" -eq 0 ]; then

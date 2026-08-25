@@ -2288,6 +2288,13 @@ void ATDCombatCharacter::StopRagdoll()
 	}
 	bRagdollActive = false;
 
+	// Read before the simulation is torn down and the mesh reattached, which is the only moment
+	// the corpse's resting place still exists. Horizontal only: the capsule never moved, so this is
+	// how far the impulse actually carried the body.
+	const FVector Drift = SkeletalMesh->GetComponentLocation() - GetActorLocation();
+	TD_TIMING_LOG(TEXT("[%.3f] DEATH SETTLE  %s  drift=%.0f"),
+		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f, *GetName(), FVector(Drift.X, Drift.Y, 0.0f).Size());
+
 	SkeletalMesh->SetSimulatePhysics(false);
 	SkeletalMesh->SetAllBodiesSimulatePhysics(false);
 	SkeletalMesh->PutAllRigidBodiesToSleep();

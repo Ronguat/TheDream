@@ -33,7 +33,6 @@ Source/TheDream/Combat/Notifies/AnimNotify_ParryGesture.cpp	19	257
 Source/TheDream/Combat/Notifies/AnimNotify_ParryGesture.h	17	169
 Source/TheDream/Combat/TDAttackHitbox.cpp	26	371
 Source/TheDream/Combat/TDAttackHitbox.h	108	871
-Source/TheDream/Combat/TDCombatCharacter.cpp	852	11048
 Source/TheDream/Combat/TDCombatCharacter.h	1120	9215
 Source/TheDream/Combat/TDCombatDebug.cpp	6	79
 Source/TheDream/Combat/TDCombatDebug.h	29	232
@@ -65,4 +64,5 @@ Tools/SkeletonCheck/skeleton-check.sh	17	169
 Source/TheDreamEditor/Private/TDStateMachineTools.cpp	1	17
 Source/TheDreamEditor/Public/TDInputTools.h	10	96
 Source/TheDreamEditor/Public/TDStateMachineTools.h	27	221
-Tools/RegressionCheck/regression-check.sh	515	6344
+Source/TheDream/Combat/TDCombatCharacter.cpp	856	11137
+Tools/RegressionCheck/regression-check.sh	521	6439
