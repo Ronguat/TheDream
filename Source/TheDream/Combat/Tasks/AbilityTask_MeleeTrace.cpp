@@ -53,12 +53,13 @@ UAbilityTask_MeleeTrace::UAbilityTask_MeleeTrace()
 	bTickingTask = true;
 }
 
-UAbilityTask_MeleeTrace* UAbilityTask_MeleeTrace::MeleeTrace(UGameplayAbility* OwningAbility, const TArray<FTDAttackHitbox>& InHitboxes, bool bDrawDebug, const UAnimMontage* InExpectedMontage)
+UAbilityTask_MeleeTrace* UAbilityTask_MeleeTrace::MeleeTrace(UGameplayAbility* OwningAbility, const TArray<FTDAttackHitbox>& InHitboxes, bool bDrawDebug, const UAnimMontage* InExpectedMontage, float InWindowSeconds)
 {
 	UAbilityTask_MeleeTrace* Task = NewAbilityTask<UAbilityTask_MeleeTrace>(OwningAbility);
 	Task->Hitboxes = InHitboxes;
 	Task->bDrawDebugTrace = bDrawDebug;
 	Task->ExpectedMontage = InExpectedMontage;
+	Task->WindowSeconds = InWindowSeconds;
 
 	return Task;
 }
@@ -113,6 +114,13 @@ void UAbilityTask_MeleeTrace::HandleWindowBegin(FGameplayTag Tag, const FGamepla
 
 	bWindowOpen = true;
 
+	// The window closes on elapsed time rather than on the closing notify. The notify's end is
+	// detected only once the montage has already advanced past it, which costs upward of a frame
+	// and scales with frame time -- so a notify-governed window is longer on a slower machine.
+	// Zero leaves the notify governing, which is the pre-deadline behaviour.
+	const UWorld* World = GetWorld();
+	WindowEndsAt = (World && WindowSeconds > 0.0f) ? World->GetTimeSeconds() + WindowSeconds : 0.0f;
+
 	// A fresh window means a fresh swing, so previously hit actors are hittable again.
 	ActorsHitThisWindow.Reset();
 }
@@ -126,7 +134,22 @@ void UAbilityTask_MeleeTrace::HandleWindowEnd(FGameplayTag Tag, const FGameplayE
 		return;
 	}
 
+	// A backstop rather than the primary edge: whichever of the deadline and the notify comes
+	// first closes the window, and CloseWindow makes the second one a no-op. It still governs
+	// outright when WindowSeconds is zero, and it still truncates a window whose clip ran out
+	// early -- the case the authored duration cannot honour.
+	CloseWindow();
+}
+
+void UAbilityTask_MeleeTrace::CloseWindow()
+{
+	if (!bWindowOpen)
+	{
+		return;
+	}
+
 	bWindowOpen = false;
+	OnWindowClosed.Broadcast();
 }
 
 void UAbilityTask_MeleeTrace::TickTask(float DeltaTime)
@@ -163,6 +186,14 @@ void UAbilityTask_MeleeTrace::TickTask(float DeltaTime)
 		}
 	}
 #endif
+
+	// Rounds the window *down*: the last tick that can resolve a hit is the last one strictly
+	// before the deadline, so the volume is live for at most its authored span and never longer.
+	// Checked before the open gate so the closing tick cannot also trace.
+	if (bWindowOpen && WindowEndsAt > 0.0f && World->GetTimeSeconds() >= WindowEndsAt)
+	{
+		CloseWindow();
+	}
 
 	if (!bWindowOpen)
 	{

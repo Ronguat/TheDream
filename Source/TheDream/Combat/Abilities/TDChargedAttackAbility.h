@@ -454,6 +454,15 @@ private:
 	UFUNCTION()
 	void HandleReleaseWindowEnded(FGameplayEventData Payload);
 
+	/** The selected branch's authored ReleaseSeconds, so the trace task can close on time. */
+	virtual float GetTraceWindowSeconds() const override;
+
+	/** The trace task's closing edge. Routes to the same place the closing notify does. */
+	virtual void HandleTraceWindowClosed() override;
+
+	/** Takes the release rate off and starts recovery. Runs once per activation. */
+	void CloseReleaseWindow();
+
 	/**
 	 *  Shared windup rate: fast enough that the first branch reaches ReleaseStartSeconds exactly on
 	 *  its ReleaseAtSeconds. Everything slower comes from the coil holding it back, never from a
@@ -507,6 +516,9 @@ private:
 	bool bAttackCommitted = false;
 	bool bInputHeld = true;
 	bool bCoiling = false;
+
+	/** True once this activation's release window has closed, so the second edge is inert. */
+	bool bReleaseWindowClosed = false;
 	float ActivationWorldTime = 0.0f;
 
 	/** Which swing this activation is, fixed at activation. 0 is the legacy first hit. */

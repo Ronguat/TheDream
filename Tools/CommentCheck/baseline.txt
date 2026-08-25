@@ -11,18 +11,18 @@
 # file<TAB>comment lines<TAB>comment words
 Source/TheDream/Combat/Abilities/TDBlockAbility.cpp	39	499
 Source/TheDream/Combat/Abilities/TDBlockAbility.h	45	373
-Source/TheDream/Combat/Abilities/TDChargedAttackAbility.cpp	189	2655
-Source/TheDream/Combat/Abilities/TDChargedAttackAbility.h	315	2689
+Source/TheDream/Combat/Abilities/TDChargedAttackAbility.cpp	195	2746
+Source/TheDream/Combat/Abilities/TDChargedAttackAbility.h	326	2764
 Source/TheDream/Combat/Abilities/TDDodgeAbility.cpp	108	1342
 Source/TheDream/Combat/Abilities/TDDodgeAbility.h	71	541
 Source/TheDream/Combat/Abilities/TDGameplayAbility.cpp	101	1343
 Source/TheDream/Combat/Abilities/TDGameplayAbility.h	150	1219
-Source/TheDream/Combat/Abilities/TDGetUpAttackAbility.cpp	11	140
-Source/TheDream/Combat/Abilities/TDGetUpAttackAbility.h	31	247
+Source/TheDream/Combat/Abilities/TDGetUpAttackAbility.cpp	14	177
+Source/TheDream/Combat/Abilities/TDGetUpAttackAbility.h	39	317
 Source/TheDream/Combat/Abilities/TDJumpAbility.cpp	37	535
 Source/TheDream/Combat/Abilities/TDJumpAbility.h	25	222
-Source/TheDream/Combat/Abilities/TDMeleeAttackAbility.cpp	178	2183
-Source/TheDream/Combat/Abilities/TDMeleeAttackAbility.h	243	2089
+Source/TheDream/Combat/Abilities/TDMeleeAttackAbility.cpp	180	2220
+Source/TheDream/Combat/Abilities/TDMeleeAttackAbility.h	252	2158
 Source/TheDream/Combat/Abilities/TDParryAbility.cpp	61	756
 Source/TheDream/Combat/Abilities/TDParryAbility.h	51	452
 Source/TheDream/Combat/Attributes/TDAttributeSet.cpp	8	83
@@ -41,8 +41,8 @@ Source/TheDream/Combat/TDGameplayTags.h	51	341
 Source/TheDream/Combat/TDKnockdownTypes.h	17	132
 Source/TheDream/Combat/Tasks/AbilityTask_FacingLunge.cpp	7	93
 Source/TheDream/Combat/Tasks/AbilityTask_FacingLunge.h	24	167
-Source/TheDream/Combat/Tasks/AbilityTask_MeleeTrace.cpp	39	520
-Source/TheDream/Combat/Tasks/AbilityTask_MeleeTrace.h	35	295
+Source/TheDream/Combat/Tasks/AbilityTask_MeleeTrace.cpp	50	679
+Source/TheDream/Combat/Tasks/AbilityTask_MeleeTrace.h	48	410
 Source/TheDream/Combat/Tasks/TDRootMotionSource_FacingForce.cpp	27	347
 Source/TheDream/Combat/Tasks/TDRootMotionSource_FacingForce.h	49	463
 Source/TheDream/Combat/UI/TDDebugHUD.cpp	16	200

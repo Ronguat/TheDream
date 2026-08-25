@@ -273,6 +273,20 @@ protected:
 	UAbilityTask_MeleeTrace* StartMeleeTrace(const TArray<FTDAttackHitbox>& InHitboxes);
 
 	/**
+	 *  Authored seconds the release window stays open, handed to the trace task so the window
+	 *  closes on elapsed time instead of on the closing notify. Zero -- the default -- leaves
+	 *  the notify governing, so an ability opts in by overriding this.
+	 */
+	virtual float GetTraceWindowSeconds() const { return 0.0f; }
+
+	/**
+	 *  Runs when the trace task closes the window, on whichever edge closed it. Does nothing
+	 *  here; an ability overrides it to take its release rate back off.
+	 */
+	UFUNCTION()
+	virtual void HandleTraceWindowClosed() {}
+
+	/**
 	 *  How long the base lunge runs. Derived on anything with a branch ladder. Virtual so
 	 *  UTDChargedAttackAbility can return its first branch's HoldUntilSeconds rather than an
 	 *  authored copy: nothing enforces the link between two such numbers, so there is one.

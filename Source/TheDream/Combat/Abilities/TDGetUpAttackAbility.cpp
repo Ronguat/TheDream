@@ -66,6 +66,7 @@ void UTDGetUpAttackAbility::ActivateAbility(const FGameplayAbilitySpecHandle Han
 		Character->SetAbilityFacingLocked(true);
 	}
 
+	bReleaseWindowClosed = false;
 	StartMeleeTrace(GetAttackHitboxes());
 
 	// Registers the volume with the character: the AIM WEDGE line and the debug draw, homing off.
@@ -177,12 +178,31 @@ void UTDGetUpAttackAbility::HandleReleaseWindowBegan(FGameplayEventData Payload)
 		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f, ActualStart, WindowLength, Remaining, ReleaseRate, ReleaseSeconds);
 }
 
+void UTDGetUpAttackAbility::HandleTraceWindowClosed()
+{
+	CloseReleaseWindow();
+}
+
 void UTDGetUpAttackAbility::HandleReleaseWindowEnded(FGameplayEventData Payload)
 {
 	if (!IsWindowForThisAttack(Payload))
 	{
 		return;
 	}
+
+	CloseReleaseWindow();
+}
+
+void UTDGetUpAttackAbility::CloseReleaseWindow()
+{
+	// Both the trace task's deadline and the closing notify arrive; only the first may run.
+	// Recovery derives its rate from where the montage is now, so a second pass would
+	// re-derive it from a later position.
+	if (bReleaseWindowClosed)
+	{
+		return;
+	}
+	bReleaseWindowClosed = true;
 
 	const float RecoveryFrom = GetMontagePosition();
 	const float RecoveryRate = ComputeRecoveryPlayRate(RecoveryFrom, RecoverySeconds);

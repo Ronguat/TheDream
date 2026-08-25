@@ -176,8 +176,14 @@ UAbilityTask_MeleeTrace* UTDMeleeAttackAbility::StartMeleeTrace(const TArray<FTD
 		this,
 		InHitboxes,
 		bDrawDebugTrace,
-		GetActiveAttackMontage());
+		GetActiveAttackMontage(),
+		GetTraceWindowSeconds());
 	TraceTask->OnHit.AddDynamic(this, &UTDMeleeAttackAbility::HandleTraceHit);
+
+	// One authority for the closing edge. The hitbox and the release rate came off separately
+	// before -- the trace on its own copy of the notify event, the ability on another -- so the
+	// two could disagree by a frame about when the window ended.
+	TraceTask->OnWindowClosed.AddDynamic(this, &UTDMeleeAttackAbility::HandleTraceWindowClosed);
 	TraceTask->ReadyForActivation();
 
 	return TraceTask;

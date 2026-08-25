@@ -39,9 +39,12 @@ BAND_RELEASE_TOL=30
 # tier: light 0.20 + 0.15 + 0.60, heavy 0.40 + 0.15 + 0.50. **Re-derive from the CDO rather than
 # nudging** -- a band moved to make a run green no longer asserts anything.
 BAND_ELAPSED_LIGHT=0.950; BAND_ELAPSED_HEAVY=1.050; BAND_ELAPSED_CHARGED=1.550
-# The floor admits a single frame landing tight: the overhead is frame quantisation, and one frame
-# is jitter at the sampler rather than a combat change.
-BAND_ELAPSED_MIN=0.005;   BAND_ELAPSED_MAX=0.035
+# The floor is zero because zero is reachable: since the release window closes on an elapsed
+# deadline rather than on its notify, the only overhead left is the distance from that deadline to
+# the next tick, which is nil whenever the authored span divides evenly into the frame time.
+# Measured across three frame rates: +0 at 60 fps (150 ms is exactly 9 frames), +8..+22 uncapped,
+# +17 at 30 fps. The ceiling keeps its headroom for a slower machine than this one.
+BAND_ELAPSED_MIN=0.000;   BAND_ELAPSED_MAX=0.035
 
 # S1 -- exact per-attack counts. The light never coils; charged escalates twice.
 BAND_ESCALATE_LIGHT=0; BAND_ESCALATE_HEAVY=1; BAND_ESCALATE_CHARGED=2

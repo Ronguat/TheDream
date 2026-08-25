@@ -10,6 +10,7 @@
 class UAnimMontage;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FTDMeleeTraceHitDelegate, const FHitResult&, Hit);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FTDMeleeTraceWindowClosedDelegate);
 
 /**
  *  Resolves melee hits against authored volumes during the active frames of an attack.
@@ -38,13 +39,23 @@ public:
 	FTDMeleeTraceHitDelegate OnHit;
 
 	/**
+	 *  Fires once when the window closes, whichever edge closed it -- the elapsed deadline or the
+	 *  notify. Listeners must be idempotent: the notify's own end still arrives afterwards when
+	 *  the deadline won, and is suppressed here rather than at the receiver.
+	 */
+	UPROPERTY(BlueprintAssignable)
+	FTDMeleeTraceWindowClosedDelegate OnWindowClosed;
+
+	/**
 	 *  Resolves melee hits against authored volumes during the montage's active frames.
 	 *  @param InHitboxes      Volumes in the attacker's frame. Empty means this attack cannot hit.
 	 *  @param bDrawDebug      Draw them. OR'd with the TD.DebugMeleeTrace cvar.
 	 *  @param ExpectedMontage Only windows sent by this montage open the test. Null accepts any.
+	 *  @param InWindowSeconds Authored duration the window stays open for, measured from the
+	 *                         opening notify. Zero leaves the notify's own end governing.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Ability|Tasks", meta = (HidePin = "OwningAbility", DefaultToSelf = "OwningAbility", BlueprintInternalUseOnly = "true"))
-	static UAbilityTask_MeleeTrace* MeleeTrace(UGameplayAbility* OwningAbility, const TArray<FTDAttackHitbox>& InHitboxes, bool bDrawDebug, const UAnimMontage* ExpectedMontage);
+	static UAbilityTask_MeleeTrace* MeleeTrace(UGameplayAbility* OwningAbility, const TArray<FTDAttackHitbox>& InHitboxes, bool bDrawDebug, const UAnimMontage* ExpectedMontage, float InWindowSeconds);
 
 	virtual void Activate() override;
 	virtual void TickTask(float DeltaTime) override;
@@ -73,7 +84,19 @@ private:
 	 */
 	TWeakObjectPtr<const UAnimMontage> ExpectedMontage;
 
-	/** True only between WindowBegin and WindowEnd. */
+	/** Closes the window if it is open, and broadcasts OnWindowClosed exactly once. */
+	void CloseWindow();
+
+	/**
+	 *  Authored seconds the window stays open, from the opening notify. Zero disables the
+	 *  deadline and leaves the closing notify governing.
+	 */
+	float WindowSeconds = 0.0f;
+
+	/** World time the open window is due to close. Only meaningful while bWindowOpen. */
+	float WindowEndsAt = 0.0f;
+
+	/** True only between WindowBegin and whichever edge closes the window. */
 	bool bWindowOpen = false;
 
 	/** Actors already reported during the current window, so one swing hits once. */

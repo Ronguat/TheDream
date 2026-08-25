@@ -103,7 +103,7 @@ Two rules the model depends on:
 - Any light in a chain can be held to convert into a heavy.
 - Some heavies can chain into further heavies; never into lights.
 
-Timings land within about a frame, biased late.
+Timings land within about a frame, biased late — and **the bias is the tick the window closes on, not the animation**. Windup and recovery hold to a few milliseconds; the release window carried essentially all of it until it stopped ending on its notify (2026-08-25). What remains is the distance from the authored deadline to the next tick, so a slower machine still reports a longer total — but **the damaging span never exceeds its authored length**, the window closing on the last tick strictly before the deadline.
 
 ### Defense
 - **Any defensive action can cancel an attack's startup** — block, dodge or parry, not block alone. The boundary is the attack's commit checkpoint, marked by `State.Attacking.Committed`: cancel before it, never after. Defensive abilities block on that tag rather than on `State.Attacking`.

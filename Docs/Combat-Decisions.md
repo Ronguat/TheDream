@@ -274,6 +274,8 @@ naming it precisely. The exhaustive version is a whole-instance diff against the
 through `ProgrammaticToolset`; the re-placed attacker returns **zero** value overrides across 164
 properties, against three before.
 
+**Whenever an authored duration is asserted against a log — *the value it lands on is partly the test machine's frame rate.*** The release window closes on the first tick at or past its deadline, so every ability's total carries the distance from that deadline to the next tick: nil at 60 fps where 150 ms is exactly nine frames, +17 ms at 30. **`s6-getup` is where this bit first** — one sample in twelve past an elapsed ceiling, read as a flake until the sweep showed it scaling with frame time. Weakened rather than discharged by the 2026-08-25 fix: the overrun no longer *grows* without bound and the damaging span never exceeds its authored length, but a band derived on one machine still encodes that machine's frame time. **Re-derive an elapsed band from measurement on the machine that will run it**, and treat a single sample past a ceiling as a question about frame time before a question about combat.
+
 **Before the charged or heavy gets its own clip** — *the coil is a freeze, measured rather than
 predicted.* `rate=0.049` to `0.097` across ~40 throws, mean ~0.072: the montage advances at 5–10%
 speed for the whole coil. Nothing is broken by it and no warning fires. **It is the concrete
@@ -1582,6 +1584,93 @@ long.
 | `bUseControllerRotationYaw` | 08-12 |
 | `compositeSections` | 08-15, 08-18 |
 | `gEComponents` | 08-10, 08-11 |
+
+## 2026-08-25 — The release window closed on its notify, so its length was the frame rate's to decide
+
+**Found by measuring a flake, and it was not the flake.** `s6-getup` failed one sample in twelve
+against an elapsed band, and the band turned out to be swallowing a systematic overrun nobody had
+localised. The designer's read — *"this game is running at well over 60 fps, so we really should
+never see anything even 20 ms over the authored value"* — is what turned an instrument nit into a
+combat defect.
+
+### The overhead was entirely in the release
+
+Decomposing a heavy at ~108 fps, against its authored 0.400 / 0.150 / 0.500:
+
+| Phase | authored | actual | delta |
+|---|---|---|---|
+| Windup | 0.400 | 0.402 | +2 ms |
+| **Release** | **0.150** | **0.165** | **+15 ms** |
+| Recovery | 0.500 | 0.503 | +3 ms |
+
+**And the rate was right.** The notify reports its own width, `windowLen=0.1500`, against an
+authored `ReleaseSeconds` of 0.150, so `ReleaseRate` came out at exactly 1.000. The window still
+ran long, because it ended when the *closing notify* was noticed — after the montage had already
+advanced past it. `RELEASE END` reports the overshoot directly: the notify's end sits at montage
+0.4515 and the playhead read 0.4665.
+
+### Confirmed by manipulation, not by looking again
+
+Capping the frame rate makes the mechanism falsifiable: tick latency must scale with frame time.
+
+| cap | frame | overrun before | real window | vs authored |
+|---|---|---|---|---|
+| 30 fps | 33.6 ms | **+50 ms**, zero variance across 13 | 200 ms | **133%** |
+| 60 fps | 16.8 ms | +17 ms | 167 ms | 111% |
+| uncapped | 10.4 ms | +11 ms | 161 ms | 107% |
+
+**So every attack's damaging window was frame-rate dependent** — a third longer on a 30 fps machine
+than authored. Two players on different hardware were not playing the same game, which is the
+reading that matters with PvP as the destination. The checker would also have failed outright on a
+slow machine: the heavy's total reaches 1.100 against a band ceiling of 1.085.
+
+### The fix is the parry's pattern, which already existed
+
+`Combat-Spec.md` says of the parry window that it is *"mechanical, a timestamp rather than a
+notify, so the animation can be retimed or absent without changing what the parry does."* The
+release window was still notify-driven and inherited exactly what the parry had escaped.
+
+`UAbilityTask_MeleeTrace` now takes the authored duration, records `WindowEndsAt` when the opening
+notify fires, and closes on the first tick at or past it — `ATDCombatCharacter::OpenParryWindow`'s
+shape, in the thing that already ticks. **The closing notify stays as a backstop**: whichever edge
+comes first closes the window, so a clip whose window runs out early still truncates, and an
+ability that authors no duration keeps the old behaviour.
+
+**Both consumers moved onto that one edge.** The hitbox and the release rate previously came off
+separately — the trace task on its own copy of the notify event, the ability on another — so they
+could disagree by a frame about when the window ended. `OnWindowClosed` now drives both, and
+`CloseReleaseWindow` is guarded because the notify's own end still arrives afterwards.
+
+### It rounds down, and that was chosen
+
+**The designer's ruling, with a peer**: *"slightly less range is less anomalous than slightly more
+in the few edge cases where this will actually matter."* The deadline check runs **before** the
+open gate in the same tick, so the last tick that can resolve a hit is the last one strictly before
+the deadline. The volume is live for at most its authored span and never longer.
+
+### What it bought, measured the same way
+
+| cap | frame | overrun before | overrun after | total after (authored 1.050) |
+|---|---|---|---|---|
+| 30 fps | 33.6 ms | +50 ms | **+17 ms** | 1.067 |
+| 60 fps | 16.8 ms | +17 ms | **0 ms** | **1.050** |
+| uncapped | 10.0 ms | +11 ms | **+3 ms** | 1.058–1.072 |
+
+About a frame removed everywhere, and at 60 fps the authored total lands exactly — 150 ms being
+precisely nine frames there, so the deadline falls on a tick boundary and the residual is nil.
+
+**The residual is not zero and cannot be.** What is left is the distance from the deadline to the
+next tick, because a hitbox can only close on a tick. It is bounded by one frame now instead of
+scaling at about one and a half, and the damaging span never exceeds the authored value — but a
+30 fps machine still reports a total 17 ms longer than a 60 fps one. **The frame-rate dependence is
+reduced, not eliminated**, and saying otherwise would overstate the fix.
+
+### `BAND_ELAPSED_MIN` re-derived to zero
+
+Zero overhead is now reachable and was observed at 60 fps, so the old +5 ms floor would have failed
+a green run on a common frame rate. Re-derived from measurement rather than nudged: the overhead is
+the tick-boundary distance, which is nil when the authored span divides evenly into the frame time.
+The ceiling keeps its headroom for a machine slower than this one.
 
 ## 2026-08-25 — The windups move as a pair, the reactability reference was wrong, and the dodge gap retires
 

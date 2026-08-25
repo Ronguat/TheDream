@@ -33,6 +33,7 @@ void UTDChargedAttackAbility::ActivateAbility(const FGameplayAbilitySpecHandle H
 	bAttackCommitted = false;
 	bInputHeld = true;
 	bCoiling = false;
+	bReleaseWindowClosed = false;
 	bInRecovery = false;
 	// InstancedPerActor reuses one instance for every swing, and IsChainOutOpen refuses while this
 	// is set -- so it clears per activation, or a parry ends chaining for the session rather than
@@ -360,12 +361,36 @@ void UTDChargedAttackAbility::CommitAttack()
 	}
 }
 
+float UTDChargedAttackAbility::GetTraceWindowSeconds() const
+{
+	return GetSwingReleaseSeconds(CurrentSwingIndex, SelectedBranchIndex);
+}
+
+void UTDChargedAttackAbility::HandleTraceWindowClosed()
+{
+	CloseReleaseWindow();
+}
+
 void UTDChargedAttackAbility::HandleReleaseWindowEnded(FGameplayEventData Payload)
 {
 	if (!IsWindowForThisAttack(Payload))
 	{
 		return;
 	}
+
+	CloseReleaseWindow();
+}
+
+void UTDChargedAttackAbility::CloseReleaseWindow()
+{
+	// The trace task's deadline and the closing notify both arrive, in that order, and only
+	// the first may run: recovery derives its rate from where the montage is *now*, so a
+	// second pass would re-derive it from a later position and stretch the punish window.
+	if (bReleaseWindowClosed)
+	{
+		return;
+	}
+	bReleaseWindowClosed = true;
 
 	// Off the release rate and onto the recovery rate. Without this the release rate stays applied
 	// for the rest of the montage, which sent recovery through at 3.28x and -- above about 2.8x --

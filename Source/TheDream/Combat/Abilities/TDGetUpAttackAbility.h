@@ -68,9 +68,21 @@ private:
 	UFUNCTION()
 	void HandleReleaseWindowEnded(FGameplayEventData Payload);
 
+	/** The authored ReleaseSeconds, so the trace task can close the window on time. */
+	virtual float GetTraceWindowSeconds() const override { return ReleaseSeconds; }
+
+	/** The trace task's closing edge. Routes to the same place the closing notify does. */
+	virtual void HandleTraceWindowClosed() override;
+
+	/** Takes the release rate off and starts recovery. Runs once per activation. */
+	void CloseReleaseWindow();
+
 	/** Adds or removes State.Attacking.Committed on the owner's ASC, once each way. */
 	void SetCommitted(bool bCommitted);
 
 	float ActivationWorldTime = 0.0f;
 	bool bCommittedTagApplied = false;
+
+	/** True once this activation's release window has closed, so the second edge is inert. */
+	bool bReleaseWindowClosed = false;
 };

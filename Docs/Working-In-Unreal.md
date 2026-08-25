@@ -150,7 +150,7 @@ re-path and actors silently go missing. Use File → New Level → Empty.
 
 **The editor console is drivable, and it is the only console route there is** — `EditorAppToolset`
 searches cvars and cannot set one. `Observe` the main window, `Snapshot` for the status-bar textbox
-beside the **"Cmd"** combobox, `Type` with `submit: true` *(confirmed 2026-08-15)*. **`Type` fails on a single quote** *(confirmed
+beside the **"Cmd"** combobox, **`Click` it to focus**, then `Type` with `submit: true` *(confirmed 2026-08-15; the `Click` confirmed 2026-08-25 — without it `Type` returns `false` and looks exactly like the quote bug next door)*. **`Type` fails on a single quote** *(confirmed
 2026-08-21)* — it returns `false`, logs nothing, enters nothing, and reads like a permissions
 refusal. Double quotes are fine, so write `print("x")` and never `print('x')`.
 
