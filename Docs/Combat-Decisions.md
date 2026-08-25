@@ -180,6 +180,19 @@ already lives.)*
 
 ---
 
+**Before trusting a green loop on death or the flinch — *neither has any coverage.*** Filed
+2026-08-24 as the binding rule's second option, because the package that added them named no
+scenarios and the choice binds at plan time. **What is untested:** that death fires and revives
+cleanly, that the ragdoll takes its impulse at all, that the Hitstun state is entered and left, and
+**death while knocked down**, which has still never executed — it now holds *by construction*, damage
+landing before the knockdown branch and `EnterKnockdown` returning early on `bDead`, but construction
+is not observation. `s4-string` covers hitstun's *timing* and says nothing about its animation, and
+no scenario mentions `DEATH` at all. **Scenarios were deferred rather than forgotten**: the flinch
+clip and the impulse magnitude are both awaiting a designer's eye, and a band written against an
+unapproved choice bakes it in. **Write them when the tells are approved**, and note the fixture
+already exists — attacker taps 3, defender `DebugAutoReviveSeconds` raised so the corpse is
+observable.
+
 **Before the next documentation audit — *nothing mechanical compares two docs for contradicting
 instructions.*** `docs-check` has eight checks and none of them does this. The 2026-08-21 audit
 found three by hand: `Closing-Down` instructed the exact `save_assets` call `Working-In-Unreal`
