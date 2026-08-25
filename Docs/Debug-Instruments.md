@@ -566,9 +566,9 @@ looks ignored.
 
 | Scenario | Attacker `…HoldSeconds` | Defender `DebugAutoDefendMode` | Asserts |
 |---|---|---|---|
-| `s1-light` | 0.1 | `Off` | press→`RELEASE BEGIN` 200 ms ±30; elapsed **0.950** +10–35 ms; 0 escalations, 0 coils |
-| `s1-heavy` | 0.22 | `Off` | 400 ms ±30; elapsed 1.050 +10–35 ms; exactly 1 escalation, 1 coil |
-| `s1-charged` | **0.85** | `Off` | 800 ms ±30; elapsed 1.550 +10–35 ms; exactly 2 escalations, 1 coil |
+| `s1-light` | 0.1 | `Off` | press→`RELEASE BEGIN` 200 ms ±30; elapsed **0.950** +5–35 ms; 0 escalations, 0 coils |
+| `s1-heavy` | 0.22 | `Off` | 400 ms ±30; elapsed 1.050 +5–35 ms; exactly 1 escalation, 1 coil |
+| `s1-charged` | **0.85** | `Off` | 800 ms ±30; elapsed 1.550 +5–35 ms; exactly 2 escalations, 1 coil |
 | `s2-light` | 0.1 | `HoldBlock` | stamina damage exactly 5; `BLOCK cost` per `BLOCK up`; `GUARD BREAK` count equals blocks at `remaining=0.0`; break stun 1.0 s ±25 ms; `BLOCKSTUN` span 0.350 ±20 ms; guard-down `DAMAGED` exactly 15 with the health ledger stepping exactly |
 | `s2-heavy` | 0.22 | `HoldBlock` | as above with damage 50, `BLOCKSTUN` span 0.600, `DAMAGED` 25 |
 | `s2-charged` | **0.85** | `HoldBlock` | as above with damage 100, `DAMAGED` 40, and **`BLOCKSTUN` never fires at all** |
