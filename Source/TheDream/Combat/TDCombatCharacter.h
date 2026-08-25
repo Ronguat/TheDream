@@ -895,15 +895,15 @@ protected:
 	/**
 	 *  Impulse magnitude given to the ragdoll at death, along the bearing from killer to victim.
 	 *  A true impulse rather than a velocity change, so it divides by the body mass. Measured on
-	 *  Manny: 12000 carries the body about 84 cm before it settles, 36000 about 4.8 m. Passing it
-	 *  as a velocity change instead reads as cm/s directly and fires the corpse 180 m out of the
-	 *  level.
+	 *  Manny, as the distance the corpse settles from where it fell: 12000 about 84 cm, 24000 about
+	 *  271, 30000 about 397, 36000 about 480. Passing it as a velocity change instead reads as cm/s
+	 *  directly and fires the corpse 180 m out of the level.
 	 *  A killing blow otherwise imparts nothing at all -- knockback sits on the hitstun branch and
 	 *  EnterKnockdown returns early once bDead is set, so the corpse drops straight down where it
 	 *  stood.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Combat|Death", meta=(ClampMin="0.0"))
-	float DeathImpulseStrength = 12000.0f;
+	float DeathImpulseStrength = 30000.0f;
 
 	/** Fraction of the death impulse aimed upward, which is what stops the body sliding flat. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Combat|Death", meta=(ClampMin="0.0", ClampMax="1.0"))

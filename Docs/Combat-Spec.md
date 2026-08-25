@@ -180,8 +180,9 @@ Timings land within about a frame, biased late.
   - **Corpse position is deliberately allowed to diverge per machine.** The capsule stays where the
     actor died and remains the actor's transform, and the engine's `Ragdoll` profile sets `Pawn` to
     `ECR_Ignore`, so no corpse can obstruct a living character or be queried by anything.
-  - **`DeathImpulseStrength` is a first attempt, not derived** — 12000 settles the body about 84 cm
-    from where it fell, measured; 36000 carried it 4.8 m.
+  - **`DeathImpulseStrength` is a first attempt, not derived** — **30000**, measured to settle the
+    body about 397 cm from where it fell, which sits inside the authored spacing family between a
+    knockback's 350 and a knockdown's 450.
 
 ### Stamina
 - Max 100.
