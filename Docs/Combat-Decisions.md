@@ -87,6 +87,7 @@ and not the order anyone reads in. Keep it sorted when adding.)*
 | 2026-08-11 — Dodge travel ships at the clips' authored distance | reach is unmeasurable because the trace follows `hand_r` and nobody knows where that socket is at the impact frame | 2026-08-12 — A hitbox is authored, not traced (reach is `MaxReachCm`, an authored number, so the dodge-versus-reach comparison is now simply readable) |
 | 2026-08-11 — Dodge travel ships at the clips' authored distance | the eight directions agree, so one uniform scale is the right shape and no per-direction data is needed | 2026-08-11 — V3 becomes the base stance (true of V1's clips, false of V3's: spread 90.6 uu) |
 | 2026-08-11 — PvP is the destination | 14 network-unaware `SetTimer` sites | corrected **inline** in that same entry — the real figure is **2**; the count swept in Epic template code, debug timers, and one that must stay local |
+| 2026-08-11 — Death cancels what exhaustion lets finish | *"a ragdoll, because inert and dead look identical... the directional `Death_<DIR>` clips belong to item 11 — and it is behind `bRagdollOnDeath` so that slice can switch it off"* — the ragdoll filed as a placeholder **for** those clips | 2026-08-24 — Death-full's presentation goes to physics and a state. The ragdoll **is** the treatment, given an impulse along the killer-to-victim bearing; the eight directional clips were never used. The flag stays, now as a tuning switch rather than a stand-in |
 | 2026-08-11 — PvP is the destination | `CLAUDE.md` still lists netcode as out of scope "and that stands" | corrected **inline** in that same entry, within the hour — the user withdrew the scope call once it was restated back to them |
 | 2026-08-11 — PvP is the destination | *actually networking* is the final frontier, held with a stretch-goal mentality, and the prototype is not a failure if netcode proves too hard — verified-good was assumed reachable locally | 2026-08-15 — Netcode precedes Interplay (one local human makes the second player remote, so netcode is a prerequisite for the feel verdict; the kill-question is front-loaded into emulation instead of fallen back on) |
 | 2026-08-11 — The light is reactable at 250 ms | facing snaps on movement input and turns smoothly at rest | 2026-08-12 — Facing becomes one rate (one derived rate in all states, plus an idle rate) |
@@ -7814,11 +7815,14 @@ rests on the property comments.
 **Candidate raised 2026-08-15: trimming `/Game/Characters`.** 128 assets, **five referenced** — the
 jump/fall/land clips, `CR_Mannequin_FootIK` and `SK_Mannequin`. The rest (a Pistol set, a Death set,
 others) is dead weight. **It is a per-asset trim, never a folder deletion** — the details and the
-deliberate two-skeleton arrangement are in `Docs/Animation-Library.md`. **Death-full answered the death-clip question by not using one** *(2026-08-24)*: death is a ragdoll
-with an impulse, so the template's six `MM_Death_*` clips **and** `SwordSwordAnimV3`'s four
-directional `Death_<DIR>` join the pruning candidates rather than waiting on a slice. So do the four
-`Hit_<DIR>`, which the flinch state does not use either. **Still a designer's call, being
-irreversible** -- what changed is that nothing is now waiting on them.
+**Death-full answered the death-clip question by not using one** *(2026-08-24)*: death is a ragdoll
+with an impulse. **But only Epic's six `MM_Death_*` are actually unreferenced** — checked
+2026-08-25 before a prune that was then called off, and the check is the reason this line is not
+wrong. `SwordSwordAnimV3`'s four `Death_<DIR>` and four `Hit_<DIR>` are **all** referenced by the
+pack's own `SwordShieldAnimV3/Map/DEMO`, and two are load-bearing for us: **`Death_Bw_RM` is
+`AM_Knockdown`'s ground pose** and **`Hit_Fw_RM` is the clip in the Hitstun state**. Deleting the
+eight as a block breaks the knockdown and the flinch. **Pruning waits for Structure Audit** *(the
+designer, 2026-08-25)* — nothing is blocked on it, and it buys nothing today.
 
 **Deliberately not done, and why:** splitting `ATDCombatCharacter` — moving a UPROPERTY orphans
 every Blueprint CDO override of it, so reorganising before the systems settle would be paid for

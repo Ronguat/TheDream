@@ -245,8 +245,6 @@ Execution order, the only line that changes when the order does:
 **Pick up at Polish** — briefs are in `Docs/Combat-Decisions.md`. **The remaining roster is one
 megaslice**, not separable slices.
 
-**Two skeletons, joined by one load-bearing `compatibleSkeletons` entry** — see the traps.
-
 **The verification bar every slice now ships against** *(2026-08-24, the dated entry)*: verified
 functionality, with animations legible enough to tell which mechanic is firing. Visual refinement
 defers to Polish, feel refinement to Tuning-Rig. **Polish is where the first half of that debt comes
