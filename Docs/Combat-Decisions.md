@@ -1443,6 +1443,7 @@ long.
 | `UTDInputTools` | 08-24 |
 | `set_global_time_dilation` | 08-24 |
 | `take_high_res_screenshot` | 08-24 |
+| two-world PIE inspection | 08-24 |
 | `RecoveryPlayRate` | 08-12 |
 | `RecoverySeconds` | 08-12, 08-13, 08-16, 08-18 |
 | `RegenSuppressedUntil` | 08-10 |

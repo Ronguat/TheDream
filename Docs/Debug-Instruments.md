@@ -497,6 +497,34 @@ interleaves the server and client worlds, which run **different clocks** — one
 with a release from the other yields numbers that look plausible and mean nothing. **Run the loop in
 single-player only**, and keep `PlayNumberOfClients=1`.
 
+**Both PIE worlds are directly addressable, and the client-world claim is refuted** *(2026-08-24)*.
+The recorded reading — that a second process writing `TheDream_2.log` is *"the only channel to
+client-side state that exists, because the MCP toolset returns only `UEDPIE_0_` actors"* — is true
+of the MCP toolset and false of the process. Under `RunUnderOneProcess=True` both worlds live in one
+address space and **Python reaches either by path**:
+
+```python
+unreal.find_object(None, "/Game/TheDream/Maps/UEDPIE_0_L_CombatTest.L_CombatTest")   # server
+unreal.find_object(None, "/Game/TheDream/Maps/UEDPIE_1_L_CombatTest.L_CombatTest")   # client
+```
+
+`GameplayStatics.get_all_actors_of_class` then works per world, and **`get_local_role()` tells you
+which is which** — the server world reports `ROLE_AUTHORITY` on everything and carries the game
+mode; the client world has no game mode, reports `ROLE_AUTONOMOUS_PROXY` on its own pawn and
+`ROLE_SIMULATED_PROXY` on the rest. **`UTDInputTools` drives the client's player controller too**, so
+both sides of an exchange are scriptable from one place. Measured the same day: a moving dummy read
+x=**179.5** on the server against **169.2** on the client, 10.3 cm of interpolation lag — the kind of
+number this file previously had no way to take.
+
+**Never match actors across worlds by name.** Each world numbers its own actors, so
+`BP_PlayerCharacter_C_0` on the server and `BP_PlayerCharacter_C_0` on the client are **different
+pawns** — measured as an 85 cm "desync" that was actually two characters swapped. Anchor on
+`get_local_role()`, on position, or on a replicated identity; never on the name.
+
+**None of this softens the rule above.** The checker still assumes one world, the two clocks are
+still real, and the loop still runs single-player only. What changed is that inspecting client state
+no longer needs a second process or a second log.
+
 **The recipe, for when a two-player session is wanted.** Edit
 `Saved/Config/WindowsEditor/EditorPerProjectUserSettings.ini` **with the editor closed** — it is
 rewritten on exit, so an in-session edit is lost — setting `PlayNumberOfClients=2` and
