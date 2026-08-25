@@ -135,6 +135,13 @@ Timings land within about a frame, biased late.
 ### Stun & Knockdown
 - Blockstun: **Disables offense and nothing else**, for a duration the *attack* authors (`BlockstunSeconds` per branch on `GA_Attack`). **Defense is deliberately untouched** — movement, dodging, the guard itself and, when it exists, **parry**, which means **blockstun and parry never know about each other** *(2026-08-15; the old "offense + parry" wording was wrong from this file's beginning and the implementation never matched it — see the log)*. Taking a defender's guard for blocking correctly would invert the mechanic. **A guard break supersedes it rather than stacking**: a broken guard is not a successful block. Shipped 2026-08-14 at each tier's own `RecoverySeconds`, 50 ms the safe side of neutral. **The light's stopped being derived that way on 2026-08-16**: once a chain existed, its own recovery was measuring against the wrong threat, so its 0.35 is derived against the **chain cadence** instead — heavy and charged keep the recovery basis. Both derivations are tuning-map rows, and the light's is not free. **The charged's can never fire** — its stamina damage empties any bar, so it always breaks instead; filed as a trap.
 - Hitstun: authored per attack (`HitstunSeconds` on `GA_Attack`'s branches and swings; the light's is **0.55**), and it **refuses every ability, defense included** — *that refusal is what makes "any hit guarantees the rest" true*, and it is why hitstun is a Light String mechanic rather than a Knockdown one. **It must outlast the chain gap or the guarantee silently stops holding**, which is why the cadence and this move together. **Movement is locked too**, shipped with Knockdown beside the guard break's — `IsMovementLocked()` covers hitstun, a broken guard and the down state alike. **On a graded swing hitstun never fires at all**: the knockdown supersedes it, and alternatives are resolved at the hit rather than layered, which leaves that swing's `HitstunSeconds` keying exactly one thing — the **attacker's** movement return through the on-hit waiver.
+  - **Its tell is a state in the Locomotion machine, not a montage** *(2026-08-24)*, mirroring
+    blockstun's: a sequence player on `AS_SwordSwordAnimV3_Hit_Fw_RM` feeding the state result,
+    entered from Idle and Walk / Run on a cached `IsInHitstun` and left on its negation. **A state
+    is not rate-fitted to a duration**, so the clip being 1.333 s against a 0.55 s stun is not a
+    fitting problem, and **forced facing makes one front-facing clip correct rather than a
+    compromise** — every cleanly hit victim is turned toward its attacker inside 250 ms. The four
+    directional `Hit_<DIR>` clips are therefore unused.
 - **Knockdown** replaces what a graded hit does to its victim wholesale: it knocks down and **never** hitstuns.
   - **Two types, authored per swing.** `Normal` for the light string's ender; `Hard` for the heavy, the charged and the mid-string hold-conversion. Committed single hits floor you hard, the string's volume finisher gently — the string already extracted its damage, and generous escape is the volume trade. **The pairing is authored, not structural**: the kit's one 360° knockdown carrying the gentle type is what stops a crowd being hard-floored, and another weapon may pair them differently.
   - **The down state is four spans under one tag.** `State.KnockedDown` clears at the **stand**, not when a rise begins.
@@ -161,6 +168,20 @@ Timings land within about a frame, biased late.
   - **Exhaustion refuses block, dodge and kip-up** as the ordinary defensive actions they are, leaving the get-up attack, the neutral stand and the wait. **Being down is the one lockout that does not deny an exhausted player their regen** — the exception that prices the vortex out, so a knockdown nearly cures the exhaustion it lands on. *(Both halves verified — the refusals by `s6-exhausted*`, the regen by `s6-exhaust-regen`, which measures the knockdown as time that fails to appear from the exhaustion span.)*
   - **The get-up attack** is one fixed swing: no hold conversion, no chain, no string membership. **Committed from activation** — the exit was chosen from the floor, and a cancellable startup would make it a free probe — with the standard waiver dropping that commitment on a clean hit. 0.30 windup / 0.35 release / 0.60 recovery, knockback radial like the knockdown's. It is the one offensive action exhaustion leaves you, and **nothing about it may guarantee a follow-up**.
   - **Forced facing turns every cleanly hit victim to face its attacker**, rate-limited by `ForcedFacingTurnRateDegrees`, and it applies to **all** hitstun rather than only to knockdowns.
+
+- **Death** cancels running abilities where exhaustion lets them finish, closes an open parry window
+  free of charge, and stops the body outright. **Its treatment is a physics ragdoll with an impulse,
+  not an authored clip** *(2026-08-24, replacing the four `Death_<DIR>` clips before they were ever
+  used)*. The impulse runs along the killer-to-victim bearing with an upward fraction, which is
+  **strictly more directional than four clips** — a continuous bearing rather than four buckets —
+  and it cannot fight forced facing, because physics owns the mesh once simulating. **It also fills
+  a real gap**: knockback sits on the hitstun branch and a knockdown returns early once dead, so
+  before this a killing blow imparted nothing and the corpse collapsed on the spot.
+  - **Corpse position is deliberately allowed to diverge per machine.** The capsule stays where the
+    actor died and remains the actor's transform, and the engine's `Ragdoll` profile sets `Pawn` to
+    `ECR_Ignore`, so no corpse can obstruct a living character or be queried by anything.
+  - **`DeathImpulseStrength` is a first attempt, not derived** — 12000 settles the body about 84 cm
+    from where it fell, measured; 36000 carried it 4.8 m.
 
 ### Stamina
 - Max 100.

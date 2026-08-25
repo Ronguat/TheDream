@@ -1120,6 +1120,8 @@ kept in their own notes. What belongs here is only what to move once a verdict a
 | The charged feels unreactable, or trivially reactable | **Nothing, without re-deriving it.** It must arrive at or after coil + reaction + dodge duration — 750 = 150 + 200 + 400, exactly on the line today, so it has no slack downward at all | Moving it for feel. Below the derived value the slow layer stops being answerable by the defence it exists to reward, and the ladder loses the pole that makes the fast layer mean anything |
 | A knockdown holds you down too long, or lets you up too early | That type's `KnockdownLockoutSeconds*` and `KnockdownInputWindowSeconds*` **as a pair summing to the same total** — each type's split is its own dial | The total, or `KnockdownRiseSeconds`. Both types spend 2.5 s down and begin rising at 2.0 **by design**, and every derivation keyed to the total is grade-blind because of it: the exhausted player's ~62 stamina return, the netcode window. Move the split, never the sum. |
 | The fall looks rushed, or the knockdown reads too brief | **`KnockdownFallSeconds`**, freely — it is a **first attempt**, not derived. Its only recorded basis was *"inside the fall segment; knockback's contract"* — mechanism, no argument for the value — and the clip is fitted to it, so 0.35 crushes a 0.900 s clip to **2.571×**. At 0.7 it plays ~1.29×. **Ceiling is the lockout it sits inside** — 1.0 s on normal type — or a get-up starts mid-slide | Reading it as coupled to `HitstunSeconds`. On a graded swing that value never touches the victim (`TDMeleeAttackAbility.cpp:448` takes the knockdown branch and never reaches 452); it keys only the **attacker's** movement return. The two are independent timers on the same contact. Lengthening the fall does change what oki *looks* like — the attacker is free while the victim still slides — but nothing enforces a relationship, and today's 0.35 matching the heavy's 0.35 exactly is coincidence |
+| The corpse flies too far, or drops like a sack | **`DeathImpulseStrength`**, freely — a **first attempt**, not derived, and `DeathImpulseLift` sets how much of it aims upward. Measured on Manny: 12000 settles the body about 84 cm from where it fell, 36000 about 4.8 m | Passing it as a velocity change. `AddImpulse`'s `bVelChange` reads the magnitude as cm/s directly and ignores mass, which fired the corpse 180 m out of the level; as a true impulse it divides by mass. Also do not read corpse position as game state — the capsule stays put, and the `Ragdoll` profile ignores `Pawn` |
+| The flinch does not read, or reads as the wrong thing | The **clip in the Hitstun state**, which is a sequence player in the Locomotion machine and swappable without touching C++. `Tools/SkeletonCheck` is unrelated; the state is reached through `UTDStateMachineTools` or by hand | `HitstunSeconds`. It is derived from the string guarantee and must stay above the chain gap; a state is not rate-fitted to it anyway, so lengthening the stun buys no more animation |
 | A knockdown feels escapable in the wrong way | The split again — the lockout buys refusal, the input window buys agency | `KnockdownRiseSeconds`. The rise is committed, vulnerable and unactionable whichever way it started; shortening it shrinks the meaty window that is the whole of the oki, and the clips are rate-fitted to it. |
 | Re-engaging a knocked-down player feels wrong | **Nothing, without re-deriving the whole relationship.** `KnockdownSpacingCm` (450) is set against each tier's covered range — light 410, heavy 510, charged 610, each `100 base lunge + branch lunge + 150 reach − 40 standoff`. The intent is that the heavy and charged **lunge** the gap and the light **walks** it | Any one of the five numbers alone. They are one coupling written in five places with nothing enforcing it, and the margins are the same size as the gap — the light misses by 40, the heavy clears by 60. Move one and you silently change *which tiers can reach a riser at all*, which presents as "oki feels wrong" rather than as a number being wrong. |
 | The forced turn after a hit reads too slow or too snappy | `ForcedFacingTurnRateDegrees`, but **re-derive first**: 180° must complete well inside the shortest hitstun a victim can actually *feel* | The ladder's minimum `HitstunSeconds`. **The basis moved on 2026-08-20 and the number did not.** It was derived against the heavy's 0.50 (floor ≈ 655); knockdown repurposed the heavy's and charged's into attacker-side oki knobs no victim ever feels, so the binding value is now the light's 0.55 and the floor is nearer 330. 720 clears both. Re-derive against the *felt* hitstun, not the smallest one in the table. |
@@ -1530,6 +1532,48 @@ long.
 | `bUseControllerRotationYaw` | 08-12 |
 | `compositeSections` | 08-15, 08-18 |
 | `gEComponents` | 08-10, 08-11 |
+
+## 2026-08-24 — Death-full's presentation goes to physics and a state, and needs no authored animation
+
+**Both halves changed shape on the designer's proposals**, and the result is that a slice briefed
+around eight directional clips uses none of them.
+
+**Death is a ragdoll impulse rather than the four `Death_<DIR>` clips.** The designer's call, and the
+argument that carried it is not the obvious one: an impulse along the killer-to-victim bearing is
+**strictly more directional** than four clips, being a continuous bearing rather than four buckets,
+and it cannot fight forced facing because physics owns the mesh once simulating. It also fills a gap
+nobody had noticed — knockback sits on the hitstun branch and `EnterKnockdown` returns early once
+`bDead` is set, so **a killing blow previously imparted nothing at all** and the corpse collapsed on
+the spot. Two costs were stated before the choice rather than after: the module is a reversal of the
+2026-08-11 entry that filed the ragdoll as a placeholder *for* those clips, and per-machine corpse
+divergence is accepted. **The designer's reasoning on divergence was right and the code already
+guarantees it twice over** — `StartRagdoll` deliberately leaves the capsule in place as the actor's
+transform, and the engine's `Ragdoll` profile sets `Pawn` to `ECR_Ignore`, so no corpse can obstruct
+a living character or be queried by anything.
+
+**Hitstun mirrors blockstun: a state in the Locomotion machine, not a montage.** Also the designer's,
+and it dissolves *both* problems the directional clips carried, only one of which they were aiming
+at. Forced facing turns every cleanly hit victim toward its attacker inside 250 ms, so a single
+front-facing clip is **correct rather than a compromise**; and **a state is not rate-fitted to a
+duration**, so the clip being 1.333 s against a 0.55 s hitstun stops being a fitting problem at all.
+That second half matters because `HitstunSeconds` is derived from the string guarantee and could not
+have absorbed the clip.
+
+**"Death wins outright over knockdown" already holds by construction** — damage lands before the
+knockdown branch and `EnterKnockdown` returns early on `bDead`, with GAS attribute callbacks running
+synchronously. The trap says it has never *executed*, which is a verification job rather than a build
+one. Recorded here because I had been reading that trap as damage landing on a floored body, which
+floor invincibility forbids and `s6-knockdown` asserts against.
+
+**Two magnitudes were caught by play and neither was visible from the code.** `AddImpulse`'s
+`bVelChange` reads the magnitude as cm/s and ignores mass: at 36000 the corpse left the level, 180 m
+out and still climbing when sampled. As a true impulse it divides by mass, and 36000 still carried
+the body 4.8 m. **12000 settles at 84 cm** and is the default — a first attempt, freely tunable.
+
+**Three questions stay deferred on the designer's ruling**: respawn rules, whether the dummy dies at
+all, and depossessing the pawn. Nothing forces them — the dummy's auto-revive works and is useful as
+a fixture, and death's camera is design the runway has not reached. **Deferring is the point rather
+than an omission**: answering them here would be inventing to fill silence.
 
 ---
 
