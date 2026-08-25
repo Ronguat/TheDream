@@ -270,7 +270,9 @@ void UTDGameplayAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle
 		{
 			if (Downed->IsKnockedDown())
 			{
-				Downed->BeginKnockdownRise(GetKnockdownRiseLabel(Downed), /*bPlayRiseMontage=*/!BringsOwnRiseMontage());
+				Downed->BeginKnockdownRise(GetKnockdownRiseLabel(Downed),
+					/*bPlayRiseMontage=*/!BringsOwnRiseMontage(),
+					/*RiseSecondsOverride=*/GetKnockdownRiseSeconds());
 			}
 		}
 	}

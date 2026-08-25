@@ -83,6 +83,13 @@ public:
 	 */
 	virtual bool BringsOwnRiseMontage() const { return false; }
 
+	/**
+	 *  How long the rise this ability starts should last. Zero takes the character's shared
+	 *  KnockdownRiseSeconds; an ability whose activation *is* the rise returns its own length
+	 *  so the knockdown ends with it rather than after it.
+	 */
+	virtual float GetKnockdownRiseSeconds() const { return 0.0f; }
+
 protected:
 
 	/**

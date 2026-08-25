@@ -57,6 +57,9 @@ public:
 
 	/** The dodge animates its own rise -- a roll, or a kip-up on hard. */
 	virtual bool BringsOwnRiseMontage() const override { return true; }
+
+	/** The rise is the dodge, so it ends with it -- i-frames and knockdown expire together. */
+	virtual float GetKnockdownRiseSeconds() const override { return DodgeSeconds; }
 	virtual void EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled) override;
 
 protected:

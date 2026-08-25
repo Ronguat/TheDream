@@ -1057,7 +1057,7 @@ void ATDCombatCharacter::OnRep_KnockedDown()
 	}
 }
 
-void ATDCombatCharacter::BeginKnockdownRise(const TCHAR* By, bool bPlayRiseMontage)
+void ATDCombatCharacter::BeginKnockdownRise(const TCHAR* By, bool bPlayRiseMontage, float RiseSecondsOverride)
 {
 	UWorld* World = GetWorld();
 	if (!World || !HasAuthority() || !bKnockedDown || bKnockdownRising)
@@ -1069,7 +1069,13 @@ void ATDCombatCharacter::BeginKnockdownRise(const TCHAR* By, bool bPlayRiseMonta
 	// option prices its own rise from here on: the dodge brings i-frames, block brings a guard,
 	// the attack brings a threat, and the plain stand brings nothing at all.
 	bKnockdownRising = true;
-	KnockdownRiseEndsAt = World->GetTimeSeconds() + KnockdownRiseSeconds;
+	// An option that brings its own exit sets the rise's length to its own, so the knockdown
+	// ends when the action does. Left shared, a shorter option finishes and then waits out the
+	// difference still flagged knocked down -- movement and facing both locked, and its own
+	// protection already expired.
+	const float RiseSeconds = RiseSecondsOverride > 0.0f ? RiseSecondsOverride : KnockdownRiseSeconds;
+	KnockdownRiseEndsAt = World->GetTimeSeconds() + RiseSeconds;
+	KnockdownHomeResetAt = World->GetTimeSeconds() + KnockdownRiseSeconds;
 
 	TD_TIMING_LOG(TEXT("[%.3f] KNOCKDOWN RISE  %s  by=%s  stands=%.3f"),
 		World->GetTimeSeconds(), *GetName(), By, KnockdownRiseEndsAt);
@@ -1109,8 +1115,30 @@ void ATDCombatCharacter::EndKnockdown()
 	// would resolve the hit at a distance nobody aimed at. Hitstun's end will not serve either --
 	// a typed hit knocks down instead of stunning, so that hook never fires.
 	//
+	// **The moment is the shared rise mark, which the stand no longer always coincides with.**
+	// An option that shortens its own rise ends the knockdown earlier, and teleporting there
+	// would land inside the travel that option just made -- so the reset keeps the clock it
+	// always had and the delay is whatever is left of it. Zero for every unshortened rise,
+	// which is the immediate call this replaces.
+	//
 	// Self-guarding: ReturnToDebugAutoAttackHome never moves a player pawn.
-	ReturnToDebugAutoAttackHome();
+	const UWorld* ResetWorld = GetWorld();
+	const float HomeResetDelay = ResetWorld
+		? FMath::Max(KnockdownHomeResetAt - ResetWorld->GetTimeSeconds(), 0.0f)
+		: 0.0f;
+	if (HomeResetDelay > 0.0f)
+	{
+		GetWorldTimerManager().SetTimer(
+			KnockdownHomeResetTimerHandle,
+			this,
+			&ATDCombatCharacter::ReturnToDebugAutoAttackHome,
+			HomeResetDelay,
+			false);
+	}
+	else
+	{
+		ReturnToDebugAutoAttackHome();
+	}
 }
 
 void ATDCombatCharacter::EnterParryLockout(float LockoutSeconds)

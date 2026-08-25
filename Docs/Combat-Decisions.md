@@ -1571,6 +1571,78 @@ long.
 | `compositeSections` | 08-15, 08-18 |
 | `gEComponents` | 08-10, 08-11 |
 
+## 2026-08-25 — The dodge get-up was a sitting duck for its last 100 ms, and the spec had said otherwise all along
+
+**Seen in play first** — a get-up roll that felt like it ended in a beat of being stuck. The measurement
+found the cause somewhere other than where either of us was looking: not velocity, not the roll's fit,
+but two state flags outliving the thing that was protecting them.
+
+### The measurement
+
+Six get-up dodges from one session, every one the same shape: travel ends 0.402 ± 0.003 s after the
+rise, the stand lands at 0.500. `DodgeSeconds` is 0.400 and `KnockdownRiseSeconds` is 0.500, and the
+gap is exactly their difference — **100 ms**, every time.
+
+`bKnockedDown` sits in **both** locks:
+
+```
+IsMovementLocked() { return bInHitstun || bGuardBroken || bKnockedDown || bInParryLockout || ...; }
+IsFacingLocked()   { return bDead || bKnockedDown || Super::IsFacingLocked(); }
+```
+
+and clears only in `EndKnockdown()`, at the stand. The dodge's own `EndAbility` releases
+`bAbilityFacingLocked` on time; the knockdown's lock outlives it and keeps `IsFacingLocked()` true, so
+`UpdateCameraRelativeFacing` returns early. Stationary *and* unable to turn.
+
+### Why that is graver than a stutter
+
+`BeginKnockdownRise` is explicit: *"**Invincibility ends on this line**, because every get-up option
+prices its own rise from here on: the dodge brings i-frames, block brings a guard, the attack brings a
+threat, and the plain stand brings nothing at all."* The dodge's protection is `DodgeSeconds`. The rise
+it was serving is `KnockdownRiseSeconds`. **The option's protection was 100 ms shorter than the state it
+was paying for** — past floor invincibility, past its own i-frames, and immobilised in both axes.
+
+**The spec had already said this could not happen.** *"Floor invincibility covers the down state and
+ends the moment any rise begins. Everyone who chose an exit already paid for their protection: the dodge
+rises **i-framed**…"* It did not, for the last fifth of the rise. This is the implementation catching up
+to a claim that was always there, not a new rule.
+
+**The kip-up had it identically** — same ability, same `DodgeSeconds`, same shared rise. The block get-up
+did not: its guard is live from activation, which is what the `BLOCK up`-within-100 ms assertion exists
+to prove. The stand get-up is exposed by design.
+
+### The fix: the option's own timing governs its rise
+
+Already the stated principle at the call site — *"**The action is the exit.** A get-up option starting
+from the floor *is* the rise… the option's own timing [is] the thing the defender is choosing."* It just
+never reached the rise's *duration*. `UTDGameplayAbility::GetKnockdownRiseSeconds()` returns zero for the
+shared length; `UTDDodgeAbility` returns `DodgeSeconds`, so i-frames and knockdown now expire together.
+Unshortened rises are untouched — verified at 2.000 entry-to-rise and 0.500 rise-to-stand.
+
+### The fixture collision, and why the reset kept its old clock
+
+Shortening the rise put the stand on the same tick as `DODGE END`, and `EndKnockdown` teleports a dummy
+home. The teleport landed *inside* the travel measurement: `dist=733.8` with a lateral component where
+there had been none. Isolated by disabling the reset — **408.7–417.6 cm, `right=0.0`**, unchanged — so
+the dodge always travelled correctly and only the measurement was corrupted.
+
+**The designer's fix, and it is better than deferring to the ability's end**: the reset keeps the clock
+it always had. `KnockdownHomeResetAt` is armed at the *shared* `KnockdownRiseSeconds` regardless of what
+the rise is shortened to, so the teleport fires exactly where it used to and drift behaviour is provably
+unchanged rather than newly argued. Zero delay on every unshortened rise, which is the immediate call it
+replaces. Measured after: stand 8.673, `DODGE END` 8.673, `HOME RESET` 8.772.
+
+**It does open 100 ms where a dummy is free but not yet home**, so it can take a step and be pulled back.
+A fixture artifact, reported by `HOME RESET`'s own `moved=`.
+
+### The assertion that should have caught it
+
+`s6-dodge` asserted *"zero `DAMAGED` between its rise and its `DODGE END`"* — and the exposed window is
+`DODGE END` → `STAND`. **The assertion stopped exactly where the vulnerability opened**, so the loop was
+green over this the whole time and would have stayed green if it worsened. `kd_rise_span_by` now asserts
+the rise's own length in both `s6-dodge` and `s6-kipup`; run against a pre-fix log it fails with 0.500
+on all eight, which is how the diagnosis was confirmed independently of the play report.
+
 ## 2026-08-25 — The get-up roll aims itself, and is fitted to the roll rather than the clip
 
 Three small Polish items taken together because they are one thing in play: the roll now goes where

@@ -161,6 +161,9 @@ BAND_SPACING_SLACK=0.5
 # Knockdown* properties on ATDCombatCharacter, read off the CDO at build time.
 BAND_KD_ENTRY_TO_RISE=2.000     # lockout + input window, type-invariant by design
 BAND_KD_RISE=0.500              # KnockdownRiseSeconds, shared
+# The dodge get-up's rise is the dodge, so this tracks DodgeSeconds rather than the shared rise
+# above. Move it whenever DodgeSeconds moves -- nothing enforces the link.
+BAND_KD_RISE_DODGE=0.400
 BAND_KD_SPAN_TOL=0.025
 # The lockout is only observable through a press: refusals name their phase, and a
 # stand fires the frame the input window opens. Normal 1.0, hard 1.5.
@@ -606,6 +609,19 @@ kd_rise_to_stand() { # seconds from each RISE to that victim's STAND
 
 kd_types() { # one type token per KNOCKDOWN entry
 	grep '^\[[0-9.]*\] KNOCKDOWN  ' "$SLICE" | grep -oE 'type=[a-z]+' | sed 's/type=//'
+}
+
+kd_rise_span_by() { # seconds from each RISE to its own stands=, filtered on by=$1
+	awk -v want="by=$1" '
+		/^\[[0-9.]+\] KNOCKDOWN RISE/ {
+			t=$1; gsub(/[\[\]]/,"",t)
+			ok=0; span=""
+			for (i=1;i<=NF;i++) {
+				if ($i == want) ok=1
+				if ($i ~ /^stands=/) { split($i,a,"="); span=a[2] }
+			}
+			if (ok && span != "") printf "%.3f\n", span-t
+		}' "$SLICE"
 }
 
 kd_rise_reasons() { # one by= token per RISE
@@ -1503,6 +1519,14 @@ run_s6_dodge() {
 	assert_all_equal "dodge get-up costs its 50" "getup_dodge_remaining dodge" \
 		"$BAND_GETUP_DODGE_COST"
 
+
+	# **The rise is the dodge.** Left on the shared KnockdownRiseSeconds, the difference is a
+	# window with movement and facing both locked and the option's own protection already
+	# expired -- and the i-frame assertion beside this one stops at DODGE END, which is exactly
+	# where that window opens.
+	assert_all_in_band "dodge get-up rise ends with the dodge" "kd_rise_span_by dodge" \
+		"$(awk -v v="$BAND_KD_RISE_DODGE" -v t="$BAND_KD_SPAN_TOL" 'BEGIN{printf "%.3f", v-t}')" \
+		"$(awk -v v="$BAND_KD_RISE_DODGE" -v t="$BAND_KD_SPAN_TOL" 'BEGIN{printf "%.3f", v+t}')" "s"
 	assert_all_in_band "dodge get-up travels" "getup_dodge_travel dodge" \
 		"$BAND_DODGE_MIN" "$BAND_DODGE_MAX" "cm"
 
@@ -1536,6 +1560,14 @@ run_s6_kipup() {
 	assert_all_in_band "kip-up travels about zero" "getup_dodge_travel kipup" \
 		0 "$BAND_KIPUP_TRAVEL_MAX" "cm"
 
+
+	# **The rise is the dodge.** Left on the shared KnockdownRiseSeconds, the difference is a
+	# window with movement and facing both locked and the option's own protection already
+	# expired -- and the i-frame assertion beside this one stops at DODGE END, which is exactly
+	# where that window opens.
+	assert_all_in_band "kip-up rise ends with the kip-up" "kd_rise_span_by kipup" \
+		"$(awk -v v="$BAND_KD_RISE_DODGE" -v t="$BAND_KD_SPAN_TOL" 'BEGIN{printf "%.3f", v-t}')" \
+		"$(awk -v v="$BAND_KD_RISE_DODGE" -v t="$BAND_KD_SPAN_TOL" 'BEGIN{printf "%.3f", v+t}')" "s"
 	assert_all_equal "kip-up costs its 50" "getup_dodge_remaining kipup" "$BAND_GETUP_DODGE_COST"
 }
 

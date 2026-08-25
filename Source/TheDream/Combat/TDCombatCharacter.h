@@ -345,7 +345,7 @@ public:
 	 *
 	 *  @param By  Trace label: auto, dodge, block, attack, kipup or stand.
 	 */
-	void BeginKnockdownRise(const TCHAR* By, bool bPlayRiseMontage = true);
+	void BeginKnockdownRise(const TCHAR* By, bool bPlayRiseMontage = true, float RiseSecondsOverride = 0.0f);
 
 	/**
 	 *  Turn this body toward an attacker at the derived rate. Every clean hit, not only knockdowns.
@@ -1705,6 +1705,17 @@ private:
 
 	/** Authority-side boundary: the stand. Set when a rise begins, not at entry. */
 	float KnockdownRiseEndsAt = 0.0f;
+
+	/**
+	 *  When the fixture's home reset is due, always the shared KnockdownRiseSeconds from the
+	 *  rise. Kept separately from KnockdownRiseEndsAt so an option that shortens the rise moves
+	 *  the knockdown's end without moving the teleport, which would otherwise land inside the
+	 *  travel the option just made.
+	 */
+	float KnockdownHomeResetAt = 0.0f;
+
+	/** Its own handle, so a pending attack reset and a pending stand reset cannot clobber. */
+	FTimerHandle KnockdownHomeResetTimerHandle;
 
 	/**
 	 *  Whether a rise has begun -- the invincibility switch, separate from the tag because the tag
