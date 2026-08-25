@@ -143,6 +143,10 @@ Timings land within about a frame, biased late.
     compromise** — every cleanly hit victim is turned toward its attacker inside 250 ms. The four
     directional `Hit_<DIR>` clips are therefore unused.
 - **Knockdown** replaces what a graded hit does to its victim wholesale: it knocks down and **never** hitstuns.
+  - **Death supersedes it on the same contact** *(observed 2026-08-24)*. A graded swing that also
+    kills produces death and **no knockdown**: damage resolves before the knockdown branch and
+    `EnterKnockdown` returns early once dead. **Dying *while* down is unreachable** — floor
+    invincibility forbids damage there, and nothing else in the game deals any.
   - **Two types, authored per swing.** `Normal` for the light string's ender; `Hard` for the heavy, the charged and the mid-string hold-conversion. Committed single hits floor you hard, the string's volume finisher gently — the string already extracted its damage, and generous escape is the volume trade. **The pairing is authored, not structural**: the kit's one 360° knockdown carrying the gentle type is what stops a crowd being hard-floored, and another weapon may pair them differently.
   - **The down state is four spans under one tag.** `State.KnockedDown` clears at the **stand**, not when a rise begins.
 

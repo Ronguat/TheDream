@@ -533,8 +533,24 @@ turns it into a kip-up travelling ≈0; that hard **refuses** the directional do
 stand; that `GA_Block` comes up guarded from activation; that exhaustion refuses block, dodge and
 kip-up while leaving the get-up attack and the wait.
 
-**Folded in, same trigger: death while knocked down.** *"Death wins outright over knockdown"* has
-never executed — the one death observed landed 0.49 s *after* a stand, not on the floor.
+**Discharged 2026-08-24: death wins outright over knockdown, observed.** The designer produced it by
+hand after three sessions of fixtures never did — taking three lights, blocking two of the next
+three, then letting the third cycle finish them. Blocking is what did it: it shifted the arithmetic
+so the seventh *landing* hit fell on `swing=2`, the string's ender, instead of a first swing. Every
+light deals 15 against 100 health, so an unblocked run always kills on hit 7 and enders are hits 3
+and 6 — **the lethal swing was structurally never a graded one**, which is why it had never fired.
+
+The evidence carries its own control. At `[16.016] ACTIVATE swing=2`, `[16.227] DEATH`, `[16.227]
+DAMAGED damage=15 health=0.0` — **and no `KNOCKDOWN` line**, where that same `swing=2` produced
+`KNOCKDOWN type=normal` four other times in the same session. `DEATH` also logs *before* `DAMAGED` at
+an identical timestamp, which is death resolving synchronously inside the attribute change before
+`TDMeleeAttackAbility` reaches its knockdown branch; `EnterKnockdown` then returns early on `bDead`.
+
+**Death *while* knocked down remains unreachable and always was** — floor invincibility forbids
+damage down there, `s6-knockdown` asserts zero `DAMAGED` across every knockdown, and no
+damage-over-time or non-attack damage source exists. The trap only ever meant one contact that would
+do both. **A search for the graded killing blow by damage value cannot find it**: grading is
+per-swing through `KnockdownGrade`, and the ender deals the same 15 as any other light.
 
 **Still owed, and now blocked on instrumentation rather than on effort: the guard break's own
 movement assertion.** Sub-slice B promised an `s2-*` asserting zero movement during break stun. It
@@ -757,8 +773,8 @@ stand at 125.892, next heavy landing at 126.383 — 0.49 s later, auto-rise into
 press, guaranteed hit, and it killed them. That is the vortex the design accepts and Interplay
 judges, seen once from the receiving end. It is not the 1vX case, because the same attacker did it.
 
-**Death while knocked down belongs to the montage trap above**, not here — it needs one human
-and no second attacker. Cross-referenced rather than restated, so it has one home.
+**Death versus knockdown: discharged 2026-08-24, observed.** Cross-referenced to the montage trap
+above rather than restated, so it keeps one home.
 
 **Whenever reach or travel move — *the string's connect inequality is unenforced.*** The
 fixed-destination knockback (2026-08-16, discharging the old two-number budget fear) reduced the
