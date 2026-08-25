@@ -119,6 +119,7 @@ and not the order anyone reads in. Keep it sorted when adding.)*
 | 2026-08-16 — Knockback is a spacing reset | hard knockdown is **the charged's** distinction — "the charged's knockdown is hard, with fewer get-up options" | 2026-08-19 — Knockdown's plan session (the heavy also knocks down hard; the grade rule restates as *committed single hits knock down hard, the string's volume finisher normal*. Ruled at the plan's review; ships with Knockdown) |
 | 2026-08-18 — A parry makes them whiff at your feet | the reward is **derived** — the parried attacker rides their own attack into recovery, and an authored form exists only if play demands compensation | 2026-08-19 — Knockdown's plan session (the rework, locked at review: a catch **ends** the attack — its release was staying live against bystanders — and inflicts `State.ParryLockout`, duration derived as the swing's remaining planned total, so the per-tier punish survives inside the new structure. Ships with Knockdown's sub-slice E) |
 | 2026-08-18 — A parry makes them whiff at your feet | a whiffed parry "pays a **defensive** lockout", and the parry is refused only while blocking, exhausted and inside the post-dodge gap | 2026-08-19 — Parry recovery commits you, then the lockout (two widenings the same day: the whiff's tail refuses **every** ability and holds the movement lock, and the commitment starts at the *press* rather than at window close, so the window refuses everything too. The pricing symmetry and the floor derivation are untouched — only what the price *buys* changed) |
+| 2026-08-25 — The get-up roll aims itself | the roll **snaps** to its heading at activation | 2026-08-25 — The get-up roll turns into its heading (same day: a snap gives an observer a static pose to re-read, where a turn gives motion to track, so the heading reads earlier. Possible only once the travel direction stopped being derived from facing every tick) |
 | 2026-08-18 — A parry makes them whiff at your feet | the post-dodge gap is "a derived ~150 ms" that stops a predictive dodge chaining into a parry covering the charged | 2026-08-25 — The windups move as a pair (the derivation was `charged − DodgeSeconds − light arrival` and it never closed the case, release not being instantaneous; `DodgeRecoverySeconds` retires to 0 and the chain stands as priced RPS) |
 | 2026-08-18 — The bespoke windup pass deprecates the coil | the blend windows are stated against the coil's start — "350 ms light→heavy (0.150 → 0.500)" | 2026-08-25 — The windups move as a pair (reactability is measured from the **light's arrival** at 200, not the coil's start at 150; every coil-referenced window was 50 ms wide of the mark) |
 | 2026-08-18 — The ladder re-poles: rapid heavy | the heavy arrives at 350 and "that shortening is the point rather than a side effect" | 2026-08-25 — The windups move as a pair (400 now, partly walking the shortening back: at a 150 ms window the heavy sat below the reaction figure outright, and 200 puts it exactly on it. The fast/slow poling the entry argues for survives) |
@@ -273,6 +274,10 @@ act on it. **Proven by making it fire**, the defender's dodge tag cleared on pur
 naming it precisely. The exhaustive version is a whole-instance diff against the CDO, scriptable
 through `ProgrammaticToolset`; the re-placed attacker returns **zero** value overrides across 164
 properties, against three before.
+
+**Before wiring blockstun's tell — *both candidate clips carry the pair that is worse than neither.*** `AS_SwordSwordAnimV3_Block1_Hit_RM` and `Block2_Hit_RM` both read `bEnableRootMotion = false` with `bForceRootLock = false` (checked 2026-08-25), which is the combination `Docs/Animation-Library.md` names as worse than setting neither: root motion off keeps the capsule still while the root bone still carries the clip's displacement. **Reported from play the same day** — *"it resets in between each light attack, so it looked authored"*, which is how a drift this size hides. The flinch's `Hit_Fw_RM` was fixed; these two were not, because nothing had pointed at them. **Not established: which of them a blockstun state actually plays, or whether one is wired at all** — the brief still records the tell as unbuilt, and a clip carrying a bad flag is not evidence that anything reads it.
+
+**Whenever a stun tell is judged in a string — *hitstun and blockstun play through rather than restarting, so only the first hit is told.*** Reported from play 2026-08-25: the second and later hits of a string produce no fresh feedback, because the tell is a **state** entered on a cached bool and left on its negation — a hit landing while the bool is already true re-enters nothing. **The tell wants re-triggering per hit, not a duration that outlasts them.** Filed against Polish, which owns both tells' look; the flinch's construction is the precedent and the same shape of fix would apply to whatever blockstun ends up using. Untested by the loop — no scenario asserts that a tell fires once per hit rather than once per string.
 
 **Whenever an authored duration is asserted against a log — *the value it lands on is partly the test machine's frame rate.*** The release window closes on the first tick at or past its deadline, so every ability's total carries the distance from that deadline to the next tick: nil at 60 fps where 150 ms is exactly nine frames, +17 ms at 30. **`s6-getup` is where this bit first** — one sample in twelve past an elapsed ceiling, read as a flake until the sweep showed it scaling with frame time. Weakened rather than discharged by the 2026-08-25 fix: the overrun no longer *grows* without bound and the damaging span never exceeds its authored length, but a band derived on one machine still encodes that machine's frame time. **Re-derive an elapsed band from measurement on the machine that will run it**, and treat a single sample past a ceiling as a question about frame time before a question about combat.
 
@@ -1570,6 +1575,60 @@ long.
 | `bUseControllerRotationYaw` | 08-12 |
 | `compositeSections` | 08-15, 08-18 |
 | `gEComponents` | 08-10, 08-11 |
+
+## 2026-08-25 — The get-up roll turns into its heading instead of snapping, and the turn is the tell
+
+**Supersedes the snap shipped earlier the same day.** The designer's argument is a legibility one and
+better than the trade I had described: *"it shows a motion that a would-be assailant can track. The
+snap actually reads less like a snap and more like a 'motionless transition', so it takes longer to
+intuit which direction the roll is headed."* A snap gives an observer a static pose to re-read; a turn
+gives them continuous motion to follow, and the heading is legible earlier.
+
+I had filed the turn's visible sideways travel as the **cost**. It is the **signal**.
+
+**The consequence is not purely visual, and is accepted rather than overlooked**: a roll whose heading
+reads earlier is a roll an opponent can follow earlier. A defensive option becoming more telegraphed
+is consistent with defence carrying real costs, but it is a gameplay change wearing a look's clothing.
+
+### Why the direction has to be captured for this to be possible at all
+
+`FTDRootMotionSource_FacingForce::PrepareRootMotion` reads `GetActorForwardVector()` **every tick** and
+applies `YawOffsetDegrees` to it, which is exactly why facing was frozen for the whole dodge: a body
+free to turn steers its own travel. So a turn-in is impossible until the direction stops being derived
+from facing. `FixedDirection` is that, opt-in and empty by default — **attacks depend on the per-tick
+derivation**, aim assist steering the base lunge by turning the body, and a captured direction would
+ignore it.
+
+With the direction taken once, the two objections to turning in both dissolve: travel cannot curve, and
+the body is free to sweep round to a heading it is already travelling on.
+
+### `RollTurnRateDegrees`, authored and deliberately not the character's rate
+
+1200 °/s, matching `TurnRateDegrees` numerically and **on purpose not sharing it**. That one is derived
+— 180 ÷ the light's commit — and nothing about turning into a roll is an aim guarantee. Copying it
+would have made a derived number the parent of a feel number. A 180 costs `180 / rate` seconds against
+`DodgeSeconds`, which is the constraint the dial has to respect.
+
+### The ordering bug, which cost a build and is worth the line
+
+The first attempt looked right and curved in play. The probe made it plain: the turn was working — yaw
+swept 105.8 → 290.4 onto its target — but **velocity rotated with it**, holding a constant 180° offset
+from *current* facing. The capture was not reaching the source.
+
+`ApplyFacingLunge` calls `SharedInitAndApply()` **from inside the factory**, before the caller ever
+receives the task. Every other field works because every other field is assigned above that line;
+anything set after it lands on a task whose force is already applied and already reading its own
+defaults. The direction is now resolved inside the factory, above that call.
+
+**Measured after: velocity constant at `V(275.36, -974.34)` across the whole sweep**, where before it
+tracked the yaw tick by tick.
+
+### Verified
+
+`s6-dodge` 8/8 with travel back at 400–420 and the rise still ending with the dodge; `s3` 7/7 with
+ordinary dodges untouched and still on their directional sections — they pass a zero rate, so they
+neither capture nor turn. **Not verified: how it looks.** That is the whole point of the change and it
+is the designer's to judge.
 
 ## 2026-08-25 — The dodge get-up was a sitting duck for its last 100 ms, and the spec had said otherwise all along
 

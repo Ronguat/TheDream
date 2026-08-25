@@ -78,23 +78,12 @@ void UTDDodgeAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, c
 	// deliberately; that call reads facing, and locking first would freeze the value it is about
 	// to use.
 	// **The get-up roll turns to face where it travels; nothing else in the project does.** It is
-	// one forward clip where an ordinary dodge has eight directional sections, so the body is
-	// turned to match and the offset is then spent -- the lunge goes straight ahead. Runs after
-	// ResolveDodgeDirection, which reads the pre-snap facing, and before the lock below.
-	float TravelYawOffset = static_cast<uint8>(DodgeDirection) * 45.0f;
-	if (bIsKnockdownGetUp && !bIsKnockdownKipUp && !FMath::IsNearlyZero(TravelYawOffset))
-	{
-		if (AActor* Avatar = GetAvatarActorFromActorInfo())
-		{
-			FRotator Snapped = Avatar->GetActorRotation();
-			Snapped.Yaw += TravelYawOffset;
-			Avatar->SetActorRotation(Snapped);
-
-			TD_TIMING_LOG(TEXT("[%.3f] DODGE SNAP  %s  yaw+=%.1f (get-up roll)"),
-				GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f, *Avatar->GetName(), TravelYawOffset);
-		}
-		TravelYawOffset = 0.0f;
-	}
+	// one forward clip where an ordinary dodge has eight directional sections, so the body has
+	// to come round to its heading -- turned rather than snapped, because the turn is the motion
+	// an opponent reads the heading from. StartLunge takes the direction at activation, so the
+	// travel does not follow the body round.
+	const float TravelYawOffset = static_cast<uint8>(DodgeDirection) * 45.0f;
+	const bool bRollTurnsToTravel = bIsKnockdownGetUp && !bIsKnockdownKipUp;
 
 	if (ATheDreamCharacter* Character = Cast<ATheDreamCharacter>(GetAvatarActorFromActorInfo()))
 	{
@@ -126,7 +115,8 @@ void UTDDodgeAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, c
 		DodgeSeconds,
 		/*StrengthCurve=*/nullptr,
 		/*StandoffCm=*/0.0f,
-		bKipUp ? 0.0f : TravelYawOffset);
+		bKipUp ? 0.0f : TravelYawOffset,
+		bRollTurnsToTravel ? RollTurnRateDegrees : 0.0f);
 	if (ATDCombatCharacter* Character = Cast<ATDCombatCharacter>(GetAvatarActorFromActorInfo()))
 	{
 		Character->DebugStatusLine = FString::Printf(TEXT("Dodge %s  %.2fs  invulnerable"),

@@ -206,7 +206,8 @@ protected:
 		float DurationSeconds,
 		UCurveFloat* StrengthCurve,
 		float StandoffCm = 0.0f,
-		float YawOffsetDegrees = 0.0f);
+		float YawOffsetDegrees = 0.0f,
+		float TurnBodyToTravelRate = 0.0f);
 
 	/**
 	 *  Ends the lunge started by StartLunge, now, wherever it has got to.

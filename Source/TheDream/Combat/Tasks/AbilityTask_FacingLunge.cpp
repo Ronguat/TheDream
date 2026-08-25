@@ -31,7 +31,8 @@ UAbilityTask_FacingLunge* UAbilityTask_FacingLunge::ApplyFacingLunge(
 	ERootMotionFinishVelocityMode VelocityOnFinishMode,
 	FVector SetVelocityOnFinish,
 	float ClampVelocityOnFinish,
-	bool bEnableGravity)
+	bool bEnableGravity,
+	float TurnBodyToTravelRate)
 {
 	UAbilitySystemGlobals::NonShipping_ApplyGlobalAbilityScaler_Duration(DurationSeconds);
 
@@ -49,6 +50,18 @@ UAbilityTask_FacingLunge* UAbilityTask_FacingLunge::ApplyFacingLunge(
 	MyTask->FinishSetVelocity = SetVelocityOnFinish;
 	MyTask->FinishClampVelocity = ClampVelocityOnFinish;
 	MyTask->bEnableGravity = bEnableGravity;
+	// **Before SharedInitAndApply, which builds the source and is called from here.** Anything
+	// set on the task after this line never reaches the force that is already applied.
+	if (TurnBodyToTravelRate > 0.0f)
+	{
+		if (const AActor* Avatar = OwningAbility ? OwningAbility->GetAvatarActorFromActorInfo() : nullptr)
+		{
+			const float TravelYaw = Avatar->GetActorRotation().Yaw + YawOffsetDegrees;
+			MyTask->SetTurnBodyToTravel(
+				FRotator(0.0f, TravelYaw, 0.0f).Vector(), TravelYaw, TurnBodyToTravelRate);
+		}
+	}
+
 	MyTask->SharedInitAndApply();
 
 	return MyTask;
@@ -78,6 +91,7 @@ void UAbilityTask_FacingLunge::SharedInitAndApply()
 			LungeForce->StrengthOverTime = StrengthOverTime;
 			LungeForce->StandoffCm = StandoffCm;
 			LungeForce->YawOffsetDegrees = YawOffsetDegrees;
+			LungeForce->FixedDirection = FixedDirection;
 			LungeForce->FinishVelocityParams.Mode = FinishVelocityMode;
 			LungeForce->FinishVelocityParams.SetVelocity = FinishSetVelocity;
 			LungeForce->FinishVelocityParams.ClampVelocity = FinishClampVelocity;
@@ -97,6 +111,14 @@ void UAbilityTask_FacingLunge::SharedInitAndApply()
 	}
 }
 
+void UAbilityTask_FacingLunge::SetTurnBodyToTravel(const FVector& InDirection, float InTravelYaw, float InTurnRateDegrees)
+{
+	FixedDirection = InDirection;
+	TravelYaw = InTravelYaw;
+	TurnRateDegrees = InTurnRateDegrees;
+	bTurnBodyToTravel = !InDirection.IsNearlyZero() && InTurnRateDegrees > 0.0f;
+}
+
 void UAbilityTask_FacingLunge::TickTask(float DeltaTime)
 {
 	if (bIsFinished)
@@ -112,6 +134,18 @@ void UAbilityTask_FacingLunge::TickTask(float DeltaTime)
 		bIsFinished = true;
 		EndTask();
 		return;
+	}
+
+	// Turned rather than snapped, and the travel does not follow: FixedDirection took the
+	// direction at activation, so the body is free to sweep round to it. The motion is what an
+	// opponent reads the roll's heading from -- a snap gives them a pose to re-read instead.
+	// Written here rather than through the facing update, which the knockdown's own lock
+	// short-circuits for the whole get-up.
+	if (bTurnBodyToTravel && !bIsSimulating)
+	{
+		FRotator Rotation = MyActor->GetActorRotation();
+		Rotation.Yaw = FMath::FixedTurn(Rotation.Yaw, TravelYaw, TurnRateDegrees * DeltaTime);
+		MyActor->SetActorRotation(Rotation);
 	}
 
 	if (Duration >= 0.0f && HasTimedOut())

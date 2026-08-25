@@ -64,13 +64,17 @@ void FTDRootMotionSource_FacingForce::PrepareRootMotion(
 	// a lunge is a ground move: the actor is yaw-only today, so Z is already zero, and flattening
 	// means a future pitched avatar cannot drive itself into the floor. GetSafeNormal returns zero
 	// for a degenerate vector, which produces no motion rather than a NaN.
-	FVector Direction = Character.GetActorForwardVector();
+	// A captured direction wins outright: the whole point of setting one is that the body may
+	// turn during the travel without dragging the travel round with it.
+	FVector Direction = FixedDirection.IsNearlyZero()
+		? Character.GetActorForwardVector()
+		: FixedDirection;
 	Direction.Z = 0.0f;
 	Direction = Direction.GetSafeNormal();
 
 	// Rotated after normalising and after flattening, so the offset is a pure yaw about world up
 	// regardless of what the actor is doing. Every attack passes 0 and pays nothing for this.
-	if (!FMath::IsNearlyZero(YawOffsetDegrees))
+	if (FixedDirection.IsNearlyZero() && !FMath::IsNearlyZero(YawOffsetDegrees))
 	{
 		Direction = Direction.RotateAngleAxis(YawOffsetDegrees, FVector::UpVector);
 	}
@@ -159,6 +163,7 @@ bool FTDRootMotionSource_FacingForce::NetSerialize(FArchive& Ar, UPackageMap* Ma
 	Ar << StrengthOverTime;
 	Ar << StandoffCm;
 	Ar << YawOffsetDegrees;
+	Ar << FixedDirection;
 
 	bOutSuccess = true;
 	return true;

@@ -341,7 +341,8 @@ void UTDGameplayAbility::StartLunge(
 	float DurationSeconds,
 	UCurveFloat* StrengthCurve,
 	float StandoffCm,
-	float YawOffsetDegrees)
+	float YawOffsetDegrees,
+	float TurnBodyToTravelRate)
 {
 	AActor* Avatar = GetAvatarActorFromActorInfo();
 	if (!Avatar || DistanceCm <= 0.0f || DurationSeconds <= 0.0f)
@@ -377,7 +378,8 @@ void UTDGameplayAbility::StartLunge(
 		ERootMotionFinishVelocityMode::ClampVelocity,
 		FVector::ZeroVector,
 		/*ClampVelocityOnFinish=*/0.0f,
-		/*bEnableGravity=*/true);
+		/*bEnableGravity=*/true,
+		TurnBodyToTravelRate);
 
 	if (LungeTask)
 	{

@@ -73,6 +73,14 @@ struct FTDRootMotionSource_FacingForce : public FRootMotionSource
 	float YawOffsetDegrees;
 
 	/**
+	 *  A world direction captured once, used in place of the per-tick read of the character's
+	 *  facing. Zero means re-derive every tick, which is the default and what aim assist needs:
+	 *  homing steers an attack's base lunge by turning the body, and a captured direction would
+	 *  ignore it. Set it only where the body must be free to turn without the travel following.
+	 */
+	FVector FixedDirection = FVector::ZeroVector;
+
+	/**
 	 *  Whether a pawn sits within StandoffCm ahead, so this tick should contribute nothing. Swept
 	 *  with the avatar's own capsule on ECC_Pawn, making this the movement component's own collision
 	 *  test asked one tick early rather than an approximation of it.

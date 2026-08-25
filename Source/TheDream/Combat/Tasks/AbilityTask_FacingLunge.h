@@ -43,7 +43,14 @@ class UAbilityTask_FacingLunge : public UAbilityTask_ApplyRootMotion_Base
 		ERootMotionFinishVelocityMode VelocityOnFinishMode,
 		FVector SetVelocityOnFinish,
 		float ClampVelocityOnFinish,
-		bool bEnableGravity);
+		bool bEnableGravity,
+		float TurnBodyToTravelRate = 0.0f);
+
+	/**
+	 *  Fixes the travel direction and turns the body toward it as the lunge runs, instead of
+	 *  the body's facing deciding the travel every tick. Call before ReadyForActivation.
+	 */
+	void SetTurnBodyToTravel(const FVector& InDirection, float InTravelYaw, float InTurnRateDegrees);
 
 protected:
 
@@ -74,6 +81,16 @@ protected:
 	/** Direction relative to facing, degrees clockwise. 0 is ahead; see the source. */
 	UPROPERTY(Replicated)
 	float YawOffsetDegrees;
+
+	/** Captured travel direction, handed to the source so the body may turn without steering. */
+	FVector FixedDirection = FVector::ZeroVector;
+
+	/** Whether to turn the body toward TravelYaw while the lunge runs. */
+	bool bTurnBodyToTravel = false;
+
+	/** World yaw the body turns toward, and how fast. */
+	float TravelYaw = 0.0f;
+	float TurnRateDegrees = 0.0f;
 
 	UPROPERTY(Replicated)
 	bool bEnableGravity;

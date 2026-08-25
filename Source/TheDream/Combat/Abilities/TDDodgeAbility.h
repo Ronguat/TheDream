@@ -92,6 +92,18 @@ protected:
 	float KnockdownRollSeconds = 0.6f;
 
 	/**
+	 *  How fast the get-up roll turns to face where it travels, in degrees per second. The
+	 *  travel direction is taken at activation, so this only moves the body.
+	 *
+	 *  **Authored, unlike ATheDreamCharacter::TurnRateDegrees**, which is derived from the
+	 *  light's commit and must not be copied here: nothing about this turn is an aim guarantee.
+	 *  Low enough to read as a turn, high enough to finish inside the roll -- a 180 costs
+	 *  180 / this seconds, against DodgeSeconds.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Dodge", meta=(ClampMin="0.0"))
+	float RollTurnRateDegrees = 1200.0f;
+
+	/**
 	 *  How long after this dodge ends a parry may not be started. Applied as State.DodgeRecovery,
 	 *  and lives on the dodge because the dodge is what knows one just ended.
 	 *
