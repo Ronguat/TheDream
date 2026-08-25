@@ -49,7 +49,7 @@ see a new tool inside an existing toolset, which is the price of staying cheap e
 |---|---|
 | Running? | `tasklist \| grep -i UnrealEditor.exe` |
 | Open | `nohup "/c/Program Files (x86)/UE_5.8/Engine/Binaries/Win64/UnrealEditor.exe" "<abs path>/TheDream.uproject" >/dev/null 2>&1 &` |
-| Save | `AssetTools.save_assets` — **the named form is broken as of 2026-08-24**, so the empty list is the only route; see its trap below |
+| Save | `AssetTools.save_assets` naming the paths — **stop PIE first**, or every path call fails; see the empty-list trap below |
 | Close | `taskkill //F //IM UnrealEditor.exe` — exits in ~2 s |
 
 **Save, then read `git status`, then kill.** Calling `save_assets` is not the check; *seeing the
@@ -264,28 +264,30 @@ type** — a broken one usually looks fine alone.
   `FGameplayTagContainer`'s array is `gameplayTags`.
 - **TMap keys** — the misleading `added key ... not found in map` log **no longer reproduces**
   *(2026-08-21)*; a key added to `abilityInputActions` landed silently and read back.
-- **`AssetTools` path functions answered on 2026-08-21 and do not today** *(regression observed
-  2026-08-24)*. `exists`, `is_dirty`, `get_asset_class` and **named `save_assets`** all fail against
-  paths that `find_assets` and `load_asset` resolve in the same session — `exists` returning a bare
-  `false`, the rest *"Asset does not exist"*. Tested on `GA_Parry` and on `GA_Attack`, the 08-21
-  bullet's own witness, in both `/Game/Path/Asset` and `/Game/Path/Asset.Asset` forms, before and
-  after a successful `load_asset`; loading is not the variable. **The 08-21 finding is kept because
-  it was true when written** — those three answered then for `GA_Attack` and for an unloaded vendor
-  map — which is what makes this a regression rather than a re-run of the 2026-08-14 false negative.
-  **Use `find_assets` to confirm existence and `load_asset` to obtain a refPath.** `duplicate` still
-  fails with a bare `false`, though a `CurveFloat` worked 2026-08-13.
+- **`AssetTools` path functions answer `false` while PIE is running** *(cause isolated 2026-08-24,
+  after most of a session spent blaming the wrapper)*. `exists`, `is_dirty`, `get_asset_class` and
+  **named `save_assets`** all fail during a play session — `exists` returning a bare `false`, the
+  rest *"Asset does not exist"* — and every one answers correctly the moment PIE stops. **The MCP
+  layer is not the variable**: `EditorAssetLibrary.does_asset_exist` behaves identically through
+  `run-in-editor.py`, returning `False` for all five paths tried **including the currently loaded
+  level**, then `True` for all five with PIE stopped. **Registry-backed calls are unaffected** —
+  `find_assets` and `load_asset` keep answering throughout, which is what makes this look like a
+  path-form problem and sends you hunting the wrong thing. **Check `IsPIERunning` before concluding
+  anything about a path**, and note that a session inherited from the user may already have PIE up.
+  The 2026-08-21 bullet recording these as working stands, measured with no PIE running.
+- **`StopPIE` reporting success is not proof PIE stopped** *(2026-08-24)*. It returned cleanly and
+  `IsPIERunning` still read `true` well afterwards; a second call cleared it. **Poll `IsPIERunning`**
+  rather than trusting the return — the same shape as process-up not meaning editor-ready.
 - **The two `save_assets` forms do different jobs, and picking the wrong one bakes a trap**
   *(2026-08-20)*. The empty list saves everything dirty **including the level**, which is how the
-  stale-override trap below gets created after a CDO session. Naming the assets scoped the write
-  when it worked — re-tested 2026-08-20, contradicting the older advice to always pass an empty
-  list — but **the named form is unusable while the path regression above stands, so the empty list
-  is currently the only route** *(2026-08-24)*. **There is no discovery call** *(enumerated
-  2026-08-21)*: the empty list saves rather than lists, and `is_dirty` takes one `asset_path`, so it
-  can only confirm a file you already suspect. **`git status` is therefore the whole check** —
-  seeing the files listed is the check, calling save is not — and against a **clean tree** it is
-  also the audit showing whether the level got caught up in the save. Commit or stash first so that
-  diff is legible; a save that touches only what you meant to touch is the proof the trap did not
-  fire.
+  stale-override trap below gets created after a CDO session. **Naming the assets works and scopes
+  the write** — re-tested 2026-08-20, contradicting the older advice to always pass an empty list —
+  **but it fails like every other path call while PIE is up**, which is a reason to stop PIE, never
+  a reason to reach for the empty list. **There is no discovery call** *(enumerated 2026-08-21)*:
+  the empty list saves rather than lists, and `is_dirty` takes one `asset_path`, so it can only
+  confirm a file you already suspect. Name the paths, and **`git status` either way** — seeing the
+  files listed is the check, calling save is not. Against a **clean tree** it doubles as the audit
+  showing whether the level got caught up, so commit or stash before saving.
 - **`delete` is inconsistent about removing the `.uasset` from disk** *(confirmed both ways)*.
   Always check the directory afterwards; `git rm` only what is still there.
 - **Saving a level while a CDO write is not yet live bakes the stale value into placed actors as
