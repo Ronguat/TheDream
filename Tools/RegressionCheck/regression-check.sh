@@ -74,10 +74,10 @@ BAND_GUARDSTUN=1.000; BAND_GUARDSTUN_TOL=0.025
 # S5 -- the parry window and the recovery a whiff leaves behind.
 # Source: GA_Parry's CDO (ParryWindowSeconds, ParryWhiffRecoverySeconds).
 # Neither is a free number. The window is fenced above by the anti-option-select ceiling -- one
-# press must not cover two read-classes, so it must stay under the fast-to-charged gap of 400 ms --
-# and below by the longest authored ReleaseSeconds, 0.150, or a damaging phase could span the whole
-# window and come out unparried. The recovery is floored by the constraint that a whiff timed against
-# the fast layer stays locked through the charged's 800 ms arrival.
+# press must not cover two read-classes, so it must stay under the fast-to-charged gap of 400 ms,
+# which DodgeSeconds welds there. There is no lower fence: window >= the longest authored
+# ReleaseSeconds retired with Knockdown's parry rework. The recovery is floored by the constraint
+# that a whiff timed against the fast layer stays locked through the charged's 800 ms arrival.
 BAND_PARRY_WINDOW=0.300
 BAND_PARRY_RECOVERY=0.600
 BAND_PARRY_SPAN_TOL=0.025
