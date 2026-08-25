@@ -183,8 +183,8 @@ it, and do not try to write the runway down.
 add to `Tools/RegressionCheck/regression-check.sh` **in the same package**, or a **dated trap**
 naming what is now untested. **It binds at plan time.** A loop that lags the combat surface still
 prints green. **A defender that must act at a time is scripted, not demonstrated** —
-`UTDInputTools` injects real input into PIE, taps and timed holds alike. Measure a human only to
-learn what a human cadence *is*.
+`UTDInputTools` injects real input, taps and holds. Measure a human only to learn what a human
+cadence *is*.
 
 **When play and rationale disagree, play wins.** A designed distinction that does not survive
 contact with feel gets dropped, and the entry recording it superseded. Do not treat a persuasive
@@ -205,12 +205,11 @@ face: concluding a thing cannot be *measured*.** Before asking for new instrumen
 quantity would do to something already logged — suppressed regen shows up as time that fails to
 appear, and an animation that is a state has no asset to find.
 
-**Before declaring a tooling limit, exhaust the surfaces — MCP toolset, editor Python, then C++ in
+**Before declaring a tooling limit, exhaust the surfaces — MCP, editor Python, then C++ in
 `TheDreamEditor`.** *"Reflection cannot see it"* is not *"it cannot be done"*, and an empty result is
-more often a bad address than a negative one. **A limit written down as a design constraint needs
-re-testing hardest**, because that framing is what stops anyone re-testing it. **Declaring costs
-three checks; building the route costs a slice** — record the refutation and build only when
-something needs it. Method and tells: `Docs/Working-In-Unreal.md`, opening section.
+more often a bad address. **A limit filed as a design constraint needs re-testing hardest** — nobody
+re-tests those. **Declaring costs three checks; building the route costs a slice**: record the
+refutation, build only when something needs it. Method: `Docs/Working-In-Unreal.md`, opening section.
 
 **When a doc describes something that exists, read the thing.** The same failure wearing a positive
 claim: a document is accurate about the moment it was written, and describes a limit that has since
@@ -243,14 +242,10 @@ Execution order, the only line that changes when the order does:
 
 > **~~Attack Ladder~~ → ~~Dodge~~ → ~~Sword & Shield~~ → ~~Input Buffer~~ → ~~Death~~ → ~~Dodge Distance~~ → ~~Attack Swap~~ → ~~[hover bug]~~ → ~~[facing pass]~~ → ~~Recovery~~ + ~~Lunge~~ → ~~Target Lock~~ → ~~Block~~ → ~~Light String~~ → ~~Parry~~ → ~~Knockdown~~ → ~~Skeleton Merge~~ → Death-full → Polish → Settings → Art → Netcode → Tuning Rig → Interplay**
 
-**Pick up at Death-full**, whose brief is the slice-briefs section of `Docs/Combat-Decisions.md`.
-**The whole remaining roster is one megaslice** *(2026-08-24, the designer's ruling)*, and **Art is
-new that day**, while Death-full now precedes Polish because they double-claim the hit-reaction
-animation. Polish stays the fullest brief on the roster.
+**Pick up at Death-full** — briefs are in `Docs/Combat-Decisions.md`. **The remaining roster is one
+megaslice**, not separable slices.
 
-**The project runs two skeletons deliberately**, joined by one `compatibleSkeletons` entry that is
-load-bearing — see the traps. `Docs/Animation-Library.md` has the split;
-`Tools/SkeletonCheck/skeleton-check.sh` reports drift.
+**Two skeletons, joined by one load-bearing `compatibleSkeletons` entry** — see the traps.
 
 **The verification bar every slice now ships against** *(2026-08-24, the dated entry)*: verified
 functionality, with animations legible enough to tell which mechanic is firing. Visual refinement
