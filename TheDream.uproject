@@ -14,6 +14,11 @@
 				"UMG",
 				"GameplayAbilities"
 			]
+		},
+		{
+			"Name": "TheDreamEditor",
+			"Type": "Editor",
+			"LoadingPhase": "PostEngineInit"
 		}
 	],
 	"Plugins": [

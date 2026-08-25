@@ -402,18 +402,50 @@ asset type before concluding a thing cannot be made.
 
 **Renaming an AnimNotify class is expensive** — placed notifies serialize against the class path.
 
-**Writing to any graph whose outer is a *node* fails; reading depends on which graph** *(toolset,
-refined twice on 2026-08-15)*. `create_node` and `find_node_types` resolve the Blueprint through the outer
-and fail with *"Cannot cast type 'X' to 'Blueprint'"* for all three: **`AnimStateNode`** (a state's
-interior), **`AnimGraphNode_StateMachine`** (the machine itself) and **`AnimStateTransitionNode`**
-(a transition's rule). So **the whole state machine is a human job** — states, transitions, rules.
+**A state machine is not a human job, and the claim that it was survived two re-tests because both
+used the same surface** *(measured 2026-08-24, superseding everything recorded 2026-08-15)*.
 
-**Reading splits, and that split is worth exploiting.** A **transition rule graph reads perfectly**
-(`find_nodes`, `get_node_infos` with full pin detail), so **every rule a human authors can be
-verified afterwards** — "they build, we check" is a real division rather than a hopeful one. A
-**state's interior returns `[]`**, no error. And `get_node_infos` on an `AnimStateTransitionNode`
-fails differently (`no attribute 'get_node_title'`), so **transition *direction* is unreadable by
-any route** — check it against a picture.
+**Reading is fully open, and the old `[]` was a bad address rather than a wall.**
+`BlueprintEditorLibrary.list_graphs` in **Python** returns every graph in an AnimBlueprint as an
+object — both state machines, every state graph, every transition graph — and `graph.get_outer()`
+hands back the `AnimStateNode` / `AnimStateTransitionNode` that owns each. **`find_nodes` and
+`get_node_infos` then work on a state's interior when the graph is addressed by its full object
+path**, which is what the earlier test did not do: addressing by *name* returns `[]`, so proving the
+instrument on `AnimGraph` and then reading empty on a nested graph changed two things at once.
+`ObjectTools.list_properties` / `get_properties` / `set_properties` also work on state and
+transition nodes by path — `bAlwaysResetOnEntry`, the `stateEntered` / `stateLeft` /
+`stateFullyBlended` notifies, `priorityOrder`, `blendMode`, `logicType`. A transition's
+`priorityOrder` and `blendMode` were written and read back through a different layer.
+
+**Structure is closed to both scripting surfaces, for one precise reason.** `create_node` and
+`find_node_types` resolve the owning Blueprint from the graph's **immediate** outer, which for a
+nested graph is a node — *"Cannot cast type 'AnimGraphNode_StateMachine' to 'Blueprint'"*. Identical
+by path and by name, so it is a too-shallow outer walk rather than an addressing problem.
+`EdGraph.Nodes` refuses reflection both directions, `EdGraph` exposes no methods to Python, and
+`new_object` will construct an `AnimStateNode` that nothing can register. There is no clipboard or
+graph-text route anywhere in the API.
+
+**C++ lifts it, and the engine's own entry point is exported.**
+`FEdGraphSchemaAction_NewStateNode::PerformAction` is `ANIMGRAPH_API` with a public header-inline
+`SpawnNodeFromTemplate<>` over it; `UCLASS(MinimalAPI)` on the node classes does not bite, because
+`NewObject` needs only `StaticClass()` and everything else is a virtual or a data member.
+**`UEdGraph::Nodes` is public to C++** — "protected" is a reflection fact only, the same shape as
+`Skeleton::Sockets`. `FBlueprintEditorUtils::FindBlueprintForGraph` walks the *whole* outer chain,
+which is exactly what the two failing tools do not.
+
+`Source/TheDreamEditor/` is the module that does it — editor-target-only, exposed to Python and MCP
+as `UTDStateMachineTools`. **Proven 2026-08-24:** reading a machine's 15 nodes, creating a named
+state with its `AnimationStateGraph` and `StateResult`, creating a transition with its rule graph
+and `TransitionResult`, and compiling the result to a valid `AnimBlueprintGeneratedClass`, verified
+through MCP rather than the layer that wrote it. **Not yet proven: populating interiors** — a
+`SequencePlayer` into a state, a rule into a transition — and **nothing built this way has driven a
+mesh in PIE**, which by this file's own rule about assets with a build step is the confirmation that
+counts. **The module is engine-version-coupled**; `SpawnNodeFromTemplate` already carries a
+deprecating vector parameter.
+
+**Transition direction is still unreadable from Python or MCP** — `AnimStateTransitionNode` is not a
+`UK2Node`, so `get_node_infos` fails on `get_node_title` and `list_all_pins` refuses it. From C++ the
+pins are in hand, so this falls whenever it is worth five lines.
 
 `list_graphs` enumerates states and transitions regardless, so the tree is visible even where its
 graphs are not.

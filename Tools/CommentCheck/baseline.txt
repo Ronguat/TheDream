@@ -63,3 +63,5 @@ Tools/DocsCheck/docs-check.sh	81	769
 Tools/RegressionCheck/regression-check.sh	470	5880
 Tools/RegressionCheck/session-count.sh	3	36
 Tools/SkeletonCheck/skeleton-check.sh	17	169
+Source/TheDreamEditor/Private/TDStateMachineTools.cpp	1	17
+Source/TheDreamEditor/Public/TDStateMachineTools.h	19	168
