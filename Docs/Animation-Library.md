@@ -488,6 +488,10 @@ checked later and say so.
   the dodge was first built on rolls) and are no longer played by anything. The eight
   `SwordSwordAnimV3_Dash_*_RM` clips that `AM_Dodge` actually plays have it **disabled**, plus
   `bForceRootLock = true`, because displacement is authored — see the pair rule above.
+  **`SwordSwordAnimV3_Hit_Fw_RM`, the Hitstun state's clip, joined them 2026-08-25**: it had
+  shipped with root motion off and the lock off too — the *worse than neither* half of the pair —
+  and the flinch visibly drifted off the capsule. The pack ships no `_IP` Hit variant, so
+  force-lock is the only route; hitstun locks movement, so the foot-slide cost does not apply.
 - **Attach props to the pack's `Sword` / `Shield` sockets, never to the `weapon_*` bones.**
   *(confirmed 2026-08-10, the hard way)* `GDHBundle`'s `SKM_Manny` carries three authored
   sockets — `Sword`, `Shield`, `Sheath` — parented to `hand_r` / `hand_l`, and they hold the
