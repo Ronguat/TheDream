@@ -4,6 +4,7 @@
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "TDStateMachineTools.generated.h"
 
+class UAnimationAsset;
 class UEdGraph;
 class UEdGraphNode;
 
@@ -39,6 +40,20 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category="TheDream|StateMachine")
 	static UEdGraphNode* AddTransition(UEdGraphNode* FromState, UEdGraphNode* ToState);
+
+	/**
+	 *  Puts a sequence player into a state and wires it to the state result, which is what makes
+	 *  the state play something rather than hold a blank pose.
+	 */
+	UFUNCTION(BlueprintCallable, Category="TheDream|StateMachine")
+	static bool SetStateAnimation(UEdGraphNode* StateNode, UAnimationAsset* Asset);
+
+	/**
+	 *  Authors a transition rule as a single bool member variable of the AnimBlueprint, optionally
+	 *  negated -- the shape every hand-authored rule in this project uses.
+	 */
+	UFUNCTION(BlueprintCallable, Category="TheDream|StateMachine")
+	static bool SetTransitionRule(UEdGraphNode* TransitionNode, FName VariableName, bool bNegate);
 
 	/** The graph a state or transition node owns, which holds its pose or its rule. */
 	UFUNCTION(BlueprintCallable, Category="TheDream|StateMachine")
