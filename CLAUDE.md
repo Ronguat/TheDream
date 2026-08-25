@@ -265,7 +265,7 @@ roster — struck through is the whole record a shipped item needs here.
 |---|---|
 | A design rule that still governs play | `Docs/Combat-Spec.md` |
 | A latent defect or unverified assumption | the **traps** section of `Docs/Combat-Decisions.md` |
-| A value that is **derived** and must not be tuned freely | the **tuning map** there, as *"nothing, without re-deriving it"* |
+| A value that is **derived**, so moving it means re-deriving or re-classifying it | the **tuning map** there, as *"nothing, without re-deriving it"* — a warning naming what breaks, never a lock |
 | Which knob moves for a given complaint | the **tuning map** there |
 | What the next slice inherits | its **brief**, in the slice-briefs section there |
 | What a symbol *is, does or requires* | that symbol's **header comment** — and nothing else does |
