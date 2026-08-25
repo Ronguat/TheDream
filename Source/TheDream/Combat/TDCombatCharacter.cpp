@@ -13,6 +13,7 @@
 #include "Combat/TDGameplayTags.h"
 #include "Core/TDPlayerState.h"
 #include "AbilitySystemComponent.h"
+#include "GameplayEffectExtension.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
@@ -2046,7 +2047,14 @@ void ATDCombatCharacter::HandleHealthChanged(const FOnAttributeChangeData& Data)
 		return;
 	}
 
-	EnterDeath();
+	// The killer travels with the damage, and death is the one contact that imparts nothing
+	// otherwise: knockback sits on the hitstun branch and EnterKnockdown returns early on bDead.
+	AActor* Killer = nullptr;
+	if (Data.GEModData)
+	{
+		Killer = Data.GEModData->EffectSpec.GetContext().GetEffectCauser();
+	}
+	EnterDeath(Killer);
 }
 
 void ATDCombatCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
@@ -2056,6 +2064,7 @@ void ATDCombatCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& O
 	// To everyone, not just the owner: a simulated proxy has to know an opponent is dead or
 	// exhausted, because that is what its own ragdoll and greyed bar are drawn from.
 	DOREPLIFETIME(ATDCombatCharacter, bDead);
+	DOREPLIFETIME(ATDCombatCharacter, DeathImpulse);
 	DOREPLIFETIME(ATDCombatCharacter, bExhausted);
 	DOREPLIFETIME(ATDCombatCharacter, bGuardBroken);
 	DOREPLIFETIME(ATDCombatCharacter, bInBlockstun);
@@ -2070,13 +2079,25 @@ void ATDCombatCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& O
 	DOREPLIFETIME(ATDCombatCharacter, StringIndex);
 }
 
-void ATDCombatCharacter::EnterDeath()
+void ATDCombatCharacter::EnterDeath(AActor* Killer)
 {
 	if (bDead)
 	{
 		return;
 	}
 	bDead = true;
+
+	// Written before bDead so it is in hand when the OnRep fires on every other machine.
+	DeathImpulse = FVector::ZeroVector;
+	if (Killer && DeathImpulseStrength > 0.0f)
+	{
+		FVector Away = GetActorLocation() - Killer->GetActorLocation();
+		Away.Z = 0.0f;
+		if (Away.Normalize())
+		{
+			DeathImpulse = (Away + FVector::UpVector * DeathImpulseLift).GetSafeNormal() * DeathImpulseStrength;
+		}
+	}
 
 	// Death is the single exception to "parry is sacred", on the house: the window closes and no
 	// recovery is charged, because dying resets your starting conditions anyway.
@@ -2172,6 +2193,18 @@ void ATDCombatCharacter::ApplyDeathState()
 	if (bRagdollOnDeath)
 	{
 		StartRagdoll();
+
+		// After StartRagdoll, which is what puts the bodies under simulation -- an impulse before
+		// it lands on a kinematic mesh and is discarded silently. Applied on every machine rather
+		// than replicated as a result: the corpse diverges per client and nothing queries it, the
+		// capsule staying put as the actor transform and the Ragdoll profile ignoring Pawn.
+		if (!DeathImpulse.IsNearlyZero())
+		{
+			if (USkeletalMeshComponent* SkeletalMesh = GetMesh())
+			{
+				SkeletalMesh->AddImpulse(DeathImpulse, NAME_None, false);
+			}
+		}
 	}
 }
 

@@ -893,6 +893,31 @@ protected:
 	bool bRagdollOnDeath = true;
 
 	/**
+	 *  Impulse magnitude given to the ragdoll at death, along the bearing from killer to victim.
+	 *  A true impulse rather than a velocity change, so it divides by the body mass. Measured on
+	 *  Manny: 12000 carries the body about 84 cm before it settles, 36000 about 4.8 m. Passing it
+	 *  as a velocity change instead reads as cm/s directly and fires the corpse 180 m out of the
+	 *  level.
+	 *  A killing blow otherwise imparts nothing at all -- knockback sits on the hitstun branch and
+	 *  EnterKnockdown returns early once bDead is set, so the corpse drops straight down where it
+	 *  stood.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Combat|Death", meta=(ClampMin="0.0"))
+	float DeathImpulseStrength = 12000.0f;
+
+	/** Fraction of the death impulse aimed upward, which is what stops the body sliding flat. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Combat|Death", meta=(ClampMin="0.0", ClampMax="1.0"))
+	float DeathImpulseLift = 0.35f;
+
+	/**
+	 *  Written by the server before bDead replicates, and applied by every machine to its own
+	 *  ragdoll. Replicated rather than recomputed because the killer may already be gone by the
+	 *  time a late joiner resolves the corpse.
+	 */
+	UPROPERTY(Replicated)
+	FVector_NetQuantize10 DeathImpulse = FVector::ZeroVector;
+
+	/**
 	 *  Debug only: seconds after death before reviving at full. 0 disables it. Death is deliberately
 	 *  the minimum -- a state that stops the character acting, so the health bar means something and
 	 *  damage observations after a kill are not garbage.
@@ -1584,7 +1609,7 @@ private:
 	 *  ability finish. Without it a killing blow mid-swing leaves the dead character completing the
 	 *  attack, hitbox and all.
 	 */
-	void EnterDeath();
+	void EnterDeath(AActor* Killer);
 
 	/** Debug only: clears State.Dead, restores movement, refills health and stamina. */
 	void ReviveFromDebug();
