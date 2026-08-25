@@ -180,18 +180,20 @@ already lives.)*
 
 ---
 
-**Before trusting a green loop on death or the flinch — *neither has any coverage.*** Filed
-2026-08-24 as the binding rule's second option, because the package that added them named no
-scenarios and the choice binds at plan time. **What is untested:** that death fires and revives
-cleanly, that the ragdoll takes its impulse at all, that the Hitstun state is entered and left, and
-**death while knocked down**, which has still never executed — it now holds *by construction*, damage
-landing before the knockdown branch and `EnterKnockdown` returning early on `bDead`, but construction
-is not observation. `s4-string` covers hitstun's *timing* and says nothing about its animation, and
-no scenario mentions `DEATH` at all. **Scenarios were deferred rather than forgotten**: the flinch
-clip and the impulse magnitude are both awaiting a designer's eye, and a band written against an
-unapproved choice bakes it in. **Write them when the tells are approved**, and note the fixture
-already exists — attacker taps 3, defender `DebugAutoReviveSeconds` raised so the corpse is
-observable.
+**Before changing the death impulse — *it has no loop coverage.*** Filed 2026-08-24 and **narrowed
+the same day**, when `s7-death` and `s7-death-grade` closed most of what it originally named. What
+remains is one item and its standing is **human-verified, not unverified** — the same standing the
+guard break's movement assertion holds. The designer judged the magnitude in play and the settle
+distance was measured across four values (12000/84 cm, 24000/271, 30000/397, 36000/480), so the
+behaviour is known; **what is missing is a regression check**. Nothing traces the impulse, so a log
+evaluator cannot see it: flip `bVelChange` back to `true` and the corpse leaves the level with every
+scenario still green. **Closing it needs a trace line, not a scenario.**
+
+**The flinch state is covered by precedent rather than owed.** The loop has never asserted an
+*animation state* for anything, blockstun included — it asserts the mechanic that drives one, and
+`s4-string` already asserts hitstun's spans at 0.550 ±20 ms. A state that fails to enter is the same
+class of invisible failure as a montage that fails to play, and the `played=` field is the shape a
+fix would take if it is ever wanted.
 
 **Before the next documentation audit — *nothing mechanical compares two docs for contradicting
 instructions.*** `docs-check` has eight checks and none of them does this. The 2026-08-21 audit

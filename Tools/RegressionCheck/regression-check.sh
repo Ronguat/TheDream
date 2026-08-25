@@ -192,6 +192,10 @@ BAND_AIRBORNE_MIN_HEIGHT=20.0
 
 BAND_GETUP_DODGE_COST=50.0
 BAND_KIPUP_TRAVEL_MAX=25.0
+# s7, death. The revive delay is a debug affordance rather than a design value --
+# DebugAutoReviveSeconds on the placed dummy -- so this band tracks the fixture, not the game.
+BAND_REVIVE_DELAY=3.000
+BAND_REVIVE_TOL=0.060
 BAND_BLOCK_GUARD_GAP=0.100
 
 # ---------------------------------------------------------------------------
@@ -1770,6 +1774,108 @@ EOF
 [ $# -ge 1 ] || usage
 [ "$1" = "--self-test" ] && self_test
 
+# --- s7: death and its supersession of knockdown -----------------------------
+# The killing DAMAGED shares a timestamp with DEATH and is logged *after* it, which is
+# what makes "damage while dead" separable from the blow that killed: only a strictly
+# later timestamp counts.
+
+death_revive_spans() { # seconds from each DEATH to that actor's REVIVE
+	awk '
+		/^\[[0-9.]+\] DEATH /  { t=$1; gsub(/[\[\]]/,"",t); dead[$3]=t+0; next }
+		/^\[[0-9.]+\] REVIVE / { t=$1; gsub(/[\[\]]/,"",t)
+			if ($3 in dead) { printf "%.3f\n", (t+0)-dead[$3]; delete dead[$3] } }
+	' "$SLICE"
+}
+
+death_health() { # the health reading on the blow that killed, one per death
+	awk '
+		/^\[[0-9.]+\] DEATH /   { t=$1; gsub(/[\[\]]/,"",t); dt[$3]=t+0; next }
+		/^\[[0-9.]+\] DAMAGED / { t=$1; gsub(/[\[\]]/,"",t)
+			if (($3 in dt) && (t+0)==dt[$3]) {
+				for (i=1;i<=NF;i++) if ($i ~ /^health=/) { h=$i; sub(/^health=/,"",h); print h+0 }
+				delete dt[$3] } }
+	' "$SLICE"
+}
+
+damage_while_dead() { # DAMAGED landing strictly after a DEATH and before that actor's REVIVE
+	awk '
+		/^\[[0-9.]+\] DEATH /   { t=$1; gsub(/[\[\]]/,"",t); dead[$3]=t+0; next }
+		/^\[[0-9.]+\] REVIVE /  { delete dead[$3]; next }
+		/^\[[0-9.]+\] DAMAGED / { t=$1; gsub(/[\[\]]/,"",t)
+			if (($3 in dead) && (t+0) > dead[$3]) n++ }
+		END { print n+0 }
+	' "$SLICE"
+}
+
+deaths_that_also_floored() { # deaths whose own contact still produced a KNOCKDOWN
+	awk '
+		/^\[[0-9.]+\] DEATH /      { t=$1; gsub(/[\[\]]/,"",t); dt[$3]=t+0; next }
+		/^\[[0-9.]+\] REVIVE /     { delete dt[$3]; next }
+		/^\[[0-9.]+\] KNOCKDOWN  / { t=$1; gsub(/[\[\]]/,"",t)
+			if (($3 in dt) && (t+0)==dt[$3]) n++ }
+		END { print n+0 }
+	' "$SLICE"
+}
+
+count_tag() { grep -c "^\[[0-9.]*\] $1 " "$SLICE" 2>/dev/null || true; }
+
+run_s7_death() {
+	local deaths revives orphans
+	deaths=$(count_tag DEATH)
+	if [ "$deaths" -eq 0 ]; then
+		check "DEATH fires" 1 "no DEATH lines -- nothing died, so every assertion below is vacuous"
+		return
+	fi
+	check "DEATH fires" 0 "$deaths deaths"
+
+	# Health is asserted rather than assumed: a death on a nonzero bar would mean the
+	# threshold moved, which nothing else here would notice.
+	assert_all_equal "death lands at exactly zero health" death_health 0.0
+
+	revives=$(count_tag REVIVE)
+	orphans=$((deaths - revives))
+	check "every death revives" "$([ "$orphans" -le 0 ] && echo 0 || echo 1)" \
+		"$deaths deaths, $revives revives"
+
+	assert_all_in_band "death -> revive" death_revive_spans \
+		"$(awk -v v="$BAND_REVIVE_DELAY" -v t="$BAND_REVIVE_TOL" 'BEGIN{printf "%.3f", v-t}')" \
+		"$(awk -v v="$BAND_REVIVE_DELAY" -v t="$BAND_REVIVE_TOL" 'BEGIN{printf "%.3f", v+t}')" "s"
+
+	# A corpse must not be hittable. The killing blow shares the death's timestamp and is
+	# excluded by the strict comparison in the extractor.
+	local dmg
+	dmg=$(damage_while_dead)
+	check "zero DAMAGED while dead" "$([ "$dmg" -eq 0 ] && echo 0 || echo 1)" \
+		"$dmg DAMAGED across $deaths deaths"
+}
+
+run_s7_death_grade() {
+	local deaths floored kdn
+	deaths=$(count_tag DEATH)
+	kdn=$(count_tag KNOCKDOWN)
+
+	if [ "$deaths" -eq 0 ]; then
+		check "DEATH fires" 1 "no DEATH lines"
+		return
+	fi
+	# **The fixture is what makes this rigorous, not the assertion.** On the heavy fixture every
+	# swing is graded, so any death in the run is necessarily a graded kill. On a light string the
+	# lethal blow is hit 7 and enders are hits 3 and 6, so it lands on a swing that would not have
+	# floored anyway and the check below passes without exercising anything.
+	# The knockdown count is the second half of that guard: it proves grading is live in this run.
+	if [ "$kdn" -eq 0 ]; then
+		check "graded swings floor when they do not kill" 1 \
+			"no KNOCKDOWN lines at all -- the fixture is not throwing a graded swing"
+		return
+	fi
+	check "graded swings floor when they do not kill" 0 "$kdn knockdowns beside $deaths deaths"
+
+	floored=$(deaths_that_also_floored)
+	check "death suppresses the knockdown on its own contact" \
+		"$([ "$floored" -eq 0 ] && echo 0 || echo 1)" \
+		"$floored of $deaths deaths still produced a KNOCKDOWN"
+}
+
 SCENARIO="$1"
 LOGFILE="${2:-Saved/Logs/TheDream.log}"
 [ -f "$LOGFILE" ] || { echo "regression-check: no such log: $LOGFILE" >&2; exit 2; }
@@ -1810,6 +1916,8 @@ case "$SCENARIO" in
 	s6-exhausted-attack) run_s6_exhausted attack attack yes ;;
 	s6-airborne)    run_s6_airborne ;;
 	s6-exhaust-regen) run_s6_exhaust_regen ;;
+	s7-death)       run_s7_death ;;
+	s7-death-grade) run_s7_death_grade ;;
 	*) echo "regression-check: unknown scenario '$SCENARIO'" >&2; usage ;;
 esac
 
