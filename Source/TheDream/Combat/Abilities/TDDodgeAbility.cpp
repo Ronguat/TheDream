@@ -77,6 +77,25 @@ void UTDDodgeAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, c
 	// so anything wanting a committed direction has to say so. Set after ResolveDodgeDirection
 	// deliberately; that call reads facing, and locking first would freeze the value it is about
 	// to use.
+	// **The get-up roll turns to face where it travels; nothing else in the project does.** It is
+	// one forward clip where an ordinary dodge has eight directional sections, so the body is
+	// turned to match and the offset is then spent -- the lunge goes straight ahead. Runs after
+	// ResolveDodgeDirection, which reads the pre-snap facing, and before the lock below.
+	float TravelYawOffset = static_cast<uint8>(DodgeDirection) * 45.0f;
+	if (bIsKnockdownGetUp && !bIsKnockdownKipUp && !FMath::IsNearlyZero(TravelYawOffset))
+	{
+		if (AActor* Avatar = GetAvatarActorFromActorInfo())
+		{
+			FRotator Snapped = Avatar->GetActorRotation();
+			Snapped.Yaw += TravelYawOffset;
+			Avatar->SetActorRotation(Snapped);
+
+			TD_TIMING_LOG(TEXT("[%.3f] DODGE SNAP  %s  yaw+=%.1f (get-up roll)"),
+				GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f, *Avatar->GetName(), TravelYawOffset);
+		}
+		TravelYawOffset = 0.0f;
+	}
+
 	if (ATheDreamCharacter* Character = Cast<ATheDreamCharacter>(GetAvatarActorFromActorInfo()))
 	{
 		Character->SetAbilityFacingLocked(true);
@@ -107,7 +126,7 @@ void UTDDodgeAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, c
 		DodgeSeconds,
 		/*StrengthCurve=*/nullptr,
 		/*StandoffCm=*/0.0f,
-		bKipUp ? 0.0f : static_cast<uint8>(DodgeDirection) * 45.0f);
+		bKipUp ? 0.0f : TravelYawOffset);
 	if (ATDCombatCharacter* Character = Cast<ATDCombatCharacter>(GetAvatarActorFromActorInfo()))
 	{
 		Character->DebugStatusLine = FString::Printf(TEXT("Dodge %s  %.2fs  invulnerable"),
@@ -157,11 +176,15 @@ void UTDDodgeAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, c
 
 		// Derived from the *section* where there is one, because an eight-section montage's total
 		// length is eight rolls and dividing by that would play each at a crawl. A get-up montage
-		// has one segment, so its whole length is the clip and that is what fits DodgeSeconds.
+		// has one segment, so there is no boundary to fit to and KnockdownRollSeconds marks where
+		// the roll ends by hand -- the same fit, applied where the asset carries no seam.
 		float PlayRate = 1.0f;
+		const float RollPortion = (bIsKnockdownGetUp && !bIsKnockdownKipUp && KnockdownRollSeconds > 0.0f)
+			? FMath::Min(KnockdownRollSeconds, MontageToPlay->GetPlayLength())
+			: MontageToPlay->GetPlayLength();
 		const float FitLength = bUseSection
 			? ((SectionIndex != INDEX_NONE) ? MontageToPlay->GetSectionLength(SectionIndex) : 0.0f)
-			: MontageToPlay->GetPlayLength();
+			: RollPortion;
 		if (FitLength > 0.0f && DodgeSeconds > 0.0f)
 		{
 			PlayRate = FMath::Max(FitLength / DodgeSeconds, 0.01f);

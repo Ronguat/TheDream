@@ -77,6 +77,18 @@ protected:
 	float DodgeSeconds = 0.5f;
 
 	/**
+	 *  How much of KnockdownRollMontage is the roll itself, in its own unscaled seconds. Only
+	 *  this portion is fitted to DodgeSeconds; the tail past it plays out afterwards at the
+	 *  same rate, outside the i-frames.
+	 *
+	 *  Fitting the whole clip instead runs the recovery-to-stance while the body is still
+	 *  travelling. Clamped to the montage length, so a shorter clip degrades to fitting all
+	 *  of it rather than overrunning. Zero fits the whole clip.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Dodge", meta=(ClampMin="0.0"))
+	float KnockdownRollSeconds = 0.6f;
+
+	/**
 	 *  How long after this dodge ends a parry may not be started. Applied as State.DodgeRecovery,
 	 *  and lives on the dodge because the dodge is what knows one just ended.
 	 *

@@ -322,6 +322,7 @@ public:
 	void EnterKnockdown(ETDKnockdownType Type, AActor* Attacker);
 
 	/** Whether a parried attacker is serving their lockout. */
+	UFUNCTION(BlueprintPure, Category="Combat|Parry")
 	bool IsInParryLockout() const { return bInParryLockout; }
 
 	/**

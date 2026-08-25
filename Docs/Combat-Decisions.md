@@ -719,20 +719,6 @@ over 75 in about a second. Change the fixture, never the band.
 dedup did not apply on that path. Every assertion around it was green; the cost is log volume.
 
 
-**Whenever dodge facing is touched — *the roll's yaw-snap was specced and never built.***
-Filed 2026-08-24 from the legibility glance, and **rehomed from `Plan-Knockdown.md`, which is
-deleted at ship**. That plan's sub-slice D ruled the dodge get-up as *"yaw-snap to the held
-direction … mid-roll the body faces its travel direction — a deliberate, logged exception to the
-strafe-always convention; facing re-converges to camera at `EndAbility`."* The second half is built
-and the first is not: `TDDodgeAbility.cpp` freezes facing at activation
-(`SetAbilityFacingLocked(true)`, with the comment that the direction resolved a line earlier is the
-direction) rather than snapping the body to it. **Seen in play**: the get-up roll travels backward
-while the character faces forward. The re-converge rate is `TurnRateDegrees`, **1200 deg/s**, derived
-as 180 divided by the light's `HoldUntilSeconds` — and it lives on `ATheDreamCharacter`, not
-`ATDCombatCharacter`, which is where a filtered search for it fails. Presentation, so **Polish owns
-it**; recorded as a trap rather than a wish because the ruling already exists and would otherwise be
-rediscovered as a new idea.
-
 
 **Whenever the knockdown carry or the airborne path changes — *no fixture reaches an airborne
 knockdown.*** Filed 2026-08-24, owed from Knockdown's plan at sub-slice G. The ruling is that an
@@ -1584,6 +1570,68 @@ long.
 | `bUseControllerRotationYaw` | 08-12 |
 | `compositeSections` | 08-15, 08-18 |
 | `gEComponents` | 08-10, 08-11 |
+
+## 2026-08-25 — The get-up roll aims itself, and is fitted to the roll rather than the clip
+
+Three small Polish items taken together because they are one thing in play: the roll now goes where
+it was aimed, ends when the rolling ends, and the parried attacker's tell has the getter it was
+waiting on.
+
+### Snap in, rotate out — and the asymmetry is the point
+
+The plan's sub-slice D ruling shipped by halves: facing re-converged at `EndAbility` but never
+snapped on the way in, so the roll travelled backward while the body faced forward. The snap is
+`TravelYawOffset` degrees of actor yaw at activation, and the offset is then **spent** — the lunge
+goes straight ahead rather than at an angle to a facing that no longer differs from it.
+
+**Asked whether the entry should rotate too** *(the designer)*, and it should not. Travel commits at
+activation as a yaw offset on the root motion source, and facing is frozen there deliberately —
+*"a character free to turn mid-dodge steers the dodge itself."* A body still rotating gives you one
+of two things: travel following facing, which curves the dodge and hands the steering back, or
+travel staying fixed while the body turns, which is the original bug for the turn's duration. At
+`TurnRateDegrees` 1200 °/s a **180° reversal is 150 ms of a 400 ms dodge**, and 180° is exactly
+where the mismatch is most visible. Turning *before* travel starts is worse again: it delays an
+i-framed defensive move to buy a look.
+
+**Coming out has no such constraint** — the ability has ended, there is no travel left to commit, so
+the re-converge stays a rotation. The asymmetry is not an inconsistency; it is which end has
+something to commit.
+
+**Scoped to the get-up roll alone, and the code says why**: an ordinary dodge picks one of eight
+directional sections and so strafes correctly, and the kip-up does not travel. Only the roll is a
+single forward clip. Verified as an absence — **zero `DODGE SNAP` lines across 14 ordinary dodges**,
+which still use their directional sections.
+
+### The roll is fitted to the roll, not to the clip
+
+`AM_KnockdownRoll` fitted its whole 0.900 s to `DodgeSeconds`, so at 2.25x the recovery-to-stance ran
+while the body was still travelling. `KnockdownRollSeconds` now marks where the rolling ends and only
+that portion is fitted; the tail plays out afterwards at the same rate, outside the i-frames.
+Measured after: `fitLen=0.600 rate=1.500`, against 0.900 / 2.250.
+
+**Frame 18, the designer's call between two defensible frames.** It is authored as seconds rather
+than as a montage section because the clip carries no seam there — the same fit `AM_Dodge` gets from
+its section boundaries, applied where the asset has none. Clamped to the montage length, so a
+shorter clip degrades to fitting all of it.
+
+**The brief's frame-to-time conversion was wrong and the asset settles it.** It gave frame 18 as
+0.623 s, and its "resulting 1.56x" follows from that. The clip is 0.900 s with **28 sampled keys** —
+27 intervals, exactly 30 fps — so frame 18 is **0.600 s** and the rate is 1.50. The 0.623 figure
+corresponds to a 26-interval clip. Exposed as a `UPROPERTY`, so the 23 ms is one field if the frame
+judgement moves.
+
+### `IsInParryLockout()` is `BlueprintPure`
+
+One line, and the last thing between `State.ParryLockout` and the parried attacker's recoil tell.
+The state has been live since Knockdown's sub-slice E with nothing able to read it from a graph.
+
+### One observation kept rather than dismissed
+
+The first `s6-dodge` run put its **first** sample at 424.2 cm against a 400–420 band, seven others
+landing 405.7–413.2. It did not reproduce — a second run measured 405.6–414.0 and passed — and there
+is no mechanism for it here: the roll clip carries `bEnableRootMotion = false` with the root locked,
+so travel is the authored lunge alone, and neither a rotation nor a play rate moves an authored
+distance. Recorded because an unexplained first sample is worth a line, not because it is understood.
 
 ## 2026-08-25 — The release window closed on its notify, so its length was the frame rate's to decide
 
@@ -7903,7 +7951,7 @@ long it is held, and block and parry will share a button.
 a brief binds the session that picks that slice up and no other, so it was triggered content
 sitting in the always-read file.
 
-- **Polish** *(style over substance; split from Knockdown 2026-08-18, the designer's call)* — deferred work that changes how something *reads* rather than what it does. **Carries the bespoke windup pass**: heavy and charged get their own clips, their windups become **blended transitions** into real anticipation, and **coil is deprecated**. It belongs here rather than in Knockdown because the reactability arithmetic is untouched — the blend occupies exactly the window the coil did, 350 ms light→heavy and 300 ms heavy→charged — so only the tell's *expression* changes, freeze to visible repositioning. **Sits early deliberately**, right after Knockdown: it must precede Interplay or the feel verdict is taken with both tiers still playing the light's clip. **Clip-fitting values are Polish's; whole-surface greening is not** — the hypothesis dataset lands at the Tuning Rig (2026-08-18). Spec, candidate pool and the two measured findings behind it are in `Docs/Combat-Decisions.md`, 2026-08-18. **Inherited from Parry when it shipped 2026-08-19:** the parried attacker's **recoil tell** and all parry presentation — a parry currently reads only on the parrier, so the victim of one has no tell at all; and the open preview question of **whether V3's parry pose reads consistently beside V1's held guard**, which is a pack mix that shipped without being judged. Neither needs a search — both need looking at. **Knockdown's presentation is inherited whole (2026-08-20)**: the designer's verdict on the shipped state machine was *"needs polish, but the functionality is there"*, and specifically that the transition into the down state reads **abrupt** — there is no impact moment, the fall simply starts. Also here *(clause updated 2026-08-24 — an authored source now exists)*: polishing the get-up clip in its authored scene (`AnimSource/GetUpAttack.casc`; the rough ships as Knockdown's interim per that day's verification-bar entry), plus **Knockdown's re-scope inheritance**: the knockdown/fall/rise clip batch and the get-up options' look — everything past the tell-what-fired legibility bar; and the two rises deliberately blend into idle over their second half, which is a choice to revisit once idle poses are real. **Two more from the legibility glance of 2026-08-24, both of which *passed* the tell-what-fired bar, so neither is a defect:** the **block get-up** does blend to a guard on standing -- contradicting the assumption, mine, that it showed nothing at all -- and the designer's verdict on it is *"underwhelming and looks a tad undeliberate"*; and the **dodge get-up's roll ends before the dodge does**. `AM_KnockdownRoll` fits the whole 0.900 s of `AS_SwordAndShieldAnimV1_Roll_Fw_RM` to `DodgeSeconds`, so at 2.25x the clip's recovery-to-stance -- frames 18-26, 31% of it -- runs while the body is still travelling, and auto blend-out triggers at frame 18.8 and replaces it with idle pose. **The designer's fix, ruled the same day: mark where the roll ends and fit that portion**, leaving the recovery to play out after the dodge without i-frames. I-frames stay at `DodgeSeconds` and nothing about play changes -- it is the section-fitting precedent `AM_Dodge` already uses, applied where there is no section boundary. Measured marker candidate **frame 18, t = 0.623 s**: the pelvis minimum (15.5) sits behind it and the rise to 81.8 is monotonic after; **frame 17 is equally defensible**, the pitch zero-crossing falling between them, so the frame is a judgement about the animation rather than a number the data settles. **The blend-out then wants its own look**: at the resulting 1.56x it triggers at 0.417 s, clear of the dodge, but starts eating the recovery instead. **Two stun tells were filed 2026-08-24; one is built and one remains**, both on blockstun's route. Blockstun's animation is a **state in the Locomotion machine, not a montage** — `AM_Blockstun` was built, tested and deleted at `eb658ee` because the montage route *"cost more than it buys"*, and a state needs no C++ at all: one state and two transitions in the editor, keyed off a `BlueprintPure` getter. **The hitstun flinch is built** *(Death-full, 2026-08-24)* -- a state in the Locomotion machine on `AS_SwordSwordAnimV3_Hit_Fw_RM`, entered from Idle and Walk / Run on a cached `IsInHitstun` and left on its negation, judged legible in play. Polish inherits its *look*, not its construction. **A parried attacker has no tell either**, which is the recoil gap named above now with a state to hang it on: `State.ParryLockout` went live with Knockdown's sub-slice E, and `IsInParryLockout()` still needs one `UFUNCTION` line to become `BlueprintPure`. **The editor work is no longer human either** *(2026-08-24)*: `UTDStateMachineTools` creates states, transitions and rules from script, which is how the hitstun flinch was built. A search for a blockstun *asset* still finds nothing and still proves nothing -- that half of the old clause stands.  **And one that is mechanical rather than presentational, filed here so it is not forgotten** *(the designer, 2026-08-24)*: **a guard break should count as a hit for the *attacker's* input freedom.** A blocked hit returns before the on-hit waiver, so the attacker stays pinned for the full recovery — the waiver's own comment keeps recovery as the punish window *"against whiffs and against blocks."* A **break** should not sit on that side of the line: it waives like a connect. **The defender side is unchanged.** **The target windups shipped 2026-08-25** — heavy **400 ms**, charged **800 ms**, with each tier's `HoldUntilSeconds` moved alongside so every runway and commit rate is preserved; `DodgeRecoverySeconds` retired to 0 in the same pass. **What clip selection inherits is a ceiling**: the heavy cannot grow past roughly **450 ms** without the light↔heavy gap outgrowing the parry window's usable margin and one press ceasing to cover both tiers, so there is about 50 ms of headroom to fit a clip into. The corrected reactability reference — measured from the light's arrival, not the coil — and the five audited relationships are in that day's entry.
+- **Polish** *(style over substance; split from Knockdown 2026-08-18, the designer's call)* — deferred work that changes how something *reads* rather than what it does. **Carries the bespoke windup pass**: heavy and charged get their own clips, their windups become **blended transitions** into real anticipation, and **coil is deprecated**. It belongs here rather than in Knockdown because the reactability arithmetic is untouched — the blend occupies exactly the window the coil did, 350 ms light→heavy and 300 ms heavy→charged — so only the tell's *expression* changes, freeze to visible repositioning. **Sits early deliberately**, right after Knockdown: it must precede Interplay or the feel verdict is taken with both tiers still playing the light's clip. **Clip-fitting values are Polish's; whole-surface greening is not** — the hypothesis dataset lands at the Tuning Rig (2026-08-18). Spec, candidate pool and the two measured findings behind it are in `Docs/Combat-Decisions.md`, 2026-08-18. **Inherited from Parry when it shipped 2026-08-19:** the parried attacker's **recoil tell** and all parry presentation — a parry currently reads only on the parrier, so the victim of one has no tell at all; and the open preview question of **whether V3's parry pose reads consistently beside V1's held guard**, which is a pack mix that shipped without being judged. Neither needs a search — both need looking at. **Knockdown's presentation is inherited whole (2026-08-20)**: the designer's verdict on the shipped state machine was *"needs polish, but the functionality is there"*, and specifically that the transition into the down state reads **abrupt** — there is no impact moment, the fall simply starts. Also here *(clause updated 2026-08-24 — an authored source now exists)*: polishing the get-up clip in its authored scene (`AnimSource/GetUpAttack.casc`; the rough ships as Knockdown's interim per that day's verification-bar entry), plus **Knockdown's re-scope inheritance**: the knockdown/fall/rise clip batch and the get-up options' look — everything past the tell-what-fired legibility bar; and the two rises deliberately blend into idle over their second half, which is a choice to revisit once idle poses are real. **Two more from the legibility glance of 2026-08-24, both of which *passed* the tell-what-fired bar, so neither is a defect:** the **block get-up** does blend to a guard on standing -- contradicting the assumption, mine, that it showed nothing at all -- and the designer's verdict on it is *"underwhelming and looks a tad undeliberate"*; and the **dodge get-up's roll** shipped 2026-08-25: it aims itself at the input direction, and `KnockdownRollSeconds` fits the rolling portion rather than the whole clip, so the recovery-to-stance plays out after the dodge instead of during it. Frame 18 was the designer's call between two defensible frames, and the asset puts it at 0.600 s rather than the 0.623 the earlier note derived. **What is left is the blend-out's own look** — at the old 2.25x it triggered mid-travel; at the resulting 1.50x it clears the dodge but starts eating the recovery, and the trigger time wants re-measuring at that rate rather than scaling the old figure. **Two stun tells were filed 2026-08-24; one is built and one remains**, both on blockstun's route. Blockstun's animation is a **state in the Locomotion machine, not a montage** — `AM_Blockstun` was built, tested and deleted at `eb658ee` because the montage route *"cost more than it buys"*, and a state needs no C++ at all: one state and two transitions in the editor, keyed off a `BlueprintPure` getter. **The hitstun flinch is built** *(Death-full, 2026-08-24)* -- a state in the Locomotion machine on `AS_SwordSwordAnimV3_Hit_Fw_RM`, entered from Idle and Walk / Run on a cached `IsInHitstun` and left on its negation, judged legible in play. Polish inherits its *look*, not its construction. **A parried attacker has no tell either**, which is the recoil gap named above now with a state to hang it on: `State.ParryLockout` went live with Knockdown's sub-slice E, and `IsInParryLockout()` is `BlueprintPure` as of 2026-08-25, so the state is readable from a graph and only the look is left. **The editor work is no longer human either** *(2026-08-24)*: `UTDStateMachineTools` creates states, transitions and rules from script, which is how the hitstun flinch was built. A search for a blockstun *asset* still finds nothing and still proves nothing -- that half of the old clause stands.  **And one that is mechanical rather than presentational, filed here so it is not forgotten** *(the designer, 2026-08-24)*: **a guard break should count as a hit for the *attacker's* input freedom.** A blocked hit returns before the on-hit waiver, so the attacker stays pinned for the full recovery — the waiver's own comment keeps recovery as the punish window *"against whiffs and against blocks."* A **break** should not sit on that side of the line: it waives like a connect. **The defender side is unchanged.** **The target windups shipped 2026-08-25** — heavy **400 ms**, charged **800 ms**, with each tier's `HoldUntilSeconds` moved alongside so every runway and commit rate is preserved; `DodgeRecoverySeconds` retired to 0 in the same pass. **What clip selection inherits is a ceiling**: the heavy cannot grow past roughly **450 ms** without the light↔heavy gap outgrowing the parry window's usable margin and one press ceasing to cover both tiers, so there is about 50 ms of headroom to fit a clip into. The corrected reactability reference — measured from the light's arrival, not the coil — and the five audited relationships are in that day's entry.
 - **Settings menu.** Raised 2026-08-12. Mouse sensitivity is the immediate want, and it should own
   **`TurnRateDegrees`** too — that number stopped being cosmetic the moment attacks began pointing
   wherever it had turned to, so exposing it is a balance decision rather than a comfort one, and a
