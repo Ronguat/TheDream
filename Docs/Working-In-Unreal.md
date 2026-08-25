@@ -23,6 +23,62 @@ engine.**
 
 ---
 
+## How to treat a limit — read this before believing anything below
+
+**Everything in this file is a claim about a surface, not about the engine.** That sentence used to
+be a caveat on the `(toolset)` mark; on 2026-08-24 a deliberate sweep refuted **eight** recorded
+walls in one session, and it is now the operating assumption. The findings are in
+`Docs/Combat-Decisions.md`; what follows is the method, which is worth more than any of them.
+
+**There are three surfaces, widest last.** Test in this order and record which one you tested:
+
+| | Reaches | Costs |
+|---|---|---|
+| **MCP toolset** | whatever a tool wraps | free; narrowest, and resolves objects by name |
+| **Editor Python** | the whole reflection surface, plus `BlueprintCallable` and non-reflected Python methods | free; cannot obtain some handles |
+| **C++ in `TheDreamEditor`** | everything the engine exports | a rebuild, and engine-version coupling |
+
+**Three causes recur, and each predicts which surface wins.** Learn the tells:
+
+- **A protected reflection view of a public C++ member.** The tell is an error reading *"is protected
+  and cannot be read"* — which is a verdict about reflection, never about access. `EdGraph::Nodes`,
+  `Skeleton::Sockets`, `UCurveFloat::FloatCurve` are all public to C++.
+- **A handle the surface cannot obtain, though the API is public.** The tell is being able to *name*
+  a `BlueprintCallable` function you cannot *call*. Enhanced Input's injection lives on a local
+  player subsystem and Python exposes only engine and editor subsystem getters. The fix is a shim,
+  not a reimplementation.
+- **An outer walk one level too shallow.** The tell is a cast failure naming a type from the outer
+  chain — *"Cannot cast type 'AnimGraphNode_StateMachine' to 'Blueprint'"*. The engine's own helper
+  usually walks the whole chain where the tool checked one link.
+
+**An empty result is not a negative result.** `find_nodes` returned `[]` on a graph addressed by
+*name* and its full contents addressed by *full object path*. Before believing an emptiness, change
+the **address** and try again — and never change the address and the target in the same step, which
+is how the original test convinced itself.
+
+**Three things make a limit expensive rather than merely wrong**, and all three are about the record:
+
+- **`(toolset)` names one surface and stops reading that way after about a week** on the page.
+- **`(inherited)` means nobody ever observed it.** One such claim was contradicted by its own
+  neighbour in the same file and survived anyway.
+- **A limit re-filed as a *design constraint* stops being re-tested at all.** This is the worst
+  form. *"Multi-section montages are fully out, a design constraint rather than a chore"* shaped a
+  slice plan three days after it was written, and the project had already been shipping a
+  multi-section montage the whole time.
+
+**Lifting a wall is not automatically worth it.** Build the route when a slice needs it; **record the
+refutation and stop when nothing does.** Four refutations from the sweep were deliberately left
+unimplemented for exactly that reason. **The finding is the valuable half** — a plan made against a
+wrong limit is the expensive failure, and a missing helper is cheap by comparison.
+
+**The verification rules do not relax because the route is new.** Verify against the artefact and
+prefer a check that does not go back through the layer that wrote it; and for any asset type with a
+build step, **only play confirms**. A structurally valid thing that has never driven a frame is
+scaffolding, not a capability.
+
+
+---
+
 ## Before you start
 
 `unreal-mcp` is an HTTP server hosted by the in-editor plugin (`127.0.0.1:8000`, see `.mcp.json`).

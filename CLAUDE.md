@@ -182,10 +182,9 @@ it, and do not try to write the runway down.
 **Any package planning a new combat capability includes one of two things:** the scenarios it will
 add to `Tools/RegressionCheck/regression-check.sh` **in the same package**, or a **dated trap**
 naming what is now untested. **It binds at plan time.** A loop that lags the combat surface still
-prints green. **A scenario whose defender must act at a time no longer needs a human**
-*(2026-08-24)* — `UTDInputTools` injects real Enhanced Input into PIE, taps and timed holds alike, so
-scripting one is a `HOW`. Timing a demonstration off a person is still the way to learn what a
-*human* cadence is; it is no longer the way to drive one.
+prints green. **A defender that must act at a time is scripted, not demonstrated** —
+`UTDInputTools` injects real input into PIE, taps and timed holds alike. Measure a human only to
+learn what a human cadence *is*.
 
 **When play and rationale disagree, play wins.** A designed distinction that does not survive
 contact with feel gets dropped, and the entry recording it superseded. Do not treat a persuasive
@@ -205,6 +204,13 @@ what you searched** — absence claims rot faster than any other kind. **The sam
 face: concluding a thing cannot be *measured*.** Before asking for new instrumentation, ask what the
 quantity would do to something already logged — suppressed regen shows up as time that fails to
 appear, and an animation that is a state has no asset to find.
+
+**Before declaring a tooling limit, exhaust the surfaces — MCP toolset, editor Python, then C++ in
+`TheDreamEditor`.** *"Reflection cannot see it"* is not *"it cannot be done"*, and an empty result is
+more often a bad address than a negative one. **A limit written down as a design constraint needs
+re-testing hardest**, because that framing is what stops anyone re-testing it. **Declaring costs
+three checks; building the route costs a slice** — record the refutation and build only when
+something needs it. Method and tells: `Docs/Working-In-Unreal.md`, opening section.
 
 **When a doc describes something that exists, read the thing.** The same failure wearing a positive
 claim: a document is accurate about the moment it was written, and describes a limit that has since
@@ -242,10 +248,9 @@ Execution order, the only line that changes when the order does:
 new that day**, while Death-full now precedes Polish because they double-claim the hit-reaction
 animation. Polish stays the fullest brief on the roster.
 
-**The project runs two skeletons and that is deliberate** *(Skeleton Merge, 2026-08-24)*.
-`SK_Master` is the project's skeleton and the mesh's; SwordShield's `SK_Mannequin` holds the ~1000
-unused vendor clips and is reached by **one** `compatibleSkeletons` entry, which is load-bearing —
-see the traps. `Tools/SkeletonCheck/skeleton-check.sh` reports drift and folds a migrated pack in.
+**The project runs two skeletons deliberately**, joined by one `compatibleSkeletons` entry that is
+load-bearing — see the traps. `Docs/Animation-Library.md` has the split;
+`Tools/SkeletonCheck/skeleton-check.sh` reports drift.
 
 **The verification bar every slice now ships against** *(2026-08-24, the dated entry)*: verified
 functionality, with animations legible enough to tell which mechanic is firing. Visual refinement
