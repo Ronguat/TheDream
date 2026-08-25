@@ -119,6 +119,9 @@ and not the order anyone reads in. Keep it sorted when adding.)*
 | 2026-08-16 — Knockback is a spacing reset | hard knockdown is **the charged's** distinction — "the charged's knockdown is hard, with fewer get-up options" | 2026-08-19 — Knockdown's plan session (the heavy also knocks down hard; the grade rule restates as *committed single hits knock down hard, the string's volume finisher normal*. Ruled at the plan's review; ships with Knockdown) |
 | 2026-08-18 — A parry makes them whiff at your feet | the reward is **derived** — the parried attacker rides their own attack into recovery, and an authored form exists only if play demands compensation | 2026-08-19 — Knockdown's plan session (the rework, locked at review: a catch **ends** the attack — its release was staying live against bystanders — and inflicts `State.ParryLockout`, duration derived as the swing's remaining planned total, so the per-tier punish survives inside the new structure. Ships with Knockdown's sub-slice E) |
 | 2026-08-18 — A parry makes them whiff at your feet | a whiffed parry "pays a **defensive** lockout", and the parry is refused only while blocking, exhausted and inside the post-dodge gap | 2026-08-19 — Parry recovery commits you, then the lockout (two widenings the same day: the whiff's tail refuses **every** ability and holds the movement lock, and the commitment starts at the *press* rather than at window close, so the window refuses everything too. The pricing symmetry and the floor derivation are untouched — only what the price *buys* changed) |
+| 2026-08-18 — A parry makes them whiff at your feet | the post-dodge gap is "a derived ~150 ms" that stops a predictive dodge chaining into a parry covering the charged | 2026-08-25 — The windups move as a pair (the derivation was `charged − DodgeSeconds − light arrival` and it never closed the case, release not being instantaneous; `DodgeRecoverySeconds` retires to 0 and the chain stands as priced RPS) |
+| 2026-08-18 — The bespoke windup pass deprecates the coil | the blend windows are stated against the coil's start — "350 ms light→heavy (0.150 → 0.500)" | 2026-08-25 — The windups move as a pair (reactability is measured from the **light's arrival** at 200, not the coil's start at 150; every coil-referenced window was 50 ms wide of the mark) |
+| 2026-08-18 — The ladder re-poles: rapid heavy | the heavy arrives at 350 and "that shortening is the point rather than a side effect" | 2026-08-25 — The windups move as a pair (400 now, partly walking the shortening back: at a 150 ms window the heavy sat below the reaction figure outright, and 200 puts it exactly on it. The fast/slow poling the entry argues for survives) |
 | 2026-08-18 — The bespoke windup pass deprecates the coil | "the surviving invariant: the parry window must be ≥ the longest authored `ReleaseSeconds`" | 2026-08-19 — Knockdown's plan session (the floor retires with the parry rework — it bought tell-timing sufficiency, a forgiveness guarantee rather than correctness, at the price of capping every release; the designer's prior-art argument. The window keeps only the anti-option-select ceiling; the tuning-map row updates when the rework ships) |
 | 2026-08-19 — The instrument finding: one refusal now shadows the other | the shadowing is "a finding rather than laziness", an accepted property to assert around | 2026-08-19 — `State.Parrying` marks the window, not the ability that opens it (same day, on the designer's question: it was a **defect**, not a property. The tag rode in GA_Parry's ActivationOwnedTags and re-scoped itself when the ability began outliving the window. The superseded subsection is left standing deliberately — its reasoning is the trap it describes) |
 | 2026-08-19 — The parry recovery commits you | *“the two parry tails forbid very different things and are both recoveries”* reads as though parry has **two** recoveries | 2026-08-24 — it never did, and the phrasing went stale the same day it was written. The two tails shared `State.ParryRecovery` until that session split them; the half that *refuses parry only* became **`State.DodgeRecovery`** and stopped being a parry state at all. Parry has exactly one recovery, the whiff's. A success has none — only Grace's 150 ms tail, which aids rather than restricts. Misread once, by an assistant, straight off this sentence |
@@ -1095,7 +1098,7 @@ kept in their own notes. What belongs here is only what to move once a verdict a
 | Dodge reads fast-forwarded | `DodgeSeconds` | The clip. Trimming sections to drop the play rate makes the animator's midpoint the design, and does it before the baseline has been felt. |
 | Dodge travels too far or short | `DodgeTargetDistanceCm` — one number, every direction, as of 2026-08-13 | The play rate, and **not `AnimRootMotionTranslationScale`**, which this row named until 2026-08-14 and which now does nothing at all: the dash clips carry `bEnableRootMotion = false`, so there is no animation root motion left to scale. Rate changes *duration*, never *distance* — a faster dash covers the same ground in less time. |
 | Dodge is too safe | A recovery window in **absolute** time, i-frames derived as `DodgeSeconds - RecoverySeconds` | A *fraction* of the dodge. What makes recovery punishable is how it compares to an attack's startup, and a fraction shrinks the punish window below usable whenever the dodge is retuned faster. |
-| An attack is too reactable, or not enough | `CoilEndSeconds`, or moving where the coil starts | The windup length. Reactability is measured from the **tell**, not the press — a longer windup with the same coil changes nothing. *(Once the bespoke windup pass lands, this row becomes "where the blend starts"; the window it moves is the same one.)* |
+| An attack is too reactable, or not enough | That tier's **`ReleaseAtSeconds`**. The window is its arrival minus the **light's** — the defender's read is *"no light landed"*, available at 200 ms | `CoilEndSeconds` or where the coil starts. Reactability is still measured from the **tell** rather than the press, but the tell is the light's non-arrival and not the coil — which is why deprecating the coil touches none of this arithmetic. Corrected 2026-08-25; the coil-referenced form overstated every window by 50 ms |
 | A swing's follow-through drags, or its recovery reads sluggish | That branch's or swing's `RecoverySeconds` — it sets the recovery *rate*, currently 0.588 on the light and the section furthest from true speed | The clip, and **especially not `BlendOutTriggerTime`**. Recovery only has to reach the blend-out boundary, and with a trigger of `-1` that boundary **moves with the rate** — so touching it silently retimes the punish window instead of the look. Same family as the blend-out trap. |
 | The snap-to-camera pop reads badly | **Nothing — the snap is gone.** Facing is one smooth rate in both states as of 2026-08-12 | *(This row used to forbid always-smooth on the grounds that it sends dodges sideways. That was wrong: a dodge resolves its direction relative to facing and travels relative to the same facing, so lag cancels. Disproven in play.)* |
 | Attacks do not land where the player aimed | `TurnRateDegrees`, and read `FACING LOCK`'s **`err` beside its `camDelta`** — err alone answers only "is the body aligned with the camera *now*". A large err with a small camDelta is an aim bug; a large err on a still-moving camera is a flick finished after commit, which is user error and settled *(2026-08-18)* | The wedge's `ArcDegrees`. Widening the arc to cover a facing that arrived late hides an aim bug behind a bigger hitbox, and does it in every direction at once. |
@@ -1142,13 +1145,14 @@ kept in their own notes. What belongs here is only what to move once a verdict a
 | Chain links drop when mashing fast | Nothing — check the `BUFFER` trace first. Pressing early buys **no** cadence: chain-out fires when recovery opens, not when the press arrived | Widening `InputBufferSeconds`, or `StringLinkWindowSeconds`. A dropped chain tap means the press was *completed* inside the swing's first ~165 ms, which the extension already rescues; if it still drops, the extension is off or the ability stopped opting in. |
 | The window to chain feels too generous | `StringLinkWindowSeconds` for the post-recovery half, `ChainOpenAfterRecoverySeconds` for when the in-swing half opens | The buffer. The chain-out span is the whole of recovery by construction — it is gated on `bInRecovery` — so tightening the *input* window is not what shortens it; `RecoverySeconds` is, and that is the punish window. |
 | The string's cadence feels wrong | **`ChainOpenAfterRecoverySeconds`, but it is derived and not free.** 0.133 comes from `cadence = 0.200 + 0.150 + ChainOpen + one frame` against a **500 ms cadence tapped by the designer**, the one number in the project measured off a human rather than chosen. Moving it moves the cadence away from that measurement, so re-derive rather than nudge — and `HitstunSeconds` must stay above the resulting gap or the string's guarantee silently stops being true | The montage rates or `RecoverySeconds`. Pressing earlier buys no cadence at all: chain-out fires when recovery opens, not when the press arrived. |
-| The parry window feels too tight, or too forgiving | **Nothing, without re-deriving the ceiling** — which is now the only fence. `ParryWindowSeconds` is bounded above by the anti-option-select rule: one press must not cover two read-classes, so it stays under the fast↔charged gap, 750 − 350 = **400 ms**. 300 is legal *only because of the re-pole*; under the old ladder the ceiling was 250. **The lower fence retired with Knockdown's parry rework.** Window ≥ the longest authored `ReleaseSeconds` bought tell-timing *forgiveness* rather than correctness, and charged every release in the game for it. A catch now ends the attack outright, and against a stationary volume the question collapses to one boundary test at release-open — dedup consumes the swing's hit target, and the movement lock forbids walking an open window into a volume. **What the window guarantees is first contact with no prior catch**: a catch collapses the remaining cover to Grace, deliberately | Widening it toward the gap "because there is room". The room is the whole margin protecting the read from becoming an option-select, and spending it converts parry from a read into a timing test — which is the identity the entire input scheme was chosen to protect |
+| The parry window feels too tight, or too forgiving | **Nothing, without re-deriving the ceiling** — which is now the only fence. `ParryWindowSeconds` is bounded above by the anti-option-select rule: one press must not cover two read-classes, so it stays under the fast↔charged gap, 800 − 400 = **400 ms**. 300 is legal *only because of the re-pole*; under the old ladder the ceiling was 250. **The gap itself is set by `DodgeSeconds`, not by this window** — see the rows below. **The lower fence retired with Knockdown's parry rework.** Window ≥ the longest authored `ReleaseSeconds` bought tell-timing *forgiveness* rather than correctness, and charged every release in the game for it. A catch now ends the attack outright, and against a stationary volume the question collapses to one boundary test at release-open — dedup consumes the swing's hit target, and the movement lock forbids walking an open window into a volume. **What the window guarantees is first contact with no prior catch**: a catch collapses the remaining cover to Grace, deliberately | Widening it toward the gap "because there is room". The room is the whole margin protecting the read from becoming an option-select, and spending it converts parry from a read into a timing test — which is the identity the entire input scheme was chosen to protect |
 | A whiffed parry is punished too hard, or too cheaply | `ParryWhiffRecoverySeconds`, above its floor. **Re-derive before tuning: 2026-08-19 widened what it buys from "you cannot defend" to "you cannot act", so the number now prices a materially harsher punish than when it was chosen.** The floor is a constraint, not a feel: a whiff timed against the **fast** layer must stay locked through the charged's 750 ms arrival, or reading "fast" wrongly costs nothing and the charged can never collect on it. That is what re-derived it down from the spec's 1000 | Adding a stamina cost to the parry. It is **time**-priced by design, and pricing it in both ledgers makes it block with extra steps — the pricing symmetry (dodge stamina, block both, parry time) is the thing being protected |
 | Parries feel like they need two presses against two attackers | `ParryGraceSeconds`, and **nothing else** — the window and the recovery are both fenced. **Derived**: 150 ms is roughly the interval humans cannot beat, about seven inputs a second, which is the whole basis for calling two hits "simultaneous". Re-derive against that ceiling, never by feel | Widening `ParryWindowSeconds` to cover both hits. That buys the same forgiveness by making the *read* easier, which is the one thing Grace is designed not to do — and it walks into the window's option-select ceiling |
-| Dodging into a parry feels like it covers too much | `DodgeRecoverySeconds` (`State.DodgeRecovery`, its own tag since 2026-08-19), **derived**: dodge-end + gap + window must overshoot the charged's 750 for the worst-timed predictive dodge. Re-derive it whenever `DodgeSeconds`, the parry window, or the charged's arrival moves | Shortening the parry window to compensate. That fixes one option-select by tightening a fence that is already load-bearing for a different one, and does it everywhere rather than where the problem is |
+| Dodging into a parry feels like it covers too much | **Nothing today — `DodgeRecoverySeconds` is retired to 0** (2026-08-25). It was `charged − DodgeSeconds − light arrival`, which is where its 150 came from: 750 − 400 − 200. Reinstating it means re-deriving against the current charged, and **covering every defensive option rather than parry alone** | Restoring the narrow parry-only form. It never closed the case it was built for — a charged stays parryable through its whole release, not just at release-open — and its only reliable effect was to make the chain an execution test, which is the one thing the parry scheme exists not to be |
+| The fast and slow layers feel like one read, or like two unrelated ones | The **gap** between the heavy's and charged's `ReleaseAtSeconds`, moving **both** tiers — it is welded at **400 ms** by `DodgeSeconds` and sits at exactly zero slack: a dodge thrown at the latest moment that still covers the heavy has its i-frames expire exactly as the charged lands | Moving one tier alone. That breaks the dodge property immediately and silently, and it is also what keeps the parry window's ceiling where it is |
 | Movement comes back too early or too late after landing a hit | **Nothing — it is derived.** The on-hit waiver returns movement at contact + *that swing's* `HitstunSeconds`. Earlier lets the attacker erode the authored spacing the fixed-destination knockback just paid for; later is dead freedom, since the victim is out of hitstun and the exchange has restarted | A separate waiver duration. Authoring it apart immediately allows the pair that makes no sense — movement returning while the victim is still stunned for it, or staying locked after they can act |
 | A parried attacker gets away with too much | **Nothing — the reward is derived and already per-tier.** Recovery *is* the punish window, so a parried charged pays more than a parried light without anyone authoring it; the string reset is what compensates at the light end | A per-branch parry bonus. Raised 2026-08-18 and rejected: the derived model pays by the victim's commitment rather than by the read's difficulty, and an authored bonus exists only if play demands read-difficulty compensation |
-| The charged feels unreactable, or trivially reactable | **Nothing, without re-deriving it.** It must arrive at or after coil + reaction + dodge duration — 750 = 150 + 200 + 400, exactly on the line today, so it has no slack downward at all | Moving it for feel. Below the derived value the slow layer stops being answerable by the defence it exists to reward, and the ladder loses the pole that makes the fast layer mean anything |
+| The charged feels unreactable, or trivially reactable | Its **`ReleaseAtSeconds`**, **authored** — checked against reaction time rather than moved by feel alone. 800 leaves 600 ms after the light's arrival, a reaction (~200) plus a full dodge (400). The arithmetic is what it was tuned *against*, not what produced it | Moving it without re-checking the **gap to the heavy**, which is the real fence and is welded at 400 (see the row below). Cut the window below a reaction plus a dodge and the slow layer stops being answerable by the defence it exists to reward |
 | A knockdown holds you down too long, or lets you up too early | That type's `KnockdownLockoutSeconds*` and `KnockdownInputWindowSeconds*` **as a pair summing to the same total** — each type's split is its own dial | The total, or `KnockdownRiseSeconds`. Both types spend 2.5 s down and begin rising at 2.0 **by design**, and every derivation keyed to the total is grade-blind because of it: the exhausted player's ~62 stamina return, the netcode window. Move the split, never the sum. |
 | The fall looks rushed, or the knockdown reads too brief | **`KnockdownFallSeconds`**, freely — it is a **first attempt**, not derived. Its only recorded basis was *"inside the fall segment; knockback's contract"* — mechanism, no argument for the value — and the clip is fitted to it, so 0.35 crushes a 0.900 s clip to **2.571×**. At 0.7 it plays ~1.29×. **Ceiling is the lockout it sits inside** — 1.0 s on normal type — or a get-up starts mid-slide | Reading it as coupled to `HitstunSeconds`. On a graded swing that value never touches the victim (`TDMeleeAttackAbility.cpp:448` takes the knockdown branch and never reaches 452); it keys only the **attacker's** movement return. The two are independent timers on the same contact. Lengthening the fall does change what oki *looks* like — the attacker is free while the victim still slides — but nothing enforces a relationship, and today's 0.35 matching the heavy's 0.35 exactly is coincidence |
 | The corpse flies too far, or drops like a sack | **`DeathImpulseStrength`**, freely — a **first attempt**, not derived, and `DeathImpulseLift` sets how much of it aims upward. Measured on Manny as the distance the corpse settles from where it fell: 12000 about 84 cm, 24000 about 271, **30000 about 397**, 36000 about 480. **30000 is the shipped value**, chosen 2026-08-24 to sit inside the authored spacing family — further than a knockback's 350, about a knockdown's 450 — because death is the terminal outcome and 84 cm read as less movement than a *hit* | Passing it as a velocity change. `AddImpulse`'s `bVelChange` reads the magnitude as cm/s directly and ignores mass, which fired the corpse 180 m out of the level; as a true impulse it divides by mass. Also do not read corpse position as game state — the capsule stays put, and the `Ragdoll` profile ignores `Pawn` |
@@ -1272,7 +1276,7 @@ reading the file front to back found it.** An index nobody has to read front to 
 
 Generated from the archive rather than maintained by hand, so it goes stale rather than wrong —
 a missing row means the entry is newer than the index, never that the symbol is absent.
-Current through **2026-08-24** — update the date when regenerating, and `docs-check` turns
+Current through **2026-08-25** — update the date when regenerating, and `docs-check` turns
 staleness into a red row by comparing it against the newest entry. The rule for reading it is the standing one,
 that **a search finding nothing proves only that the filter did not match.**
 
@@ -1297,6 +1301,7 @@ long.
 | `AM_Parry` | 08-24 |
 | `animSegments` | 08-21 |
 | `APawn::FaceRotation` | 08-12 |
+| `ApplyDodgeRecovery` | 08-25 |
 | `ApplyParryLockoutState` | 08-24 |
 | `ATDCombatCharacter::Jump` | 08-12 |
 | `ATDCombatCharacter::StartRagdoll` | 08-13 |
@@ -1340,6 +1345,7 @@ long.
 | `CoilEndSeconds` | 08-09, 08-12 |
 | `CoilTurnRateDegrees` | 08-12 |
 | `CommitAttack` | 08-13, 08-18 |
+| `CommitRate` | 08-25 |
 | `CostGameplayEffectClass` | 08-10 |
 | `DamageEffectClass` | 08-14 |
 | `DebugAutoAttackInterval` | 08-15 |
@@ -1347,8 +1353,9 @@ long.
 | `DebugAutoParryCycle` | 08-21 |
 | `DefaultEffects` | 08-10 |
 | `DisableMovement` | 08-11 |
+| `DodgeRecoverySeconds` | 08-25 |
 | `DoMove` | 08-12, 08-16 |
-| `DodgeSeconds` | 08-10, 08-11 |
+| `DodgeSeconds` | 08-10, 08-11, 08-25 |
 | `DodgeTargetDistanceCm` | 08-11, 08-12, 08-13 |
 | `ECC_Camera` | 08-12, 08-13 |
 | `ETDDebugFacingMode` | 08-21 |
@@ -1391,7 +1398,7 @@ long.
 | `FacingLockFadeSeconds` | 08-12 |
 | `FinishVelocityParams` | 08-14 |
 | `ForcedFacingTurnRateDegrees` | 08-20 |
-| `GA_Attack` | 08-09, 08-10, 08-11, 08-12, 08-14, 08-24 |
+| `GA_Attack` | 08-09, 08-10, 08-11, 08-12, 08-14, 08-24, 08-25 |
 | `GA_Block` | 08-14, 08-24 |
 | `GA_Dodge` | 08-10, 08-11, 08-13, 08-14, 08-24 |
 | `GA_GetUpAttack` | 08-24 |
@@ -1410,7 +1417,7 @@ long.
 | `Hitboxes` | 08-12 |
 | `HitstunSeconds` | 08-16, 08-18 |
 | `HoldSeconds` | 08-11 |
-| `HoldUntilSeconds` | 08-09, 08-12, 08-18 |
+| `HoldUntilSeconds` | 08-09, 08-12, 08-18, 08-25 |
 | `IdleTurnRateDegrees` | 08-12 |
 | `InitCapsuleSize` | 08-12 |
 | `InitialiseAbilitySystem` | 08-11, 08-15 |
@@ -1450,7 +1457,7 @@ long.
 | `OverlapsCapsule` | 08-14 |
 | `ParryLockoutSeconds` | 08-20 |
 | `ParryWhiffRecoverySeconds` | 08-19 |
-| `ParryWindowSeconds` | 08-19 |
+| `ParryWindowSeconds` | 08-19, 08-25 |
 | `PeriodicDodge` | 08-15 |
 | `PhysicsRotation` | 08-12 |
 | `PlayParryMontage` | 08-24 |
@@ -1465,7 +1472,7 @@ long.
 | `RecoveryPlayRate` | 08-12 |
 | `RecoverySeconds` | 08-12, 08-13, 08-16, 08-18 |
 | `RegenSuppressedUntil` | 08-10 |
-| `ReleaseAtSeconds` | 08-09, 08-11, 08-12 |
+| `ReleaseAtSeconds` | 08-09, 08-11, 08-12, 08-25 |
 | `ReleaseSeconds` | 08-09, 08-12, 08-13, 08-18, 08-19 |
 | `ReleaseStartSeconds` | 08-09, 08-10, 08-11, 08-12 |
 | `RemoveRootMotionSourceByID` | 08-14 |
@@ -1494,7 +1501,7 @@ long.
 | `StartAttackMontage` | 08-13 |
 | `StartLunge` | 08-14, 08-16 |
 | `State.Blocking.Committed` | 08-14 |
-| `State.DodgeRecovery` | 08-19 |
+| `State.DodgeRecovery` | 08-19, 08-25 (retired to 0; machinery dormant) |
 | `State.GuardBroken` | 08-14 |
 | `State.Hitstun` | 08-16 |
 | `State.KnockedDown` | 08-20 |
@@ -1567,6 +1574,117 @@ long.
 | `bUseControllerRotationYaw` | 08-12 |
 | `compositeSections` | 08-15, 08-18 |
 | `gEComponents` | 08-10, 08-11 |
+
+## 2026-08-25 — The windups move as a pair, the reactability reference was wrong, and the dodge gap retires
+
+**Heavy to 400 ms and charged to 800 ms**, Polish's prerequisite so clip selection is fitted to
+final durations rather than to numbers that move afterwards. `Branches[1]` and `Branches[2]` on
+`GA_Attack`'s CDO; the light is untouched at 150/200.
+
+**`HoldUntilSeconds` moves with `ReleaseAtSeconds`, and that is the whole shape of the change.**
+The 50 ms gap between them is the runway the montage travels from the coil into the strike, and
+`CommitRate` is `(ReleaseStartSeconds − position) / (ReleaseAtSeconds − elapsed)`. Moving the
+windup alone would have doubled the runway and roughly **halved the speed of the strike itself** —
+0.40x to 0.20x on the charged, which always commits exactly on its `HoldUntilSeconds`. Moving both
+preserves every runway and every commit rate. Measured against the session log before the change:
+heavy commits at `pos≈0.244`, `rate≈1.25`.
+
+**The extra 50 ms is 50 more ms of coil freeze**, since the coil spans branch 0's
+`HoldUntilSeconds` to the last branch's and only the latter moved. That is what the wider tell
+window looks like until the bespoke pass replaces the freeze with visible repositioning.
+
+### Reactability is measured from the light's arrival, not from the coil
+
+**The designer's correction, and it moves every window by 50 ms.** The defender's read is *"was a
+light sent or not"*, and that resolves when the light would have landed — **200 ms**, not at the
+coil's start at 150. So the heavy's window is `400 − 200` = **200 ms**, against `350 − 200` = 150
+before; the charged's is 600.
+
+**The heavy crosses a threshold rather than merely widening.** At 150 ms its window sat *below* the
+200 ms reaction figure — strictly unreactable. At 200 it sits exactly on it: answerable by a read,
+not by a completed dodge, which is the fast layer's identity intact. This supersedes the
+2026-08-18 re-pole's *"that shortening is the point rather than a side effect"* to the extent that
+the shortening is now partly walked back; the rest of that entry stands.
+
+**Everything written against the coil-start reference overstated its window by 50 ms**, including
+the target-windup clause in Polish's own brief and tuning-map row 15. Both corrected.
+
+### Values are authored; the relationships between them are derived
+
+**The designer's framing, and it re-files two tuning-map rows.** The reaction-time family — light
+200, heavy 400, charged 800 — is *tuned against* average and exceptional human reaction, not
+computed from it. What is genuinely derived is the arithmetic **between** them. Row 68 accordingly
+loses its *"nothing, without re-deriving it"* fence, which was the strongest the docs have and was
+mis-filed on a value that is tunable.
+
+**And the structuring is functional, not gospel** — the designer reserves the right to change it
+on playtesting, so these relationships preserve *the current* structure rather than standing as
+laws.
+
+**Five relationships, audited against the change.** Three hold with identical margins because both
+tiers moved by the same 50.
+
+| Relationship | Set by | Before | After |
+|---|---|---|---|
+| heavy↔charged gap ≥ `DodgeSeconds` | dodge 400 | 400 ≥ 400 | 400 ≥ 400, **zero slack** |
+| heavy↔charged gap > `ParryWindowSeconds` | parry 300 | 400 > 300 | 400 > 300 |
+| light↔heavy gap ≤ `ParryWindowSeconds` | parry 300 | 150 | **200**, the only margin spent |
+| whiff lockout reaches the charged | recovery 600 | 900 ≥ 750 | 950 ≥ 800 |
+| dodge→parry misses the charged | gap 150 | 750 boundary | **retired, below** |
+
+### Two constraints that were never written down
+
+**The fast-layer floor.** The docs recorded the anti-option-select *ceiling* — one press must not
+cover two read-classes — but never its complement: **one press must cover light and heavy**, so the
+light↔heavy gap stays within `ParryWindowSeconds`. Searched unfiltered before claiming absence —
+`grep -rniE` over `Docs/*.md` for the one-press, covers-both, read-class and fast-layer phrasings —
+and only the ceiling came back.
+
+**Its ceiling is ~450 ms, not the arithmetic 500.** 500 is where the gap equals the window exactly
+and demands a parry input at precisely 200 ms every time; **450 leaves 50 ms of input variance**,
+and past it the guarantee degrades rather than breaking cleanly. **This is a live constraint on
+clip selection** — the heavy has roughly 50 ms of headroom left.
+
+**The gap is welded at 400 by the dodge, not by the parry window.** Both the brief and row 1145
+attributed the 400 to the parry ceiling. The parry window is bounded *by* the gap; the gap is 400
+because **a dodge is 400**: dodging at the latest moment that still covers the heavy puts i-frames
+at [400, 800], expiring exactly as the charged lands. Zero slack, before and after — which is why
+moving one tier alone was never available.
+
+### `DodgeRecoverySeconds` retires to 0
+
+**The 150 was `charged − DodgeSeconds − light arrival`** — `750 − 400 − 200`, reproducing the
+shipped value exactly, which is what identified the derivation after two wrong reconstructions of
+it. Under the bump it would have needed 200 to hold the boundary at the light's arrival; left at
+150 it opens a 50 ms band in which a dodge thrown *with* information still chains into a parry
+covering the charged.
+
+**It retires instead, on the designer's ruling, for three reasons.** The fence never closed the
+case it was built for — **release is not instantaneous**, so a charged stays parryable through its
+whole 150 ms release and the chain reopens for a much wider band of dodge timings regardless.
+The interaction it protects is **flat**: if the answer to a dodged-then-charged situation is only
+block, dodge or eat it, eating it is correct, because it is the one line that does not also cost
+stamina. And its only reliable effect was to make the chain an **execution test** — parry does not
+buffer, so a newcomer mashing loses the input and a player who knows to wait 150 ms does not —
+which is precisely the identity the input scheme exists to protect.
+
+**The dodge→parry chain stands as RPS rather than an escape**, same shape as the 08-16 whiff-chain
+and chain-to-defense rulings and filed the same way. It costs 50 stamina and a 600 ms whiff
+recovery; the attacker can read the panic dodge, block-cancel the charged before committing at
+750, and punish the recovery with a light chain for damage or a heavy for a hard knockdown — not
+with a charged, which at 800 is too slow to fit. A harder callout exists too: cancel early and
+re-charge to land on the recovery. Interplay judges; do not fix on paper.
+
+**If a dodge recovery returns it covers every defensive option, not parry alone** — closer in shape
+to parry recovery. The narrow parry-only form is what retired, not the idea. **Double dodging is
+legal and inadvisable**, priced by the bar rather than refused: two dodges are 100 stamina and
+exhaustion.
+
+**The machinery stays, dormant.** `ApplyDodgeRecovery` already returns early on a non-positive
+duration, so zero applies no tag and traces no line; `State.DodgeRecovery` and its states survive
+intact for whatever returns. `s3` asserts the absence, guarded so that a log with no dodges fails
+rather than passing vacuously — the silent case is a stale override reinstating the fence with
+nothing noticing.
 
 ## 2026-08-24 — The limit sweep: seven walls, one pattern, and the loop stops needing a human
 
@@ -7688,7 +7806,7 @@ long it is held, and block and parry will share a button.
 a brief binds the session that picks that slice up and no other, so it was triggered content
 sitting in the always-read file.
 
-- **Polish** *(style over substance; split from Knockdown 2026-08-18, the designer's call)* — deferred work that changes how something *reads* rather than what it does. **Carries the bespoke windup pass**: heavy and charged get their own clips, their windups become **blended transitions** into real anticipation, and **coil is deprecated**. It belongs here rather than in Knockdown because the reactability arithmetic is untouched — the blend occupies exactly the window the coil did, 350 ms light→heavy and 300 ms heavy→charged — so only the tell's *expression* changes, freeze to visible repositioning. **Sits early deliberately**, right after Knockdown: it must precede Interplay or the feel verdict is taken with both tiers still playing the light's clip. **Clip-fitting values are Polish's; whole-surface greening is not** — the hypothesis dataset lands at the Tuning Rig (2026-08-18). Spec, candidate pool and the two measured findings behind it are in `Docs/Combat-Decisions.md`, 2026-08-18. **Inherited from Parry when it shipped 2026-08-19:** the parried attacker's **recoil tell** and all parry presentation — a parry currently reads only on the parrier, so the victim of one has no tell at all; and the open preview question of **whether V3's parry pose reads consistently beside V1's held guard**, which is a pack mix that shipped without being judged. Neither needs a search — both need looking at. **Knockdown's presentation is inherited whole (2026-08-20)**: the designer's verdict on the shipped state machine was *"needs polish, but the functionality is there"*, and specifically that the transition into the down state reads **abrupt** — there is no impact moment, the fall simply starts. Also here *(clause updated 2026-08-24 — an authored source now exists)*: polishing the get-up clip in its authored scene (`AnimSource/GetUpAttack.casc`; the rough ships as Knockdown's interim per that day's verification-bar entry), plus **Knockdown's re-scope inheritance**: the knockdown/fall/rise clip batch and the get-up options' look — everything past the tell-what-fired legibility bar; and the two rises deliberately blend into idle over their second half, which is a choice to revisit once idle poses are real. **Two more from the legibility glance of 2026-08-24, both of which *passed* the tell-what-fired bar, so neither is a defect:** the **block get-up** does blend to a guard on standing -- contradicting the assumption, mine, that it showed nothing at all -- and the designer's verdict on it is *"underwhelming and looks a tad undeliberate"*; and the **dodge get-up's roll ends before the dodge does**. `AM_KnockdownRoll` fits the whole 0.900 s of `AS_SwordAndShieldAnimV1_Roll_Fw_RM` to `DodgeSeconds`, so at 2.25x the clip's recovery-to-stance -- frames 18-26, 31% of it -- runs while the body is still travelling, and auto blend-out triggers at frame 18.8 and replaces it with idle pose. **The designer's fix, ruled the same day: mark where the roll ends and fit that portion**, leaving the recovery to play out after the dodge without i-frames. I-frames stay at `DodgeSeconds` and nothing about play changes -- it is the section-fitting precedent `AM_Dodge` already uses, applied where there is no section boundary. Measured marker candidate **frame 18, t = 0.623 s**: the pelvis minimum (15.5) sits behind it and the rise to 81.8 is monotonic after; **frame 17 is equally defensible**, the pitch zero-crossing falling between them, so the frame is a judgement about the animation rather than a number the data settles. **The blend-out then wants its own look**: at the resulting 1.56x it triggers at 0.417 s, clear of the dodge, but starts eating the recovery instead. **Two stun tells were filed 2026-08-24; one is built and one remains**, both on blockstun's route. Blockstun's animation is a **state in the Locomotion machine, not a montage** — `AM_Blockstun` was built, tested and deleted at `eb658ee` because the montage route *"cost more than it buys"*, and a state needs no C++ at all: one state and two transitions in the editor, keyed off a `BlueprintPure` getter. **The hitstun flinch is built** *(Death-full, 2026-08-24)* -- a state in the Locomotion machine on `AS_SwordSwordAnimV3_Hit_Fw_RM`, entered from Idle and Walk / Run on a cached `IsInHitstun` and left on its negation, judged legible in play. Polish inherits its *look*, not its construction. **A parried attacker has no tell either**, which is the recoil gap named above now with a state to hang it on: `State.ParryLockout` went live with Knockdown's sub-slice E, and `IsInParryLockout()` still needs one `UFUNCTION` line to become `BlueprintPure`. **The editor work is no longer human either** *(2026-08-24)*: `UTDStateMachineTools` creates states, transitions and rules from script, which is how the hitstun flinch was built. A search for a blockstun *asset* still finds nothing and still proves nothing -- that half of the old clause stands.  **And one that is mechanical rather than presentational, filed here so it is not forgotten** *(the designer, 2026-08-24)*: **a guard break should count as a hit for the *attacker's* input freedom.** A blocked hit returns before the on-hit waiver, so the attacker stays pinned for the full recovery — the waiver's own comment keeps recovery as the punish window *"against whiffs and against blocks."* A **break** should not sit on that side of the line: it waives like a connect. **The defender side is unchanged.** **And the target windups, which Polish needs *before* it selects clips** *(the designer, 2026-08-24; not previously recorded anywhere — searched)*: **heavy to 400 ms and charged to 800 ms**, against the live 350 and 750. It belongs here because clip selection is fitted to the duration and never the reverse, so choosing against today's numbers and moving them afterwards wastes the pass. **Two couplings come with it.** The parry window's anti-option-select ceiling is the fast↔charged gap, 750 − 350 = 400 ms, and bumping both tiers by 50 leaves it at 800 − 400 = **400** — untouched, which it would not be if only one tier moved. And the heavy's tell window grows from 350 − 150 = **200 ms** to 400 − 150 = **250 ms**, which partially walks back the 2026-08-18 re-pole's *"that shortening is the point rather than a side effect"* — plausibly intended, the bespoke windup pass being what makes a longer tell readable rather than merely longer, but worth saying out loud rather than discovering afterwards.
+- **Polish** *(style over substance; split from Knockdown 2026-08-18, the designer's call)* — deferred work that changes how something *reads* rather than what it does. **Carries the bespoke windup pass**: heavy and charged get their own clips, their windups become **blended transitions** into real anticipation, and **coil is deprecated**. It belongs here rather than in Knockdown because the reactability arithmetic is untouched — the blend occupies exactly the window the coil did, 350 ms light→heavy and 300 ms heavy→charged — so only the tell's *expression* changes, freeze to visible repositioning. **Sits early deliberately**, right after Knockdown: it must precede Interplay or the feel verdict is taken with both tiers still playing the light's clip. **Clip-fitting values are Polish's; whole-surface greening is not** — the hypothesis dataset lands at the Tuning Rig (2026-08-18). Spec, candidate pool and the two measured findings behind it are in `Docs/Combat-Decisions.md`, 2026-08-18. **Inherited from Parry when it shipped 2026-08-19:** the parried attacker's **recoil tell** and all parry presentation — a parry currently reads only on the parrier, so the victim of one has no tell at all; and the open preview question of **whether V3's parry pose reads consistently beside V1's held guard**, which is a pack mix that shipped without being judged. Neither needs a search — both need looking at. **Knockdown's presentation is inherited whole (2026-08-20)**: the designer's verdict on the shipped state machine was *"needs polish, but the functionality is there"*, and specifically that the transition into the down state reads **abrupt** — there is no impact moment, the fall simply starts. Also here *(clause updated 2026-08-24 — an authored source now exists)*: polishing the get-up clip in its authored scene (`AnimSource/GetUpAttack.casc`; the rough ships as Knockdown's interim per that day's verification-bar entry), plus **Knockdown's re-scope inheritance**: the knockdown/fall/rise clip batch and the get-up options' look — everything past the tell-what-fired legibility bar; and the two rises deliberately blend into idle over their second half, which is a choice to revisit once idle poses are real. **Two more from the legibility glance of 2026-08-24, both of which *passed* the tell-what-fired bar, so neither is a defect:** the **block get-up** does blend to a guard on standing -- contradicting the assumption, mine, that it showed nothing at all -- and the designer's verdict on it is *"underwhelming and looks a tad undeliberate"*; and the **dodge get-up's roll ends before the dodge does**. `AM_KnockdownRoll` fits the whole 0.900 s of `AS_SwordAndShieldAnimV1_Roll_Fw_RM` to `DodgeSeconds`, so at 2.25x the clip's recovery-to-stance -- frames 18-26, 31% of it -- runs while the body is still travelling, and auto blend-out triggers at frame 18.8 and replaces it with idle pose. **The designer's fix, ruled the same day: mark where the roll ends and fit that portion**, leaving the recovery to play out after the dodge without i-frames. I-frames stay at `DodgeSeconds` and nothing about play changes -- it is the section-fitting precedent `AM_Dodge` already uses, applied where there is no section boundary. Measured marker candidate **frame 18, t = 0.623 s**: the pelvis minimum (15.5) sits behind it and the rise to 81.8 is monotonic after; **frame 17 is equally defensible**, the pitch zero-crossing falling between them, so the frame is a judgement about the animation rather than a number the data settles. **The blend-out then wants its own look**: at the resulting 1.56x it triggers at 0.417 s, clear of the dodge, but starts eating the recovery instead. **Two stun tells were filed 2026-08-24; one is built and one remains**, both on blockstun's route. Blockstun's animation is a **state in the Locomotion machine, not a montage** — `AM_Blockstun` was built, tested and deleted at `eb658ee` because the montage route *"cost more than it buys"*, and a state needs no C++ at all: one state and two transitions in the editor, keyed off a `BlueprintPure` getter. **The hitstun flinch is built** *(Death-full, 2026-08-24)* -- a state in the Locomotion machine on `AS_SwordSwordAnimV3_Hit_Fw_RM`, entered from Idle and Walk / Run on a cached `IsInHitstun` and left on its negation, judged legible in play. Polish inherits its *look*, not its construction. **A parried attacker has no tell either**, which is the recoil gap named above now with a state to hang it on: `State.ParryLockout` went live with Knockdown's sub-slice E, and `IsInParryLockout()` still needs one `UFUNCTION` line to become `BlueprintPure`. **The editor work is no longer human either** *(2026-08-24)*: `UTDStateMachineTools` creates states, transitions and rules from script, which is how the hitstun flinch was built. A search for a blockstun *asset* still finds nothing and still proves nothing -- that half of the old clause stands.  **And one that is mechanical rather than presentational, filed here so it is not forgotten** *(the designer, 2026-08-24)*: **a guard break should count as a hit for the *attacker's* input freedom.** A blocked hit returns before the on-hit waiver, so the attacker stays pinned for the full recovery — the waiver's own comment keeps recovery as the punish window *"against whiffs and against blocks."* A **break** should not sit on that side of the line: it waives like a connect. **The defender side is unchanged.** **The target windups shipped 2026-08-25** — heavy **400 ms**, charged **800 ms**, with each tier's `HoldUntilSeconds` moved alongside so every runway and commit rate is preserved; `DodgeRecoverySeconds` retired to 0 in the same pass. **What clip selection inherits is a ceiling**: the heavy cannot grow past roughly **450 ms** without the light↔heavy gap outgrowing the parry window's usable margin and one press ceasing to cover both tiers, so there is about 50 ms of headroom to fit a clip into. The corrected reactability reference — measured from the light's arrival, not the coil — and the five audited relationships are in that day's entry.
 - **Settings menu.** Raised 2026-08-12. Mouse sensitivity is the immediate want, and it should own
   **`TurnRateDegrees`** too — that number stopped being cosmetic the moment attacks began pointing
   wherever it had turned to, so exposing it is a balance decision rather than a comfort one, and a

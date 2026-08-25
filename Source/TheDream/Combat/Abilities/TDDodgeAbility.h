@@ -77,18 +77,15 @@ protected:
 	float DodgeSeconds = 0.5f;
 
 	/**
-	 *  How long after this dodge ends a parry may not be started. Applied as State.DodgeRecovery.
+	 *  How long after this dodge ends a parry may not be started. Applied as State.DodgeRecovery,
+	 *  and lives on the dodge because the dodge is what knows one just ended.
 	 *
-	 *  Derived, not free: dodge-end + this gap + ParryWindowSeconds must overshoot the charged's
-	 *  750 ms arrival for the worst-timed predictive dodge, or a dodge on a guess eats the fast
-	 *  layer and the parry it chains into covers the slow one at no extra read. Re-derive whenever
-	 *  DodgeSeconds, the parry window, or the charged's arrival moves.
-	 *
-	 *  Lives on the dodge because the dodge is what knows one just ended. Takes nothing but the
-	 *  parry -- movement, offense and block are untouched.
+	 *  Zero disables it: ApplyDodgeRecovery returns early, so no tag is applied and no
+	 *  DODGE RECOVERY line is traced. Takes nothing but the parry -- movement, offense, block
+	 *  and a further dodge are untouched.
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Dodge", meta=(ClampMin="0.0"))
-	float DodgeRecoverySeconds = 0.15f;
+	float DodgeRecoverySeconds = 0.0f;
 
 	/** How far a dodge carries, in cm. The distance knob; every direction travels it. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Dodge", meta=(ClampMin="1.0"))

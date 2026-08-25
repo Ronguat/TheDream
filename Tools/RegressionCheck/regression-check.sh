@@ -29,16 +29,16 @@ set -uo pipefail
 # ---------------------------------------------------------------------------
 
 # S1 -- press to RELEASE BEGIN, milliseconds. Authored hitbox-live times.
-# The ladder poles as a fast layer -- light 200, heavy 350, read "they pressed" -- against a slow
-# layer, charged 750, read "they're charging".
-BAND_RELEASE_LIGHT=200;   BAND_RELEASE_HEAVY=350;   BAND_RELEASE_CHARGED=750
+# The ladder poles as a fast layer -- light 200, heavy 400, read "they pressed" -- against a slow
+# layer, charged 800, read "they're charging".
+BAND_RELEASE_LIGHT=200;   BAND_RELEASE_HEAVY=400;   BAND_RELEASE_CHARGED=800
 BAND_RELEASE_TOL=30
 
 # S1 -- ABILITY END elapsed against the authored total, seconds. Frame quantisation only, and it
-# does not accumulate: measured +15..+31 ms. Each band is HoldUntil + Release + Recovery for its
-# tier: light 0.20 + 0.15 + 0.60, heavy 0.35 + 0.15 + 0.50. **Re-derive from the CDO rather than
+# does not accumulate: measured +15..+31 ms. Each band is ReleaseAt + Release + Recovery for its
+# tier: light 0.20 + 0.15 + 0.60, heavy 0.40 + 0.15 + 0.50. **Re-derive from the CDO rather than
 # nudging** -- a band moved to make a run green no longer asserts anything.
-BAND_ELAPSED_LIGHT=0.950; BAND_ELAPSED_HEAVY=1.000; BAND_ELAPSED_CHARGED=1.500
+BAND_ELAPSED_LIGHT=0.950; BAND_ELAPSED_HEAVY=1.050; BAND_ELAPSED_CHARGED=1.550
 # The floor admits a single frame landing tight: the overhead is frame quantisation, and one frame
 # is jitter at the sampler rather than a combat change.
 BAND_ELAPSED_MIN=0.005;   BAND_ELAPSED_MAX=0.035
@@ -77,7 +77,7 @@ BAND_GUARDSTUN=1.000; BAND_GUARDSTUN_TOL=0.025
 # press must not cover two read-classes, so it must stay under the fast-to-charged gap of 400 ms --
 # and below by the longest authored ReleaseSeconds, 0.150, or a damaging phase could span the whole
 # window and come out unparried. The recovery is floored by the constraint that a whiff timed against
-# the fast layer stays locked through the charged's 750 ms arrival.
+# the fast layer stays locked through the charged's 800 ms arrival.
 BAND_PARRY_WINDOW=0.300
 BAND_PARRY_RECOVERY=0.600
 BAND_PARRY_SPAN_TOL=0.025
@@ -734,6 +734,15 @@ run_s3() {
 	starts=$(grep -c "^\[[0-9.]*\] DODGE      dir=" "$SLICE")
 	ends=$(grep -c "^\[[0-9.]*\] DODGE END" "$SLICE")
 	assert_count "DODGE/DODGE END paired" "$ends" "$starts"
+
+	# DodgeRecoverySeconds is retired to 0, so the gap must never fire. A stale CDO or per-instance
+	# override would silently reinstate it and nothing else in the loop would notice. Guarded
+	# against the vacuous pass: an absence asserted over a log with no dodges proves nothing.
+	if [ "$starts" -eq 0 ]; then
+		check "no DODGE RECOVERY (gap retired)" 1 "no dodges in log; absence proves nothing"
+	else
+		assert_count "no DODGE RECOVERY (gap retired)" 			"$(grep -c 'DODGE RECOVERY' "$SLICE")" 0
+	fi
 
 	# Travel, clean samples only -- one filter, defined in clean_dodge_distances.
 	clean_n=$(clean_dodge_distances | grep -c '[0-9]')

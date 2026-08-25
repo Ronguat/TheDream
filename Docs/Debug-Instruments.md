@@ -272,12 +272,13 @@ the end time, not a duration. Exactly one of two lines follows it: `PARRY SUCCES
 attacker it caught, or `PARRY WHIFF` with the `recovery=` it just bought. `PARRY RECOVERY` /
 `PARRY RECOVERY END` then bracket the refusal.
 
-***That pair had two causes until 2026-08-19 and now has one.*** A `PARRY RECOVERY` used to appear
-with no `PARRY WHIFF` beside it whenever a dodge had just ended, which was the post-dodge gap rather
-than a missing line. The dodge's gap is its own state now and prints **`DODGE RECOVERY` /
-`DODGE RECOVERY END`**, so the two are separable by tag and a `PARRY RECOVERY` without a whiff is
-once again a real anomaly. What changed underneath: a whiffed parry now refuses **every** ability
-and holds the movement lock, while the dodge's gap still refuses only a parry.
+***That pair had two causes until 2026-08-19, one until 2026-08-25, and now has one that cannot
+fire.*** A `PARRY RECOVERY` used to appear with no `PARRY WHIFF` beside it whenever a dodge had just
+ended, which was the post-dodge gap rather than a missing line. The gap took its own state and
+printed **`DODGE RECOVERY` / `DODGE RECOVERY END`**, separating them by tag; it is now retired to
+0 ms, so neither line appears at all and `s3` asserts their absence. A `PARRY RECOVERY` without a
+whiff is a real anomaly either way. What changed underneath: a whiffed parry refuses **every**
+ability and holds the movement lock.
 
 **Parry Grace adds a pair, and the override adds one** *(2026-08-19)*. `PARRY GRACE` / `PARRY GRACE
 END` bracket the 150 ms tail a *successful* parry leaves behind, read off `until=` like the
@@ -566,12 +567,12 @@ looks ignored.
 | Scenario | Attacker `…HoldSeconds` | Defender `DebugAutoDefendMode` | Asserts |
 |---|---|---|---|
 | `s1-light` | 0.1 | `Off` | press→`RELEASE BEGIN` 200 ms ±30; elapsed **0.950** +10–35 ms; 0 escalations, 0 coils |
-| `s1-heavy` | 0.22 | `Off` | 350 ms ±30; elapsed 1.000 +10–35 ms; exactly 1 escalation, 1 coil |
-| `s1-charged` | 0.8 | `Off` | 750 ms ±30; elapsed 1.500 +10–35 ms; exactly 2 escalations, 1 coil |
+| `s1-heavy` | 0.22 | `Off` | 400 ms ±30; elapsed 1.050 +10–35 ms; exactly 1 escalation, 1 coil |
+| `s1-charged` | **0.85** | `Off` | 800 ms ±30; elapsed 1.550 +10–35 ms; exactly 2 escalations, 1 coil |
 | `s2-light` | 0.1 | `HoldBlock` | stamina damage exactly 5; `BLOCK cost` per `BLOCK up`; `GUARD BREAK` count equals blocks at `remaining=0.0`; break stun 1.0 s ±25 ms; `BLOCKSTUN` span 0.350 ±20 ms; guard-down `DAMAGED` exactly 15 with the health ledger stepping exactly |
 | `s2-heavy` | 0.22 | `HoldBlock` | as above with damage 50, `BLOCKSTUN` span 0.600, `DAMAGED` 25 |
-| `s2-charged` | 0.8 | `HoldBlock` | as above with damage 100, `DAMAGED` 40, and **`BLOCKSTUN` never fires at all** |
-| `s3` | 0.1 | `PeriodicDodge` | `DODGE`/`DODGE END` paired; clean travel 400–420 cm; dodge from full leaves exactly 50; `EXHAUSTED`/`EXHAUSTION END` paired, entering at 0 and clearing at 100 |
+| `s2-charged` | **0.85** | `HoldBlock` | as above with damage 100, `DAMAGED` 40, and **`BLOCKSTUN` never fires at all** |
+| `s3` | 0.1 | `PeriodicDodge` | `DODGE`/`DODGE END` paired; **no `DODGE RECOVERY` at all**, the gap being retired, and n=0 dodges fails rather than passing vacuously; clean travel 400–420 cm; dodge from full leaves exactly 50; `EXHAUSTED`/`EXHAUSTION END` paired, entering at 0 and clearing at 100 |
 | `s4-string` | 0.1, **taps 3** | `Off` | three swing indices in equal counts; chain gap 0.500 ±45 ms and chain latency 125–175 ms; `DAMAGED` exactly 15 with the ledger stepping; `HITSTUN` spans 0.550 ±20 ms; **`KNOCKBACK` spacing never below the authored value it prints, and n=0 fails** |
 | `s4-guarantee` | 0.1, **taps 3** | `PeriodicDodge` | `REFUSED` lines attributed to `State.Hitstun`; **zero `DODGE` between `HITSTUN` and `HITSTUN END`** — the string's guarantee, observable; `HITSTUN` spans as above |
 | `s4-block` | 0.1, **taps 3** | `HoldBlock` | `BLOCKED` staminaDamage exactly 5; `BLOCKSTUN` spans 0.350 ±20 ms; knockback never inward |
