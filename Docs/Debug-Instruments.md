@@ -714,6 +714,22 @@ clearing the height bar carry the hang assertion.
 
 ## Build a scenario from a human demonstration, not from intuition about the fixture
 
+**Amended 2026-08-24: the *driving* half of this is obsolete; the *measuring* half is not.**
+`UTDInputTools` injects real Enhanced Input into PIE — taps and timed holds — so a fixture no longer
+has to be a blind periodic timer, and a defender can be made to act at an exact game time by script.
+**What a human demonstration is still for is learning what a human cadence *is***, which is a fact
+about people and not about the fixture. The 500 ms cadence this project derives from remains the
+one number measured off a person. Read the rest of this section as: measure off a human when the
+question is *what should the timing be*, and script it when the question is *make this happen at
+that time*.
+
+**Two instruments arrived with it.** `GameplayStatics.set_global_time_dilation` works from Python
+during PIE — 0.04 turns a 0.55 s window into nearly fourteen seconds of wall clock — and
+`AutomationLibrary.take_high_res_screenshot` captures the **game** viewport with the debug HUD live,
+writing to `Saved/Screenshots/WindowsEditor/`. `CaptureViewport` does **not**: it renders the editor
+world. Together they make any moment in combat observable — slow the world, drive the input, poll
+for the state, shoot. Restore dilation to 1.0 before reading any timing off the trace.
+
 **Ruled 2026-08-24, by the designer, after watching the alternative fail three times in a row.**
 When a new scenario needs a defender to *do* something at a *time* — parry, jump, get up — have a
 human perform it first, measure their timing off the trace, and configure the fixture to reproduce

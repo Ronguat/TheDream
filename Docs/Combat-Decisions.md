@@ -1440,6 +1440,9 @@ long.
 | `PreAttributeChange` | 08-10 |
 | `PrepareRootMotion` | 08-12 |
 | `REPNOTIFY_Always` | 08-11 |
+| `UTDInputTools` | 08-24 |
+| `set_global_time_dilation` | 08-24 |
+| `take_high_res_screenshot` | 08-24 |
 | `RecoveryPlayRate` | 08-12 |
 | `RecoverySeconds` | 08-12, 08-13, 08-16, 08-18 |
 | `RegenSuppressedUntil` | 08-10 |
@@ -1545,6 +1548,54 @@ long.
 | `bUseControllerRotationYaw` | 08-12 |
 | `compositeSections` | 08-15, 08-18 |
 | `gEComponents` | 08-10, 08-11 |
+
+## 2026-08-24 — The limit sweep: seven walls, one pattern, and the loop stops needing a human
+
+**Run at the designer's direction, explicitly on principle** — *"less about automating more work and
+more about exhaustively exploring the ceiling, because it directly shapes all future plans."* The
+method was mechanical and is the reusable part: for each recorded wall, ask **which surface it was
+measured on**, then try the others in order — MCP, then Python, then C++.
+
+**Seven fell.** State machine creation and the four named alongside it are in the entries above and
+in `Docs/Working-In-Unreal.md`; three more are new here.
+
+- **Synthetic gameplay input exists.** The largest of them. *"There is no synthetic gameplay input:
+  anything needing a player to act needs a human"* was the conclusion drawn from a true observation —
+  Slate's `PressKey` really does not reach the PIE viewport. But Enhanced Input ships
+  `InjectInputForAction` and `StartContinuousInputInjectionForAction` as `BlueprintCallable`; they
+  live on a **local player subsystem** and Python exposes only engine and editor subsystem getters,
+  so the API was reachable and its handle was not. Measured: one injection produced a full light —
+  `INPUT pressed`, `ACTIVATE swing=0`, `AIM WEDGE reach=550`, release nine ms later, `STRING` window
+  — and a hold driven from two script calls measured **607 ms** and escalated the ladder, reach
+  climbing 550 → 650 → 750.
+- **Time dilation is open.** *"The `TimeDilation` route is closed"* named `AWorldSettings::TimeDilation`
+  and `AActor::CustomTimeDilation`, both true and neither the API.
+  `GameplayStatics.set_global_time_dilation` works from Python in PIE: at 0.15, game time advanced
+  0.47 s against 3.81 s of wall clock.
+- **The PIE view is capturable.** `CaptureViewport` renders the *editor* world;
+  `AutomationLibrary.take_high_res_screenshot` captures the **game** viewport with the debug HUD and
+  writes to disk. Together with dilation this makes a 0.55 s window observable, which is what the
+  flinch and the corpse were waiting on.
+
+**One pattern under all of it, worth more than any individual finding:** *"reflection cannot see it"*
+kept getting transcribed as *"it cannot be done."* Three causes recur — a **protected reflection
+view of a public C++ member** (`EdGraph::Nodes`, `Skeleton::Sockets`, `UCurveFloat::FloatCurve`), a
+**handle Python cannot obtain** (the input subsystem), and an **outer walk one level too shallow**
+(`create_node` on a nested graph).
+
+**Two lessons about the record itself, which is where the cost actually landed.**
+**A `(toolset)` mark means one surface was tested, and it does not stop the claim reading as
+universal** once it has sat in a file for a week. **An `(inherited)` mark is worse** — it means
+nobody ever observed it, and the creation claim carrying that mark was contradicted by its own
+neighbour in the same file. And **the most expensive framing is the one that stops looking like a
+limit**: the montage-section claim was filed as *"a design constraint rather than a chore"*, so
+nobody re-tested it, and it shaped a slice plan three days later.
+
+**Nothing was built for its own sake.** The state machine tools have a consumer, the input shim has
+one, and the four remaining refutations — curves, blendspace samples, GEComponents, montage sections
+— were **recorded and deliberately not implemented**, because none has a consumer today and building
+them would be exactly the anticipatory work the designer's ethos rules against. The findings unblock
+a future plan; a plan made against a wrong limit is the expensive failure, not a missing helper.
 
 ## 2026-08-24 — Death-full's presentation goes to physics and a state, and needs no authored animation
 

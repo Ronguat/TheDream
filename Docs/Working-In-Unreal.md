@@ -108,11 +108,22 @@ on someone's screen is startling in a way a file edit is not — the surface is 
 moving without warning. This is the one toolset where the user watches it happen. **Greenlit
 execution is exempt**: it was agreed in advance, and hesitating there is the failure, not the care.
 
-**It does not reach the game** *(confirmed 2026-08-15, both confounds killed first)*. `PressKey`
-delivers to the focused **accessible** widget and the PIE viewport is absent from the accessibility
-tree, in-viewport and floating alike. **There is no synthetic gameplay input**: anything needing a
-player to act needs a human, or a debug driver on the pawn. No exec route either — the input entry
-points carry no `UFUNCTION`, and **a timer-driven function is not evidence of reflection**.
+**Slate does not reach the game, but Enhanced Input does** *(the Slate half confirmed 2026-08-15;
+the general claim refuted 2026-08-24)*. `PressKey` delivers to the focused **accessible** widget and
+the PIE viewport is absent from the accessibility tree, in-viewport and floating alike — that part
+stands. **What was wrong is the conclusion drawn from it.** Enhanced Input ships
+`InjectInputForAction` and `StartContinuousInputInjectionForAction` as `BlueprintCallable`, so
+synthetic gameplay input exists; what blocked it is that both live on a **local player subsystem**,
+and Python exposes only `get_editor_subsystem` and `get_engine_subsystem`. **The API was reachable
+and its handle was not** — the same shape as `SkeletalMesh::SetSkeleton` and `EdGraph::Nodes`.
+
+**`UTDInputTools` in `Source/TheDreamEditor/` closes it**: `InjectAction` for a tap, `StartHold` /
+`StopHold` for a held one. Measured on the real player pawn 2026-08-24 — one injection produced
+`INPUT pressed`, `ACTIVATE swing=0`, `AIM WEDGE reach=550`, `INPUT released` nine ms later and a
+`STRING` link window, which is a light because a one-tick press is a tap; a hold started and stopped
+from two separate script calls measured **607 ms** and escalated the ladder, `AIM WEDGE` reach
+climbing 550 → 650 → 750. **Timed defensive fixtures are scriptable from here on.**
+
 
 **A PIE transform is not a placed transform** *(confirmed 2026-08-13)*: it is where an actor *ended
 up* — settled under gravity, pushed if anything could push it. **The tell is that `z` has also moved.** Re-read in
@@ -342,9 +353,15 @@ against anything.
 **`ProgrammaticToolset` is not that surface** *(confirmed 2026-08-22)* — its sandbox refuses
 `import unreal`; six stdlib modules only.
 
-Needs a human in the editor:
+Needs a human in the editor — **shorter than it was, and every removal below was a surface confusion
+rather than an engine limit** *(swept 2026-08-24)*:
 
-- Creating levels, BlendSpaces and AnimBlueprints **from scratch** *(toolset, inherited)*
+- **Creating levels, BlendSpaces and AnimBlueprints from scratch — refuted.** The mark was
+  *(inherited)*, meaning nobody had ever observed it, and every factory is in Python:
+  `LevelFactory`, `WorldFactory`, `BlendSpaceFactoryNew`, `BlendSpaceFactory1D`,
+  `AnimBlueprintFactory`, `AnimCompositeFactory`, `CurveFactory`. **The claim was already
+  contradicted by its own neighbour** — `Docs/Anim-Pipeline.md` creates montages with
+  `AnimMontageFactory` through `AssetTools.create_asset`, which is the same route.
 - Placing or configuring AnimNotifies *(toolset)* — `get_properties` on `AM_Attack` answers *"could
   not be read: notifies"* *(re-tested 2026-08-19, held)*. **The toolset's limit, not the engine's**:
   C++ reads `UAnimMontage::Notifies` (`UTDParryAbility::FindGestureTime`), and the editor's own
@@ -362,17 +379,29 @@ Needs a human in the editor:
   **`slotAnimTracks` reads back in full structural detail**, not only writes whole: every segment's
   `animReference`, `startPos`, `animStartTime`, `animEndTime` and `animPlayRate` come back
   *(2026-08-21)*, so a montage's construction is inspectable even where its sections are not
-- **`UCurveFloat`'s keys** *(confirmed 2026-08-13)* — `FloatCurve` is a bare `UPROPERTY()` the
-  reflection layer cannot see. Creating the asset by duplication works, so the split is **script the
-  asset, have a human author the keys**; only measured travel can confirm a curve's mean.
+- **`UCurveFloat`'s keys — refuted from C++** *(2026-08-24; the reflection half of the 2026-08-13
+  entry stands)*. `FloatCurve` is a bare `UPROPERTY()` the reflection layer cannot see, **and it is a
+  public `FRichCurve` member**, so `AddKey` from an editor module authors keys directly. The old
+  split — *script the asset, have a human author the keys* — was a fact about reflection.
+- **BlendSpace sample removal — refuted from C++** *(2026-08-24)*. The warning that a reflection
+  write corrupts the cached triangulation is **correct and worth keeping**; what was missing is that
+  `UBlendSpace` exposes `AddSample`, `DeleteSample`, `EditSampleValue` and `ReplaceSampleAnimation`
+  as `ENGINE_API`, which is the editor's own path and rebuilds properly.
+- **Adding a GEComponent — refuted** *(2026-08-24)*. `gE_components` **reads from Python already**,
+  and `UGameplayEffect::GEComponents` is a public array with a header-inline `AddComponent<T>()`.
 
 **A montage is the exception and is ~90% scriptable** *(2026-08-15)*. `AssetTools.duplicate` clones
 one with its skeleton intact, and the segment repoints by writing **`slotAnimTracks` whole**. That
 write is **live, not a round-trip** — two montages sharing a parent rendered visibly different poses
 through `CaptureAssetImage`. What stops it is derived state: `sequenceLength` keeps the *source's*
 value, and **opening the montage recomputes it unaided**, so the human step is open-and-save.
-**Multi-section montages are fully out**, a design constraint rather than a chore: four directional
-clips must be four montages.
+**Multi-section montages were never out, and the "design constraint" framing was the damage**
+*(refuted 2026-08-24)*. Sections **read from Python today** — `get_num_sections` and
+`get_section_name` on any montage, and `AM_Dodge` returns eight: `Fw FR R BR Bw BL L FL`, so the
+project has held a multi-section montage since Dodge shipped. `ENGINE_API
+AddAnimCompositeSection(FName, float)` writes them. **Filed as design rather than tooling it went
+unre-tested, and it shaped a slice plan three days later** — the rule that a limit is a measurement
+with a date bites hardest on the ones that have stopped looking like limits.
 
 **An animation asset's skeleton pointer is read-only, and the bulk route deletes things**
 *(2026-08-24, the Skeleton Merge slice)*. `Skeleton` refuses a reflection write on **`AnimSequence`,
@@ -508,9 +537,20 @@ asset paths and pin indices no picture would have carried. **And check the limit
 asking** — an image request resting on a stale assumption spends the user's time working around a
 wall that may not exist, and re-certifies the claim as fact.
 
-**Our own capture tools reach less than a human screenshot** — `CaptureViewport`,
-`CaptureAssetImage` and the Slate `Screenshot`/`CaptureEditorImage` cover the viewport, one asset's
-thumbnail, and windows, but **nothing can navigate to a state graph's interior**. *Untested hybrid:
+**`CaptureViewport` renders the *editor* world, not PIE** *(2026-08-24)*. Given a `captureTransform`
+it draws that view of the editor level — capsule wireframes, light gizmos, the axis widget, and no
+player pawn, because the player exists only in the PIE world. It also returns the PNG **inline as
+base64**, which overflows the response limit; the payload lands in a tool-results file and has to be
+decoded out of it.
+
+**`AutomationLibrary.take_high_res_screenshot` is the PIE route** *(2026-08-24)*. It captures the
+**game** viewport with the debug HUD live — HP and stamina bars, state tags, the facing readout —
+and **writes straight to `Saved/Screenshots/WindowsEditor/`**, so nothing needs decoding. Paired with
+time dilation below, any moment in combat is capturable: slow the world, drive the input, poll for
+the state, shoot.
+
+`CaptureAssetImage` and the Slate `Screenshot`/`CaptureEditorImage` still cover one asset's
+thumbnail and windows, and **nothing can navigate to a state graph's interior**. *Untested hybrid:
 have the user open the graph, then `CaptureEditorImage`.*
 
 ---
@@ -555,8 +595,14 @@ spacing deliberately rather than taking more samples at the same cadence.
 **Prefer normal PIE for anything timed.** In `bSimulate: true` the dummy's looping timer stopped
 after ~30 s and never resumed, unexplained *(2026-08-12)*; editor focus is **not** the variable.
 
-**The `TimeDilation` route is closed.** `AWorldSettings::TimeDilation` rejects writes;
-`AActor::CustomTimeDilation` is writable but world timers do not scale with it.
+**The `TimeDilation` route is open, and the closed verdict tested the wrong two things**
+*(refuted 2026-08-24)*. `AWorldSettings::TimeDilation` does reject reflection writes and
+`AActor::CustomTimeDilation` does not scale world timers — both true, and neither is the API.
+**`GameplayStatics.set_global_time_dilation(world, x)`** is `BlueprintCallable` and works from
+Python during PIE: set to 0.15, game time advanced **0.47 s against 3.81 s of wall clock**, a
+measured 0.12 ratio. **0.04 turns a 0.55 s hitstun into nearly fourteen seconds of wall time**, which
+is what makes a window that short observable at all. Restore it to 1.0 before drawing any timing
+conclusion — every trace timestamp is game time.
 
 **Editor log timestamps are UTC; git commits are local.** A log reading `2026.08.13-02.07` and a
 commit reading `2026-08-12 17:26 -0600` are the same evening.

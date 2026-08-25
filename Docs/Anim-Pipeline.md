@@ -137,8 +137,11 @@ Authored scenes are tracked under `AnimSource/`.
 `source_animation` through `AssetTools.create_asset`. `ue_make_montage.py` does that, places the
 Release Window, and prints the derived phase rates and the blend-out check.
 
-**Montages are ~90% scriptable** *(2026-08-21)*. `slotAnimTracks` reads and writes whole;
-**multi-section montages are out**, and `compositeSections` is neither readable nor writable.
+**Montages are ~90% scriptable** *(2026-08-21)*. `slotAnimTracks` reads and writes whole.
+**The multi-section clause is withdrawn** *(2026-08-24)*: sections read from Python
+(`get_num_sections`, `get_section_name` — `AM_Dodge` has eight) and `ENGINE_API
+AddAnimCompositeSection` writes them. Only `compositeSections` *as a reflected property* is
+unreachable, which is a different and much smaller claim than the one this line used to make.
 
 **Repointing a montage's segment is a toolset write, not a Python one** *(2026-08-24, both failure
 modes seen)*. `set_editor_property("anim_reference", clip)` on the segment returns without error and

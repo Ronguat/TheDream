@@ -182,9 +182,10 @@ it, and do not try to write the runway down.
 **Any package planning a new combat capability includes one of two things:** the scenarios it will
 add to `Tools/RegressionCheck/regression-check.sh` **in the same package**, or a **dated trap**
 naming what is now untested. **It binds at plan time.** A loop that lags the combat surface still
-prints green. **A scenario whose defender must act at a time is built from a human demonstration
-first** — the method is in `Docs/Debug-Instruments.md`, and it needs planning for because it needs
-the user.
+prints green. **A scenario whose defender must act at a time no longer needs a human**
+*(2026-08-24)* — `UTDInputTools` injects real Enhanced Input into PIE, taps and timed holds alike, so
+scripting one is a `HOW`. Timing a demonstration off a person is still the way to learn what a
+*human* cadence is; it is no longer the way to drive one.
 
 **When play and rationale disagree, play wins.** A designed distinction that does not survive
 contact with feel gets dropped, and the entry recording it superseded. Do not treat a persuasive
