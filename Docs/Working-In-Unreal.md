@@ -374,6 +374,21 @@ value, and **opening the montage recomputes it unaided**, so the human step is o
 **Multi-section montages are fully out**, a design constraint rather than a chore: four directional
 clips must be four montages.
 
+**An animation asset's skeleton pointer is read-only, and the bulk route deletes things**
+*(2026-08-24, the Skeleton Merge slice)*. `Skeleton` refuses a reflection write on **`AnimSequence`,
+`AnimMontage` and `SkeletalMesh` alike**, and the anim types carry no `SetSkeleton` UFUNCTION — so
+there is **no per-asset repoint** for the clips and montages that make up most of a merge. Three
+routes exist and none generalises: `SkeletalMesh` reaches `SetSkeleton` through **`call_method`**,
+which the property itself refuses; **`AnimBlueprint.target_skeleton`** is a plain writable property;
+and **`EditorAssetLibrary.consolidate_assets(target, [sources])`** repoints every referencer at once.
+Consolidate is **per-skeleton, not per-asset** — there is no way to scope it to a subset — and it
+**deletes the sources**, leaving `ObjectRedirector`s. **It rewrites only packages already loaded**:
+4 files changed on disk against 103 referencers, the rest resolving through the redirector until
+each is loaded, `modify()`d and saved. There is **no `FixupReferencers`** on `AssetTools` or
+`EditorAssetLibrary`; load-and-re-save is the fixup. **Referencer counts stay stale until
+`scan_paths_synchronous(force_rescan=True)`**, and read wrong long after the files are right —
+`git status` is the check, not the registry.
+
 **Duplication carries the source's notifies, and the toolset cannot read them — so you cannot see
 what you copied** *(confirmed 2026-08-15)*. A cloned attack montage brings its **Release Window**
 with it, and `UAnimNotifyState_MeleeWindow` emits `RELEASE BEGIN`/`END`, which `s1-*` asserts

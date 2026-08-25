@@ -620,68 +620,73 @@ refuses it by name. `SkeletalMeshTools` was enumerated in full (21 tools) and ha
 setter; Persona's picker calls `USkeleton::SetPreviewMesh()`, which nothing exposes. **Assigning a
 preview mesh is a human step.**
 
-### The five skeletons are one rig, measured 2026-08-24
+**Scriptable after all, and the toolset was never the engine** *(corrected 2026-08-24, used)*. The
+2026-08-20 reading above is accurate about the **MCP surface** and wrong about the engine:
+`USkeleton` exposes **`get_skeleton_preview_mesh`** and **`set_skeleton_preview_mesh`** to editor
+Python, and `SK_Master`'s preview mesh was assigned that way. `list_properties` returning a short
+list and `set_properties` refusing the name are both facts about reflection, and the Python method
+is not a reflected property — which is the same shape as `SkeletalMesh`'s `SetSkeleton`, refused as
+a property and reachable through `call_method`. **Assigning a preview mesh is not a human step.**
 
-**Audited before the Skeleton Merge slice, read-only, through the editor's Python.** The project
-carries **five** `Skeleton` assets, every one named `SK_Mannequin` — Epic's plus one per GDH pack.
-They are **the same rig, to the bit**: 161 bones, identical names in identical order, no bone
-missing or extra in any pair, **worst reference-pose deviation 0.000000** across all 161×4
-comparisons, and zero per-bone `TranslationRetargetingMode` differences. The designer's read that
-they are identical is confirmed on the bone side without qualification.
+**The compat-link direction above still holds and is now the project's one remaining link**: the
+master lists SwordShield, because a skeleton lists the skeletons whose animation *it* may consume,
+and the mesh's skeleton is the one doing the consuming.
 
-**Sockets are owned by the skeleton, not the mesh** — checked by reading each socket's outer, which
-comes back `Skeleton` in every case. So the socket sets are what the merge has to reconcile:
+### Two skeletons, merged from five on 2026-08-24
 
-| Skeleton | Sockets | Bone |
-|---|---|---|
-| SwordShield | `Sword`, `Shield`, `Sheath` | `hand_r`, `hand_l`, `thigh_l` |
-| Epic | `HandGrip_L`, `HandGrip_R` | `hand_l`, `hand_r` |
-| both | `foot_l_Socket`, `foot_r_Socket`, `weapon_r_muzzle` | `foot_l`, `foot_r`, `weapon_r` |
+**`SK_Master` is the project's skeleton**, at `/Game/TheDream/Combat/Characters/SK_Master`. It was
+built by `SkeletalMergingLibrary.merge_skeletons` across all five, unioning sockets, curve names,
+virtual bones, blend profiles and animation slot groups, and it verifies **bit-identical to every
+source**: 161 bones, identical order, **worst reference-pose deviation 0.000000** against all five.
+The designer's read that the five were one rig is confirmed without qualification.
 
-**No collision exists**: the two unique sets share no name, and the three common names carry
-**identical transforms** on both. The union is 8 sockets and is lossless.
+**Epic, Unarmed, GreatSword and Dagger no longer exist.** They were consolidated into the master,
+which repointed every asset on them and left redirectors that were then resolved and deleted.
+**SwordShield's `SK_Mannequin` survives deliberately**, holding **1023 vendor clips** nobody has
+needed yet — the pruning candidates. It is reached by **one compatible entry**: the master lists
+SwordShield, SwordShield lists the master, and nothing else is in either list.
 
-**`Unarmed`, `GreatSword` and `Dagger` have unmeasured socket sets**, and the reason is structural:
-`find_socket` resolves through a SkeletalMesh, those three packs ship none, and binding a mesh to
-them is a write. Their sets are unknown rather than empty — do not read the table above as covering
-them. Settling it means binding a mesh temporarily, which is a human step or an explicit go-ahead.
+| | Assets | Notes |
+|---|---:|---|
+| `SK_Master` | 113 | Epic's 105, the three small packs' 7, and `SKM_Manny` |
+| SwordShield `SK_Mannequin` | 1023 | the vendor library, including 12 of our own montages and blend spaces |
 
-**Two instruments returned a confident zero and were wrong**, both recorded because the shape
-repeats: `Skeleton.sockets` and `SkeletalMesh.sockets` are **protected** and refuse reflection reads
-with an error that scans like an empty list; and `AnimPose.get_socket_names()` off
-`Skeleton.get_reference_pose()` returns **0 for every skeleton including the one with 6**, which is
-the proof it reports nothing rather than evidence of nothing. `get_all_socket_names()` on a
-transient `SkeletalMeshComponent` is the route that works — **minus the bone names, which it also
-returns.**
+**`SKM_Manny` is on the master**, so it is the mesh's skeleton that decides what plays — which is why
+the compatible entry runs master→SwordShield and not the other way. Both characters run that mesh
+through `ABP_Combat`, which is also on the master; the vendor `ABP_Manny_PostProcess` bound to the
+mesh is still on SwordShield's and reaches it through the same entry.
 
-**Where the content actually sits**, and the reason the merge is smaller than it looks:
+**The socket union came out at 12, not the 8 two measured sets predicted:**
 
-| Skeleton | Total assets | Authored under `/Game/TheDream` |
-|---|---|---|
-| SwordShield | 1023 | 24 — nine montages, the blend spaces, every authored clip |
-| Epic | 105 | **1 — `ABP_Combat`** |
-| Unarmed | 4 | 3 — `AM_Rise`, `AM_KipUp`, `AM_NotifyProbe` |
-| GreatSword | 2 | 1 — `AM_RiseHard` |
-| Dagger | 1 | 0 |
+| Source | Sockets |
+|---|---|
+| SwordShield | `Sword`, `Shield`, `Sheath` |
+| Epic | `HandGrip_L`, `HandGrip_R` |
+| shared by both | `foot_l_Socket`, `foot_r_Socket`, `weapon_r_muzzle` |
+| the three previously unmeasured | `Dagger_l`, `Dagger_r`, `GreatSword`, `Sheath_l` |
 
-**`ABP_Combat` is on Epic's skeleton while the mesh it drives is on SwordShield's.** Both
-`BP_PlayerCharacter` and `BP_TrainingDummy` run `SKM_Manny` (SwordShield) through `ABP_Combat_C`
-(Epic), and the project's own montages span **four** of the five skeletons. Nothing is broken —
-`compatibleSkeletons` is what holds it together, and this is the *"real `CompatibleSkeletons`
-dependency"* the 2026-08-12 hover entry names in passing. **It is also load-bearing right now:**
-SwordShield lists the other four, which is the only reason a `Unarmed` `AM_Rise` plays on a
-SwordShield mesh. Clearing that list before the merge lands breaks the knockdown get-ups.
+**Nothing collided** — no name appears twice, so `Sword` and `Shield` carry SwordShield's grip
+rotation and shield scale unchanged, which is what `ATDCombatCharacter` attaches the props to.
 
-**So the project's own repoint is five assets** — `ABP_Combat`, `AM_Rise`, `AM_KipUp`, `AM_RiseHard`
-and `AM_NotifyProbe` — with the remaining 1130 being vendor and template content whose consolidation
-is a separate, optional question.
+**Why the three were unmeasurable before the merge, corrected.** The earlier reading was that those
+packs ship no mesh and binding one is a write. **A mesh was bound** — all four GDH skeletons had
+SwordShield's `SKM_Manny` as preview mesh. But `get_all_socket_names()` on a transient
+`SkeletalMeshComponent` resolves sockets through the **mesh's** skeleton, so all four returned
+SwordShield's six regardless of which skeleton asset you started from. The route was closed for a
+different reason than recorded, and the merge is what opened it: take the union, then read it back
+through the mesh that now uses the master.
 
-**Correcting the preview-mesh claim directly above** *(2026-08-24)*: it is accurate about the MCP
-surface and **not** about the engine. `USkeleton` exposes both `get_skeleton_preview_mesh` and
-**`set_skeleton_preview_mesh`** to editor Python, so assigning one is scriptable after all. Untested
-— reading it is what the audit needed. `copy_bones_from_skeleton`, `add_compatible_skeleton` and a
-`SkeletonModifier` class with full bone add/rename/reparent are on the same surface, and
-`unreal.SkeletonMergeParams` exists.
+**Two instruments still return a confident zero**, both recorded because the shape repeats:
+`Skeleton.sockets` and `SkeletalMesh.sockets` are **protected** and refuse reflection reads with an
+error that scans like an empty list; and `AnimPose.get_socket_names()` off
+`Skeleton.get_reference_pose()` returns **0 for every skeleton including the one with 12**.
+**`copy_bones_from_skeleton` is not a merge route** — it is GeometryScript, taking a `DynamicMesh`,
+and was listed here as merge surface in error.
+
+**`Tools/SkeletonCheck/skeleton-check.sh` is how the split stays visible.** It reports what sits on
+which skeleton and flags a **third** appearing, which is what a pack migrated from `AnimLibrary`
+does silently. `--fold` consolidates one into the master. Folding is optional: adding the new
+skeleton to the master's compatible list is enough to make its clips play.
 
 ## Getting an animation into this project
 

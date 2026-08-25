@@ -62,3 +62,4 @@ Tools/AnimPipeline/casc-run.sh	3	34
 Tools/DocsCheck/docs-check.sh	81	769
 Tools/RegressionCheck/regression-check.sh	470	5880
 Tools/RegressionCheck/session-count.sh	3	36
+Tools/SkeletonCheck/skeleton-check.sh	17	169

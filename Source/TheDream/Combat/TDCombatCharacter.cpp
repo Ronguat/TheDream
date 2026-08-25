@@ -1312,7 +1312,14 @@ void ATDCombatCharacter::PlayKnockdownMontage(UAnimMontage* Montage, float Targe
 	const float Length = Montage->GetPlayLength();
 	const float Rate = (Length > 0.0f) ? FMath::Max(Length / TargetSeconds, 0.01f) : 1.0f;
 
-	Anim->Montage_Play(Montage, Rate);
+	const float PlayingLength = Anim->Montage_Play(Montage, Rate);
+	if (PlayingLength <= 0.0f)
+	{
+		UE_LOG(LogTDCombatTiming, Warning,
+			TEXT("%s montage %s was refused by the anim instance and nothing is playing. The usual "
+				 "cause is its skeleton being neither the mesh's nor listed compatible by the mesh's."),
+			Label, *Montage->GetName());
+	}
 
 	// **The blend-out boundary moves with the rate, so a fast montage can blend itself out before
 	// the span it was fitted to has elapsed.** Warned rather than corrected: the fix is per clip
@@ -1335,9 +1342,9 @@ void ATDCombatCharacter::PlayKnockdownMontage(UAnimMontage* Montage, float Targe
 		}
 	}
 
-	TD_TIMING_LOG(TEXT("[%.3f] KNOCKDOWN MONTAGE  %s  %s len=%.3f rate=%.3f want=%.3fs"),
+	TD_TIMING_LOG(TEXT("[%.3f] KNOCKDOWN MONTAGE  %s  %s len=%.3f rate=%.3f want=%.3fs played=%.3f"),
 		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f,
-		*GetName(), Label, Length, Rate, TargetSeconds);
+		*GetName(), Label, Length, Rate, TargetSeconds, PlayingLength);
 }
 void ATDCombatCharacter::ApplyKnockdownFall(AActor* Attacker)
 {

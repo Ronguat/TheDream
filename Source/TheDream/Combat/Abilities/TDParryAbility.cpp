@@ -146,12 +146,19 @@ void UTDParryAbility::PlayParryMontage()
 	// its montage when the ability ends, which would snap the gesture away at the exact moment it
 	// succeeded. Nothing here needs the task's callbacks either: the parry's length is authored,
 	// never taken from the clip.
-	AnimInstance->Montage_Play(ParryMontage, WindowRate);
+	const float PlayingLength = AnimInstance->Montage_Play(ParryMontage, WindowRate);
+	if (PlayingLength <= 0.0f)
+	{
+		UE_LOG(LogTDCombatTiming, Warning,
+			TEXT("parry montage %s was refused by the anim instance and nothing is playing. The usual "
+				 "cause is its skeleton being neither the mesh's nor listed compatible by the mesh's."),
+			*ParryMontage->GetName());
+	}
 
-	TD_TIMING_LOG(TEXT("[%.3f] PARRY MONTAGE %s  len=%.3f gesture=%.4f windowRate=%.3f recoveryRate=%.3f window=%.3f recovery=%.3f"),
+	TD_TIMING_LOG(TEXT("[%.3f] PARRY MONTAGE %s  len=%.3f gesture=%.4f windowRate=%.3f recoveryRate=%.3f window=%.3f recovery=%.3f played=%.3f"),
 		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f,
 		*ParryMontage->GetName(), Length, GestureTime, WindowRate, RecoveryRate,
-		ParryWindowSeconds, ParryWhiffRecoverySeconds);
+		ParryWindowSeconds, ParryWhiffRecoverySeconds, PlayingLength);
 }
 
 float UTDParryAbility::FindGestureTime() const

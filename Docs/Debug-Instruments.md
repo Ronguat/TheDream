@@ -332,7 +332,7 @@ re-floored: the tag is already correct, but the new type's clock would otherwise
 `KNOCKDOWN RISE` names the exit in `by=` — **`auto` `stand` `dodge` `kipup` `block` `attack`**, six
 tokens covering the wait, the neutral stand and the four options — and prints `stands=` as the
 timestamp the rise completes. `KNOCKDOWN STAND` is that instant, and carries `z=` for the airborne
-comparison. `KNOCKDOWN MONTAGE` prints per clip with its fitted rate.
+comparison. `KNOCKDOWN MONTAGE` prints per clip with its fitted rate, and **`played=` is `Montage_Play`'s return** — the length actually playing, against `len=` read off the asset before the call. **They match or the montage was refused**, which also raises an ungated warning naming the skeleton as the likely cause; `PARRY MONTAGE` carries the same field. Added 2026-08-24, because a refused montage previously logged exactly like a played one.
 
 **`by=` is the whole discrimination and two of its tokens come from one ability.** `GA_Dodge`
 answers `dodge` or `kipup` depending on the type it reads off the character, which is why the base

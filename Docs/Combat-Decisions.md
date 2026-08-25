@@ -147,22 +147,29 @@ stays here and misdirects the next person, which is worse than never having file
 discharged it and keep anything from it that is still true. Removing a trap silently is the one
 edit here that cannot be reviewed, because nothing is left to review.
 
-**Before clearing any `compatibleSkeletons` list — SwordShield's is load-bearing today.** Filed
-2026-08-24 from the skeleton audit, owner **Skeleton Merge**. `AM_Rise` and `AM_KipUp` are on the
-**Unarmed** skeleton and `AM_RiseHard` is on **GreatSword**, while both characters run a
-**SwordShield** mesh — so all three knockdown get-ups play only because SwordShield's skeleton lists
-the other four as compatible. **The tell if it is cleared early is get-ups silently failing to
-play**, which reads as a montage or state-machine fault rather than an asset-reference one. The
-merge is what makes the list unnecessary; until it lands, the list is the mechanism.
+**Before clearing the master's `compatibleSkeletons` entry — it is the only one left, and it is
+load-bearing.** Filed 2026-08-24 from the skeleton audit, **narrowed the same day when Skeleton
+Merge shipped**. The original claim — that SwordShield's list carried the knockdown get-ups — is
+**discharged**: `AM_Rise`, `AM_KipUp` and `AM_RiseHard` are on `SK_Master` now, with the clips they
+play, so no cross-skeleton hop is involved in a get-up at all. What replaces it is smaller and
+sharper. `SKM_Manny` is on the master, **79 assets the game plays are still on SwordShield's
+skeleton** — every attack, dodge, parry and knockdown montage, the locomotion and block blend
+spaces, and `ABP_Manny_PostProcess` — and they reach the mesh through **one entry**: the master
+lists SwordShield. **Clear it and combat loses its animation while the state machine keeps running.**
+The tell is unchanged, and there is now an instrument for it: `Montage_Play`'s return is logged as
+`played=` on the `KNOCKDOWN MONTAGE` and `PARRY MONTAGE` trace lines, and a refusal raises an
+ungated warning naming the skeleton as the likely cause. **Pruning the 1023 unused vendor clips is
+what would remove the entry**; nothing else does.
 
-**`Unarmed`, `GreatSword` and `Dagger` have *unmeasured* socket sets, not empty ones.** Filed
-2026-08-24, same owner. The audit enumerated SwordShield's six and Epic's five by reading each
-socket's outer, and **could not reach the other three**: `find_socket` resolves through a
-SkeletalMesh, those packs ship none, and binding one is a write. **The lossless-union finding covers
-two skeletons, not five** — do not carry it to the other three. Settling it is a bind-a-mesh step,
-which needs a human or an explicit go-ahead. **And two instruments return a confident zero here**:
-`Skeleton.sockets` is protected, and `AnimPose.get_socket_names()` returns 0 even on the skeleton
-that has 6.
+**Sockets: discharged 2026-08-24 by the merge.** `Unarmed`, `GreatSword` and `Dagger` had
+*unmeasured* socket sets, and `merge_skeletons` took the union without needing them enumerated
+first. The master carries **12**: SwordShield's `Sword`/`Shield`/`Sheath`, Epic's
+`HandGrip_L`/`HandGrip_R`, the three shared foot and muzzle sockets, and **`Dagger_l`, `Dagger_r`,
+`GreatSword`, `Sheath_l`** from the three that could not be read. **Nothing collided**, so `Sword`
+and `Shield` keep SwordShield's grip rotation and shield scale, which is what the props hang on.
+**The recorded reason they were unmeasurable was wrong** and the corrected one is in
+`Docs/Animation-Library.md`: a mesh *was* bound to all four, but `get_all_socket_names()` resolves
+through the **mesh's** skeleton, so every one of them answered with SwordShield's six.
 
 **Each trap is trigger, live claim, and status.** The arguments and the evidence live in the dated
 entries; the hunts that produced them live in git. *(Compressed 2026-08-14 from 534 lines, which
@@ -1431,7 +1438,9 @@ long.
 | `RootMotionScale` | 08-12 |
 | `RotationRate` | 08-10, 08-12 |
 | `SKM_Manny_Simple` | 08-11 |
-| `SKM_Manny` | 08-11, 08-12 |
+| `SKM_Manny` | 08-11, 08-12, 08-24 |
+| `SK_Master` | 08-24 |
+| `SK_Mannequin` (SwordShield) | 08-24 |
 | `SetAbilityFacingLocked` | 08-13 |
 | `SetAbilityMovementLocked` | 08-24 |
 | `SetActorLocation` | 08-12 |
@@ -1521,6 +1530,65 @@ long.
 | `gEComponents` | 08-10, 08-11 |
 
 ---
+
+## 2026-08-24 — Skeleton Merge ships: two skeletons, because the pointer is read-only and prune-later is the ethos
+
+**The slice's three open WHATs were answered by the designer**, and one of them reshaped it midway.
+**Meshy generates characters**, so the master is the skinning contract every generated mesh is
+authored against — which killed the cheapest option outright: promoting SwordShield's skeleton in
+place would have parked that contract in `/Game/GDHBundle/`, which `Docs/Animation-Library.md` calls
+migrated and read-only, and which a future Migrate can overwrite. Not theoretical: every archetype
+but SwordShield is still unmigrated, and Migrate is the documented route.
+
+**The designer's framing replaced mine and was better.** I had proposed repointing the *played
+closure* and leaving the rest; they proposed architecting for future additions instead — a slightly
+more involved onboarding, no anticipatory bulk work, and unused vendor clips treated as pruning
+candidates rather than migration targets. Stated as a rule: **no anticipatory work unless the
+trajectory is all but certain to collide.** Two pieces of the plan were audited against it. The
+master's compatible entry **passes** — pure future-proofing, but the collision is certain and the
+cost is one property write. Unioning sockets from all five **failed as originally argued**: three of
+those sets were unmeasured, so it imported unknown names against the two sockets the game depends
+on. Kept, but with a read-back assertion rather than on faith.
+
+**The measurement that made the scope arguable.** "Current animations" is a dependency closure, not
+the project's own assets: **92 skeleton-bound assets**, against 29 if you only count ours. Montages
+are not self-contained — `AM_Attack` sits on SwordShield and plays vendor clips, blend space samples
+are vendor clips, and `ABP_Manny_PostProcess` plus its 28 pose assets ride on the mesh. All five
+skeletons were live in that closure; **`AM_Rise` alone spanned three** — montage on Unarmed, clip on
+Dagger, mesh on SwordShield, both hops carried by SwordShield's list.
+
+**Then the plan's premise turned out not to exist.** `Skeleton` is **read-only through reflection on
+`AnimSequence`, `AnimMontage` and `SkeletalMesh` alike**, and the anim types carry no `SetSkeleton`
+UFUNCTION — so there is no per-asset repoint for 90 of the 92. This inverted the risk model stated
+at plan time: the two AnimBlueprints predicted as the hard part write fine
+(`target_skeleton` is a plain property), and the "trivial pointer swaps" were the wall. The routes
+that exist are in `Docs/Working-In-Unreal.md`. The only bulk one,
+`EditorAssetLibrary.consolidate_assets`, is **per-skeleton and cannot be scoped**, and it deletes
+the sources — a scope *and* direction change, so it went back for a second greenlight.
+
+**Option B was chosen: consolidate the four, SwordShield stays.** Against A (consolidate all five,
+~1136 packages rewritten, one skeleton) and C (promote SwordShield's and relocate it, whose rename
+cost lands on the same 1024). B rewrote **121 files** and left **two** skeletons — 113 assets on
+`SK_Master`, 1023 on SwordShield's, one compatible entry between them. It lands closer to the ethos
+than my original plan did: a future GDHBundle clip arrives on SwordShield's skeleton and simply
+plays, so the onboarding path has **no** repoint step, which is *less* involved rather than more.
+Pruning collapses B into A whenever that is worth doing.
+
+**Repo weight, which had been the open cost question, is a non-issue** — a repointed clip went
+412,248 → 414,811 bytes, a reference-table change and nothing else.
+
+**One thing the merge settled for free.** The socket union came out at **12**, not the 8 the two
+measured sets predicted; the three unmeasured packs held `Dagger_l`, `Dagger_r`, `GreatSword` and
+`Sheath_l`, and **nothing collided** with `Sword`/`Shield`/`Sheath`. The trap is discharged, and the
+recorded reason those sets were unreadable was itself wrong — a mesh *was* bound to all four
+skeletons; `get_all_socket_names()` just resolves through the mesh's skeleton.
+
+**The verification gap this slice found and closed.** `Montage_Play`'s return was discarded at both
+direct call sites, and the `KNOCKDOWN MONTAGE` trace printed `len=` from the *asset* — read before
+playing — so a montage refused for skeleton incompatibility logged exactly as if it played, and the
+s6 scenarios assert state timing rather than animation. **The trap's own stated tell was invisible
+to the harness.** Both sites now capture the return, log it as `played=`, and raise an ungated
+warning on a refusal, following the same reasoning as this file's other silent-loss warnings.
 
 ## 2026-08-24 — The parry lockout stops sharing the movement bool, and the pattern was already in the file
 
@@ -7440,23 +7508,6 @@ long it is held, and block and parry will share a button.
 a brief binds the session that picks that slice up and no other, so it was triggered content
 sitting in the always-read file.
 
-- **Skeleton Merge** *(added 2026-08-24, the designer's approach; first on the roster)* — **merge
-  every skeleton into one master that becomes the project's only skeleton**, then configure
-  Meshy-generated assets against it. **The audit is already done** and lives in
-  `Docs/Animation-Library.md`: the five `SK_Mannequin` assets are **one rig to the bit** (161 bones,
-  identical order, worst reference-pose deviation **0.000000**, no retargeting-mode differences), so
-  this is a **repoint, not a retarget** — no animation data is resampled and nothing can drift.
-  **Sockets are skeleton-owned and the union is lossless**: SwordShield's `Sword`/`Shield`/`Sheath`
-  and Epic's `HandGrip_L`/`HandGrip_R` share no name, and the three common sockets carry identical
-  transforms. **The project's own repoint is five assets** — `ABP_Combat` (on **Epic's** skeleton
-  while the mesh it drives is on SwordShield's), `AM_Rise`, `AM_KipUp`, `AM_RiseHard`,
-  `AM_NotifyProbe` — against 1130 vendor and template assets. **It runs first because the merge gets
-  more expensive with every slice that authors clips**, and Death-full and Polish are the roster's
-  clip-authoring slices. **Three open WHATs it must not answer alone**, all in the 2026-08-24 entry:
-  whether the master absorbs the vendor content or only the project's; where the master lives, given
-  that authored content belongs under `/Game/TheDream/` and today's de-facto master is vendor
-  content under `/Game/GDHBundle/`; and whether Meshy touches characters at all. **Two packs' socket
-  sets are unmeasured rather than empty** — see the trap.
 - **Polish** *(style over substance; split from Knockdown 2026-08-18, the designer's call)* — deferred work that changes how something *reads* rather than what it does. **Carries the bespoke windup pass**: heavy and charged get their own clips, their windups become **blended transitions** into real anticipation, and **coil is deprecated**. It belongs here rather than in Knockdown because the reactability arithmetic is untouched — the blend occupies exactly the window the coil did, 350 ms light→heavy and 300 ms heavy→charged — so only the tell's *expression* changes, freeze to visible repositioning. **Sits early deliberately**, right after Knockdown: it must precede Interplay or the feel verdict is taken with both tiers still playing the light's clip. **Clip-fitting values are Polish's; whole-surface greening is not** — the hypothesis dataset lands at the Tuning Rig (2026-08-18). Spec, candidate pool and the two measured findings behind it are in `Docs/Combat-Decisions.md`, 2026-08-18. **Inherited from Parry when it shipped 2026-08-19:** the parried attacker's **recoil tell** and all parry presentation — a parry currently reads only on the parrier, so the victim of one has no tell at all; and the open preview question of **whether V3's parry pose reads consistently beside V1's held guard**, which is a pack mix that shipped without being judged. Neither needs a search — both need looking at. **Knockdown's presentation is inherited whole (2026-08-20)**: the designer's verdict on the shipped state machine was *"needs polish, but the functionality is there"*, and specifically that the transition into the down state reads **abrupt** — there is no impact moment, the fall simply starts. Also here *(clause updated 2026-08-24 — an authored source now exists)*: polishing the get-up clip in its authored scene (`AnimSource/GetUpAttack.casc`; the rough ships as Knockdown's interim per that day's verification-bar entry), plus **Knockdown's re-scope inheritance**: the knockdown/fall/rise clip batch and the get-up options' look — everything past the tell-what-fired legibility bar; and the two rises deliberately blend into idle over their second half, which is a choice to revisit once idle poses are real. **Two more from the legibility glance of 2026-08-24, both of which *passed* the tell-what-fired bar, so neither is a defect:** the **block get-up** does blend to a guard on standing -- contradicting the assumption, mine, that it showed nothing at all -- and the designer's verdict on it is *"underwhelming and looks a tad undeliberate"*; and the **dodge get-up's roll ends before the dodge does**. `AM_KnockdownRoll` fits the whole 0.900 s of `AS_SwordAndShieldAnimV1_Roll_Fw_RM` to `DodgeSeconds`, so at 2.25x the clip's recovery-to-stance -- frames 18-26, 31% of it -- runs while the body is still travelling, and auto blend-out triggers at frame 18.8 and replaces it with idle pose. **The designer's fix, ruled the same day: mark where the roll ends and fit that portion**, leaving the recovery to play out after the dodge without i-frames. I-frames stay at `DodgeSeconds` and nothing about play changes -- it is the section-fitting precedent `AM_Dodge` already uses, applied where there is no section boundary. Measured marker candidate **frame 18, t = 0.623 s**: the pelvis minimum (15.5) sits behind it and the rise to 81.8 is monotonic after; **frame 17 is equally defensible**, the pitch zero-crossing falling between them, so the frame is a judgement about the animation rather than a number the data settles. **The blend-out then wants its own look**: at the resulting 1.56x it triggers at 0.417 s, clear of the dodge, but starts eating the recovery instead. **Two stun tells, filed by the designer 2026-08-24, and both take the same route as blockstun's.** Blockstun's animation is a **state in the Locomotion machine, not a montage** — `AM_Blockstun` was built, tested and deleted at `eb658ee` because the montage route *"cost more than it buys"*, and a state needs no C++ at all: one state and two transitions in the editor, keyed off a `BlueprintPure` getter. **Hitstun / flinch has no tell**, and its route is open **today with zero C++**, `IsInHitstun()` already being `BlueprintPure` exactly as `IsInBlockstun()` is — and it is the *easier* case than blockstun was, because that one's recorded caveat is a full-body state freezing the legs while moving, and blockstun leaves movement free where **hitstun takes the movement lock**, so nothing fights it. **A parried attacker has no tell either**, which is the recoil gap named above now with a state to hang it on: `State.ParryLockout` went live with Knockdown's sub-slice E, but **`IsInParryLockout()` is not `BlueprintPure`** — one `UFUNCTION` line opens the same route. **Both are human jobs by construction**: `Working-In-Unreal.md` records that a state machine's states, transitions and rules are all unreachable by script, and that a state's interior reads back empty rather than erroring — which is also why a search for a blockstun *asset* finds nothing and proves nothing. **Death-full's brief also claims the hit-reaction animation**; whoever picks up either should read the other, since the flinch is plausibly the same work. **And one that is mechanical rather than presentational, filed here so it is not forgotten** *(the designer, 2026-08-24)*: **a guard break should count as a hit for the *attacker's* input freedom.** A blocked hit returns before the on-hit waiver, so the attacker stays pinned for the full recovery — the waiver's own comment keeps recovery as the punish window *"against whiffs and against blocks."* A **break** should not sit on that side of the line: it waives like a connect. **The defender side is unchanged.** **And the target windups, which Polish needs *before* it selects clips** *(the designer, 2026-08-24; not previously recorded anywhere — searched)*: **heavy to 400 ms and charged to 800 ms**, against the live 350 and 750. It belongs here because clip selection is fitted to the duration and never the reverse, so choosing against today's numbers and moving them afterwards wastes the pass. **Two couplings come with it.** The parry window's anti-option-select ceiling is the fast↔charged gap, 750 − 350 = 400 ms, and bumping both tiers by 50 leaves it at 800 − 400 = **400** — untouched, which it would not be if only one tier moved. And the heavy's tell window grows from 350 − 150 = **200 ms** to 400 − 150 = **250 ms**, which partially walks back the 2026-08-18 re-pole's *"that shortening is the point rather than a side effect"* — plausibly intended, the bespoke windup pass being what makes a longer tell readable rather than merely longer, but worth saying out loud rather than discovering afterwards.
 - **Death-full** *(from the same split; **moved ahead of Polish** 2026-08-24, the designer's call —
   the hit-reaction animation is double-claimed by both, so running this first means Polish inherits
@@ -7487,7 +7538,7 @@ sitting in the always-read file.
   is Meshy on the Cascadeur model**, an autonomous pipeline — with two limits recorded up front:
   Meshy covers **one** of the four routes, and its automation ceiling is lower than Cascadeur's
   because generation needs someone to choose among results where a transformation does not.
-  **Depends on Skeleton Merge** for anything touching characters. Reasoning: the 2026-08-24 entry.
+  **Skeleton Merge shipped 2026-08-24, so this dependency is satisfied**: generated characters skin onto `SK_Master`, and the merge removed the retarget problem but not the skinning one. Reasoning: the 2026-08-24 entries.
 - **Netcode** — the behavioural pass the 2026-08-15 recon mapped: the two `SetTimer` sites and
   i-frame lag compensation (one problem twice), prediction windows, client stamina prediction, the
   loose-tag aim-assist asymmetry, and a shareable direct-connect build.

@@ -234,14 +234,17 @@ hook cannot tell who wrote a change.
 
 Execution order, the only line that changes when the order does:
 
-> **~~Attack Ladder~~ → ~~Dodge~~ → ~~Sword & Shield~~ → ~~Input Buffer~~ → ~~Death~~ → ~~Dodge Distance~~ → ~~Attack Swap~~ → ~~[hover bug]~~ → ~~[facing pass]~~ → ~~Recovery~~ + ~~Lunge~~ → ~~Target Lock~~ → ~~Block~~ → ~~Light String~~ → ~~Parry~~ → ~~Knockdown~~ → Skeleton Merge → Death-full → Polish → Settings → Art → Netcode → Tuning Rig → Interplay**
+> **~~Attack Ladder~~ → ~~Dodge~~ → ~~Sword & Shield~~ → ~~Input Buffer~~ → ~~Death~~ → ~~Dodge Distance~~ → ~~Attack Swap~~ → ~~[hover bug]~~ → ~~[facing pass]~~ → ~~Recovery~~ + ~~Lunge~~ → ~~Target Lock~~ → ~~Block~~ → ~~Light String~~ → ~~Parry~~ → ~~Knockdown~~ → ~~Skeleton Merge~~ → Death-full → Polish → Settings → Art → Netcode → Tuning Rig → Interplay**
 
-**Pick up at Skeleton Merge**, whose brief is the slice-briefs section of
-`Docs/Combat-Decisions.md` and whose **audit is already done** — `Docs/Animation-Library.md` carries
-it. **The whole remaining roster is one megaslice** *(2026-08-24, the designer's ruling)*, and
-**three of its items are new or moved that day**: Skeleton Merge and Art are new, and Death-full now
-precedes Polish because they double-claim the hit-reaction animation. Polish stays the fullest brief
-on the roster.
+**Pick up at Death-full**, whose brief is the slice-briefs section of `Docs/Combat-Decisions.md`.
+**The whole remaining roster is one megaslice** *(2026-08-24, the designer's ruling)*, and **Art is
+new that day**, while Death-full now precedes Polish because they double-claim the hit-reaction
+animation. Polish stays the fullest brief on the roster.
+
+**The project runs two skeletons and that is deliberate** *(Skeleton Merge, 2026-08-24)*.
+`SK_Master` is the project's skeleton and the mesh's; SwordShield's `SK_Mannequin` holds the ~1000
+unused vendor clips and is reached by **one** `compatibleSkeletons` entry, which is load-bearing —
+see the traps. `Tools/SkeletonCheck/skeleton-check.sh` reports drift and folds a migrated pack in.
 
 **The verification bar every slice now ships against** *(2026-08-24, the dated entry)*: verified
 functionality, with animations legible enough to tell which mechanic is firing. Visual refinement
