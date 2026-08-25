@@ -264,17 +264,17 @@ type** — a broken one usually looks fine alone.
   `FGameplayTagContainer`'s array is `gameplayTags`.
 - **TMap keys** — the misleading `added key ... not found in map` log **no longer reproduces**
   *(2026-08-21)*; a key added to `abilityInputActions` landed silently and read back.
-- **`AssetTools` path functions answer `false` while PIE is running** *(cause isolated 2026-08-24,
-  after most of a session spent blaming the wrapper)*. `exists`, `is_dirty`, `get_asset_class` and
-  **named `save_assets`** all fail during a play session — `exists` returning a bare `false`, the
-  rest *"Asset does not exist"* — and every one answers correctly the moment PIE stops. **The MCP
-  layer is not the variable**: `EditorAssetLibrary.does_asset_exist` behaves identically through
-  `run-in-editor.py`, returning `False` for all five paths tried **including the currently loaded
-  level**, then `True` for all five with PIE stopped. **Registry-backed calls are unaffected** —
-  `find_assets` and `load_asset` keep answering throughout, which is what makes this look like a
-  path-form problem and sends you hunting the wrong thing. **Check `IsPIERunning` before concluding
-  anything about a path**, and note that a session inherited from the user may already have PIE up.
-  The 2026-08-21 bullet recording these as working stands, measured with no PIE running.
+- **`AssetTools` path functions answer `false` while PIE is running** *(cause isolated 2026-08-24)*.
+  `exists`, `is_dirty`, `get_asset_class` and **named `save_assets`** all fail during a play session
+  — `exists` returning a bare `false`, the rest *"Asset does not exist"* — and every one answers
+  correctly the moment PIE stops. **The MCP layer is not the variable**:
+  `EditorAssetLibrary.does_asset_exist` behaves identically through `run-in-editor.py`, returning
+  `False` for all five paths tried **including the currently loaded level**, then `True` for all
+  five with PIE stopped. **Registry-backed calls are unaffected** — `find_assets` and `load_asset`
+  keep answering throughout, which is what makes this look like a path-form problem and sends you
+  hunting the wrong thing. **Check `IsPIERunning` before concluding anything about a path**, and
+  note that a session inherited from the user may already have PIE up. The 2026-08-21 bullet
+  recording these as working stands, measured with no PIE running.
 - **`StopPIE` reporting success is not proof PIE stopped** *(2026-08-24)*. It returned cleanly and
   `IsPIERunning` still read `true` well afterwards; a second call cleared it. **Poll `IsPIERunning`**
   rather than trusting the return — the same shape as process-up not meaning editor-ready.
