@@ -207,8 +207,11 @@ several distinct ways:
   rebuild**, no edit or save needed. **Removing** a sample does not: the triangulation still indexes
   the old length and the engine dies on evaluation with
   `Array index out of bounds: 16 into an array of size 16`. **Never change a BlendSpace's sample
-  count by reflection write — sample removal is a human job**, because the editor rebuilds the
-  triangulation as part of the operation and a property write does not.
+  count by reflection write** — the editor rebuilds the triangulation as part of the operation and a
+  property write does not. **It is not a human job, though** *(corrected 2026-08-24)*: `UBlendSpace`
+  exposes `AddSample`, `DeleteSample`, `EditSampleValue` and `ReplaceSampleAnimation` as
+  `ENGINE_API`, which is the editor's own path. Reflection is the wrong tool here, not the wrong
+  idea.
 - **CDO writes are property-dependent and the CDO cannot tell you** *(2026-08-13)*. Two writes to
   `GA_Attack` seconds apart: a direct object reference did **not** reach the live instance, object
   references inside a struct array did, and both read correctly off the CDO throughout.
@@ -265,8 +268,11 @@ type** — a broken one usually looks fine alone.
   old one while reading as the new — worse than an empty field. Re-pick in the details panel.
 - **A GameplayEffect's inline tag containers cannot be written** *(confirmed 2026-08-10)* —
   `inheritableOwnedTagsContainer` and `ongoingTagRequirements` accept writes and read back empty; UE
-  5.8 moved this to `gEComponents`. **Adding a GEComponent is not scriptable.** Numeric properties on
-  the same asset write fine, so a partially-configured effect is the likely outcome.
+  5.8 moved this to `gEComponents`. Numeric properties on the same asset write fine, so a
+  partially-configured effect is the likely outcome. **Adding a GEComponent is scriptable from C++**
+  *(corrected 2026-08-24)* — `UGameplayEffect::GEComponents` is a public array with a header-inline
+  `AddComponent<T>()`, and `gE_components` already reads from Python. Only the *reflection* route is
+  shut.
 - **Object references need the full path** *(confirmed 2026-08-21)* — `/Game/Path/Asset.Asset`. A
   short path is refused outright; this one fails loudly rather than silently.
 - **Array edits** *(confirmed 2026-08-21, corrected)* — changing an element and adding one in one
@@ -374,11 +380,13 @@ rather than an engine limit** *(swept 2026-08-24)*:
   *(confirmed 2026-08-22: written, read back and saved on a scratch montage — not yet fired at
   runtime.)* So the split is now **the script places it, C++ reads it, the trace line verifies
   it** — a screenshot answers a question the game answers itself every run.
-- A montage's **`compositeSections`** *(toolset)* — neither readable nor writable *(re-confirmed 2026-08-21)*,
-  and `sequenceLength` is read-only and does not recompute after a reflection write.
-  **`slotAnimTracks` reads back in full structural detail**, not only writes whole: every segment's
-  `animReference`, `startPos`, `animStartTime`, `animEndTime` and `animPlayRate` come back
-  *(2026-08-21)*, so a montage's construction is inspectable even where its sections are not
+- A montage's **`compositeSections` as a reflected property** *(toolset)* — neither readable nor
+  writable *(re-confirmed 2026-08-21)*, and `sequenceLength` is read-only and does not recompute
+  after a reflection write. **Sections themselves are not blocked** *(corrected 2026-08-24)*:
+  `get_num_sections` and `get_section_name` read them from Python, and `ENGINE_API
+  AddAnimCompositeSection(FName, float)` writes them. **`slotAnimTracks` reads back in full
+  structural detail**, not only writes whole: every segment's `animReference`, `startPos`,
+  `animStartTime`, `animEndTime` and `animPlayRate` come back *(2026-08-21)*.
 - **`UCurveFloat`'s keys — refuted from C++** *(2026-08-24; the reflection half of the 2026-08-13
   entry stands)*. `FloatCurve` is a bare `UPROPERTY()` the reflection layer cannot see, **and it is a
   public `FRichCurve` member**, so `AddKey` from an editor module authors keys directly. The old
