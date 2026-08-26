@@ -15,6 +15,7 @@
 #include "K2Node_VariableGet.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "Kismet2/BlueprintEditorUtils.h"
+#include "AnimGraphNode_Base.h"
 
 namespace
 {
@@ -265,6 +266,30 @@ bool UTDStateMachineTools::SetTransitionRule(UEdGraphNode* TransitionNode, FName
 	}
 
 	if (UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForGraph(Bound))
+	{
+		FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(Blueprint);
+	}
+	return true;
+}
+
+bool UTDStateMachineTools::SetNodeUpdateFunction(UEdGraphNode* AnimNode, UClass* OwnerClass, FName FunctionName)
+{
+	UAnimGraphNode_Base* Node = Cast<UAnimGraphNode_Base>(AnimNode);
+	if (!Node || !OwnerClass || FunctionName.IsNone())
+	{
+		return false;
+	}
+
+	// Checked here rather than left to the compiler: an unresolvable reference saves cleanly and
+	// surfaces later as a compile error on the node, far from the call that wrote it.
+	if (OwnerClass->FindFunctionByName(FunctionName) == nullptr)
+	{
+		return false;
+	}
+
+	Node->Modify();
+	Node->UpdateFunction.SetExternalMember(FunctionName, OwnerClass);
+	if (UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForNode(Node))
 	{
 		FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(Blueprint);
 	}

@@ -120,6 +120,7 @@ and not the order anyone reads in. Keep it sorted when adding.)*
 | 2026-08-18 — A parry makes them whiff at your feet | the reward is **derived** — the parried attacker rides their own attack into recovery, and an authored form exists only if play demands compensation | 2026-08-19 — Knockdown's plan session (the rework, locked at review: a catch **ends** the attack — its release was staying live against bystanders — and inflicts `State.ParryLockout`, duration derived as the swing's remaining planned total, so the per-tier punish survives inside the new structure. Ships with Knockdown's sub-slice E) |
 | 2026-08-18 — A parry makes them whiff at your feet | a whiffed parry "pays a **defensive** lockout", and the parry is refused only while blocking, exhausted and inside the post-dodge gap | 2026-08-19 — Parry recovery commits you, then the lockout (two widenings the same day: the whiff's tail refuses **every** ability and holds the movement lock, and the commitment starts at the *press* rather than at window close, so the window refuses everything too. The pricing symmetry and the floor derivation are untouched — only what the price *buys* changed) |
 | 2026-08-25 — The get-up roll aims itself | the roll **snaps** to its heading at activation | 2026-08-25 — The get-up roll turns into its heading (same day: a snap gives an observer a static pose to re-read, where a turn gives motion to track, so the heading reads earlier. Possible only once the travel direction stopped being derived from facing every tick) |
+| 2026-08-24 — The flinch is a state, not a montage | **"a state is not rate-fitted to a duration"**, so a 1.333 s clip against a 0.55 s stun is not a fitting problem | 2026-08-25 — The stun tells are positioned by stun progress (true of a state that merely plays; the tell is now held at rate zero and its playhead written each update, which fits *and* restarts it without the state re-entering. The rest of that entry stands) |
 | 2026-08-18 — A parry makes them whiff at your feet | the post-dodge gap is "a derived ~150 ms" that stops a predictive dodge chaining into a parry covering the charged | 2026-08-25 — The windups move as a pair (the derivation was `charged − DodgeSeconds − light arrival` and it never closed the case, release not being instantaneous; `DodgeRecoverySeconds` retires to 0 and the chain stands as priced RPS) |
 | 2026-08-18 — The bespoke windup pass deprecates the coil | the blend windows are stated against the coil's start — "350 ms light→heavy (0.150 → 0.500)" | 2026-08-25 — The windups move as a pair (reactability is measured from the **light's arrival** at 200, not the coil's start at 150; every coil-referenced window was 50 ms wide of the mark) |
 | 2026-08-18 — The ladder re-poles: rapid heavy | the heavy arrives at 350 and "that shortening is the point rather than a side effect" | 2026-08-25 — The windups move as a pair (400 now, partly walking the shortening back: at a 150 ms window the heavy sat below the reaction figure outright, and 200 puts it exactly on it. The fast/slow poling the entry argues for survives) |
@@ -275,11 +276,11 @@ naming it precisely. The exhaustive version is a whole-instance diff against the
 through `ProgrammaticToolset`; the re-placed attacker returns **zero** value overrides across 164
 properties, against three before.
 
-**Whenever blockstun's clip is touched — *it carries the pair that is worse than neither, and it cannot be saved from either scripting surface.*** Blockstun's state plays `AS_SwordAndShieldAnimV1_Defense_Hit_Fw_RM` (0.867 s), which reads `bEnableRootMotion = false` with `bForceRootLock = false` — the combination `Docs/Animation-Library.md` names as worse than setting neither. **Reported from play 2026-08-25**, and masked because the state resets between light hits so the drift read as authored. *Corrected the same day: an earlier filing named the V3 `Block1_Hit_RM` / `Block2_Hit_RM` clips, which also carry the bad pair but are **not what the state plays** — the clip identity was read off the sequence player rather than guessed from the name only after that.*
+**Blockstun's clip: discharged 2026-08-25.** `AS_SwordAndShieldAnimV1_Defense_Hit_Fw_RM` carried `bEnableRootMotion = false` with `bForceRootLock = false` — the pair `Docs/Animation-Library.md` names as worse than neither — and read as authored because blockstun expires between light hits, so the state re-entered and the drift reset. It now reads `bForceRootLock = true`, **saved to disk**. *Two corrections worth keeping: an earlier filing named the V3 `Block1_Hit_RM` / `Block2_Hit_RM` clips, which carry the same bad pair but are not what the state plays — clip identity is read off the sequence player, never guessed from a name. And the claim that it **could not be saved from any scripting surface was wrong**; the working route is in `Docs/Working-In-Unreal.md`, and C++ was never needed.*
 
-**The flag is a one-click fix by hand and a wall to script.** `unreal.load_asset` returns the object and `set_editor_property` takes, but `does_asset_exist` answers **False** for it — the asset registry has no entry, so every path-based save refuses: `AssetTools.save_assets` reports *"Asset does not exist"*, and `EditorAssetLibrary.save_asset` / `save_loaded_asset` both return False. Tried and did not fix it: package path, full object path, `only_if_is_dirty=False`, and `scan_paths_synchronous(force_rescan=True)` over the containing folder. The sibling V3 clip in the same bundle saves normally, so this is per-asset rather than per-tree. **C++ in `TheDreamEditor` is the untested third surface** and would very likely carry it, but one flag is faster to set in a details panel than a save route is to build — which is why it is filed rather than fixed.
+**The stun tells: discharged 2026-08-25** by positioning both playheads from stun progress instead of playing them at a rate — see the dated entry. Only a string's first hit used to be told, because the tell is a state entered on a cached bool and a hit landing inside a running stun re-enters nothing.
 
-**Whenever a stun tell is judged in a string — *hitstun and blockstun play through rather than restarting, so only the first hit is told.*** Reported from play 2026-08-25: the second and later hits of a string produce no fresh feedback, because the tell is a **state** entered on a cached bool and left on its negation — a hit landing while the bool is already true re-enters nothing. **The tell wants re-triggering per hit, not a duration that outlasts them.** Filed against Polish, which owns both tells' look; the flinch's construction is the precedent and the same shape of fix would apply to whatever blockstun ends up using. Untested by the loop — no scenario asserts that a tell fires once per hit rather than once per string.
+**Whenever either stun tell is changed — *no instrument in this project can see it, and the loop never could.*** Filed 2026-08-25 with the fix above. `HITSTUN` and `BLOCKSTUN` already fire per hit and their spans are asserted by `s4-string` and `s4-block`, so **every existing assertion stays green whether the tell draws or not** — what changed is cosmetic by construction and the loop asserts mechanics. The chain is verified structurally as far as the compile (the binding persists in `ABP_Combat.uasset`; `ValidateFunctionRef` raises no error, and that error is exactly what an unresolvable reference produces), but **that `UTDAnimTellTools::DriveTell` actually runs has never been observed**. The cheapest instrument would be an anim-side trace, which is graph work nobody has costed. Until then the designer's eye is the only verification, and a silent regression here — a rebind lost to a recompile, a renamed function — would look exactly like nothing.
 
 **Whenever an authored duration is asserted against a log — *the value it lands on is partly the test machine's frame rate.*** The release window closes on the first tick at or past its deadline, so every ability's total carries the distance from that deadline to the next tick: nil at 60 fps where 150 ms is exactly nine frames, +17 ms at 30. **`s6-getup` is where this bit first** — one sample in twelve past an elapsed ceiling, read as a flake until the sweep showed it scaling with frame time. Weakened rather than discharged by the 2026-08-25 fix: the overrun no longer *grows* without bound and the damaging span never exceeds its authored length, but a band derived on one machine still encodes that machine's frame time. **Re-derive an elapsed band from measurement on the machine that will run it**, and treat a single sample past a ceiling as a question about frame time before a question about combat.
 
@@ -1109,6 +1110,9 @@ than a refusal.
 | The character spins on the spot like a prop while standing around | `IdleTurnRateDegrees`, freely — it cannot affect aim, because the fast rate resumes at the press and the whole windup runs on it | `TurnRateDegrees`. The three rates exist separately so this complaint has somewhere safe to go; answering it with the derived rate trades a cosmetic problem for a hit-detection one. |
 | A held heavy or charged tracks too hard, or feels too committed, once it coils | `CoilTurnRateDegrees`, freely and at **any** value including zero — the coil is after the aim guarantee is discharged, so everything it governs is tracking rather than aiming. It is a **power** value even so: it is exactly how far a held attack may be redirected *after* the defender has been told it is coming | `TurnRateDegrees`, and not the coil's length either. The light never reaches this rate at all — it commits where the coil would start — so a complaint about the *light* turning wrong is never this row. |
 | An action feels like it turns too slowly to start | Whether `IsIdle()` is wrongly returning true for it — every ability and every buffered press should already exclude it | `IdleTurnRateDegrees`. Raising it to fix one action's start hides a classification bug and drags the idle look back toward the pop it was added to remove. |
+| The flinch reads too fast, too slow, or stops mid-stagger | `HitstunTellPortionSeconds` — how much of the clip the tell spends, currently 0.684 of 1.333. Raising it speeds the tell up, because the same span covers more clip | The clip's play rate, which is **held at zero on purpose** and is not a dial: the playhead is written from stun progress every update, so a rate would be added on top by the tick record and drift the position a frame's worth per frame. Nor `HitstunSeconds` — that is the mechanic the tell is fitted to, and moving it retimes the string guarantee. |
+| The block reaction reads too fast or too slow | `BlockstunTellPortionSeconds`, currently 0.485 of 0.867, same arithmetic | The same two. Note the tell already runs **below** 1.0 for heavy and get-up blockstun, so "too slow" there is the portion being short, not the clip being wrong. |
+| Either portion is moved | Nothing, without re-measuring. Both sit on a **measured** seam in the clip — hitstun's on the last frame before its largest single event, blockstun's on the trough before its return-to-guard — and a value chosen by eye lands mid-motion, which reads as a cut rather than an end | Assuming the seams transfer to a different clip. They are properties of these two clips; swapping either animation means measuring again, not carrying the number across. |
 | Feet slide during locomotion | `MaxWalkSpeed`, set from the `_RM` clips' measured displacement | The animation's rate. 500 came from Epic's template and was never measured; derive the speed from the clip rather than scaling the clip to an unchosen number. |
 | An action feels unresponsive at low stamina | Nothing — find what is gating it | Adding or restoring a cost gate. Costs are paid, never required; if an input silently does nothing, `CostGameplayEffectClass` or `CommitAbility` has crept back in. |
 | Exhaustion feels too long or short | `ExhaustedStaminaRegenPerSecond`, since recovery *is* the duration. Separate from the normal rate as of 2026-08-14 | A duration knob, and no longer `StaminaRegenPerSecond` — that governs normal play only, and moving it to retune exhaustion now changes dodge cadence instead. `ExhaustionSeconds` stays deleted: splitting the *rate* keeps the property that killed it, because exhaustion still ends at Max and nowhere else. |
@@ -1306,6 +1310,9 @@ long.
 | `APawn::FaceRotation` | 08-12 |
 | `ApplyDodgeRecovery` | 08-25 |
 | `ApplyParryLockoutState` | 08-24 |
+| `AS_SwordAndShieldAnimV1_Defense_Hit_Fw_RM` | 08-25 |
+| `ATDCombatCharacter::ComputeTellTime` | 08-25 |
+| `ATDCombatCharacter::GetHitstunTellTime` | 08-25 |
 | `ATDCombatCharacter::Jump` | 08-12 |
 | `ATDCombatCharacter::StartRagdoll` | 08-13 |
 | `ATDCombatCharacter` | 08-10, 08-12, 08-24 |
@@ -1324,6 +1331,7 @@ long.
 | `ApplyDeathState` | 08-11, 08-15 |
 | `ApplyExhaustionState` | 08-15 |
 | `ApplyModToAttribute` | 08-10 |
+| `BlockstunTellPortionSeconds` | 08-25 |
 | `BP_CombatPlayerController` | 08-15 |
 | `BP_PlayerCharacter` | 08-11, 08-12, 08-15 |
 | `BP_TrainingDummy` | 08-11, 08-12 |
@@ -1419,6 +1427,9 @@ long.
 | `HitSpacingCm` | 08-16 |
 | `Hitboxes` | 08-12 |
 | `HitstunSeconds` | 08-16, 08-18 |
+| `HitstunTellPortionSeconds` | 08-25 |
+| `HitstunTellSerial` | 08-25 |
+| `HitstunTellSpanSeconds` | 08-25 |
 | `HoldSeconds` | 08-11 |
 | `HoldUntilSeconds` | 08-09, 08-12, 08-18, 08-25 |
 | `IdleTurnRateDegrees` | 08-12 |
@@ -1468,6 +1479,8 @@ long.
 | `PreAttributeChange` | 08-10 |
 | `PrepareRootMotion` | 08-12 |
 | `REPNOTIFY_Always` | 08-11 |
+| `USequencePlayerLibrary::SetAccumulatedTime` | 08-25 |
+| `UTDAnimTellTools` | 08-25 |
 | `UTDInputTools` | 08-24 |
 | `set_global_time_dilation` | 08-24 |
 | `take_high_res_screenshot` | 08-24 |
@@ -1543,6 +1556,7 @@ long.
 | `UTDParryAbility` | 08-24 |
 | `UpdateCameraRelativeFacing` | 08-11, 08-12 |
 | `UpdateStateFrom` | 08-14 |
+| `UTDStateMachineTools::SetNodeUpdateFunction` | 08-25 |
 | `WeaponMesh` | 08-11 |
 | `WithNetSerializer` | 08-12 |
 | `YawOffsetDegrees` | 08-13 |
@@ -1577,6 +1591,111 @@ long.
 | `bUseControllerRotationYaw` | 08-12 |
 | `compositeSections` | 08-15, 08-18 |
 | `gEComponents` | 08-10, 08-11 |
+
+## 2026-08-25 — The stun tells are positioned by stun progress rather than played at a rate
+
+**Both tells now fit the stun that owns them and restart on every hit.** Reported from play: the
+flinch and the block reaction ran at rate 1 through a fixed clip, so the common 0.55 s hitstun
+showed the first 41% of a 1.333 s animation and stopped; and a hit landing *inside* a running stun
+produced no fresh feedback, because the tell is a state entered on `bInHitstun` and that bool is
+already true.
+
+### The mechanism is a position, not a rate
+
+The obvious fix is `playRate = portion / span` plus something that detects a fresh hit and rewinds.
+What ships instead holds the sequence player at **rate zero** and writes its accumulated time every
+update:
+
+	accumulated = clamp(elapsed / span, 0, 1) * portion
+
+**The restart then costs nothing** — `elapsed` resets when a hit lands, so there is no re-entry to
+detect, no cached serial in the anim graph and no pulsed bool a dropped frame could miss. Drift
+cannot accumulate either, because nothing accumulates: the playhead is a function of the stun, so
+the tell is aligned to the mechanic by construction rather than by agreement.
+
+Rate zero is load-bearing and not merely tidy. `FAnimNode_SequencePlayerBase::UpdateAssetPlayer`
+does not advance the accumulator itself — it hands the address to the tick record, which advances
+it by `delta * rate` **after** the update function has run. Any non-zero rate would add a frame's
+worth on top of every position written.
+
+**Neither clip carries a notify**, checked before committing to rate zero, so nothing is lost by a
+tick record that sees no time pass.
+
+### The portions, and why the whole clip is wrong
+
+Fitting the *whole* clip to the stun runs hitstun at 2.4×. Both tells therefore use a portion, the
+precedent being `AnimNotify_ParryGesture` fitting clip-start-to-marker into `ParryWindowSeconds`.
+The portions are **measured, not eyeballed** — per-frame summed joint rotation across all 89 bones:
+
+| | clip | portion | the seam it cuts on |
+|---|---|---|---|
+| Hitstun | `AS_SwordSwordAnimV3_Hit_Fw_RM`, 1.333 s | **0.684 s** | the last frame before the clip's largest single event (0.718, reading as the back foot planting) |
+| Blockstun | `AS_SwordAndShieldAnimV1_Defense_Hit_Fw_RM`, 0.867 s | **0.485 s** | the trough where the reaction has landed and the return-to-guard has not started |
+
+**Hitstun's clip has no quiet tail** — it staggers at a roughly constant rate from impact to the
+plant and never settles, which is why the cut is a structural seam rather than a decay threshold.
+Blockstun's does settle, so its trough is a genuine minimum.
+
+They live on the character as `HitstunTellPortionSeconds` / `BlockstunTellPortionSeconds` rather
+than as notifies on the clips, because both clips are library assets under `/Game/GDHBundle/` and
+one of them had just proved awkward to save.
+
+### The live stun values are two, not five
+
+Worth recording because a rate table was built against the wrong set first. `GA_Attack`'s heavy and
+charged branches both author `KnockdownType = HARD`, and `string_swings[1]` authors `NORMAL`. A
+swing that authors a type floors its victim instead of stunning it, so **the only hitstun durations
+that reach anyone are the light's 0.55 and the get-up attack's 1.0**; the heavy's 0.35 and the
+charged's 0.45 key only the attacker's on-hit movement waiver. `ForcedFacingTurnRateDegrees`'
+header already said exactly this. Blockstun keeps its spread — knockdown applies to clean hits
+only — so blocking a heavy still serves 0.60.
+
+Resulting rates: hitstun **1.24×** light and **0.68×** get-up; blockstun **1.39×** light, **0.81×**
+heavy, **0.75×** get-up. The two below 1.0 are accepted rather than overlooked: both are the
+longest stuns, and a heavier, slower flinch on the game's biggest punish reads as weight.
+
+### What crosses the wire, and why it is not the deadline
+
+`HitstunEndsAt` and `BlockstunEndsAt` **do not replicate and should not**. They are inputs to a
+server-only decision whose output — the bool — already replicates, which is the project's standing
+shape. Replicating them would also be wrong rather than merely wasteful: they are absolute
+`UWorld::GetTimeSeconds()` values and that clock is per-world, so a deadline of 412.7 means nothing
+on a machine reading 88.3.
+
+The tell needed the first off-server consumer either has, so it gets its own pair per stun: a
+replicated `uint8` serial bumped on every entry, and a replicated **span**. A counter and a
+duration are machine-independent where a timestamp is not, and the serial's `OnRep` starts the
+client's clock at the moment it *learns* of the hit — so the tell and the state it draws begin
+together on that machine even though both are a half round trip late.
+
+The span is measured to the **extended** end rather than from the duration passed in, so
+max-extension is handled for free: a tell always finishes with the stun it belongs to.
+
+### Two walls fell, and neither needed the surface that was reserved for it
+
+**The anim node function needed no custom `UAnimInstance`.** `UAnimGraphNode_Base`'s function
+properties carry `AllowFunctionLibraries`, so a static `UBlueprintFunctionLibrary` method resolves;
+`ABP_Combat` keeps its parent and no graph was authored. The signature contract is
+`Prototype_ThreadSafeAnimUpdateCall` plus `meta=(BlueprintThreadSafe)`, both validated at compile.
+`USequencePlayerLibrary::SetAccumulatedTime` and `SetPlayRate` are first-class and thread-safe, so
+the feared reflection write against a `DoNotEdit` property never arose.
+
+**Binding it did need C++**, and the third surface was the right call: `FMemberReference`'s members
+are private `SaveGame` properties no reflection route reaches, while `SetExternalMember` is public.
+`UTDStateMachineTools::SetNodeUpdateFunction` is that, and it refuses a name absent from the class
+rather than writing a reference that fails to resolve later on a node nobody is looking at.
+
+### Verified
+
+`s4-string` 7/7 with `HITSTUN` spans n=6 all inside 0.530–0.570, and `s4-block` 4/4 with
+`BLOCKSTUN` spans n=16 all inside 0.330–0.370 — the mechanical timings are untouched by the new
+stamps. The bindings persisted: both function names and the library class are present in the saved
+`ABP_Combat.uasset` and the deliberately-wrong control name is absent, and the compile produced no
+`ValidateFunctionRef` error, which is the error that fires when a set reference fails to resolve.
+
+**Not verified: that it looks right, or that the bound function is actually being called at
+runtime.** The second follows from the first by the engine's own compile path but was not observed,
+and no instrument in this project can see it — which is the trap filed beside this entry.
 
 ## 2026-08-25 — The get-up roll turns into its heading instead of snapping, and the turn is the tell
 

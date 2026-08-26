@@ -768,6 +768,13 @@ void ATDCombatCharacter::EnterBlockstun(float DurationSeconds)
 	// lockout, making a faster follow-up a favour to the defender.
 	BlockstunEndsAt = FMath::Max(BlockstunEndsAt, World->GetTimeSeconds() + DurationSeconds);
 
+	// Stamped on every call, including one that lands inside a running lockout: the serial is what
+	// restarts the tell, and the span is measured to the extended end rather than the duration
+	// passed in, so a tell always finishes with the stun it belongs to.
+	++BlockstunTellSerial;
+	BlockstunTellSpanSeconds = BlockstunEndsAt - World->GetTimeSeconds();
+	BlockstunTellStartTime = World->GetTimeSeconds();
+
 	// Unreachable today and hooked anyway: a parrier cannot hold a guard, since GA_Parry refuses to
 	// activate while State.Blocking is present. Hooked because the rule is about lockouts overriding
 	// recoveries in general, and a hook covering only today's paths is one nobody extends.
@@ -831,6 +838,42 @@ void ATDCombatCharacter::OnRep_Blockstun()
 	}
 }
 
+float ATDCombatCharacter::ComputeTellTime(float StartTime, float SpanSeconds, float PortionSeconds) const
+{
+	const UWorld* World = GetWorld();
+	if (!World || SpanSeconds <= 0.0f)
+	{
+		return 0.0f;
+	}
+
+	const float Progress = FMath::Clamp((World->GetTimeSeconds() - StartTime) / SpanSeconds, 0.0f, 1.0f);
+	return Progress * PortionSeconds;
+}
+
+float ATDCombatCharacter::GetHitstunTellTime() const
+{
+	return ComputeTellTime(HitstunTellStartTime, HitstunTellSpanSeconds, HitstunTellPortionSeconds);
+}
+
+float ATDCombatCharacter::GetBlockstunTellTime() const
+{
+	return ComputeTellTime(BlockstunTellStartTime, BlockstunTellSpanSeconds, BlockstunTellPortionSeconds);
+}
+
+void ATDCombatCharacter::OnRep_HitstunTell()
+{
+	// The client's clock starts when it learns of the hit, not when the server logged it. Both are
+	// late by the same half round trip, so the tell and the state it draws begin together here.
+	const UWorld* World = GetWorld();
+	HitstunTellStartTime = World ? World->GetTimeSeconds() : 0.0f;
+}
+
+void ATDCombatCharacter::OnRep_BlockstunTell()
+{
+	const UWorld* World = GetWorld();
+	BlockstunTellStartTime = World ? World->GetTimeSeconds() : 0.0f;
+}
+
 void ATDCombatCharacter::EnterHitstun(float DurationSeconds)
 {
 	UWorld* World = GetWorld();
@@ -843,6 +886,11 @@ void ATDCombatCharacter::EnterHitstun(float DurationSeconds)
 	// stun lengthens the sentence, never shortens it. That re-extension is the string guarantee's
 	// arithmetic, each chained contact refreshing the stun before the last expires.
 	HitstunEndsAt = FMath::Max(HitstunEndsAt, World->GetTimeSeconds() + DurationSeconds);
+
+	// Blockstun's stamp, same contract -- see EnterBlockstun.
+	++HitstunTellSerial;
+	HitstunTellSpanSeconds = HitstunEndsAt - World->GetTimeSeconds();
+	HitstunTellStartTime = World->GetTimeSeconds();
 
 	// Being hit cancels everything, committed or not. Server-only and outside the Apply half, as
 	// death's cancel is: a client's OnRep must not cancel predicted copies out from under a
@@ -2097,6 +2145,10 @@ void ATDCombatCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& O
 	DOREPLIFETIME(ATDCombatCharacter, bGuardBroken);
 	DOREPLIFETIME(ATDCombatCharacter, bInBlockstun);
 	DOREPLIFETIME(ATDCombatCharacter, bInHitstun);
+	DOREPLIFETIME(ATDCombatCharacter, HitstunTellSerial);
+	DOREPLIFETIME(ATDCombatCharacter, HitstunTellSpanSeconds);
+	DOREPLIFETIME(ATDCombatCharacter, BlockstunTellSerial);
+	DOREPLIFETIME(ATDCombatCharacter, BlockstunTellSpanSeconds);
 	DOREPLIFETIME(ATDCombatCharacter, bKnockedDown);
 	DOREPLIFETIME(ATDCombatCharacter, KnockdownType);
 	DOREPLIFETIME(ATDCombatCharacter, bInParryLockout);

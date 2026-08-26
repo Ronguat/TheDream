@@ -315,6 +315,17 @@ type** — a broken one usually looks fine alone.
 
 ### Confirmed traps
 
+- **An asset the registry has no entry for still saves — through the *package*, not the path**
+  *(refuted 2026-08-25)*. `AS_SwordAndShieldAnimV1_Defense_Hit_Fw_RM` answers **False** to
+  `does_asset_exist` while `load_asset` returns it and `set_editor_property` takes, so every
+  path-based save refuses: `AssetTools.save_assets` reports *"Asset does not exist"* and
+  `EditorAssetLibrary.save_asset` / `save_loaded_asset` both return False. **`save_packages` takes
+  package objects and never consults the registry**, which is the whole difference:
+  `EditorLoadingAndSavingUtils.save_packages(list(get_dirty_content_packages()), False)` returned
+  True and the `.uasset` changed on disk. This was filed as *"cannot be saved from either
+  scripting surface, C++ is the untested third"* — **wrong on both counts**: the fourth Python
+  route was never tried, and C++ was never needed. `get_dirty_map_packages` is the same shape for
+  levels.
 - **InputMappingContext** *(confirmed 2026-08-21)* — UE 5.8 reads `defaultKeyMappings.mappings`;
   top-level `mappings` reads empty on `IMC_Combat` while its input works, which is the proof.
 - **GameplayEffect modifier attribute** *(confirmed 2026-08-21, corrected)* — writing
@@ -542,6 +553,29 @@ pins are in hand, so this falls whenever it is worth five lines.
 
 `list_graphs` enumerates states and transitions regardless, so the tree is visible even where its
 graphs are not.
+
+**An anim node's On Update / On Become Relevant can be bound to a C++ function, and it needs no
+custom `UAnimInstance`** *(proven 2026-08-25 on both stun tells)*. `UAnimGraphNode_Base`'s three
+function properties carry **`AllowFunctionLibraries`**, so a static method on a
+`UBlueprintFunctionLibrary` resolves — the ABP keeps whatever parent it has and no graph is
+authored. The contract the compiler enforces is the `PrototypeFunction` named in that property's
+metadata — `AnimExecutionContextLibrary.Prototype_ThreadSafeAnimUpdateCall`, i.e.
+`(const FAnimUpdateContext&, const FAnimNodeReference&)` — plus `meta=(BlueprintThreadSafe)`.
+`ValidateFunctionRef` errors on a reference that will not resolve, a mismatched signature or a
+function that is not thread-safe, so **a clean compile is the proof the binding took**.
+
+**Writing the binding needs C++** — `FMemberReference`'s members are private `SaveGame`
+UPROPERTYs, so `get_editor_property` returns an opaque empty struct in both directions, while
+`SetExternalMember(FName, TSubclassOf<UObject>)` is `ENGINE_API` and the property itself is
+public. `UTDStateMachineTools::SetNodeUpdateFunction` is that, and the reference reaches the
+runtime node only at **compile**, so recompile the AnimBlueprint after writing one.
+
+**What such a function may do to a sequence player is first-class, not a reflection hack**:
+`USequencePlayerLibrary` exposes `SetAccumulatedTime`, `SetPlayRate`, `SetSequence` and
+`ComputePlayRateFromDuration`, all `BlueprintThreadSafe`. Note that
+`FAnimNode_SequencePlayerBase::UpdateAssetPlayer` hands the accumulator's address to the tick
+record, which advances it by `delta * rate` **after** the update function runs — so driving the
+playhead explicitly requires setting the rate to zero, or the write drifts every frame.
 
 **A mechanic's animation may therefore be invisible to every search you would think to run**
 *(2026-08-24, wrong twice in one exchange)*. Blockstun's tell is a Locomotion **state**, so there is

@@ -58,4 +58,20 @@ public:
 	/** The graph a state or transition node owns, which holds its pose or its rule. */
 	UFUNCTION(BlueprintCallable, Category="TheDream|StateMachine")
 	static UEdGraph* GetBoundGraph(UEdGraphNode* StateOrTransitionNode);
+
+	/**
+	 *  Binds an anim graph node's **On Update** to a function, including a static one on a
+	 *  BlueprintFunctionLibrary -- `UAnimGraphNode_Base`'s function properties carry
+	 *  `AllowFunctionLibraries`.
+	 *
+	 *  The reference is what gets saved; the runtime node is resolved from it during compilation,
+	 *  so the caller must recompile the AnimBlueprint for the binding to take effect. Fails if the
+	 *  named function is absent from OwnerClass, rather than writing a reference that will not
+	 *  resolve.
+	 *
+	 *  Exists because `FMemberReference`'s members are `SaveGame` UPROPERTYs and private, so no
+	 *  reflection route reaches them; `SetExternalMember` is public C++.
+	 */
+	UFUNCTION(BlueprintCallable, Category="TheDream|StateMachine")
+	static bool SetNodeUpdateFunction(UEdGraphNode* AnimNode, UClass* OwnerClass, FName FunctionName);
 };

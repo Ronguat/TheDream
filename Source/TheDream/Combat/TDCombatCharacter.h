@@ -288,6 +288,21 @@ public:
 	 */
 	void EnterHitstun(float DurationSeconds);
 
+	/**
+	 *  Where the hitstun tell's playhead belongs this frame, in seconds into its clip.
+	 *
+	 *  Progress through the current stun scaled onto HitstunTellPortionSeconds, so the tell fills a
+	 *  stun of any length and restarts on each hit. Read from the anim graph by
+	 *  UTDAnimTellTools::DriveHitstunTell, which holds the player at rate zero and sets this.
+	 *  Zero until the first hit lands.
+	 */
+	UFUNCTION(BlueprintPure, Category="Combat|Stun")
+	float GetHitstunTellTime() const;
+
+	/** Blockstun's half of the same pair, against BlockstunTellPortionSeconds. */
+	UFUNCTION(BlueprintPure, Category="Combat|Block")
+	float GetBlockstunTellTime() const;
+
 	/** Whether this body is on the floor -- lockout, input window or rise. */
 	bool IsKnockedDown() const { return bKnockedDown; }
 
@@ -722,6 +737,23 @@ protected:
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Knockdown", meta=(ClampMin="1.0"))
 	float ForcedFacingTurnRateDegrees = 720.0f;
+
+	/**
+	 *  How much of the flinch clip the hitstun tell uses, in seconds from its start.
+	 *
+	 *  The clip runs 1.333 s and does not settle -- it staggers throughout and plants at 0.718 --
+	 *  so the tell takes the span before that plant and the rest goes unplayed. Fitting the whole
+	 *  clip instead would run the common 0.55 s hitstun at 2.4x.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Stun", meta=(ClampMin="0.01"))
+	float HitstunTellPortionSeconds = 0.684f;
+
+	/**
+	 *  Blockstun's equivalent. Its clip settles at 0.485 s before rising back into the guard, so
+	 *  the tell ends on that trough and the return-to-guard tail goes unplayed.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Block", meta=(ClampMin="0.01"))
+	float BlockstunTellPortionSeconds = 0.485f;
 
 	/**
 	 *  Played on entering the down state. Rate derived as `length / KnockdownFallSeconds`.
@@ -1530,6 +1562,9 @@ private:
 	 *  cancel predicted copies out from under a correction. The death path's exact reasoning.
 	 */
 	void EndHitstun();
+
+	/** Shared body of the two tell getters: clamped progress across the span, scaled onto the portion. */
+	float ComputeTellTime(float StartTime, float SpanSeconds, float PortionSeconds) const;
 	void ApplyHitstunState();
 	void ClearHitstunState();
 
@@ -1587,6 +1622,12 @@ private:
 
 	UFUNCTION()
 	void OnRep_Hitstun();
+
+	UFUNCTION()
+	void OnRep_HitstunTell();
+
+	UFUNCTION()
+	void OnRep_BlockstunTell();
 
 	UFUNCTION()
 	void OnRep_KnockedDown();
@@ -1684,6 +1725,32 @@ private:
 
 	/** When hitstun expires, in world seconds. A Tick-checked timestamp like its two siblings. */
 	float HitstunEndsAt = 0.0f;
+
+	/**
+	 *  Bumped on every EnterHitstun, and the only thing that marks a *fresh* hit.
+	 *
+	 *  bInHitstun is already true for a second hit inside a running stun, so a tell keyed on it
+	 *  re-enters nothing. Replicated because the tell is drawn on every machine; a uint8 counter
+	 *  and a span travel where a world-time deadline cannot, world clocks being per-machine.
+	 */
+	UPROPERTY(ReplicatedUsing = OnRep_HitstunTell)
+	uint8 HitstunTellSerial = 0;
+
+	/** Seconds the current hitstun tell must fill: HitstunEndsAt minus the moment the hit landed. */
+	UPROPERTY(Replicated)
+	float HitstunTellSpanSeconds = 0.0f;
+
+	/** Local clock the span runs against -- set on the server at entry, on a client by the OnRep. */
+	float HitstunTellStartTime = 0.0f;
+
+	/** Blockstun's three, same contract. */
+	UPROPERTY(ReplicatedUsing = OnRep_BlockstunTell)
+	uint8 BlockstunTellSerial = 0;
+
+	UPROPERTY(Replicated)
+	float BlockstunTellSpanSeconds = 0.0f;
+
+	float BlockstunTellStartTime = 0.0f;
 
 	/** On the floor. Ninth of the replicated state family, same contract. */
 	UPROPERTY(ReplicatedUsing = OnRep_KnockedDown)

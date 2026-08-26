@@ -137,9 +137,13 @@ Timings land within about a frame, biased late — and **the bias is the tick th
 - Hitstun: authored per attack (`HitstunSeconds` on `GA_Attack`'s branches and swings; the light's is **0.55**), and it **refuses every ability, defense included** — *that refusal is what makes "any hit guarantees the rest" true*, and it is why hitstun is a Light String mechanic rather than a Knockdown one. **It must outlast the chain gap or the guarantee silently stops holding**, which is why the cadence and this move together. **Movement is locked too**, shipped with Knockdown beside the guard break's — `IsMovementLocked()` covers hitstun, a broken guard and the down state alike. **On a graded swing hitstun never fires at all**: the knockdown supersedes it, and alternatives are resolved at the hit rather than layered, which leaves that swing's `HitstunSeconds` keying exactly one thing — the **attacker's** movement return through the on-hit waiver.
   - **Its tell is a state in the Locomotion machine, not a montage** *(2026-08-24)*, mirroring
     blockstun's: a sequence player on `AS_SwordSwordAnimV3_Hit_Fw_RM` feeding the state result,
-    entered from Idle and Walk / Run on a cached `IsInHitstun` and left on its negation. **A state
-    is not rate-fitted to a duration**, so the clip being 1.333 s against a 0.55 s stun is not a
-    fitting problem, and **forced facing makes one front-facing clip correct rather than a
+    entered from Idle and Walk / Run on a cached `IsInHitstun` and left on its negation. **The
+    player is held at rate zero and its playhead written from stun progress** *(2026-08-25)*, so
+    a measured portion of the clip — `HitstunTellPortionSeconds`, with blockstun's equivalent
+    beside it — fills a stun of any length **and restarts on every hit**. That the state cannot
+    re-enter for a hit landing inside its own stun is why the tell is positioned rather than
+    triggered. *Supersedes "a state is not rate-fitted to a duration", true only while the clip
+    simply played.* **Forced facing makes one front-facing clip correct rather than a
     compromise** — every cleanly hit victim is turned toward its attacker inside 250 ms. The four
     directional `Hit_<DIR>` clips are therefore unused.
 - **Knockdown** replaces what a graded hit does to its victim wholesale: it knocks down and **never** hitstuns.
