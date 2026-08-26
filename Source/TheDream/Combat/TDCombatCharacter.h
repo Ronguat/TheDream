@@ -729,7 +729,7 @@ protected:
 	 *  which outlasts this whenever KnockdownFallClipSeconds is shorter than the clip.
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Knockdown", meta=(ClampMin="0.01"))
-	float KnockdownFallSeconds = 0.8f;
+	float KnockdownFallSeconds = 0.45f;
 
 	/**
 	 *  Where the fall clip has landed, in seconds from its start. The span fitted to
@@ -741,6 +741,18 @@ protected:
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Knockdown", meta=(ClampMin="0.0"))
 	float KnockdownFallClipSeconds = 0.8f;
+
+	/**
+	 *  Where the fall clip's reaction commits, in seconds from its start. Everything before is
+	 *  skipped: the montage begins here and the window fitted is this to KnockdownFallClipSeconds.
+	 *
+	 *  **Measured, not eyeballed.** The clip is a death animation authored from a neutral stance,
+	 *  so it gathers before it falls -- the pelvis dips, rises back 4 cm across four frames, and
+	 *  only then commits. Played from zero that reads as reacting late to the hit. Zero starts at
+	 *  the beginning.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Knockdown", meta=(ClampMin="0.0"))
+	float KnockdownFallClipStartSeconds = 0.35f;
 
 	/** Optional shape for the fall, as the knockback's curve. Must average 1.0. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Knockdown")
@@ -1568,7 +1580,7 @@ private:
 
 	/** Plays a knockdown montage at a rate derived to fit TargetSeconds. The fall and both rises. */
 	void PlayKnockdownMontage(UAnimMontage* Montage, float TargetSeconds, const TCHAR* Label,
-		float ClipPortionSeconds = 0.0f);
+		float ClipPortionSeconds = 0.0f, float ClipStartSeconds = 0.0f);
 
 	/** Lockout seconds for the type currently held. */
 	float GetKnockdownLockoutSeconds() const;

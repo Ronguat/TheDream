@@ -1036,7 +1036,8 @@ void ATDCombatCharacter::EnterKnockdown(ETDKnockdownType Type, AActor* Attacker)
 	// Fitted to the fall, so the body reaches the floor as the displacement finishes. The clip
 	// authors bEnableAutoBlendOut false, which is what holds its last frame as the ground pose for
 	// the lockout and the input window that follow.
-	PlayKnockdownMontage(KnockdownMontage, KnockdownFallSeconds, TEXT("fall"), KnockdownFallClipSeconds);
+	PlayKnockdownMontage(KnockdownMontage, KnockdownFallSeconds, TEXT("fall"),
+		KnockdownFallClipSeconds, KnockdownFallClipStartSeconds);
 
 	if (!bKnockedDown)
 	{
@@ -1370,7 +1371,7 @@ void ATDCombatCharacter::TickForcedFacing(float DeltaSeconds)
 
 
 void ATDCombatCharacter::PlayKnockdownMontage(UAnimMontage* Montage, float TargetSeconds, const TCHAR* Label,
-	float ClipPortionSeconds)
+	float ClipPortionSeconds, float ClipStartSeconds)
 {
 	if (!Montage || TargetSeconds <= 0.0f)
 	{
@@ -1392,10 +1393,13 @@ void ATDCombatCharacter::PlayKnockdownMontage(UAnimMontage* Montage, float Targe
 	// The span fitted is the portion when one is given, not the clip. What follows the portion
 	// still plays, at the same rate, so a clip whose tail is a settle lands on time and then
 	// settles rather than being cut. Clamped to the clip so an over-long portion cannot slow it.
-	const float Fitted = (ClipPortionSeconds > 0.0f) ? FMath::Min(ClipPortionSeconds, Length) : Length;
+	const float End = (ClipPortionSeconds > 0.0f) ? FMath::Min(ClipPortionSeconds, Length) : Length;
+	const float From = FMath::Clamp(ClipStartSeconds, 0.0f, FMath::Max(End - 0.01f, 0.0f));
+	const float Fitted = End - From;
 	const float Rate = (Fitted > 0.0f) ? FMath::Max(Fitted / TargetSeconds, 0.01f) : 1.0f;
 
-	const float PlayingLength = Anim->Montage_Play(Montage, Rate);
+	const float PlayingLength =
+		Anim->Montage_Play(Montage, Rate, EMontagePlayReturnType::MontageLength, From);
 	if (PlayingLength <= 0.0f)
 	{
 		UE_LOG(LogTDCombatTiming, Warning,
@@ -1425,9 +1429,10 @@ void ATDCombatCharacter::PlayKnockdownMontage(UAnimMontage* Montage, float Targe
 		}
 	}
 
-	TD_TIMING_LOG(TEXT("[%.3f] KNOCKDOWN MONTAGE  %s  %s len=%.3f fitted=%.3f rate=%.3f want=%.3fs played=%.3f"),
+	TD_TIMING_LOG(TEXT("[%.3f] KNOCKDOWN MONTAGE  %s  %s len=%.3f from=%.3f fitted=%.3f rate=%.3f "
+			 "want=%.3fs played=%.3f"),
 		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f,
-		*GetName(), Label, Length, Fitted, Rate, TargetSeconds, PlayingLength);
+		*GetName(), Label, Length, From, Fitted, Rate, TargetSeconds, PlayingLength);
 }
 void ATDCombatCharacter::ApplyKnockdownFall(AActor* Attacker)
 {

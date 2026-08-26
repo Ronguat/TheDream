@@ -647,12 +647,13 @@ kd_fall_overruns_lockout() { # authored montage span vs the lockout it sits in, 
 	# ceiling directly instead of waiting for a slow machine to expose it.
 	awk '
 		/^\[[0-9.]+\] KNOCKDOWN MONTAGE/ && / fall / {
-			played=""; rate=""
+			played=""; rate=""; from=0
 			for (i=1;i<=NF;i++) {
 				if ($i ~ /^played=/) { split($i,a,"="); played=a[2] }
 				if ($i ~ /^rate=/)   { split($i,a,"="); rate=a[2] }
+				if ($i ~ /^from=/)   { split($i,a,"="); from=a[2] }
 			}
-			span = (rate+0 > 0) ? played/rate : ""
+			span = (rate+0 > 0) ? (played - from)/rate : ""
 			next
 		}
 		/^\[[0-9.]+\] KNOCKDOWN  / {
