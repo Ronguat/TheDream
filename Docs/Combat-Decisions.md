@@ -280,7 +280,7 @@ properties, against three before.
 
 **The stun tells: discharged 2026-08-25** by positioning both playheads from stun progress instead of playing them at a rate — see the dated entry. Only a string's first hit used to be told, because the tell is a state entered on a cached bool and a hit landing inside a running stun re-enters nothing.
 
-**Whenever either stun tell is changed — *no instrument in this project can see it, and the loop never could.*** Filed 2026-08-25 with the fix above. `HITSTUN` and `BLOCKSTUN` already fire per hit and their spans are asserted by `s4-string` and `s4-block`, so **every existing assertion stays green whether the tell draws or not** — what changed is cosmetic by construction and the loop asserts mechanics. The chain is verified structurally as far as the compile (the binding persists in `ABP_Combat.uasset`; `ValidateFunctionRef` raises no error, and that error is exactly what an unresolvable reference produces), but **that `UTDAnimTellTools::DriveTell` actually runs has never been observed**. The cheapest instrument would be an anim-side trace, which is graph work nobody has costed. Until then the designer's eye is the only verification, and a silent regression here — a rebind lost to a recompile, a renamed function — would look exactly like nothing.
+**Whenever either stun tell is changed — *no instrument in this project can see it, and the loop never could.*** Filed 2026-08-25 with the fix above. `HITSTUN` and `BLOCKSTUN` already fire per hit and their spans are asserted by `s4-string` and `s4-block`, so **every existing assertion stays green whether the tell draws or not** — what changed is cosmetic by construction and the loop asserts mechanics. The chain is verified structurally as far as the compile (the binding persists in `ABP_Combat.uasset`; `ValidateFunctionRef` raises no error, and that error is exactly what an unresolvable reference produces), and **confirmed in play the same day** — the designer judged both tells correct, which nothing but a running `UTDAnimTellTools::DriveTell` produces. **That confirmation does not transfer.** It was a person looking once; the cheapest standing instrument would be an anim-side trace, which is graph work nobody has costed. A silent regression here — a rebind lost to a recompile, a renamed function — would look exactly like nothing, and every scenario would still print green.
 
 **Whenever an authored duration is asserted against a log — *the value it lands on is partly the test machine's frame rate.*** The release window closes on the first tick at or past its deadline, so every ability's total carries the distance from that deadline to the next tick: nil at 60 fps where 150 ms is exactly nine frames, +17 ms at 30. **`s6-getup` is where this bit first** — one sample in twelve past an elapsed ceiling, read as a flake until the sweep showed it scaling with frame time. Weakened rather than discharged by the 2026-08-25 fix: the overrun no longer *grows* without bound and the damaging span never exceeds its authored length, but a band derived on one machine still encodes that machine's frame time. **Re-derive an elapsed band from measurement on the machine that will run it**, and treat a single sample past a ceiling as a question about frame time before a question about combat.
 
@@ -1693,9 +1693,11 @@ stamps. The bindings persisted: both function names and the library class are pr
 `ABP_Combat.uasset` and the deliberately-wrong control name is absent, and the compile produced no
 `ValidateFunctionRef` error, which is the error that fires when a set reference fails to resolve.
 
-**Not verified: that it looks right, or that the bound function is actually being called at
-runtime.** The second follows from the first by the engine's own compile path but was not observed,
-and no instrument in this project can see it — which is the trap filed beside this entry.
+**Not verified at the time of writing: that it looks right, or that the bound function is
+actually being called at runtime.** The second follows from the first by the engine's own
+compile path, and no instrument in this project can see either — which is the trap filed beside
+this entry. **Both closed the same day by the designer in play**; the trap stands regardless,
+because that verification is a person looking once and does not survive into the next change.
 
 ## 2026-08-25 — The get-up roll turns into its heading instead of snapping, and the turn is the tell
 
