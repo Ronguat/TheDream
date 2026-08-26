@@ -119,6 +119,7 @@ and not the order anyone reads in. Keep it sorted when adding.)*
 | 2026-08-16 — Knockback is a spacing reset | hard knockdown is **the charged's** distinction — "the charged's knockdown is hard, with fewer get-up options" | 2026-08-19 — Knockdown's plan session (the heavy also knocks down hard; the grade rule restates as *committed single hits knock down hard, the string's volume finisher normal*. Ruled at the plan's review; ships with Knockdown) |
 | 2026-08-18 — A parry makes them whiff at your feet | the reward is **derived** — the parried attacker rides their own attack into recovery, and an authored form exists only if play demands compensation | 2026-08-19 — Knockdown's plan session (the rework, locked at review: a catch **ends** the attack — its release was staying live against bystanders — and inflicts `State.ParryLockout`, duration derived as the swing's remaining planned total, so the per-tier punish survives inside the new structure. Ships with Knockdown's sub-slice E) |
 | 2026-08-18 — A parry makes them whiff at your feet | a whiffed parry "pays a **defensive** lockout", and the parry is refused only while blocking, exhausted and inside the post-dodge gap | 2026-08-19 — Parry recovery commits you, then the lockout (two widenings the same day: the whiff's tail refuses **every** ability and holds the movement lock, and the commitment starts at the *press* rather than at window close, so the window refuses everything too. The pricing symmetry and the floor derivation are untouched — only what the price *buys* changed) |
+| 2026-08-25 — The knockdown fall stops being a snap | `KnockdownFallSeconds` at **0.9** fitting the **whole** clip, and *"fall lands inside lockout"* comparing **`want=`** against `lockout=` | 2026-08-25 — The fall's carry and its clip stop being one number (same day: the clip's last 0.10 s is a settle, so fitting all of it spent the settle as travel. Carry is now 0.8 against a 0.8 portion, and the guard reads `played / rate`, which the carry no longer bounds. The raise itself and its reasoning stand) |
 | 2026-08-25 — The get-up roll aims itself | the roll **snaps** to its heading at activation | 2026-08-25 — The get-up roll turns into its heading (same day: a snap gives an observer a static pose to re-read, where a turn gives motion to track, so the heading reads earlier. Possible only once the travel direction stopped being derived from facing every tick) |
 | 2026-08-24 — The flinch is a state, not a montage | **"a state is not rate-fitted to a duration"**, so a 1.333 s clip against a 0.55 s stun is not a fitting problem | 2026-08-25 — The stun tells are positioned by stun progress (true of a state that merely plays; the tell is now held at rate zero and its playhead written each update, which fits *and* restarts it without the state re-entering. The rest of that entry stands) |
 | 2026-08-18 — A parry makes them whiff at your feet | the post-dodge gap is "a derived ~150 ms" that stops a predictive dodge chaining into a parry covering the charged | 2026-08-25 — The windups move as a pair (the derivation was `charged − DodgeSeconds − light arrival` and it never closed the case, release not being instantaneous; `DodgeRecoverySeconds` retires to 0 and the chain stands as priced RPS) |
@@ -1163,7 +1164,8 @@ than a refusal.
 | A parried attacker gets away with too much | **Nothing — the reward is derived and already per-tier.** Recovery *is* the punish window, so a parried charged pays more than a parried light without anyone authoring it; the string reset is what compensates at the light end | A per-branch parry bonus. Raised 2026-08-18 and rejected: the derived model pays by the victim's commitment rather than by the read's difficulty, and an authored bonus exists only if play demands read-difficulty compensation |
 | The charged feels unreactable, or trivially reactable | Its **`ReleaseAtSeconds`**, **authored** — checked against reaction time rather than moved by feel alone. 800 leaves 600 ms after the light's arrival, a reaction (~200) plus a full dodge (400). The arithmetic is what it was tuned *against*, not what produced it | Moving it without re-checking the **gap to the heavy**, which is the real fence and is welded at 400 (see the row below). Cut the window below a reaction plus a dodge and the slow layer stops being answerable by the defence it exists to reward |
 | A knockdown holds you down too long, or lets you up too early | That type's `KnockdownLockoutSeconds*` and `KnockdownInputWindowSeconds*` **as a pair summing to the same total** — each type's split is its own dial | The total, or `KnockdownRiseSeconds`. Both types spend 2.5 s down and begin rising at 2.0 **by design**, and every derivation keyed to the total is grade-blind because of it: the exhausted player's ~62 stamina return, the netcode window. Move the split, never the sum. |
-| The fall looks rushed, or the knockdown reads too brief | **`KnockdownFallSeconds`**, still not derived — **0.9 since 2026-08-25**, raised from 0.35 after the fall read as a snap followed by a long stillness. It fits the clip *and* the radial carry, so it is how long the body is in motion, not just how fast it looks. **Ceiling is `KnockdownLockoutSecondsNormal`** — 1.0, the *shorter* of the two lockouts, because the value is shared across types — and 0.9 spends most of the remaining margin. `run_s6`'s *"fall lands inside lockout"* now rejects a raise past it | Reading it as coupled to `HitstunSeconds`. On a graded swing that value never touches the victim (`TDMeleeAttackAbility.cpp` takes the knockdown branch) and keys only the **attacker's** movement return — which is now the interesting half: the attacker comes free with half the victim's slide still to run. That is a chase, deliberately unenforced, and not a relationship to restore. |
+| The fall looks rushed, or the knockdown reads too brief | **`KnockdownFallSeconds`**, still not derived — **0.8 since 2026-08-25**, and now the *carry* alone: when the slide stops. Lowering it raises the clip's rate, because the portion is fitted to it — 0.7 gives 1.143×. **Ceiling is `KnockdownLockoutSecondsNormal`**, the shorter of the two lockouts, and what must fit under it is the **montage** (`played / rate`), not this — `run_s6` checks exactly that | Reading it as coupled to `HitstunSeconds`. On a graded swing that value never touches the victim and keys only the **attacker's** movement return — the attacker comes free with part of the victim's slide still to run, which is a chase and deliberately unenforced. |
+| The body slides after it has visibly landed, or lands before it stops | **`KnockdownFallClipSeconds`** — where the clip's landing is, **0.8 of 0.900**, measured as the frame the pelvis stops descending (the last 0.10 s gives up 1.6 cm). Raise it toward the clip length to slide longer, lower it to land sooner | Fixing it with `KnockdownFallSeconds`. That moves *both* the landing and the playback rate, which is the coupling this pair exists to break — and it is why the two complaints could not be told apart while one number served both. **Re-measure if the clip is ever swapped**; the value is a property of `AS_SwordSwordAnimV3_Death_Bw_RM`, not of knockdowns. |
 | The corpse flies too far, or drops like a sack | **`DeathImpulseStrength`**, freely — a **first attempt**, not derived, and `DeathImpulseLift` sets how much of it aims upward. Measured on Manny as the distance the corpse settles from where it fell: 12000 about 84 cm, 24000 about 271, **30000 about 397**, 36000 about 480. **30000 is the shipped value**, chosen 2026-08-24 to sit inside the authored spacing family — further than a knockback's 350, about a knockdown's 450 — because death is the terminal outcome and 84 cm read as less movement than a *hit* | Passing it as a velocity change. `AddImpulse`'s `bVelChange` reads the magnitude as cm/s directly and ignores mass, which fired the corpse 180 m out of the level; as a true impulse it divides by mass. Also do not read corpse position as game state — the capsule stays put, and the `Ragdoll` profile ignores `Pawn` |
 | The flinch does not read, or reads as the wrong thing | The **clip in the Hitstun state**, which is a sequence player in the Locomotion machine and swappable without touching C++. `Tools/SkeletonCheck` is unrelated; the state is reached through `UTDStateMachineTools` or by hand | `HitstunSeconds`. It is derived from the string guarantee and must stay above the chain gap; a state is not rate-fitted to it anyway, so lengthening the stun buys no more animation |
 | A knockdown feels escapable in the wrong way | The split again — the lockout buys refusal, the input window buys agency | `KnockdownRiseSeconds`. The rise is committed, vulnerable and unactionable whichever way it started; shortening it shrinks the meaty window that is the whole of the oki, and the clips are rate-fitted to it. |
@@ -1315,9 +1317,11 @@ long.
 | `ApplyKnockbackToTarget` | 08-25 |
 | `ApplyParryLockoutState` | 08-24 |
 | `AS_SwordAndShieldAnimV1_Defense_Hit_Fw_RM` | 08-25 |
+| `AS_SwordSwordAnimV3_Death_Bw_RM` | 08-25 |
 | `ATDCombatCharacter::ComputeTellTime` | 08-25 |
 | `ATDCombatCharacter::GetHitstunTellTime` | 08-25 |
 | `ATDCombatCharacter::Jump` | 08-12 |
+| `ATDCombatCharacter::PlayKnockdownMontage` | 08-25 |
 | `ATDCombatCharacter::StartRagdoll` | 08-13 |
 | `ATDCombatCharacter` | 08-10, 08-12, 08-24 |
 | `ATDPlayerState` | 08-11 |
@@ -1450,6 +1454,7 @@ long.
 | `IsMovementLocked` | 08-20, 08-24 |
 | `IsNonFinalStringLight` | 08-25 |
 | `JumpRegenPauseSeconds` | 08-10 |
+| `KnockdownFallClipSeconds` | 08-25 |
 | `KnockdownFallSeconds` | 08-20, 08-25 |
 | `KnockdownFallTimeMappingCurve` | 08-25 |
 | `KnockdownLockoutSecondsNormal` | 08-25 |
@@ -1599,6 +1604,51 @@ long.
 | `bUseControllerRotationYaw` | 08-12 |
 | `compositeSections` | 08-15, 08-18 |
 | `gEComponents` | 08-10, 08-11 |
+
+## 2026-08-25 — The fall's carry and its clip stop being one number
+
+**Refines the 0.9 raise from earlier the same day.** At 0.9 the designer reported it *"looks a bit
+sluggish"* and, separately, that the body *"is sliding backward while already having hit the
+ground"* for maybe the last 100–150 ms. The second was measurable and their estimate was right:
+`AS_SwordSwordAnimV3_Death_Bw_RM`'s pelvis descends steadily to **t ≈ 0.80** and then gives up
+**1.6 cm across the final 0.10 s**. Fitting the whole 0.900 clip to the fall spent that settle as
+travel.
+
+**`KnockdownFallSeconds` was doing two jobs.** It is now the carry alone — when the slide stops,
+which should be when the body lands — and **`KnockdownFallClipSeconds`** says where in the clip
+that landing is. `PlayKnockdownMontage` fits the *portion* rather than the clip; what follows plays
+on at the same rate, so the tail settles in place after the slide has stopped instead of being cut.
+
+Shipped at carry **0.8** with portion **0.8**, which is deliberately the *isolating* setting: rate
+stays at 1.000, so playback is identical to before and the only change is that the carry stops at
+the landing. **Whether the sluggishness was the grounded slide all along is now a question play can
+answer on its own**, which it could not while both moved together. Lowering the carry from here
+raises the rate — 0.7 gives 1.143× — and costs no rebuild, both numbers being `EditDefaultsOnly`.
+
+**The guard moved with it.** *"fall lands inside lockout"* compared `want=` against `lockout=`;
+`want` is the carry, and once a portion is fitted the montage outlasts it — `played / rate`, 0.900
+here against a 0.800 carry. That is now what the assertion reads, which is the stronger check and
+implies the old one, since the montage span is never shorter than the carry. Re-proven at the
+boundary: a rate of 0.900 gives a 1.000 s montage against a 1.000 s lockout and reports
+*"1.000s montage >= 1.000s lockout"*.
+
+*The first attempt at that assertion silently passed everything.* An `\n` inside the awk `printf`
+survived Python, the shell heredoc and the single-quoted awk program as a **literal newline**,
+breaking the format string across two lines; awk's error went to stderr, the grep dropped it, and an
+empty result read as "no violations". Replaced with `print` and string concatenation, which needs no
+escape to survive three layers of quoting. **The lesson is the one the file already teaches about
+absence** — an assertion that has never been seen rejecting anything is indistinguishable from one
+that cannot.
+
+**Incidental, worth knowing before anyone judges this clip by its root**: it carries **377 cm of
+baked root translation** which `bForceRootLock = true` discards. Every visible centimetre is the
+carry.
+
+### Verified
+
+`s6-knockdown` 6/6 with `fitted=0.800 rate=1.000 want=0.800s played=0.900`; entry→rise still 2.0,
+rise→stand still 0.5. **Not verified: whether it still reads sluggish** — that is the question the
+setting exists to answer.
 
 ## 2026-08-25 — The knockdown fall stops being a snap, and its ceiling stops being unguarded
 

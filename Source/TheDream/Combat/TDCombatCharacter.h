@@ -725,10 +725,22 @@ protected:
 	 *
 	 *  **Bounded above by KnockdownLockoutSecondsNormal**, or a get-up begins while the body is
 	 *  still sliding. The value is shared across both types, so the hard type's longer lockout
-	 *  does not raise the ceiling -- the shorter one binds.
+	 *  does not raise the ceiling -- the shorter one binds. What must fit is the *montage*,
+	 *  which outlasts this whenever KnockdownFallClipSeconds is shorter than the clip.
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Knockdown", meta=(ClampMin="0.01"))
-	float KnockdownFallSeconds = 0.9f;
+	float KnockdownFallSeconds = 0.8f;
+
+	/**
+	 *  Where the fall clip has landed, in seconds from its start. The span fitted to
+	 *  KnockdownFallSeconds; the remainder plays on afterwards at the same rate.
+	 *
+	 *  **Measured, not eyeballed** -- the pelvis stops descending at 0.80 of AM_Knockdown's
+	 *  0.900, the last 0.10 giving up 1.6 cm. Fitting the whole clip instead slides the body
+	 *  for that tail after it has visibly landed. Zero uses the whole clip.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Knockdown", meta=(ClampMin="0.0"))
+	float KnockdownFallClipSeconds = 0.8f;
 
 	/** Optional shape for the fall, as the knockback's curve. Must average 1.0. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Knockdown")
@@ -1555,7 +1567,8 @@ private:
 	void ApplyKnockdownFall(AActor* Attacker);
 
 	/** Plays a knockdown montage at a rate derived to fit TargetSeconds. The fall and both rises. */
-	void PlayKnockdownMontage(UAnimMontage* Montage, float TargetSeconds, const TCHAR* Label);
+	void PlayKnockdownMontage(UAnimMontage* Montage, float TargetSeconds, const TCHAR* Label,
+		float ClipPortionSeconds = 0.0f);
 
 	/** Lockout seconds for the type currently held. */
 	float GetKnockdownLockoutSeconds() const;

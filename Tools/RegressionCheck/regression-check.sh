@@ -640,21 +640,27 @@ kd_damage_while_down() { # count of DAMAGED landing between a victim's KNOCKDOWN
 	' "$SLICE"
 }
 
-kd_fall_overruns_lockout() { # authored fall vs the lockout it sits in, per knockdown
-	# Read off the pair of trace lines the entry prints together rather than measured as a
-	# span: these are the authored numbers, so the check holds at any frame rate and rejects a
-	# raise past the ceiling directly instead of waiting for a slow machine to expose it.
+kd_fall_overruns_lockout() { # authored montage span vs the lockout it sits in, per knockdown
+	# played/rate, not want=: once a portion is fitted the tail after it still plays, so the
+	# montage outlasts the carry and is the binding number. Read off the authored fields rather
+	# than measured as a span, so the check holds at any frame rate and rejects a raise past the
+	# ceiling directly instead of waiting for a slow machine to expose it.
 	awk '
 		/^\[[0-9.]+\] KNOCKDOWN MONTAGE/ && / fall / {
-			want=""
-			for (i=1;i<=NF;i++) if ($i ~ /^want=/) { split($i,a,"="); want=a[2]; sub(/s$/,"",want) }
+			played=""; rate=""
+			for (i=1;i<=NF;i++) {
+				if ($i ~ /^played=/) { split($i,a,"="); played=a[2] }
+				if ($i ~ /^rate=/)   { split($i,a,"="); rate=a[2] }
+			}
+			span = (rate+0 > 0) ? played/rate : ""
 			next
 		}
 		/^\[[0-9.]+\] KNOCKDOWN  / {
 			lock=""
 			for (i=1;i<=NF;i++) if ($i ~ /^lockout=/) { split($i,a,"="); lock=a[2] }
-			if (want != "" && lock != "" && want+0 >= lock+0) print want "s fall >= " lock "s lockout"
-			want=""
+			if (span != "" && lock != "" && span+0 >= lock+0)
+				print sprintf("%.3f", span) "s montage >= " lock "s lockout"
+			span=""
 		}' "$SLICE"
 }
 
