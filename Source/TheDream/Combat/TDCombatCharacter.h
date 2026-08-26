@@ -729,7 +729,7 @@ protected:
 	 *  which outlasts this whenever KnockdownFallClipSeconds is shorter than the clip.
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Knockdown", meta=(ClampMin="0.01"))
-	float KnockdownFallSeconds = 0.45f;
+	float KnockdownFallSeconds = 0.6f;
 
 	/**
 	 *  Where the fall clip has landed, in seconds from its start. The span fitted to
@@ -748,11 +748,15 @@ protected:
 	 *
 	 *  **Measured, not eyeballed.** The clip is a death animation authored from a neutral stance,
 	 *  so it gathers before it falls -- the pelvis dips, rises back 4 cm across four frames, and
-	 *  only then commits. Played from zero that reads as reacting late to the hit. Zero starts at
-	 *  the beginning.
+	 *  only then commits at 0.35. Played from zero that reads as reacting late to the hit.
+	 *
+	 *  **Zero, which starts at the beginning, and that is deliberate.** Skipping the gather
+	 *  shortens the fitted window, which lowers the rate, which stretches the clip's flat tail --
+	 *  one artifact traded for another, because a constant rate makes them the same knob. The
+	 *  measured 0.35 is kept here for whoever builds the time curve; see the Polish brief.
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Knockdown", meta=(ClampMin="0.0"))
-	float KnockdownFallClipStartSeconds = 0.35f;
+	float KnockdownFallClipStartSeconds = 0.0f;
 
 	/** Optional shape for the fall, as the knockback's curve. Must average 1.0. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Knockdown")
