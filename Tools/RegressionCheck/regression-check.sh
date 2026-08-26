@@ -538,6 +538,9 @@ knockback_inward_violations() { # spacing must never fall below the authored val
 
 knockback_count() { grep -c "^\[[0-9.]*\] KNOCKBACK" "$SLICE" || true; }
 
+blocked_knockback_count() { grep -c "^\[[0-9.]*\] KNOCKBACK.*(blocked)" "$SLICE" || true; }
+blocked_hit_count() { grep -c "^\[[0-9.]*\] BLOCKED" "$SLICE" || true; }
+
 dodges_inside_hitstun() { # DODGE lines falling between a HITSTUN and its HITSTUN END
 	awk '
 		/^\[[0-9.]+\] HITSTUN    / { inside=1; next }
@@ -1211,6 +1214,11 @@ run_s4_block() {
 	assert_all_in_band "BLOCKSTUN span" "blockstun_spans" \
 		"$(awk -v v="$BAND_BLOCKSTUN_LIGHT" -v t="$BAND_BLOCKSTUN_TOL" 'BEGIN{printf "%.3f", v-t}')" \
 		"$(awk -v v="$BAND_BLOCKSTUN_LIGHT" -v t="$BAND_BLOCKSTUN_TOL" 'BEGIN{printf "%.3f", v+t}')" "s"
+
+	# Every blocked contact resets spacing, the ender included -- its knockdown type governs the
+	# clean hit only. assert_never_inward cannot see this: a knockback that never fires just
+	# lowers the sample count it reads, so the shortfall has to be counted directly.
+	assert_count "blocked KNOCKBACK per BLOCKED" "$(blocked_knockback_count)" "$(blocked_hit_count)"
 	assert_never_inward
 }
 

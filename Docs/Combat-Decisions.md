@@ -1113,6 +1113,8 @@ than a refusal.
 | The flinch reads too fast, too slow, or stops mid-stagger | `HitstunTellPortionSeconds` — how much of the clip the tell spends, currently 0.684 of 1.333. Raising it speeds the tell up, because the same span covers more clip | The clip's play rate, which is **held at zero on purpose** and is not a dial: the playhead is written from stun progress every update, so a rate would be added on top by the tick record and drift the position a frame's worth per frame. Nor `HitstunSeconds` — that is the mechanic the tell is fitted to, and moving it retimes the string guarantee. |
 | The block reaction reads too fast or too slow | `BlockstunTellPortionSeconds`, currently 0.485 of 0.867, same arithmetic | The same two. Note the tell already runs **below** 1.0 for heavy and get-up blockstun, so "too slow" there is the portion being short, not the clip being wrong. |
 | Either portion is moved | Nothing, without re-measuring. Both sit on a **measured** seam in the clip — hitstun's on the last frame before its largest single event, blockstun's on the trough before its return-to-guard — and a value chosen by eye lands mid-motion, which reads as a cut rather than an end | Assuming the seams transfer to a different clip. They are properties of these two clips; swapping either animation means measuring again, not carrying the number across. |
+| A blocked hit concedes too much or too little ground | `BlockedSpacingCm`, currently 225 against a clean hit's 350 | The guard in `GetKnockbackSpacingCm`. It exists to stop a *clean* hit taking spacing on top of the knockdown that replaces it, and gating it on anything but `bBlocked` silently removes the reset from a whole tier — which is the defect it caused once already. |
+| A blocked **heavy** should shove harder than a blocked light | Nothing today — `HitSpacingCm` and `BlockedSpacingCm` are per-**ability**, so one pair covers every tier of `GA_Attack` and a blocked heavy concedes exactly the light's 225. Moving them into `FTDAttackBranch` is the fix and follows the pattern the stun values already use | Raising the shared `BlockedSpacingCm` to suit the heavy. It moves the light by the same amount, and the light's blocked spacing is what the string's cadence was felt against. |
 | Feet slide during locomotion | `MaxWalkSpeed`, set from the `_RM` clips' measured displacement | The animation's rate. 500 came from Epic's template and was never measured; derive the speed from the clip rather than scaling the clip to an unchosen number. |
 | An action feels unresponsive at low stamina | Nothing — find what is gating it | Adding or restoring a cost gate. Costs are paid, never required; if an input silently does nothing, `CostGameplayEffectClass` or `CommitAbility` has crept back in. |
 | Exhaustion feels too long or short | `ExhaustedStaminaRegenPerSecond`, since recovery *is* the duration. Separate from the normal rate as of 2026-08-14 | A duration knob, and no longer `StaminaRegenPerSecond` — that governs normal play only, and moving it to retune exhaustion now changes dodge cadence instead. `ExhaustionSeconds` stays deleted: splitting the *rate* keeps the property that killed it, because exhaustion still ends at Max and nowhere else. |
@@ -1309,6 +1311,7 @@ long.
 | `animSegments` | 08-21 |
 | `APawn::FaceRotation` | 08-12 |
 | `ApplyDodgeRecovery` | 08-25 |
+| `ApplyKnockbackToTarget` | 08-25 |
 | `ApplyParryLockoutState` | 08-24 |
 | `AS_SwordAndShieldAnimV1_Defense_Hit_Fw_RM` | 08-25 |
 | `ATDCombatCharacter::ComputeTellTime` | 08-25 |
@@ -1340,7 +1343,7 @@ long.
 | `BlockCommitEndsAt` | 08-15 |
 | `BlockDrainPerSecond` | 08-14 |
 | `BlockInitialStaminaCost` | 08-14 |
-| `BlockedSpacingCm` | 08-16 |
+| `BlockedSpacingCm` | 08-16, 08-25 |
 | `BlockingMaxWalkSpeed` | 08-14 |
 | `BlockstunEndsAt` | 08-15 |
 | `BlockstunSeconds` | 08-14, 08-16, 08-18 |
@@ -1424,7 +1427,7 @@ long.
 | `HandleCheckpoint` | 08-14 |
 | `HeightMaxCm` | 08-12 |
 | `HeightMinCm` | 08-12 |
-| `HitSpacingCm` | 08-16 |
+| `HitSpacingCm` | 08-16, 08-25 |
 | `Hitboxes` | 08-12 |
 | `HitstunSeconds` | 08-16, 08-18 |
 | `HitstunTellPortionSeconds` | 08-25 |
@@ -1444,6 +1447,7 @@ long.
 | `IsIdle` | 08-12, 08-16 |
 | `IsInBlockstun` | 08-15 |
 | `IsMovementLocked` | 08-20, 08-24 |
+| `IsNonFinalStringLight` | 08-25 |
 | `JumpRegenPauseSeconds` | 08-10 |
 | `KnockdownFallSeconds` | 08-20 |
 | `KnockdownRiseSeconds` | 08-20 |
@@ -1481,6 +1485,7 @@ long.
 | `REPNOTIFY_Always` | 08-11 |
 | `USequencePlayerLibrary::SetAccumulatedTime` | 08-25 |
 | `UTDAnimTellTools` | 08-25 |
+| `UTDChargedAttackAbility::GetKnockbackSpacingCm` | 08-25 |
 | `UTDInputTools` | 08-24 |
 | `set_global_time_dilation` | 08-24 |
 | `take_high_res_screenshot` | 08-24 |
@@ -1591,6 +1596,65 @@ long.
 | `bUseControllerRotationYaw` | 08-12 |
 | `compositeSections` | 08-15, 08-18 |
 | `gEComponents` | 08-10, 08-11 |
+
+## 2026-08-25 — The blocked spacing reset was carrying a carve-out that belongs to clean hits
+
+**Reported from play**: the light string's first two swings knock a blocker back and the third does
+nothing, so the ender *"feels limp in comparison"*. The designer's read was that knockdown had
+replaced knockback on the ender. Half right — that is why the carve-out exists, but it was firing
+on the wrong path.
+
+`UTDChargedAttackAbility::GetKnockbackSpacingCm` returned `0.0f` for anything failing
+`IsNonFinalStringLight()` **without consulting `bBlocked`**. The blocked branch does call
+`ApplyKnockbackToTarget(Defender, /*bBlocked=*/true)` for every blocked contact; the value it
+resolved was nulled a level down, and `ApplyKnockbackToTarget` returns before logging on zero
+spacing — so the ender produced no `KNOCKBACK` line at all rather than a small one.
+
+**The function's own comment already said what it should have done** — *"What still routes through
+here is the blocked case, where nothing is knocked down."* Nothing routed through; the guard
+returned first. An implementation disagreeing with its own comment, found by play rather than by
+either.
+
+### The scope was wider than the swing that revealed it
+
+`IsNonFinalStringLight()` wants branch 0, chaining, **and** a successor swing. The ender fails the
+last; **the heavy and the charged fail on the branch index**, so all three conceded no ground on
+block. The ender was noticed because it sits between two swings that do knock back — a blocked
+heavy has nothing to compare against in the moment.
+
+**The charged is not exempt via its guard break**, which is the non-obvious part: the blocked branch
+applies spacing *whether or not the hit broke the guard*, deliberately and commented as such, so a
+charged blocked into a break still routes here.
+
+### Ruled: blanket, with the tier split deferred rather than refused
+
+`if (!bBlocked && !IsNonFinalStringLight())`. Every blocked contact re-centres. The carve-out exists
+because `EnterKnockdown`'s radial carry replaces spacing on a **clean** hit; a blocked contact
+knocks nothing down, so it has no business firing there at all. Clean hits are provably untouched —
+with `bBlocked` false the condition reduces to what it was.
+
+**The consequence was bought knowingly**: `HitSpacingCm` and `BlockedSpacingCm` are per-*ability*,
+not per-branch, so a blocked heavy now concedes exactly the light's 225. That may read wrong. It is
+a tuning-map row rather than a defect, and splitting the two values per tier is available whenever
+it is wanted — `FTDAttackBranch` already carries `HitstunSeconds`, `BlockstunSeconds`,
+`ReleaseAtSeconds`, `RecoverySeconds` and `KnockdownType` with the charged subclass resolving
+swing-then-branch-then-ability, so the pattern is established rather than new. *The designer asked
+directly whether per-tier authoring was foreclosed; it is not.*
+
+### The loop could not see this, and now can
+
+`s4-block` asserted only that knockback never pulls *inward*, over however many samples existed — a
+knockback that never fires lowers `n` and is otherwise invisible. `assert_count "blocked KNOCKBACK
+per BLOCKED"` closes that, and **was shown rejecting the real defect's shape** before being trusted:
+fed a slice with three blocked hits and two knockbacks it reports *"expected 3, got 2"*.
+
+### Verified
+
+Before the fix, from the designer's own session: 6 blocked, 6 blockstuns, **4** knockbacks — two
+strings each missing their ender. After: **14 blocked, 14 blocked knockbacks**, all at 225, the
+ender's `KNOCKBACK … (blocked)` line present at its own release. `s4-block` 5/5 with the new
+assertion; `s4-string` 7/7 with 6 knockdowns and 11 clean knockbacks, so the ender still floors a
+victim it connects with. `--self-test` green.
 
 ## 2026-08-25 — The stun tells are positioned by stun progress rather than played at a rate
 

@@ -134,6 +134,15 @@ Timings land within about a frame, biased late — and **the bias is the tick th
 
 ### Stun & Knockdown
 - Blockstun: **Disables offense and nothing else**, for a duration the *attack* authors (`BlockstunSeconds` per branch on `GA_Attack`). **Defense is deliberately untouched** — movement, dodging, the guard itself and, when it exists, **parry**, which means **blockstun and parry never know about each other** *(2026-08-15; the old "offense + parry" wording was wrong from this file's beginning and the implementation never matched it — see the log)*. Taking a defender's guard for blocking correctly would invert the mechanic. **A guard break supersedes it rather than stacking**: a broken guard is not a successful block. Shipped 2026-08-14 at each tier's own `RecoverySeconds`, 50 ms the safe side of neutral. **The light's stopped being derived that way on 2026-08-16**: once a chain existed, its own recovery was measuring against the wrong threat, so its 0.35 is derived against the **chain cadence** instead — heavy and charged keep the recovery basis. Both derivations are tuning-map rows, and the light's is not free. **The charged's can never fire** — its stamina damage empties any bar, so it always breaks instead; filed as a trap.
+  - **Every blocked contact also resets spacing**, at `BlockedSpacingCm` — the same
+    fixed-destination mechanism a clean hit uses at a notably smaller distance, and applied
+    **whether or not the hit broke the guard**, because the contact was blocked either way.
+    The knockdown carve-out that withholds spacing from the ender, the heavy and the charged
+    governs **clean hits only** — a block knocks nothing down *(2026-08-25, after the ender
+    was found conceding no ground between two swings that did)*. It is **per-ability rather
+    than per-tier**: one value covers every tier of `GA_Attack`, so a blocked heavy concedes
+    exactly what a blocked light does. That is a tuning-map row, not a rule.
+
 - Hitstun: authored per attack (`HitstunSeconds` on `GA_Attack`'s branches and swings; the light's is **0.55**), and it **refuses every ability, defense included** — *that refusal is what makes "any hit guarantees the rest" true*, and it is why hitstun is a Light String mechanic rather than a Knockdown one. **It must outlast the chain gap or the guarantee silently stops holding**, which is why the cadence and this move together. **Movement is locked too**, shipped with Knockdown beside the guard break's — `IsMovementLocked()` covers hitstun, a broken guard and the down state alike. **On a graded swing hitstun never fires at all**: the knockdown supersedes it, and alternatives are resolved at the hit rather than layered, which leaves that swing's `HitstunSeconds` keying exactly one thing — the **attacker's** movement return through the on-hit waiver.
   - **Its tell is a state in the Locomotion machine, not a montage** *(2026-08-24)*, mirroring
     blockstun's: a sequence player on `AS_SwordSwordAnimV3_Hit_Fw_RM` feeding the state result,

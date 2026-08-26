@@ -587,11 +587,11 @@ float UTDChargedAttackAbility::GetAttackParryLockoutSeconds() const
 
 float UTDChargedAttackAbility::GetKnockbackSpacingCm(bool bBlocked) const
 {
-	// The spacing reset belongs to non-final string lights alone. The ender, the heavies and the
-	// charged all carry a knockdown type, so their clean hits never reach ApplyKnockbackToTarget:
-	// EnterKnockdown's radial carry replaces it, on a different axis by design. What still routes
-	// through here is the blocked case, where nothing is knocked down.
-	if (!IsNonFinalStringLight())
+	// The carve-out is the *clean-hit* one: the ender, the heavies and the charged all carry a
+	// knockdown type, so EnterKnockdown's radial carry replaces spacing on a different axis and
+	// their clean hits must not also take it. A blocked contact knocks nothing down, so the
+	// carve-out does not apply to it and every tier takes BlockedSpacingCm.
+	if (!bBlocked && !IsNonFinalStringLight())
 	{
 		return 0.0f;
 	}
