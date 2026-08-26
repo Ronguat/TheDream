@@ -640,6 +640,24 @@ kd_damage_while_down() { # count of DAMAGED landing between a victim's KNOCKDOWN
 	' "$SLICE"
 }
 
+kd_fall_overruns_lockout() { # authored fall vs the lockout it sits in, per knockdown
+	# Read off the pair of trace lines the entry prints together rather than measured as a
+	# span: these are the authored numbers, so the check holds at any frame rate and rejects a
+	# raise past the ceiling directly instead of waiting for a slow machine to expose it.
+	awk '
+		/^\[[0-9.]+\] KNOCKDOWN MONTAGE/ && / fall / {
+			want=""
+			for (i=1;i<=NF;i++) if ($i ~ /^want=/) { split($i,a,"="); want=a[2]; sub(/s$/,"",want) }
+			next
+		}
+		/^\[[0-9.]+\] KNOCKDOWN  / {
+			lock=""
+			for (i=1;i<=NF;i++) if ($i ~ /^lockout=/) { split($i,a,"="); lock=a[2] }
+			if (want != "" && lock != "" && want+0 >= lock+0) print want "s fall >= " lock "s lockout"
+			want=""
+		}' "$SLICE"
+}
+
 
 parry_lockout_spans() { # one span per PARRY LOCKOUT, from its start to its printed until=
 	awk '
@@ -1272,7 +1290,7 @@ exhaust_exit_stamina() {
 # is only observable through a press -- see run_s6_stand.
 
 run_s6() { # run_s6 <type>
-	local want="$1" types wrong dmg kdn
+	local want="$1" types wrong dmg kdn overruns
 	types=$(kd_types)
 	kdn=$(printf '%s\n' "$types" | grep -c . || true)
 
@@ -1301,6 +1319,18 @@ run_s6() { # run_s6 <type>
 
 	# Floor invincibility. Gated on kdn for the reason above: zero damage across
 	# zero knockdowns is not evidence of anything.
+	# The fall must land before the lockout hands the input window over, or a get-up begins
+	# while the body is still sliding. Gated on kdn for the reason above.
+	overruns=$(kd_fall_overruns_lockout)
+	if [ "$kdn" -eq 0 ]; then
+		check "fall lands inside lockout" 1 "no knockdowns -- nothing to check"
+	elif [ -z "$overruns" ]; then
+		check "fall lands inside lockout" 0 "n=$kdn, every fall inside its own lockout"
+	else
+		check "fall lands inside lockout" 1 "$(printf '%s' "$overruns" | tr '
+' ';')"
+	fi
+
 	dmg=$(kd_damage_while_down)
 	if [ "$kdn" -eq 0 ]; then
 		check "zero DAMAGED while down" 1 "no knockdowns -- nothing was ever invincible to test"

@@ -719,9 +719,16 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Knockdown", meta=(ClampMin="0.0"))
 	float KnockdownSpacingCm = 450.0f;
 
-	/** Seconds the fall takes. Sits inside the fall; knockback's contract, same root motion source. */
+	/**
+	 *  Seconds the fall takes -- clip and radial carry alike, both fitted to this, the carry
+	 *  through knockback's own root motion source.
+	 *
+	 *  **Bounded above by KnockdownLockoutSecondsNormal**, or a get-up begins while the body is
+	 *  still sliding. The value is shared across both types, so the hard type's longer lockout
+	 *  does not raise the ceiling -- the shorter one binds.
+	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Knockdown", meta=(ClampMin="0.01"))
-	float KnockdownFallSeconds = 0.35f;
+	float KnockdownFallSeconds = 0.9f;
 
 	/** Optional shape for the fall, as the knockback's curve. Must average 1.0. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Knockdown")
