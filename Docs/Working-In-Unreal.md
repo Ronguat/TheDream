@@ -315,6 +315,18 @@ type** — a broken one usually looks fine alone.
 
 ### Confirmed traps
 
+- **A CDO write does not reach a runtime-spawned actor until the Blueprint is compiled**
+  *(confirmed 2026-08-25)*. `unreal.get_default_object(bp.generated_class())` then
+  `set_editor_property` reads back correctly and reaches **placed** actors, but a pawn the
+  GameMode spawns still gets the old value — one PIE session ran the dummies at 0.7 and the
+  player at 0.8 from a single write. **The tell is `get_dirty_content_packages()` staying
+  empty**: the write never went through the Blueprint's commit path. Adding `cdo.modify()`,
+  `bp.modify()` and `BlueprintEditorLibrary.compile_blueprint(bp)` marks both packages dirty and
+  the value then reaches every pawn. Editing Class Defaults **by hand compiles for you**, which
+  is why the manual route works where the scripted shortcut did not. Leave the packages unsaved
+  and the trial reverts on the next editor start. **This makes value trials free** -- an
+  `EditDefaultsOnly` number can be swept without a rebuild -- but a value that *ships* belongs in
+  the C++ default with no Blueprint override left behind to shadow it.
 - **An asset the registry has no entry for still saves — through the *package*, not the path**
   *(refuted 2026-08-25)*. `AS_SwordAndShieldAnimV1_Defense_Hit_Fw_RM` answers **False** to
   `does_asset_exist` while `load_asset` returns it and `set_editor_property` takes, so every
