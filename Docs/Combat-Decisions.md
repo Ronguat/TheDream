@@ -1192,7 +1192,7 @@ than a refusal.
 | A parried attacker gets away with too much | **Nothing — the reward is derived and already per-tier.** Recovery *is* the punish window, so a parried charged pays more than a parried light without anyone authoring it; the string reset is what compensates at the light end | A per-branch parry bonus. Raised 2026-08-18 and rejected: the derived model pays by the victim's commitment rather than by the read's difficulty, and an authored bonus exists only if play demands read-difficulty compensation |
 | The charged feels unreactable, or trivially reactable | Its **`ReleaseAtSeconds`**, **authored** — checked against reaction time rather than moved by feel alone. 800 leaves 600 ms after the light's arrival, a reaction (~200) plus a full dodge (400). The arithmetic is what it was tuned *against*, not what produced it | Moving it without re-checking the **gap to the heavy**, which is the real fence and is welded at 400 (see the row below). Cut the window below a reaction plus a dodge and the slow layer stops being answerable by the defence it exists to reward |
 | A knockdown holds you down too long, or lets you up too early | That type's `KnockdownLockoutSeconds*` and `KnockdownInputWindowSeconds*` **as a pair summing to the same total** — each type's split is its own dial | The total, or `KnockdownRiseSeconds`. Both types spend 2.5 s down and begin rising at 2.0 **by design**, and every derivation keyed to the total is grade-blind because of it: the exhausted player's ~62 stamina return, the netcode window. Move the split, never the sum. |
-| A parried attacker recoils too far or too little | **`ParryRecoilCeilingCm`** (180), **not** `ParryRecoilCm` (93). Catches land at 114–184 cm, so the ceiling binds on nearly every one and the push is inert above about 57 — raising 93 does nothing at all. The ceiling trades travel against the punish: 192 cm is damage reach, and past it the parry stops guaranteeing one. Duration is the lockout's own span and is not separately tunable |
+| A parried attacker recoils too far or too little | **`ParryRecoilCm`** (93), and it is the only knob — the push is relative, so every catch travels it whatever range the catch happened at. Read off the flinch clip's authored root motion, so moving it away from 93 puts the carry and the clip out of step. Duration is the lockout's own span and is not separately tunable. **There is no ceiling**: an attack's reach is 550 cm for a light and 750 charged, and the lunge closes to a 40 cm standoff, so no recoil this produces can put an attacker out of punishing range |
 | The fall looks rushed, or the knockdown reads too brief | **`KnockdownFallSeconds`** — the carry, **0.6**, and the rate too, since the fitted window is divided by it. **Ceiling is `KnockdownLockoutSecondsNormal`**, the shorter lockout; what must fit under it is the montage, `(played - from) / rate` | Chasing the remaining stiffness here. **The clip contains 0.45 s of natural-speed motion and no more**, so every value trades duration against landing speed — 1.0x buys 0.45 s, 0.6 s costs 0.75x and the cushion. The fix is the time curve in the Polish brief. Also not `HitstunSeconds`: on a graded swing it keys only the attacker's movement return. |
 | The body lands flat, or slides after visibly landing | **`KnockdownFallClipSeconds`** (0.8, the landing) and **`KnockdownFallClipStartSeconds`** (**0.0**; the measured commit is 0.35, held in the header for the curve slice) | Enabling the start offset on its own. It shortens the window, which lowers the rate, which stretched the flat tail from 81 ms to 144 ms — **with one rate the two artifacts are the same knob**. **Re-measure if the clip is swapped**; every one of these numbers belongs to `AS_SwordSwordAnimV3_Death_Bw_RM`, not to knockdowns. |
 | The body slides after it has visibly landed, or lands before it stops | **`KnockdownFallClipSeconds`** — where the clip's landing is, **0.8 of 0.900**, measured as the frame the pelvis stops descending (the last 0.10 s gives up 1.6 cm). Raise it toward the clip length to slide longer, lower it to land sooner | Fixing it with `KnockdownFallSeconds`. That moves *both* the landing and the playback rate, which is the coupling this pair exists to break — and it is why the two complaints could not be told apart while one number served both. **Re-measure if the clip is ever swapped**; the value is a property of `AS_SwordSwordAnimV3_Death_Bw_RM`, not of knockdowns. |
@@ -1642,6 +1642,47 @@ long.
 | `bUseControllerRotationYaw` | 08-12 |
 | `compositeSections` | 08-15, 08-18 |
 | `gEComponents` | 08-10, 08-11 |
+
+## 2026-08-28 — The recoil ceiling was mine, invented from a misread number, and is deleted
+
+**The designer caught it**: *"At no point are any of these punishes gone. Even a simple light attack
+reaches well over 400 cm. Did you just forget about lunge?"* I had.
+
+### The error
+
+I anchored the recoil's design on `MaxReachCm` ≈ 192 as though it were the punish envelope. It is the
+**damage hitbox**, not the reach of an attack — attacks *lunge*. Measured from play: `AIM WEDGE`
+prints **reach=550** for a light (n=358), 610–650 heavy, **750** charged, and `LungeStandoffCm` is
+**40**. An attacker parked at 180 cm sat inside a light's punish range by 370 cm.
+
+### What that invalidated
+
+Everything the ceiling rested on. *"Past 192 the punish is gone"* — false. *"The ceiling protects the
+punish"* — it protected nothing. And the tradeoff I built on it, **consistent spacing or consistent
+travel but never both**, did not exist; it was an artefact of the wrong figure. Worse, when the
+inconsistency was first noticed I retreated *into* the bad reasoning, calling a real defect "correct
+for a spacing model" — the instinct was right and the justification I replaced it with was false.
+
+### What it is now
+
+`ParryRecoilCeilingCm` deleted. `ParryRecoilCm` **93** is the only knob and is live: a relative push
+with **never-inward as the only bound**, so every catch travels the same distance whatever range it
+happened at. Measured across seven catches spanning 110–187 cm: **93 every time**, including the far
+ones that previously moved zero. Asserted rather than observed — `PARRY RECOIL travel` is exact, not
+banded, because the push lands as one translation and any deviation is a mechanism fault.
+
+### The rule this cost, stated by the designer
+
+***"Ask me rather than tell me when it comes to design. Functionality is your domain, design is
+mine."*** The ceiling was a design constraint I invented and then presented as a plan to confirm.
+That inverted the working loop: instead of asking what a recoil should do, I built one against a
+premise I had not checked and asked the designer to reason about consequences of my own invention.
+**Inventing a constraint is a WHAT, however mechanical it looks** — and a number read out of the code
+is not a design brief.
+
+**The tell, in hindsight, was available**: the value came from a property whose header calls it a
+damage reach, and nothing in the spec ever named a punish envelope. A design premise that appears
+only in my own reasoning, and in no doc and no entry, is invented.
 
 ## 2026-08-28 — The parry recoil ships, and the rate-zero hold had never worked
 

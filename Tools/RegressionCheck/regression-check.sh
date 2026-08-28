@@ -96,6 +96,10 @@ BAND_PARRY_GRACE=0.150
 # s5-parry's attacker throws the string, whose first swing is the light branch.
 BAND_PARRY_LOCKOUT_LIGHT=0.750
 
+# ParryRecoilCm on GA_Attack's CDO, read off the flinch clip's authored root motion. Exact rather
+# than banded: the push is applied as one translation, so any deviation is a mechanism fault.
+BAND_PARRY_RECOIL_CM=93
+
 # S5 -- the credited stamina reward, as seen by s5-parry, whose parrier never spends. A parry costs
 # nothing, so that fixture's bar never leaves 100 and the attribute set's clamp trims the whole
 # reward: every sample there is legitimately 0.0. This band asserts the *clamp*, not the magnitude.
@@ -675,6 +679,19 @@ parry_lockout_spans() { # one span per PARRY LOCKOUT, from its start to its prin
 	' "$SLICE"
 }
 
+parry_recoil_travels() { # one distance per PARRY RECOIL: to= minus from=, the carry actually applied
+	awk '
+		/^\[[0-9.]+\] PARRY RECOIL  / {
+			f=""; t="";
+			for (i=1;i<=NF;i++) {
+				if ($i ~ /^from=/) f=substr($i,6);
+				if ($i ~ /^to=/)   t=substr($i,4);
+			}
+			if (f != "" && t != "") printf "%.0f\n", (t+0)-(f+0)
+		}
+	' "$SLICE"
+}
+
 damage_during_parry_lockout() { # DAMAGED dealt BY an attacker while it is serving one
 	awk '
 		/^\[[0-9.]+\] PARRY LOCKOUT  / { locked[$4]=1; next }
@@ -873,6 +890,10 @@ run_s5_parry() {
 	# **The lockout is authored, so this asserts a CDO value rather than an arithmetic result.** A
 	# derived one would vary with the elapsed time at the catch, so **a span that starts wobbling
 	# again means something is computing it**.
+	# The recoil is a relative push, so every catch travels the same distance whatever range it
+	# happened at. A destination model would vary with the catch; this asserts it does not.
+	assert_all_equal "PARRY RECOIL travel" parry_recoil_travels "$BAND_PARRY_RECOIL_CM"
+
 	assert_all_in_band "PARRY LOCKOUT span" parry_lockout_spans \
 		"$(awk -v v="$BAND_PARRY_LOCKOUT_LIGHT" -v t="$BAND_PARRY_SPAN_TOL" 'BEGIN{printf "%.3f", v-t}')" \
 		"$(awk -v v="$BAND_PARRY_LOCKOUT_LIGHT" -v t="$BAND_PARRY_SPAN_TOL" 'BEGIN{printf "%.3f", v+t}')" "s"

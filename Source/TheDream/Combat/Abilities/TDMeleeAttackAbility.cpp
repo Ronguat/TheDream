@@ -572,22 +572,21 @@ void UTDMeleeAttackAbility::ApplyParryRecoil(ATDCombatCharacter* Parrier, ATDCom
 
 	const float CurrentAlongCm = FVector::DotProduct(AttackerLoc - ParrierLoc, Away);
 
-	// Push, then ceiling, then never inward -- in that order, so a catch already beyond the ceiling
-	// keeps its distance rather than being pulled back to it.
-	const float PushedCm = CurrentAlongCm + ParryRecoilCm;
-	const float FinalCm = FMath::Max(FMath::Min(PushedCm, ParryRecoilCeilingCm), CurrentAlongCm);
+	// Never inward, which is the only bound: a push can add distance and never remove it. There is
+	// no ceiling -- an attack's reach carries it far past any distance this produces, so nothing
+	// the recoil does can put the attacker out of punishing range.
+	const float FinalCm = FMath::Max(CurrentAlongCm + ParryRecoilCm, CurrentAlongCm);
 
 	FVector Destination = ParrierLoc + Away * FinalCm;
 	Destination.Z = AttackerLoc.Z;
 
-	TD_TIMING_LOG(TEXT("[%.3f] PARRY RECOIL  %s by %s  from=%.0f to=%.0f  push=%.0f ceiling=%.0f  over=%.3f"),
+	TD_TIMING_LOG(TEXT("[%.3f] PARRY RECOIL  %s by %s  from=%.0f to=%.0f  push=%.0f  over=%.3f"),
 		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f,
 		*Attacker->GetName(),
 		*Parrier->GetName(),
 		CurrentAlongCm,
 		FinalCm,
 		ParryRecoilCm,
-		ParryRecoilCeilingCm,
 		DurationSeconds);
 
 	Attacker->ReceiveKnockback(Destination, DurationSeconds, nullptr);

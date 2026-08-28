@@ -122,15 +122,12 @@ protected:
 
 	/**
 	 *  How far a parried attacker is carried back, in cm added to wherever the catch left them.
-	 *  **Relative**, unlike HitSpacingCm and BlockedSpacingCm, which are destinations. Read off the
-	 *  flinch clip's own authored root motion across the portion the tell plays.
+	 *  **Relative**, unlike HitSpacingCm and BlockedSpacingCm, which are destinations, so every catch
+	 *  travels the same distance whatever range it happened at. Read off the flinch clip's own
+	 *  authored root motion across the portion the tell plays, so the carry and the clip agree.
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Knockback", meta=(ClampMin="0.0"))
 	float ParryRecoilCm = 93.0f;
-
-	/** The recoil destination's ceiling, in cm from the parrier. Holds a far catch inside the damage reach. */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Knockback", meta=(ClampMin="0.0"))
-	float ParryRecoilCeilingCm = 180.0f;
 
 	/**
 	 *  The spacing reset: where a clean non-final string hit parks its target, in cm from the
