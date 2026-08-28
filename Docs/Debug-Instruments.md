@@ -513,7 +513,7 @@ unreal.find_object(None, "/Game/TheDream/Maps/UEDPIE_1_L_CombatTest.L_CombatTest
 ```
 
 `GameplayStatics.get_all_actors_of_class` then works per world, and **`get_local_role()` tells you
-which is which** — the server world reports `ROLE_AUTHORITY` on everything and carries the game
+which is which** *(Python, 2026-08-15)* — the server world reports `ROLE_AUTHORITY` on everything and carries the game
 mode; the client world has no game mode, reports `ROLE_AUTONOMOUS_PROXY` on its own pawn and
 `ROLE_SIMULATED_PROXY` on the rest. **`UTDInputTools` drives the client's player controller too**, so
 both sides of an exchange are scriptable from one place. Measured the same day: a moving dummy read
@@ -538,7 +538,8 @@ gitignored, so this is machine state and never travels with the repo. **Restore 
 - `RunUnderOneProcess=True` is easier to drive but gives **no client-side log**.
 - `RunUnderOneProcess=False` spawns a second `UnrealEditor.exe` writing `Saved/Logs/TheDream_2.log`
   — **the only channel to client-side state that exists**, because the MCP toolset returns only
-  `UEDPIE_0_` actors and cannot see the client world at all.
+  `UEDPIE_0_` actors and cannot see the client world at all *(MCP, 2026-08-15; not re-tested since,
+  and editor Python has not been pointed at a two-process session)*.
 - The client received **6 of the 24 trace tags** when measured: `RELEASE BEGIN`/`END`,
   `BLOCKSTUN`/`END`, `GUARD BREAK`/`END`. Death and exhaustion were absent because their logs sat
   on the authority-side transitions — **re-sited into `Apply*`/`Clear*` later the same day**, so
@@ -730,7 +731,8 @@ attributed to the guard spam. **The absent rise is the same fact and cannot be d
 `s6-exhausted*` scenario asserts behaviour rather than logging.
 
 **The exhausted fixtures cannot hold the tag up, so the assertion is scoped to the presses where it
-was.** A get-up that succeeds refills the bar, and the loop then settles with the defender never
+was** *(fixture behaviour, measured 2026-08-24 — a property of the scenarios, not of any scripting
+surface)*. A get-up that succeeds refills the bar, and the loop then settles with the defender never
 re-exhausting -- `HoldBlock` with `BlockGetUp` exhausted once in sixty seconds and not again, while
 `PeriodicDodge` never exhausted it at all. Each scenario therefore counts only presses made while
 `State.Exhausted` was up and **fails on n=0** rather than passing on a run where the defender was

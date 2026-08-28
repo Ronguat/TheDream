@@ -75,6 +75,9 @@ Tools/CommentCheck/comment-check.sh:::--self-test:::CLAUDE.md names the script; 
 Tools/CommentCheck/comment-check.sh:::--baseline:::CLAUDE.md and Closing-Down both name the flag as the sanctioned reset
 Tools/CommentCheck/baseline.txt:::comment lines:::CLAUDE.md sends a C7 failure here to raise one line
 Docs/Toolset-Snapshot.tsv:::list_toolsets:::Working-In-Unreal diffs the registry against this file
+Tools/DocsCheck/claim-scan.pl:::engine behaviour:::Working-In-Unreal names the no-surface categories the scanner must accept
+Tools/DocsCheck/claim-scan.pl:::--working-only:::the flag that excludes the append-only archive of dated entries
+Docs/Working-In-Unreal.md:::claim-scan.pl:::the method section names the scanner that enforces surface-and-date
 '
 check_manifest() { # $1=manifest-string -> prints misses, rc 1 if any
   local bad=0 line f pat why
@@ -113,6 +116,15 @@ check_trap_shortlist() { # $1=decisions-file -> prints shortlist (never fails)
   sed -n '/^## Known traps/,/^## Tuning map/p' "$1" |
   awk 'prev_blank && /^[A-Za-z]/ && !/^[A-Z][a-z]+:/ {n++; if (n<=8) printf "  line ~%d: %.60s\n", NR, $0}
        {prev_blank = (NF==0)} END {if (n>8) printf "  ...and %d more\n", n-8; if (n>0) exit 1}'
+}
+
+# --- C5b: unqualified capability claims --------------------------------------
+# Catches the failure this project kept hitting from the other side: a claim that something
+# cannot be done, naming a callable but neither the surface it was tried on nor the date. An
+# MCP-only result then reads identically to one tested across MCP, editor Python and C++, so
+# nothing invites a re-test and the claim becomes permanent. Detection lives in claim-scan.pl.
+check_claims() { # $1..=files -> prints shortlist, rc 1 if any unqualified
+  perl "$ROOT/Tools/DocsCheck/claim-scan.pl" "$@"
 }
 
 # --- C6: always-read duplication ---------------------------------------------
@@ -199,6 +211,10 @@ self_test() {
   printf 'the quick brown fox jumps over the lazy sleeping dog twice\n' > "$t/ng1.md"
   printf 'again the quick brown fox jumps over the lazy sleeping dog twice\n' > "$t/ng2.md"
   printf 'nothing shared here at all beyond ordinary short words\n' > "$t/ng3.md"
+  printf 'The MCP layer cannot call `save_dirty_packages` *(2026-08-27)*.\n' > "$t/claim_ok.md"
+  printf 'There is no way to call `save_dirty_packages` at all.\n'          > "$t/claim_bare.md"
+  printf 'Python cannot call `save_dirty_packages` on this asset.\n'        > "$t/claim_nodate.md"
+  printf 'Enumerate before concluding `save_dirty_packages` cannot be run.\n' > "$t/claim_meta.md"
 
   expect "terminal: proper ending passes"      0 check_terminal "$t/good.md"
   expect "terminal: truncation fails"          1 check_terminal "$t/trunc.md"
@@ -211,8 +227,12 @@ self_test() {
   expect "index: newer entry fails"            1 check_index "$t/stale.md"
   expect "ngrams: shared shingle fails"        1 check_ngrams "$t/ng1.md" "$t/ng2.md"
   expect "ngrams: no shared shingle passes"    0 check_ngrams "$t/ng1.md" "$t/ng3.md"
+  expect "claims: qualified claim passes"      0 check_claims "$t/claim_ok.md"
+  expect "claims: no surface, no date fails"   1 check_claims "$t/claim_bare.md"
+  expect "claims: surface without date fails"  1 check_claims "$t/claim_nodate.md"
+  expect "claims: meta discussion passes"      0 check_claims "$t/claim_meta.md"
   rm -rf "$t"
-  if [ "$bad" -eq 0 ]; then echo "SELF-TEST PASSED (11 assertions)"; exit 0; fi
+  if [ "$bad" -eq 0 ]; then echo "SELF-TEST PASSED (15 assertions)"; exit 0; fi
   exit 1
 }
 
@@ -239,6 +259,13 @@ out=$(check_manifest "$MANIFEST") && ok "pointer-manifest" "all $(printf '%s\n' 
 out=$(check_index Docs/Combat-Decisions.md) && ok "index-freshness" "index current" || fail "index-freshness" "$out"
 
 out=$(check_trap_shortlist Docs/Combat-Decisions.md) && ok "trap-shortlist" "no unformatted paragraph openers" || { warn "trap-shortlist" "review these openers:"; printf '%s\n' "$out"; }
+
+# Scoped to the docs where tooling-capability claims live. Combat-Spec's "cannot" is gameplay
+# language and the decision log's is code behaviour; neither is a claim about a scripting surface.
+out=$(check_claims CLAUDE.md Docs/Working-In-Unreal.md Docs/Debug-Instruments.md \
+        Docs/Anim-Pipeline.md Docs/Animation-Library.md) \
+  && ok "claim-qualification" "every capability claim names a surface and a date" \
+  || { fail "claim-qualification" "unqualified capability claims:"; printf '%s\n' "$out"; }
 
 out=$(check_ngrams CLAUDE.md Docs/Working-In-Unreal.md) && ok "always-read-dup" "no shared 10-grams" || fail "always-read-dup" "$out"
 

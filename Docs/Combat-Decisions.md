@@ -1628,6 +1628,57 @@ long.
 | `compositeSections` | 08-15, 08-18 |
 | `gEComponents` | 08-10, 08-11 |
 
+## 2026-08-27 — The unqualified capability claim becomes a build failure
+
+**The designer's ruling, after three waves of refutations in one session**: *"documentation drift
+corrupts planning, which is inefficient at best and sabotages at worst"* — and the docs were
+*"well-documented misinformation, which is maximally harmful."* The instruction was to exterminate
+the pattern within the session rather than file it.
+
+### What the pattern actually was
+
+Not wrong facts. **Claims that omit which surface was tried and when.** An MCP-only result reads
+identically to one tested across MCP, editor Python and C++, so nothing invites a re-test and the
+claim hardens into a constraint. Every instance today had that shape, and in each case the
+refutation was already in the repo.
+
+### The mechanism: `Tools/DocsCheck/claim-scan.pl`, wired as a FAIL
+
+A block is shortlisted when it carries an absence phrase, names a **callable**, and lacks either a
+surface word or an ISO date. **A FAIL rather than a WARN, deliberately** — a warning is what the
+old marks already were, and they were ignored for a fortnight. The backlog was cleared first so it
+starts green; anything new breaks the build.
+
+**Three "no surface reaches this" categories satisfy it** — `engine behaviour`, `fixture behaviour`,
+`machine fact`. Declaring one is a complete answer to *which surface*, because it tells the reader
+not to hunt a wider one, and the date still dates it.
+
+**Scope is the tooling docs**, not everything. `Combat-Spec`'s *"cannot"* is a gameplay rule and the
+decision log's is code behaviour; neither is a claim about a scripting surface, and including them
+produced 51 hits of which almost none were actionable. **The archive is excluded on principle too**:
+entries are append-only and each already sits under a dated header, which is what `--working-only`
+exists for.
+
+### What it does not catch, stated so nobody trusts it further than it goes
+
+**A capability claim phrased without a callable slips through**, and so does a wrong claim that
+carries a surface and a date. This check enforces *form*, not truth — it guarantees a reader can
+see what was tested and when, which is exactly what was missing, and nothing more. **It is a
+heuristic with false negatives**, and calling it complete would be the pattern wearing a new hat.
+
+### Two things the build caught while being built
+
+`docs-check`'s manifest failed because the scanner escapes the space in `engine\ behaviour` under
+`/x`, so the literal phrase the doc promises was absent from the file — **the cross-file pointer
+check working exactly as designed**. And an apostrophe in a manifest row terminated the
+single-quoted string and broke the script, which `bash -n` caught in one call.
+
+### The header rung, added to the three-surface table
+
+The table priced C++ at *"a rebuild"*, which is true of using it and false of asking whether it
+would work. **Reading the engine's headers is free and settles most C++ questions** — it is how
+three claims fell today. It is now a row of its own, because the rung people skip is the cheap one.
+
 ## 2026-08-27 — The limit sweep finishes: five walls fall, five hold, and the marks were the real defect
 
 **Why it ran.** The Polish brief claimed one of the two stun tells still needed building and supplied

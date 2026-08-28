@@ -36,7 +36,22 @@ walls in one session, and it is now the operating assumption. The findings are i
 |---|---|---|
 | **MCP toolset** | whatever a tool wraps | free; narrowest, and resolves objects by name |
 | **Editor Python** | the whole reflection surface, plus `BlueprintCallable` and non-reflected Python methods | free; cannot obtain some handles |
+| **The engine's headers** | whether C++ *would* lift it, and the exact symbol | free; answers the question without answering the need |
 | **C++ in `TheDreamEditor`** | everything the engine exports | a rebuild, and engine-version coupling |
+
+**The header row is the one people skip, and it is the cheap one.** At the C++ surface the probe
+*is* the build — there is no introspection call — so the question *"would C++ lift this?"* looks
+expensive and gets deferred forever. Reading the header answers it for the cost of a grep:
+`grep -rn SymbolName "/c/Program Files (x86)/UE_5.8/Engine/Source"`, and an `ENGINE_API`,
+`UNREALED_API`, `ANIMGRAPH_API` or `UE_API` on a public member settles it. **Record the symbol and
+stop**; build only when a slice needs it.
+
+**Every capability claim names a surface and a date, and `docs-check` fails without them.** A claim
+that something cannot be done is safe only when the reader can see *which surface was tried* and
+*when* — otherwise an MCP-only result reads identically to one tested everywhere, and nothing
+invites a re-test. `Tools/DocsCheck/claim-scan.pl` shortlists the offenders; if the honest answer is
+that no surface is involved, say **engine behaviour**, **fixture behaviour** or **machine fact**,
+which is a complete answer and still carries its date.
 
 **Three causes recur, and each predicts which surface wins.** Learn the tells:
 
@@ -92,8 +107,10 @@ the connection can drop and re-establish. So closing the editor for a rebuild is
 without one is not. If asset writes are needed, confirm the tools respond before promising any.
 
 **Diff the registry against `Docs/Toolset-Snapshot.tsv`** — one `list_toolsets` call. A new row
-means the surface grew and this file's limits deserve re-reading. **Toolset-level only**: it cannot
-see a new tool inside an existing toolset, which is the price of staying cheap enough to maintain.
+means the surface grew and this file's limits deserve re-reading. **Toolset-level only** *(MCP,
+2026-08-27)*: the snapshot cannot see a new tool inside an existing toolset, which is the price of
+staying cheap enough to maintain. `describe_toolset` does enumerate a toolset's tools, so
+tool-level diffing is available when a question needs it — it is simply not what this file stores.
 
 ---
 
@@ -132,7 +149,8 @@ dialog nobody is there to answer *(bit 2026-08-24)*; declining restore is alread
 the user working in a dying editor. Announce and proceed in the same turn; opening needs no
 announcement.
 
-**Process up is not ready.** The port can listen while the engine boots and a call in that window
+**Process up is not ready** *(MCP, confirmed 2026-08-27 — an editor started this session answered
+only after several seconds)*. The port can listen while the engine boots and a call in that window
 fails with `Unable to connect`; the only reliable signal is **an MCP call returning a result**.
 Poll `SceneTools.get_current_level` rather than sleeping — a blind wait is wrong in both directions.
 
@@ -225,7 +243,9 @@ filter did not match — and here the filter did not even run.
 a quoted heredoc died with a shell parse error mid-content, while the same content in ~5 KB
 appended chunks wrote cleanly. Write large files in chunks and read the line count back.
 
-`Build.bat` cannot be called from Git Bash — the space in `Program Files (x86)` survives every
+`Build.bat` cannot be called from Git Bash *(Bash, 2026-08-19; not re-tested since — it is a
+quoting fact about the shell rather than a claim about the engine)* — the space in
+`Program Files (x86)` survives every
 quoting form. Call UnrealBuildTool directly, with the **bundled** dotnet (the system one tops out at
 .NET 9; UBT needs 10). **The CWD matters** — UBT must run from `Engine/Source`:
 
@@ -422,7 +442,8 @@ type** — a broken one usually looks fine alone.
   what makes it unmistakable — there was nothing to inherit from. **Read the placed actor after any
   CDO write, not just the CDO**, and expect to set it explicitly.
 - **A placed actor can hold stale `EditDefaultsOnly` values that silently override its Blueprint**
-  *(confirmed 2026-08-10)*. The placed dummy read `DefaultAbilities: []` against a populated CDO and
+  *(reflection and MCP, confirmed 2026-08-10; the detection half lifted 2026-08-27)*. The placed
+  dummy read `DefaultAbilities: []` against a populated CDO and
   was granted nothing. The signature is the instance showing **C++ class defaults** — it was placed
   before the Blueprint authored them. `reset_properties` fails on exactly those names while
   succeeding on `EditAnywhere` ones, which is the cheapest confirmation; `set_properties` refuses
@@ -466,8 +487,11 @@ second scripting surface into the editor, wider than the toolsets — **every li
 *(toolset)* is a candidate to be lifted through it**, and one marked *(inherited)* was never tested
 against anything.
 
-**`ProgrammaticToolset` is not that surface** *(confirmed 2026-08-22)* — its sandbox refuses
-`import unreal`; six stdlib modules only.
+**`ProgrammaticToolset` is not that surface** *(MCP, confirmed 2026-08-22, re-confirmed 2026-08-27)*
+— its sandbox refuses `import unreal` and allows exactly
+`{math, datetime, re, time, json, copy}`. **A sandbox policy, not an API limit**: editor Python
+reaches everything it does not, so this never falls to a wider surface — it falls to using the
+right one.
 
 Needs a human in the editor — **shorter than it was, and every removal below was a surface confusion
 rather than an engine limit** *(swept 2026-08-24)*:
@@ -663,7 +687,7 @@ is how a node is spliced into a running chain without one. `read_graph_dsl` retu
 connections both ways. Change a node by a **partial** write to its `Node` struct; a full write
 clobbers pin-backed fields. `describe_toolset` on it is too large to return — grep a saved dump.
 
-**Creating a Blueprint asset *is* scriptable, and the wall was never real** *(2026-08-18)*.
+**Creating a Blueprint asset *is* scriptable, and the wall was never real** *(MCP, 2026-08-18)*.
 `BlueprintTools.create` takes `folder_path`, `asset_name` and an `asset_type` class reference and
 returns the new Blueprint — `GA_Parry` was made from `/Script/TheDream.TDParryAbility` that way,
 inheriting every C++ default correctly. `set_parent` and `get_parent` reparent an existing one. This
@@ -674,7 +698,8 @@ What hid it: the snapshot recorded *"describe_toolset too large to return"* for 
 which is a fact about the **description** and says nothing about the capability. The absence was
 inherited rather than measured — see the enumeration recipe at the top of this section.
 
-**`add_variable` does not make a variable live; compiling does** *(confirmed 2026-08-15)*. It
+**`add_variable` does not make a variable live; compiling does** *(MCP and Python alike, confirmed
+2026-08-15 — it is the Blueprint's commit path, not the caller's surface, that is missing)*. It
 returns null either way, and the new property is unreadable on the CDO until `compile_blueprint`
 runs — which reads exactly like the write having failed.
 

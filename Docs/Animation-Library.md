@@ -504,7 +504,8 @@ checked later and say so.
   better target "since they are animated as part of the rig". That advice fails twice:
 
   1. Those bones are **absent from Epic's `SKM_Manny_Simple`**, which is what this project's
-     character used. `SetupAttachment` given a name it cannot resolve falls back silently to
+     character used *(engine behaviour, confirmed 2026-08-11 — no scripting surface changes it)*.
+     `SetupAttachment` given a name it cannot resolve falls back silently to
      the component root, putting both props at the character's midriff with no warning at all.
   2. Only GDH clips animate them, so under any Epic animation they sit at reference pose — the
      props were correct during a dodge and nonsense at every other moment. `hand_r` / `hand_l`
