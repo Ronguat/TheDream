@@ -839,7 +839,8 @@ void ATDCombatCharacter::OnRep_Blockstun()
 	}
 }
 
-float ATDCombatCharacter::ComputeTellTime(float StartTime, float SpanSeconds, float PortionSeconds) const
+float ATDCombatCharacter::ComputeTellTime(float StartTime, float SpanSeconds, float PortionSeconds,
+	const UCurveFloat* PacingCurve) const
 {
 	const UWorld* World = GetWorld();
 	if (!World || SpanSeconds <= 0.0f)
@@ -848,12 +849,19 @@ float ATDCombatCharacter::ComputeTellTime(float StartTime, float SpanSeconds, fl
 	}
 
 	const float Progress = FMath::Clamp((World->GetTimeSeconds() - StartTime) / SpanSeconds, 0.0f, 1.0f);
-	return Progress * PortionSeconds;
+
+	// The curve remaps progress through the *portion*, never past it: the portion is still the
+	// whole span the tell may use, and a curve leaving 0..1 would run the playhead off the clip.
+	const float Mapped = PacingCurve
+		? FMath::Clamp(PacingCurve->GetFloatValue(Progress), 0.0f, 1.0f)
+		: Progress;
+	return Mapped * PortionSeconds;
 }
 
 float ATDCombatCharacter::GetHitstunTellTime() const
 {
-	return ComputeTellTime(HitstunTellStartTime, HitstunTellSpanSeconds, HitstunTellPortionSeconds);
+	return ComputeTellTime(HitstunTellStartTime, HitstunTellSpanSeconds, HitstunTellPortionSeconds,
+		HitstunTellPacingCurve);
 }
 
 float ATDCombatCharacter::GetBlockstunTellTime() const

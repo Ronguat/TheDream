@@ -830,6 +830,21 @@ protected:
 	float HitstunTellPortionSeconds = 0.684f;
 
 	/**
+	 *  Optional pacing for the hitstun tell's playhead. **A time-mapping curve**: normalised stun
+	 *  progress in, normalised clip progress out, monotonic 0 to 1. Null is linear.
+	 *
+	 *  Linear scales the whole portion by one factor, so the stagger's stepping cannot play at its
+	 *  own speed unless the absorb before it does too -- and stepping played fast is feet skating.
+	 *  A curve buys the stepping natural speed by compressing the absorb.
+	 *
+	 *  **C_KnockbackPacing is derived against this.** The carry is paced by the clip's travel in
+	 *  *wall* time, so changing this changes when that travel happens and the carry must be
+	 *  regenerated -- Tools/AnimPipeline/ue_knockback_curve.py reads both.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Stun")
+	TObjectPtr<UCurveFloat> HitstunTellPacingCurve;
+
+	/**
 	 *  Blockstun's equivalent. Its clip settles at 0.485 s before rising back into the guard, so
 	 *  the tell ends on that trough and the return-to-guard tail goes unplayed.
 	 */
@@ -1650,7 +1665,8 @@ private:
 	void EndHitstun();
 
 	/** Shared body of the two tell getters: clamped progress across the span, scaled onto the portion. */
-	float ComputeTellTime(float StartTime, float SpanSeconds, float PortionSeconds) const;
+	float ComputeTellTime(float StartTime, float SpanSeconds, float PortionSeconds,
+		const UCurveFloat* PacingCurve = nullptr) const;
 	void ApplyHitstunState();
 	void ClearHitstunState();
 
