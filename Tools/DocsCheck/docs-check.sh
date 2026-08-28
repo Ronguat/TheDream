@@ -17,8 +17,8 @@ ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$ROOT" || exit 2
 
 STANDING_DOCS=(CLAUDE.md Docs/Combat-Spec.md Docs/Working-In-Unreal.md
-  Docs/Debug-Instruments.md Docs/Combat-Decisions.md Docs/Animation-Library.md
-  Docs/Closing-Down.md)
+  Docs/Unreal-Findings.md Docs/Debug-Instruments.md Docs/Combat-Decisions.md
+  Docs/Animation-Library.md Docs/Closing-Down.md)
 
 FAILS=0; WARNS=0
 row()  { printf '%-22s %-6s %s\n' "$1" "$2" "$3"; }
@@ -78,6 +78,9 @@ Docs/Toolset-Snapshot.tsv:::list_toolsets:::Working-In-Unreal diffs the registry
 Tools/DocsCheck/claim-scan.pl:::engine behaviour:::Working-In-Unreal names the no-surface categories the scanner must accept
 Tools/DocsCheck/claim-scan.pl:::--working-only:::the flag that excludes the append-only archive of dated entries
 Docs/Working-In-Unreal.md:::claim-scan.pl:::the method section names the scanner that enforces surface-and-date
+Docs/Working-In-Unreal.md:::Docs/Unreal-Findings.md:::the pre-read points at the lookup half it was split from
+Docs/Unreal-Findings.md:::Working-In-Unreal.md:::the lookup half points back at the pre-read that governs it
+CLAUDE.md:::Docs/Unreal-Findings.md:::the doc list carries the new file and its trigger
 '
 check_manifest() { # $1=manifest-string -> prints misses, rc 1 if any
   local bad=0 line f pat why
@@ -262,8 +265,14 @@ out=$(check_trap_shortlist Docs/Combat-Decisions.md) && ok "trap-shortlist" "no 
 
 # Scoped to the docs where tooling-capability claims live. Combat-Spec's "cannot" is gameplay
 # language and the decision log's is code behaviour; neither is a claim about a scripting surface.
+# Unreal-Findings is scanned --working-only: its dated findings are append-only and already sit
+# under dated headers, exactly as the decision log's archive does.
+claims_rc=0
 out=$(check_claims CLAUDE.md Docs/Working-In-Unreal.md Docs/Debug-Instruments.md \
-        Docs/Anim-Pipeline.md Docs/Animation-Library.md) \
+        Docs/Anim-Pipeline.md Docs/Animation-Library.md) || claims_rc=1
+out2=$(check_claims --working-only Docs/Unreal-Findings.md) || claims_rc=1
+out="$out$out2"
+[ "$claims_rc" -eq 0 ] \
   && ok "claim-qualification" "every capability claim names a surface and a date" \
   || { fail "claim-qualification" "unqualified capability claims:"; printf '%s\n' "$out"; }
 
@@ -272,7 +281,10 @@ out=$(check_ngrams CLAUDE.md Docs/Working-In-Unreal.md) && ok "always-read-dup" 
 out=$(check_trailers) && ok "trailers" "all commits since origin/main carry parsed trailers" || { warn "trailers" "confirm these are not Claude-authored:"; printf '%s\n' "$out"; }
 
 out=$(check_budget CLAUDE.md 280 "read in full every session; audit it against the closedown questions") && ok "budget" "CLAUDE.md inside backstop" || warn "budget" "$out"
-out=$(check_budget Docs/Working-In-Unreal.md 750 "growth is expected; consider subdividing along its section seams") && ok "budget" "Working-In-Unreal.md inside backstop" || warn "budget" "$out"
+# Lowered from 750 when the lookup half moved to Unreal-Findings.md. This file's whole instruction
+# is "read front to back", so the backstop is what keeps that instruction honest rather than
+# aspirational; findings growth belongs in Unreal-Findings.md, which is deliberately unbudgeted.
+out=$(check_budget Docs/Working-In-Unreal.md 600 "the lookup half belongs in Docs/Unreal-Findings.md, not here") && ok "budget" "Working-In-Unreal.md inside backstop" || warn "budget" "$out"
 
 echo
 if [ "$FAILS" -gt 0 ]; then echo "RESULT: $FAILS FAIL, $WARNS WARN"; exit 1; fi

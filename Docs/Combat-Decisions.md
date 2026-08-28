@@ -1256,7 +1256,7 @@ concludes the log is wrong rather than merely old. Add a row whenever a name cha
 
 | Entries say | Code now |
 |---|---|
-| **Not scriptable at all** (`Working-In-Unreal.md` section) | **What is and is not scriptable** — retitled because most of the section refutes limits rather than asserting them. |
+| **Not scriptable at all** (`Working-In-Unreal.md` section) | **What is and is not scriptable** — retitled because most of the section refutes limits rather than asserting them, then **moved wholesale to `Docs/Unreal-Findings.md` on 2026-08-27** when the lookup half was split from the pre-read. |
 | **the derived parry reward** — “rides their own attack into recovery” | **`State.ParryLockout`, with `ParryLockoutSeconds` authored per branch and per swing.** The derivation retired 2026-08-20: a catch only lands once the hitbox is live, so the windup always cancelled out and what remained was `Release + Recovery`. Entries before that date describe the derived model as current. |
 | **`State.ParryLockout` “reserved, unused”** | **Live since Knockdown's sub-slice E** — the tenth replicated family member, inflicted on an attacker who has been parried, refusing everything and taking the full movement lock. Entries up to 2026-08-19 describe it as held in reserve. |
 | **`Docs/Plan-Knockdown.md`** | **Gone, and its contents split three ways** — deleted on delivery 2026-08-24 as it always said it would be. The mechanics are `Docs/Combat-Spec.md`'s Stun & Knockdown section; the reasoning stayed in this file's dated entries all along; the one ruling that existed nowhere else — the dodge roll's unbuilt yaw-snap — was rehomed to the traps above before deletion. Entries citing it by sub-slice letter are describing a file that no longer exists. |
@@ -1628,197 +1628,59 @@ long.
 | `compositeSections` | 08-15, 08-18 |
 | `gEComponents` | 08-10, 08-11 |
 
-## 2026-08-27 — The unqualified capability claim becomes a build failure
+## 2026-08-27 — Working-In-Unreal splits, and the revisions were the thing making it unreadable
 
-**The designer's ruling, after three waves of refutations in one session**: *"documentation drift
-corrupts planning, which is inefficient at best and sabotages at worst"* — and the docs were
-*"well-documented misinformation, which is maximally harmful."* The instruction was to exterminate
-the pattern within the session rather than file it.
+**Two questions from the designer settled this, and the second is the sharper one.** First: should
+the split be an archive file plus a pre-read? Yes. Second: *"why is all of the information we've
+corrected formatted as revisions? Why not just delete the no longer relevant limitations outright
+and save us the wasted tokens?"*
 
-### What the pattern actually was
+### The revisions had no defence, and the reason they existed had expired
 
-Not wrong facts. **Claims that omit which surface was tried and when.** An MCP-only result reads
-identically to one tested across MCP, editor Python and C++, so nothing invites a re-test and the
-claim hardens into a constraint. Every instance today had that shape, and in each case the
-refutation was already in the repo.
+Two reasons at the time. `CLAUDE.md`'s *"do not delete lines you did not write without asking"* —
+legitimate for an unasked pass, spent the moment the question was asked. And the decision log's
+**supersede-never-rewrite** ethos, which was **over-applied**: that rule governs the dated archive,
+where an entry is a historical record. A working file is kept *true*, not annotated.
 
-### The mechanism: `Tools/DocsCheck/claim-scan.pl`, wired as a FAIL
+**The decisive fact is that the history was already recorded.** Every refutation from the day sat in
+this log as a dated entry, so the revision text in the pre-read was a second copy — the exact thing
+*"one fact, one home"* forbids, sitting in the file least able to afford the words. **The audit had
+made that file more accurate and less readable at the same time**, 760 to 836 lines, which was the
+wrong trade and was invisible until someone asked why.
 
-A block is shortlisted when it carries an absence phrase, names a **callable**, and lacks either a
-surface word or an ISO date. **A FAIL rather than a WARN, deliberately** — a warning is what the
-old marks already were, and they were ignored for a fortnight. The backlog was cleared first so it
-starts green; anything new breaks the build.
+### What survives a deletion, and what does not
 
-**Three "no surface reaches this" categories satisfy it** — `engine behaviour`, `fixture behaviour`,
-`machine fact`. Declaring one is a complete answer to *which surface*, because it tells the reader
-not to hunt a wider one, and the date still dates it.
+**A routing fact survives, stated positively**: *"Python sets cvars via `execute_console_command`"*
+carries the same information as *"the console was thought to be the only route, refuted"* in a third
+of the words. **The verdict framing does not.** Nor does the old claim being refuted — its only
+reader is someone checking whether we changed our minds, and that reader is in the archive already.
+**The surface-and-date stamp stays**, because the build fails without it.
 
-**Scope is the tooling docs**, not everything. `Combat-Spec`'s *"cannot"* is a gameplay rule and the
-decision log's is code behaviour; neither is a claim about a scripting surface, and including them
-produced 51 hits of which almost none were actionable. **The archive is excluded on principle too**:
-entries are append-only and each already sits under a dated header, which is what `--working-only`
-exists for.
+### The shape
 
-### What it does not catch, stated so nobody trusts it further than it goes
+| | Contents | Trigger |
+|---|---|---|
+| `Working-In-Unreal.md` | present-tense truth; what fails silently and so must be in your head | before engine work — and now sized to be read whole |
+| `Docs/Unreal-Findings.md` | the capability register, plus dated findings behind each answer | about to conclude something cannot be done |
 
-**A capability claim phrased without a callable slips through**, and so does a wrong claim that
-carries a surface and a date. This check enforces *form*, not truth — it guarantees a reader can
-see what was tested and when, which is exactly what was missing, and nothing more. **It is a
-heuristic with false negatives**, and calling it complete would be the pattern wearing a new hat.
+**836 to 554 lines**, a third gone, split between the 282-line register moving out and the revisions
+being deleted rather than kept. The backstop dropped 750 to 600 in the same edit: **that file's whole
+instruction is "read front to back", and a budget is what keeps the instruction honest.**
+Unreal-Findings is deliberately unbudgeted, because a register is supposed to grow.
 
-### Two things the build caught while being built
+**A new file rather than leaving tooling history here: the trigger.** This log's is *"making a
+gameplay choice, or picking up a slice"*, which never fires when someone hits a wall — so the day's
+tooling entries were squatting. Older ones stayed put, since entries are append-only and rows
+already point at their dates; a bridge table in the new file names them.
 
-`docs-check`'s manifest failed because the scanner escapes the space in `engine\ behaviour` under
-`/x`, so the literal phrase the doc promises was absent from the file — **the cross-file pointer
-check working exactly as designed**. And an apostrophe in a manifest row terminated the
-single-quoted string and broke the script, which `bash -n` caught in one call.
+### The risk this takes on, named rather than discovered later
 
-### The header rung, added to the three-surface table
-
-The table priced C++ at *"a rebuild"*, which is true of using it and false of asking whether it
-would work. **Reading the engine's headers is free and settles most C++ questions** — it is how
-three claims fell today. It is now a row of its own, because the rung people skip is the cheap one.
-
-## 2026-08-27 — The limit sweep finishes: five walls fall, five hold, and the marks were the real defect
-
-**Why it ran.** The Polish brief claimed one of the two stun tells still needed building and supplied
-instructions for building it; the state had shipped 2026-08-15. Chasing that back showed the
-2026-08-24 sweep had covered exactly one list — *"needs a human in the editor"* — leaving every other
-recorded limit dated against an MCP-only workflow with nothing marking it as such. **The designer's
-ruling: documentation drift corrupts planning, and that is not a price this project pays for speed.**
-
-### Method
-
-The three surfaces in the file's own order, driven through `Tools/AnimPipeline/run-in-editor.py` —
-the editor's remote-execution pipe, and a far cheaper Python route than the Slate Cmd box the docs
-lead with. Instrument proved first: `get_engine_version()` returned 5.8.1.
-
-### What fell, and what held
-
-| Claim | Verdict |
-|---|---|
-| *"There is no graceful quit"* | **Refuted** — `SystemLibrary.quit_editor` exists. Present, **not yet exercised** |
-| *"The console is the only console route; `EditorAppToolset` cannot set a cvar"* | **Refuted** — `execute_console_command` sets one; `TD.DebugCombatTiming` 1 → 0 → 1 |
-| *"The GAS inspector returns names only"* | **Refuted** — the ASC answers `get_all_abilities`, `activatable_abilities`, `find_all_abilities_with_tags` |
-| *"The toolset cannot read a montage's notifies"* | **Refuted** — `AnimationLibrary`; `AM_Attack` reads one event, `MeleeWindow` |
-| *"No scriptable equivalent of the revert arrow"* | **Refuted for detection** — `is_editor_property_overridden` |
-| *"Transition direction is unreadable from Python or MCP"* | **Held** |
-| *"`EdGraph.Nodes` refuses reflection"* | **Held** |
-| *"`ProgrammaticToolset` refuses `import unreal`"* | **Held** — six stdlib modules |
-| *"The attribute set cannot be written"* | **Held at two surfaces** — `AbilitySystemLibrary` has 132 members and only getters; C++ `SetNumericAttributeBase` untested |
-| *"No usable Python on PATH"* | **Held** — hit again this session |
-
-**Five of ten, not ten of ten.** The prediction going in was that every one would fall. Half is the
-honest rate, and the surface-independent rules — *only play confirms an asset with a build step* —
-were never at risk. **A selected sample refutes at a higher rate than a full pass**, which is what
-8-for-8 on 2026-08-24 was.
-
-### Two test-design errors worth copying
-
-**Four probes returned nothing because the address was wrong, not because the capability was
-absent** — a guessed API name where the real one differed, and the Blueprint asset where the CDO was
-wanted. Each looked exactly like a wall.
-
-**`is_editor_property_overridden` returns an enum whose every member is truthy.** Tested with
-`if r:` it reported every name probed as overridden, including method names; compared against
-`EditorPropertyValueState.OVERRIDDEN` it reports none, which is the true answer for both training
-dummies and both PlayerStarts across nine combat properties. **A test that cannot return "no" is not
-a test** — the same shape as a checker that cannot fail.
-
-### What the marks were actually hiding
-
-Only **7 `(toolset)` marks** existed against roughly 76 dated claims, and both of the two that were
-real claims had already been converted to routing facts. Everything else asserted a limit while
-saying nothing about the surface it was measured on, so an MCP-only measurement read identically to
-one tested everywhere. **That silence, not any single claim, is what let a wrong limit sit inert** —
-and it is why the fix is a required surface field rather than a caveat.
-
-### The C++ surface was settled by reading headers, not by building
-
-**Asked the same day: should the five that held be probed via C++?** Mostly no, and the reason is
-the asymmetry this file already states. **At the C++ surface the probe *is* the build** — there is no
-introspection call, only new code in `TheDreamEditor` and a rebuild. But **reading the engine's
-headers is free and decisive**, which is how the 2026-08-24 sweep established `UEdGraph::Nodes` and
-`PerformAction`. Two of the five were ever C++ questions, and both fell to a grep:
-
-| | |
-|---|---|
-| `UAbilitySystemComponent::SetNumericAttributeBase` | public `UE_API`, `AbilitySystemComponent.h:233` |
-| `UAnimStateTransitionNode::GetPreviousState` / `GetNextState` | public `ANIMGRAPH_API`, `AnimStateTransitionNode.h:175-176` |
-
-**Neither was built**, per the standing economics. Both are now routing facts naming the exact
-symbol, which is what a dead limit should decay into.
-
-**The other three are closed for reasons C++ does not touch**, and saying so stops them being
-re-probed: `ProgrammaticToolset`'s sandbox is a policy in the MCP plugin rather than an API limit;
-"no usable Python on PATH" is a machine fact; and `EdGraph::Nodes` was already lifted at C++ by
-`UTDStateMachineTools`. **Header reconnaissance is the cheap third check** the three-surface table
-was missing — it costs a grep and it dates a limit properly.
-
-### Second wave: scanning for what is still phrased as impossible
-
-**Asked after the first pass: are any claims left that state something as not possible?** The scan
-was `grep -rn -i -E "impossible|no way to|there is no |nothing can |not possible|cannot be
-(read|written|saved|set|created|done|reached)" Docs/ CLAUDE.md`. Most hits are design statements or
-engine facts. Six were surface claims, and **five fell**:
-
-| Claim | Verdict |
-|---|---|
-| *"There is no discovery call"* for dirty assets | **Refuted** — `get_dirty_content_packages` / `get_dirty_map_packages` / `save_dirty_packages`. **The bullet four lines above it already used one** |
-| *"There is no disconnect function"* in `BlueprintTools` | **Refuted** — `break_pins` is in the live schema, taking two `PinID`s |
-| *"There is no clipboard or graph-text route anywhere in the API"* | **Refuted** — `FEdGraphUtilities::ExportNodesToText` / `ImportNodesFromText` / `CanImportNodesFromText`, all `UNREALED_API`, `EdGraphUtilities.h:110-127` |
-| *"Inline tag containers ... read back empty"* | **Refuted for reading** — off the CDO they return real `InheritedTagContainer` / `GameplayTagRequirements` structs; the Blueprint was the wrong address. Writing still untested |
-| *"Python is the only candidate route [for IK Rig] and is untested"* | **Refuted** — 129 `IKRig`/`IKRetarget` classes exposed |
-| *"Nothing can navigate to a state graph's interior"* | **Held** — `open_editor_for_assets` opens the asset; nothing focuses a nested graph |
-
-**Two of those contradicted material inside their own file**, which is the finding that matters more
-than any of them. *"There is no discovery call"* sits four lines below a bullet that calls
-`get_dirty_content_packages()`; *"there is no disconnect function"* sits beside a tool list that
-ships `break_pins`. **Neither needed a test — only a reading.** Both survived because the enumeration
-that produced them was of one toolset at one moment, and nothing re-reads a claim once it is
-prose.
-
-**The pattern across both waves: an absolute phrased without a surface is the failure mode**, not
-any particular wrong fact. *"There is no X"* invites no re-test; *"the MCP layer has no X, Python
-does"* dates itself and routes the reader.
-
-### Third wave: the one I called held was the one I tested wrong
-
-**The designer pushed back on the single survivor** — *"things can indeed navigate to a state graph's
-interior, because a previous session authored the interior of the locomotion state machine using
-C++."* Correct, and the pushback landed on a claim I had just re-tested and marked **held**. My test
-checked Python only, one paragraph after this same entry argued that header reconnaissance is the
-cheap third check. **Applying a method and skipping it in the next breath is its own failure mode.**
-
-Refuted properly: `FKismetEditorUtilities::BringKismetToFocusAttentionOnObject` is `UNREALED_API`
-(`KismetEditorUtilities.h:442`), and `FBlueprintEditor` carries `OpenGraphAndBringToFront`,
-`JumpToHyperlink` and `JumpToPin` (`BlueprintEditor.h:260-265`).
-
-**Then the neighbour, which is the worse one.** Fifteen lines above sat *"Not yet proven: populating
-interiors — a `SequencePlayer` into a state, a rule into a transition — and nothing built this way
-has driven a mesh in PIE."* Commit `1391d54`, **the same day that sentence was written**, created
-the hitstun state's sequence player on `AS_SwordSwordAnimV3_Hit_Fw_RM` and three transition rules
-entirely through `UTDStateMachineTools`, taking the machine 15 nodes to 19; the flinch was judged
-legible in play on 2026-08-25. **Both halves of the caveat were false, one of them within hours.**
-
-### The count, and what it says
-
-Across three waves: **fourteen surface claims tested, twelve refuted, two held** — state-graph
-navigation moved from held to refuted, leaving *"writing inline tag containers"* and *"no direct
-attribute-base setter below C++"* as the only survivors. **The first pass' five-of-ten estimate was
-too generous to the docs**, and the correction came from the designer's memory of what a past
-session had actually built rather than from any search of mine.
-
-**Every one of the three waves ended the same way**: the refutation was already inside the repo —
-four lines below, in the same tool list, or in that day's own commit message. **The scarce resource
-is not testing but re-reading**, and the standing rule that follows is the one this entry exists
-for: *a claim about a surface must name the surface, and a claim that something was not proven must
-name the date it was last checked.*
-
-### Still untested, and not blocking
-
-Client-world reach under PIE, and whether a state graph's interior can be navigated for capture.
-Both need a running PIE session.
+**Two files on one subject is the shape of the cross-doc contradiction trap filed this morning**, and
+nothing mechanical compares them. Mitigations: the pre-read states no capability answers at all, only
+where they live; four manifest rows bind the two files and `CLAUDE.md` to each other; and the
+claim-qualification check runs over both. **None of that catches a contradiction** — it catches a
+broken pointer. The honest position is that the split trades one known failure for a smaller
+unproven one.
 
 ## 2026-08-25 — The knockdown fall parks at 0.6, and the rest is filed rather than chased
 

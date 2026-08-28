@@ -77,9 +77,12 @@ wrong.
 
 - **`Docs/Combat-Spec.md`** — timings, costs, windows, volumes, state transitions. *Trigger: about
   to change how combat behaves.*
-- **`Docs/Working-In-Unreal.md`** — driving the editor and its MCP toolset without losing work.
-  Nearly everything in it **fails silently**, so it only helps if already in your head. *Trigger:
-  before planning or executing work that touches the engine.*
+- **`Docs/Working-In-Unreal.md`** — driving the editor without losing work. Nearly everything in it
+  **fails silently**, so it only helps if already in your head, and it is sized to be read whole.
+  *Trigger: before planning or executing work that touches the engine.*
+- **`Docs/Unreal-Findings.md`** — what each surface reaches, per capability, with the dated findings
+  behind each answer. Consulted with a question, never read front to back. *Trigger: about to
+  conclude something cannot be done, or about to record that it cannot.*
 - **`Docs/Debug-Instruments.md`** — trace tags, cvars, the fixtures and the configurations that
   silently invalidate them, the scenario matrix, the verification checklist. *Trigger: about to
   measure something in combat.*

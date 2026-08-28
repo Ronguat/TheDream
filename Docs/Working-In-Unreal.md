@@ -13,7 +13,7 @@ unreproduced incident; ***(inherited)* means nobody has observed it** — record
 message, a snapshot, or an assumption, and indistinguishable from a confirmed claim without this
 mark. Never promote a mark without re-observing the behaviour, and never by repetition.
 
-***(toolset)* narrows a limit to the MCP surface.** Python is a wider one — see the scriptable
+***(toolset)* narrows a limit to the MCP surface.** Python is a wider one — see `Docs/Unreal-Findings.md`
 section — so a `(toolset)` wall is a claim about what these tools reach, not about the engine.
 
 **An undated mark predates the dating convention**; seven remain, in the oldest material.
@@ -131,11 +131,9 @@ needs a restart and is safe, and a write that was never saved is already gone. B
 from inside the editor. `git status` is the only thing that separates them and it must happen
 *before* the kill.
 
-**The MCP registry has no quit tool; Python does** *(refuted 2026-08-27)*.
-`unreal.SystemLibrary.quit_editor()` exists, so "closing is always a forced kill" was a claim about
-one surface. **The API is confirmed present and has not been exercised** — `taskkill` remains what
-this project has actually used. **Saving covers assets only** either way: in-progress asset-editor
-state dies unasked.
+**Closing: `taskkill` is what this project uses; `unreal.SystemLibrary.quit_editor()` is the
+graceful route** *(Python, 2026-08-27 — present, never exercised here)*. The MCP registry carries no
+quit tool. **Saving covers assets only** either way: in-progress asset-editor state dies unasked.
 `Saved/Autosaves/PackageRestoreData.json` reading `Packages: []` confirms nothing was stranded;
 **`Packages` is the field that matters, not `RestoreEnabled`**, which is not a stable signal.
 **Read it only against a closed editor**: a running one populates it by autosaving a dirty package,
@@ -188,10 +186,9 @@ on someone's screen is startling in a way a file edit is not — the surface is 
 moving without warning. This is the one toolset where the user watches it happen. **Greenlit
 execution is exempt**: it was agreed in advance, and hesitating there is the failure, not the care.
 
-**Slate does not reach the game, but Enhanced Input does** *(the Slate half confirmed 2026-08-15;
-the general claim refuted 2026-08-24)*. `PressKey` delivers to the focused **accessible** widget and
-the PIE viewport is absent from the accessibility tree, in-viewport and floating alike — that part
-stands. **What was wrong is the conclusion drawn from it.** Enhanced Input ships
+**Slate does not reach the game, but Enhanced Input does** *(Slate, confirmed 2026-08-15; the
+injection route, 2026-08-24)*. `PressKey` delivers to the focused **accessible** widget and the PIE
+viewport is absent from the accessibility tree, in-viewport and floating alike. Enhanced Input ships
 `InjectInputForAction` and `StartContinuousInputInjectionForAction` as `BlueprintCallable`, so
 synthetic gameplay input exists; what blocked it is that both live on a **local player subsystem**,
 and Python exposes only `get_editor_subsystem` and `get_engine_subsystem`. **The API was reachable
@@ -227,7 +224,7 @@ handled *(reported once)* — a convenience that can cost you the editor, not th
 **"Bash cannot do this" is nearly always wrong, and believing it is what breaks the rule.** There is
 **no usable Python on PATH** *(machine fact, hit twice)* — `command -v` finds three WindowsApps
 aliases that print an install prompt when run, so the check reads as though an interpreter is
-there. The *editor's* Python is a separate thing and does work; see the scriptable section. Git
+there. The *editor's* Python is a separate thing and does work; see `Docs/Unreal-Findings.md`. Git
 Bash ships `base64`, `reg`, `xxd`, `certutil` and `curl`. Check for the binary before concluding
 otherwise.
 
@@ -298,10 +295,9 @@ several distinct ways:
   the old length and the engine dies on evaluation with
   `Array index out of bounds: 16 into an array of size 16`. **Never change a BlendSpace's sample
   count by reflection write** — the editor rebuilds the triangulation as part of the operation and a
-  property write does not. **It is not a human job, though** *(corrected 2026-08-24)*: `UBlendSpace`
+  property write does not. **Use the engine's own path instead** *(C++, 2026-08-24)*: `UBlendSpace`
   exposes `AddSample`, `DeleteSample`, `EditSampleValue` and `ReplaceSampleAnimation` as
-  `ENGINE_API`, which is the editor's own path. Reflection is the wrong tool here, not the wrong
-  idea.
+  `ENGINE_API`. Reflection is the wrong tool here, not the wrong idea.
 - **CDO writes are property-dependent and the CDO cannot tell you** *(2026-08-13)*. Two writes to
   `GA_Attack` seconds apart: a direct object reference did **not** reach the live instance, object
   references inside a struct array did, and both read correctly off the CDO throughout.
@@ -374,10 +370,7 @@ type** — a broken one usually looks fine alone.
   `EditorAssetLibrary.save_asset` / `save_loaded_asset` both return False. **`save_packages` takes
   package objects and never consults the registry**, which is the whole difference:
   `EditorLoadingAndSavingUtils.save_packages(list(get_dirty_content_packages()), False)` returned
-  True and the `.uasset` changed on disk. This was filed as *"cannot be saved from either
-  scripting surface, C++ is the untested third"* — **wrong on both counts**: the fourth Python
-  route was never tried, and C++ was never needed. `get_dirty_map_packages` is the same shape for
-  levels.
+  True and the `.uasset` changed on disk. `get_dirty_map_packages` is the same shape for levels.
 - **InputMappingContext** *(confirmed 2026-08-21)* — UE 5.8 reads `defaultKeyMappings.mappings`;
   top-level `mappings` reads empty on `IMC_Combat` while its input works, which is the proof.
 - **GameplayEffect modifier attribute** *(confirmed 2026-08-21, corrected)* — writing
@@ -385,13 +378,11 @@ type** — a broken one usually looks fine alone.
   it null as recorded: it **keeps the previous attribute**. Wrote `Health` on a duplicate;
   `attribute` stayed `...:Stamina` while `attributeName` read `Health`, so the effect modifies the
   old one while reading as the new — worse than an empty field. Re-pick in the details panel.
-- **A GameplayEffect's inline tag containers cannot be written *through reflection*, and they read
-  fine from the CDO** *(the read half refuted 2026-08-27)* — from Python
-  `inheritable_owned_tags_container` and `ongoing_tag_requirements` return proper
-  `InheritedTagContainer` / `GameplayTagRequirements` structs off
-  `get_default_object(bp.generated_class())`, so "read back empty" was a fact about addressing the
-  Blueprint instead of its CDO. **Writing them is still untested at that address.**
-  `inheritableOwnedTagsContainer` and `ongoingTagRequirements` accept writes and read back empty; UE
+- **A GameplayEffect's inline tag containers read from the CDO and resist reflection writes**
+  *(Python, 2026-08-27)* — address `get_default_object(bp.generated_class())` and
+  `inheritable_owned_tags_container` / `ongoing_tag_requirements` return proper
+  `InheritedTagContainer` / `GameplayTagRequirements` structs. **Addressing the Blueprint instead of
+  its CDO is what reads empty.** Writing at the CDO address is untested. UE
   5.8 moved this to `gEComponents`. Numeric properties on the same asset write fine, so a
   partially-configured effect is the likely outcome. **Adding a GEComponent is scriptable from C++**
   *(corrected 2026-08-24)* — `UGameplayEffect::GEComponents` is a public array with a header-inline
@@ -449,295 +440,22 @@ type** — a broken one usually looks fine alone.
   succeeding on `EditAnywhere` ones, which is the cheapest confirmation; `set_properties` refuses
   them too *(both confirmed 2026-08-14)*, so **delete-and-re-place is the only route**, not merely
   the tidiest. **Diff the whole instance against the CDO first, not the properties you suspect** —
-  overrides used to be the one thing nobody had a list of, and
-  `EditorAssetLibrary.is_editor_property_overridden` now enumerates them *(refuted 2026-08-27)* —
+  `EditorAssetLibrary.is_editor_property_overridden` enumerates them *(Python, 2026-08-27)* —
   and note the transform and label. Expect the
   actor's internal name to change (`_C_1` → `_C_0`), which breaks any doc naming it.
 
 ---
 
-## What is and is not scriptable
+## What each surface reaches — `Docs/Unreal-Findings.md`
 
-**Enumerate before concluding a toolset cannot do something.** `describe_toolset` overflows the
-response limit on a large toolset, and the overflow is written to a file — so grep the file for
-tool names rather than reading it:
+**The per-capability answers moved out 2026-08-27**, because they are consulted with a question in
+hand rather than read before work. *"Can I do X, and by which surface"* — montages, curves,
+BlendSpaces, state machines, GameplayEffects, notifies, screenshots, IK — lives in
+`Docs/Unreal-Findings.md`, with the dated findings behind each answer under it.
 
-```bash
-grep -o '"name":"<toolset>\.[a-z_]*"' <saved-file> | sed 's/.*\.//;s/"//' | sort -u
-```
-
-That returned 51 tools for `BlueprintTools` in one call. **A `describe_toolset` that will not fit
-is the exact condition under which a capability goes unnoticed for months.**
-
-**There is no IK Rig or IK Retargeter toolset** *(2026-08-21, read off a full `list_toolsets`
-response — `ControlRigTools` is Control Rig, a different system, and `SkeletalMeshTools` is mesh,
-bones and sockets)*. The `IKRig` plugin is enabled, so the system exists; only the MCP surface is
-missing. **Python carries the system in full** *(confirmed 2026-08-27)* — 129 `IKRig`/`IKRetarget`
-classes are exposed, so the absent toolset is a routing fact rather than a limit.
-
-**The Unreal Python API is reachable, and nothing needs installing** *(confirmed 2026-08-21)*.
-`PythonScriptPlugin` is an engine default, so it is enabled while absent from the uproject's plugin
-array — checking there reads as "not installed" and is a filtered view. `IKRig` runs its own
-`init_unreal.py` at startup, so that API is loaded too.
-
-The route is a two-step REPL: `Type` a `py` statement into the status bar's Cmd textbox with
-`submit: true`, then read what it printed with `LogsToolset.GetLogEntries` on category `LogPython`.
-`py import unreal; print(unreal.SystemLibrary.get_engine_version())` returned `5.8.1`. This is a
-second scripting surface into the editor, wider than the toolsets — **every limit marked
-*(toolset)* is a candidate to be lifted through it**, and one marked *(inherited)* was never tested
-against anything.
-
-**`ProgrammaticToolset` is not that surface** *(MCP, confirmed 2026-08-22, re-confirmed 2026-08-27)*
-— its sandbox refuses `import unreal` and allows exactly
-`{math, datetime, re, time, json, copy}`. **A sandbox policy, not an API limit**: editor Python
-reaches everything it does not, so this never falls to a wider surface — it falls to using the
-right one.
-
-Needs a human in the editor — **shorter than it was, and every removal below was a surface confusion
-rather than an engine limit** *(swept 2026-08-24)*:
-
-- **Creating levels, BlendSpaces and AnimBlueprints from scratch — refuted.** The mark was
-  *(inherited)*, meaning nobody had ever observed it, and every factory is in Python:
-  `LevelFactory`, `WorldFactory`, `BlendSpaceFactoryNew`, `BlendSpaceFactory1D`,
-  `AnimBlueprintFactory`, `AnimCompositeFactory`, `CurveFactory`. **The claim was already
-  contradicted by its own neighbour** — `Docs/Anim-Pipeline.md` creates montages with
-  `AnimMontageFactory` through `AssetTools.create_asset`, which is the same route.
-- Placing or configuring AnimNotifies *(toolset)* — `get_properties` on `AM_Attack` answers *"could
-  not be read: notifies"* *(re-tested 2026-08-19, held)*. **The toolset's limit, not the engine's**:
-  C++ reads `UAnimMontage::Notifies` (`UTDParryAbility::FindGestureTime`), and the editor's own
-  `AnimationBlueprintLibrary` — Python `unreal.AnimationLibrary` — writes and reads them:
-  `add_animation_notify_state_event(montage, track, start, duration, cls)` on any
-  `UAnimSequenceBase`; `get_animation_notify_events` with `get_anim_notify_event_trigger_time` /
-  `_duration` to read back; `add_animation_notify_track` for the track. It validates the track and
-  `0 ≤ start ≤ play length`, outers the notify to the montage, and **does not dirty the package** —
-  `modify()` dirties it; `EditorLoadingAndSavingUtils.save_packages` saves it; `git status`.
-  *(confirmed 2026-08-22: written, read back and saved on a scratch montage — not yet fired at
-  runtime.)* So the split is now **the script places it, C++ reads it, the trace line verifies
-  it** — a screenshot answers a question the game answers itself every run.
-- A montage's **`compositeSections` as a reflected property** *(toolset)* — neither readable nor
-  writable *(re-confirmed 2026-08-21)*, and `sequenceLength` is read-only and does not recompute
-  after a reflection write. **Sections themselves are not blocked** *(corrected 2026-08-24)*:
-  `get_num_sections` and `get_section_name` read them from Python, and `ENGINE_API
-  AddAnimCompositeSection(FName, float)` writes them. **`slotAnimTracks` reads back in full
-  structural detail**, not only writes whole: every segment's `animReference`, `startPos`,
-  `animStartTime`, `animEndTime` and `animPlayRate` come back *(2026-08-21)*.
-- **`UCurveFloat`'s keys — refuted from C++** *(2026-08-24; the reflection half of the 2026-08-13
-  entry stands)*. `FloatCurve` is a bare `UPROPERTY()` the reflection layer cannot see, **and it is a
-  public `FRichCurve` member**, so `AddKey` from an editor module authors keys directly. The old
-  split — *script the asset, have a human author the keys* — was a fact about reflection.
-- **BlendSpace sample removal — refuted from C++** *(2026-08-24)*. The warning that a reflection
-  write corrupts the cached triangulation is **correct and worth keeping**; what was missing is that
-  `UBlendSpace` exposes `AddSample`, `DeleteSample`, `EditSampleValue` and `ReplaceSampleAnimation`
-  as `ENGINE_API`, which is the editor's own path and rebuilds properly.
-- **Adding a GEComponent — refuted** *(2026-08-24)*. `gE_components` **reads from Python already**,
-  and `UGameplayEffect::GEComponents` is a public array with a header-inline `AddComponent<T>()`.
-
-**A montage is the exception and is ~90% scriptable** *(2026-08-15)*. `AssetTools.duplicate` clones
-one with its skeleton intact, and the segment repoints by writing **`slotAnimTracks` whole**. That
-write is **live, not a round-trip** — two montages sharing a parent rendered visibly different poses
-through `CaptureAssetImage`. What stops it is derived state: `sequenceLength` keeps the *source's*
-value, and **opening the montage recomputes it unaided**, so the human step is open-and-save.
-**Multi-section montages were never out, and the "design constraint" framing was the damage**
-*(refuted 2026-08-24)*. Sections **read from Python today** — `get_num_sections` and
-`get_section_name` on any montage, and `AM_Dodge` returns eight: `Fw FR R BR Bw BL L FL`, so the
-project has held a multi-section montage since Dodge shipped. `ENGINE_API
-AddAnimCompositeSection(FName, float)` writes them. **Filed as design rather than tooling it went
-unre-tested, and it shaped a slice plan three days later** — the rule that a limit is a measurement
-with a date bites hardest on the ones that have stopped looking like limits.
-
-**An animation asset's skeleton pointer is read-only, and the bulk route deletes things**
-*(2026-08-24, the Skeleton Merge slice)*. `Skeleton` refuses a reflection write on **`AnimSequence`,
-`AnimMontage` and `SkeletalMesh` alike**, and the anim types carry no `SetSkeleton` UFUNCTION — so
-there is **no per-asset repoint** for the clips and montages that make up most of a merge. Three
-routes exist and none generalises: `SkeletalMesh` reaches `SetSkeleton` through **`call_method`**,
-which the property itself refuses; **`AnimBlueprint.target_skeleton`** is a plain writable property;
-and **`EditorAssetLibrary.consolidate_assets(target, [sources])`** repoints every referencer at once.
-Consolidate is **per-skeleton, not per-asset** — there is no way to scope it to a subset — and it
-**deletes the sources**, leaving `ObjectRedirector`s. **It rewrites only packages already loaded**:
-4 files changed on disk against 103 referencers, the rest resolving through the redirector until
-each is loaded, `modify()`d and saved. There is **no `FixupReferencers`** on `AssetTools` or
-`EditorAssetLibrary`; load-and-re-save is the fixup. **Referencer counts stay stale until
-`scan_paths_synchronous(force_rescan=True)`**, and read wrong long after the files are right —
-`git status` is the check, not the registry.
-
-**Duplication carries the source's notifies — the *rule* stands, the blindness does not**
-*(blindness refuted 2026-08-27)*. A cloned attack montage brings its **Release Window** with it, and
-`UAnimNotifyState_MeleeWindow` emits `RELEASE BEGIN`/`END`, which `s1-*` asserts timing against — so
-a stray one poisons the checker while reading as a timing bug. **Never clone an attack montage to
-make a non-attack one.** But you can now *see* what you copied: `unreal.AnimationLibrary` reads
-notifies off any montage — `get_animation_notify_events`, `get_animation_notify_event_names`,
-`get_anim_notify_event_trigger_time`, `_duration`. Measured on `AM_Attack`: **one event,
-`MeleeWindow`**. **Read a duplicate before trusting it**; the check is one call.
-
-**But creation is per-toolset, not a blanket limitation** *(confirmed 2026-08-12)*. `MaterialTools`
-and `MaterialInstanceTools` create and build whole graphs end to end. Check the toolset that owns the
-asset type before concluding a thing cannot be made.
-
-**Renaming an AnimNotify class is expensive** — placed notifies serialize against the class path.
-
-**A state machine is not a human job, and the claim that it was survived two re-tests because both
-used the same surface** *(measured 2026-08-24, superseding everything recorded 2026-08-15)*.
-
-**Reading is fully open, and the old `[]` was a bad address rather than a wall.**
-`BlueprintEditorLibrary.list_graphs` in **Python** returns every graph in an AnimBlueprint as an
-object — both state machines, every state graph, every transition graph — and `graph.get_outer()`
-hands back the `AnimStateNode` / `AnimStateTransitionNode` that owns each. **`find_nodes` and
-`get_node_infos` then work on a state's interior when the graph is addressed by its full object
-path**, which is what the earlier test did not do: addressing by *name* returns `[]`, so proving the
-instrument on `AnimGraph` and then reading empty on a nested graph changed two things at once.
-`ObjectTools.list_properties` / `get_properties` / `set_properties` also work on state and
-transition nodes by path — `bAlwaysResetOnEntry`, the `stateEntered` / `stateLeft` /
-`stateFullyBlended` notifies, `priorityOrder`, `blendMode`, `logicType`. A transition's
-`priorityOrder` and `blendMode` were written and read back through a different layer.
-
-**Structure is closed to both scripting surfaces, for one precise reason.** `create_node` and
-`find_node_types` resolve the owning Blueprint from the graph's **immediate** outer, which for a
-nested graph is a node — *"Cannot cast type 'AnimGraphNode_StateMachine' to 'Blueprint'"*. Identical
-by path and by name, so it is a too-shallow outer walk rather than an addressing problem.
-`EdGraph.Nodes` refuses reflection both directions, `EdGraph` exposes no methods to Python, and
-`new_object` will construct an `AnimStateNode` that nothing can register. **The clipboard route does
-exist, in C++** *(refuted 2026-08-27)*: `FEdGraphUtilities::ExportNodesToText`, `ImportNodesFromText`
-and `CanImportNodesFromText` are all `UNREALED_API` — `EdGraphUtilities.h:110-127`. *"Anywhere in the
-API"* was a claim about two surfaces of three. Nothing needs it while `UTDStateMachineTools` covers
-state creation, but a copy-paste route is there if node kinds it does not cover ever come up.
-
-**C++ lifts it, and the engine's own entry point is exported.**
-`FEdGraphSchemaAction_NewStateNode::PerformAction` is `ANIMGRAPH_API` with a public header-inline
-`SpawnNodeFromTemplate<>` over it; `UCLASS(MinimalAPI)` on the node classes does not bite, because
-`NewObject` needs only `StaticClass()` and everything else is a virtual or a data member.
-**`UEdGraph::Nodes` is public to C++** — "protected" is a reflection fact only, the same shape as
-`Skeleton::Sockets`. `FBlueprintEditorUtils::FindBlueprintForGraph` walks the *whole* outer chain,
-which is exactly what the two failing tools do not.
-
-`Source/TheDreamEditor/` is the module that does it — editor-target-only, exposed to Python and MCP
-as `UTDStateMachineTools`. **Proven 2026-08-24:** reading a machine's 15 nodes, creating a named
-state with its `AnimationStateGraph` and `StateResult`, creating a transition with its rule graph
-and `TransitionResult`, and compiling the result to a valid `AnimBlueprintGeneratedClass`, verified
-through MCP rather than the layer that wrote it. **Populating interiors is proven too, and this
-paragraph was already wrong when it was written** *(corrected 2026-08-27)*: `1391d54`, the same day,
-built the hitstun state's **sequence player** on `AS_SwordSwordAnimV3_Hit_Fw_RM` **and three
-transition rules** entirely through the module, taking the machine from 15 nodes to 19 with a clean
-compile — and the designer judged the flinch legible **in play** on 2026-08-25, which is the
-driving-a-mesh confirmation this paragraph asked for. **The module is engine-version-coupled**;
-`SpawnNodeFromTemplate` already carries a deprecating vector parameter.
-
-**Transition direction is unreadable from Python or MCP, and C++ lifts it** *(re-tested 2026-08-27;
-the Python half held, the C++ half is a header citation not a guess)*. Python sees neither
-`get_previous_state` nor `get_next_state`, while `UAnimStateTransitionNode::GetPreviousState()` and
-`GetNextState()` are **public and `ANIMGRAPH_API`** — `AnimStateTransitionNode.h:175-176`. So this is
-a routing fact: **add five lines to `UTDStateMachineTools` when something needs direction**, and
-nothing does today. — `AnimStateTransitionNode` is not a
-`UK2Node`, so `get_node_infos` fails on `get_node_title` and `list_all_pins` refuses it. From C++ the
-pins are in hand, so this falls whenever it is worth five lines.
-
-`list_graphs` enumerates states and transitions regardless, so the tree is visible even where its
-graphs are not.
-
-**An anim node's On Update / On Become Relevant can be bound to a C++ function, and it needs no
-custom `UAnimInstance`** *(proven 2026-08-25 on both stun tells)*. `UAnimGraphNode_Base`'s three
-function properties carry **`AllowFunctionLibraries`**, so a static method on a
-`UBlueprintFunctionLibrary` resolves — the ABP keeps whatever parent it has and no graph is
-authored. The contract the compiler enforces is the `PrototypeFunction` named in that property's
-metadata — `AnimExecutionContextLibrary.Prototype_ThreadSafeAnimUpdateCall`, i.e.
-`(const FAnimUpdateContext&, const FAnimNodeReference&)` — plus `meta=(BlueprintThreadSafe)`.
-`ValidateFunctionRef` errors on a reference that will not resolve, a mismatched signature or a
-function that is not thread-safe, so **a clean compile is the proof the binding took**.
-
-**Writing the binding needs C++** — `FMemberReference`'s members are private `SaveGame`
-UPROPERTYs, so `get_editor_property` returns an opaque empty struct in both directions, while
-`SetExternalMember(FName, TSubclassOf<UObject>)` is `ENGINE_API` and the property itself is
-public. `UTDStateMachineTools::SetNodeUpdateFunction` is that, and the reference reaches the
-runtime node only at **compile**, so recompile the AnimBlueprint after writing one.
-
-**What such a function may do to a sequence player is first-class, not a reflection hack**:
-`USequencePlayerLibrary` exposes `SetAccumulatedTime`, `SetPlayRate`, `SetSequence` and
-`ComputePlayRateFromDuration`, all `BlueprintThreadSafe`. Note that
-`FAnimNode_SequencePlayerBase::UpdateAssetPlayer` hands the accumulator's address to the tick
-record, which advances it by `delta * rate` **after** the update function runs — so driving the
-playhead explicitly requires setting the rate to zero, or the write drifts every frame.
-
-**A mechanic's animation may therefore be invisible to every search you would think to run**
-*(2026-08-24, wrong twice in one exchange)*. Blockstun's tell is a Locomotion **state**, so there is
-no asset named for it and no `*Montage` property pointing at it — `find Content -iname "*lockstun*"`
-and a source grep both return nothing while the animation plays perfectly on screen. **Absence of a
-montage is not absence of an animation.** Before concluding a mechanic has no tell, ask the designer
-what they see, or check whether its state getter is `BlueprintPure` — that is the tell that the state
-machine can reach it.
- **Prove the instrument before believing an empty `find_nodes`** — it returns 8 nodes
-on `ABP_Combat:AnimGraph` and `[]` on `Locomotion`, which is how you tell real emptiness from a
-silent refusal. And **a creation `type_id` is not the one a node reports** —
-`get_node_infos` gives `|GetGroundSpeed` where `create_node` wants `Variables|Default|GetGroundSpeed`;
-guessing fails with *"does not exist"*, which reads like a wall. Use `find_node_types`, filtered
-tightly, and only on a graph that is actually reachable.
-
-**Optional anim-node properties become pins by writing `ShowPinForProperties`** *(confirmed
-2026-08-14)* — flip `bShowPin` where `bCanToggleVisibility` is true, compile, read the node back.
-That is how a `BlendSpacePlayer`'s `BlendSpace` becomes drivable; `set_pin_value` then swaps the
-asset without touching the graph, which is also **the cheapest way to eyeball an animation**: point
-the pin at it, PIE, `CaptureViewport`, point it back.
-
-**AnimGraph *editing* is scriptable** *(confirmed 2026-08-11)*; only creation is not. `BlueprintTools`
-has `list_graphs`, `find_nodes`, `get_node_infos`, `create_node`, `connect_pins`, `set_pin_value`,
-`retarget_node_class`, `compile_blueprint`, `delete_node` — and **`break_pins`, which is the
-disconnect function this file said did not exist** *(refuted 2026-08-27, read off the live toolset
-schema; it takes an `output_pin` and an `input_pin` as `PinID`s)*. Deleting a node still breaks its
-links, but it is no longer the only way. **Reconnecting an exec output replaces its existing link**, which
-is how a node is spliced into a running chain without one. `read_graph_dsl` returned empty for
-`ABP_Combat:AnimGraph` — use `find_nodes` with `title: ""` plus `get_node_infos`, which reports pin
-connections both ways. Change a node by a **partial** write to its `Node` struct; a full write
-clobbers pin-backed fields. `describe_toolset` on it is too large to return — grep a saved dump.
-
-**Creating a Blueprint asset *is* scriptable, and the wall was never real** *(MCP, 2026-08-18)*.
-`BlueprintTools.create` takes `folder_path`, `asset_name` and an `asset_type` class reference and
-returns the new Blueprint — `GA_Parry` was made from `/Script/TheDream.TDParryAbility` that way,
-inheriting every C++ default correctly. `set_parent` and `get_parent` reparent an existing one. This
-does not contradict "AnimGraph creation is not scriptable" above, which is about *graphs*; it is the
-asset that can be made.
-
-What hid it: the snapshot recorded *"describe_toolset too large to return"* for `BlueprintTools`,
-which is a fact about the **description** and says nothing about the capability. The absence was
-inherited rather than measured — see the enumeration recipe at the top of this section.
-
-**`add_variable` does not make a variable live; compiling does** *(MCP and Python alike, confirmed
-2026-08-15 — it is the Blueprint's commit path, not the caller's surface, that is missing)*. It
-returns null either way, and the new property is unreadable on the CDO until `compile_blueprint`
-runs — which reads exactly like the write having failed.
-
-### The user can send images, and it beats most of the limits above
-
-**New as of 2026-08-15**, and it matters more here than most places: this toolset's hard limits are
-overwhelmingly **visual** — a state graph's interior, a montage's notify track, a BlendSpace grid, a
-details panel. All are listed above as unreadable and a screenshot settles each instantly. **So
-ask.** Cases already met: which of four directional clips is which, whether a duplicated montage
-carried an inherited notify, and what a state contains so a new one can mirror it.
-
-**Calibration — images for what no tool can reach; tools for what is readable.** A screenshot of
-something `get_node_infos` can report is slower *and* worse: reading the blocking Selects gave exact
-asset paths and pin indices no picture would have carried. **And check the limit is real before
-asking** — an image request resting on a stale assumption spends the user's time working around a
-wall that may not exist, and re-certifies the claim as fact.
-
-**`CaptureViewport` renders the *editor* world, not PIE** *(2026-08-24)*. Given a `captureTransform`
-it draws that view of the editor level — capsule wireframes, light gizmos, the axis widget, and no
-player pawn, because the player exists only in the PIE world. It also returns the PNG **inline as
-base64**, which overflows the response limit; the payload lands in a tool-results file and has to be
-decoded out of it.
-
-**`AutomationLibrary.take_high_res_screenshot` is the PIE route** *(2026-08-24)*. It captures the
-**game** viewport with the debug HUD live — HP and stamina bars, state tags, the facing readout —
-and **writes straight to `Saved/Screenshots/WindowsEditor/`**, so nothing needs decoding. Paired with
-time dilation below, any moment in combat is capturable: slow the world, drive the input, poll for
-the state, shoot.
-
-`CaptureAssetImage` and the Slate `Screenshot`/`CaptureEditorImage` still cover one asset's
-thumbnail and windows. **Navigating to a state graph's interior is a C++ route, not an absence**
-*(refuted 2026-08-27, after a first pass wrongly called it held by testing only Python)*.
-`FKismetEditorUtilities::BringKismetToFocusAttentionOnObject(const UObject*)` is `UNREALED_API`
-(`KismetEditorUtilities.h:442`), and `FBlueprintEditor` exposes `OpenGraphAndBringToFront`,
-`JumpToHyperlink` and `JumpToPin` (`BlueprintEditor.h:260-265`). Python reaches none of them —
-`AssetEditorSubsystem.open_editor_for_assets` opens the asset and `BlueprintEditorLibrary` offers
-only `refresh_*` — so this is **five lines in `TheDreamEditor` whenever a capture needs it**, and
-asking the user to open the graph is a convenience rather than the only way.
+**Its trigger is the moment you are about to conclude something cannot be done.** Read it then, and
+record what you learn there rather than here. **What stays in this file is what fails silently** —
+the things you would never think to look up, because nothing tells you to.
 
 ---
 
@@ -781,9 +499,9 @@ spacing deliberately rather than taking more samples at the same cadence.
 **Prefer normal PIE for anything timed.** In `bSimulate: true` the dummy's looping timer stopped
 after ~30 s and never resumed, unexplained *(2026-08-12)*; editor focus is **not** the variable.
 
-**The `TimeDilation` route is open, and the closed verdict tested the wrong two things**
-*(refuted 2026-08-24)*. `AWorldSettings::TimeDilation` does reject reflection writes and
-`AActor::CustomTimeDilation` does not scale world timers — both true, and neither is the API.
+**The `TimeDilation` route is open** *(Python, 2026-08-24)*. Two near misses worth naming so they
+are not retried: `AWorldSettings::TimeDilation` rejects reflection writes, and
+`AActor::CustomTimeDilation` does not scale world timers.
 **`GameplayStatics.set_global_time_dilation(world, x)`** is `BlueprintCallable` and works from
 Python during PIE: set to 0.15, game time advanced **0.47 s against 3.81 s of wall clock**, a
 measured 0.12 ratio. **0.04 turns a 0.55 s hitstun into nearly fourteen seconds of wall time**, which
