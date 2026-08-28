@@ -104,20 +104,27 @@ known before this file is triggered.
 
 - **Editor closed and reopened mid-session** *(confirmed 2026-08-27 — quit and relaunched, the tools
   answered again with no Claude Code restart)* — fine, tools resume by themselves.
-- **Session started with no editor** *(MCP, confirmed 2026-08-28 — launched mid-session, endpoint
-  answering `200`, schemas never appeared)* — they do not arrive later. Was *(reported twice)*.
+- **Session started with no editor** *(MCP, confirmed 2026-08-28)* — the schemas never arrive on
+  their own, however healthy the endpoint becomes. **Ask for `/mcp` → Reconnect**: the tools land
+  inside the turn, no restart. Was *(reported twice)*, and was wrongly read as terminal.
 
 The distinction is **registration versus connection**: schemas are picked up once at session start,
 the connection can drop and re-establish. So closing the editor for a rebuild is safe; starting
-without one is not. If asset writes are needed, confirm the tools respond before promising any.
+without one costs a reconnect. If asset writes are needed, confirm the tools respond before
+promising any.
 
-**The harness latches that verdict and replays it** *(MCP, confirmed 2026-08-28)* — it reported
-`ConnectionRefused` while the endpoint returned `200` to a handshake the same minute. **The message
-is a recording of session start, not a probe.** Read the port, never the message.
+**Four server states, and only one is stuck** *(Bash, 2026-08-28)*: **connecting** delivers its tools
+when ready, **connected-then-dropped** redials itself, **disconnected** withdraws them, and **failed
+at the initial connect** stays failed until something reconnects it. Only the last needs a human.
 
-**Registration is not the toolset**: a hand-rolled MCP client over `curl` reaches all three tools
-and live engine data whatever the harness thinks *(Bash, confirmed 2026-08-28)*. The handshake is in
-`Docs/Unreal-Findings.md` — four calls, and cheaper than a restart.
+**The harness replays that failure verbatim** *(MCP, confirmed 2026-08-28)* — it reported
+`ConnectionRefused` while `claude mcp list` reported the same server connected, the same minute.
+**The message is a recording of session start, not a probe.** `claude mcp list` is the live check.
+
+**Unattended, go around it**: `Tools/McpBridge/ue-mcp.sh` speaks MCP to the plugin over HTTP and
+needs no registration — `casc-run.sh`'s shape, for Unreal *(Bash, confirmed 2026-08-28)*.
+**Registered tools first whenever they exist**: the allowlist applies to them, and the bridge hands
+back raw JSON-RPC.
 
 **Diff the registry against `Docs/Toolset-Snapshot.tsv`** — one `list_toolsets` call. A new row
 means the surface grew and this file's limits deserve re-reading. **Toolset-level only** *(MCP,

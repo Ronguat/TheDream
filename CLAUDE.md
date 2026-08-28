@@ -229,8 +229,8 @@ working tree the handoff does not account for, or `Saved/Autosaves/PackageRestor
 **modified before the running editor started**. A live editor populates that file by autosaving, so
 it indicts only a session whose editor is gone.
 
-**MCP tools register only if the editor was open when Claude Code started.** Opening it later does
-not fix that session; restarting Claude Code does.
+**MCP tools register only if the editor was open when Claude Code started.** Opening it later needs
+**`/mcp` → Reconnect** — no restart; unattended, `Tools/McpBridge/ue-mcp.sh` reaches it unregistered.
 
 **Commit freely; the push waits for the user to call the work done.** A local commit is a HOW, and
 the message is where reasoning gets recorded. Commit in coherent, verified units as work lands. **A

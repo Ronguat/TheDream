@@ -68,3 +68,4 @@ Source/TheDreamEditor/Public/TDInputTools.h	10	96
 Source/TheDreamEditor/Public/TDStateMachineTools.h	49	385
 Source/TheDream/Combat/TDCombatCharacter.cpp	872	11347
 Tools/RegressionCheck/regression-check.sh	521	6439
+Tools/McpBridge/ue-mcp.sh	12	88

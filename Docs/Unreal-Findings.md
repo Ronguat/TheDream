@@ -331,7 +331,47 @@ combat log; a finding *about a surface* belongs in this file.
 
 ## Dated findings — newest first
 
+## 2026-08-28 — `/mcp` Reconnect registers a failed server mid-session
+
+**Supersedes the entry below, filed the same day.** Its measurements hold; its scope did not. Every
+route *inside* the session is still shut — but the client's `/mcp` panel carries a **Reconnect**
+control, and using it delivered both servers' tools inside the turn with no restart *(MCP, confirmed
+2026-08-28 — `get_current_level` answered `/Game/TheDream/Maps/L_CombatTest` through the registered
+tool, matching the bridge and `run-in-editor.py`)*.
+
+**Four server states, and one is stuck** *(Bash, 2026-08-28, CLI bundle v2.1.235)*. A
+`deferred_tools_delta` attachment is recomputed each turn from the live client list and announces
+tools **added**, **readded** (*"MCP server reconnected"*), **removed** (*"server disconnected"*) and
+**pending** (*"will appear shortly"*). Reconnection is the MCP SDK's `StreamableHTTPClientTransport`
+— `initialReconnectionDelay`, `reconnectionDelayGrowFactor`, `maxReconnectionDelay`, a *"Maximum
+reconnection attempts exceeded"* ceiling — and it repairs **a stream that dropped on an established
+session**. A failed initial connect never built one, which is the whole asymmetry.
+
+**`reconnectMcpServer` is an IPC delegate method behind a UI control**, beside `setMcpServers` and
+`toggleMcpServer`, guarded by `no mcpDelegate wired`. **The model cannot reach it** *(Bash, confirmed
+2026-08-28 — no tool exposes it, no `claude.exe` TCP listener, no matching named pipe among 213)*.
+So the move is to **ask**: *"type `/mcp`, hit Reconnect on unreal-mcp"* — specific, and it keeps the
+session where a restart discards it.
+
+**A config write mid-session does nothing.** A fresh name on the same URL, added with
+`claude mcp add -s local` and health-checked connected, stayed invisible and was never named even in
+the failure list — the client list is built at startup, so a later entry constructs no client
+*(Bash, confirmed 2026-08-28)*. `.mcp.json`'s mtime is not watched.
+
+**The bridge is verified for reading only** *(Bash, 2026-08-28)* — `list_toolsets`,
+`describe_toolset` and `call_tool` → `get_current_level` through `Tools/McpBridge/ue-mcp.sh`. **No
+write has been put through it.** Same `tools/call` dispatch, so it should carry; prove one before an
+unattended authoring run depends on it. A stale session id answers **404 / -32600 `Unknown session
+id ... client should reinitialize`**, which the script retries through once.
+
+**Why the original verdict stood**: one negative test, never re-run. **Why this correction nearly
+repeated it**: every surface reachable from inside the session was tested and none worked, and
+*"nothing I can reach"* was written down as *"nothing can"* — the same error, one rung up.
+
 ## 2026-08-28 — A session that starts without an editor keeps the toolset, and loses only the tools
+
+**Superseded the same day by the entry above** — the measurements hold; the conclusion that nothing
+recovers registration does not.
 
 **The standing rule held; the conclusion drawn from it did not.** `CLAUDE.md`'s registration rule —
 tools register only if the editor was open when Claude Code started — was marked *(reported twice)*

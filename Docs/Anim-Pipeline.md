@@ -67,7 +67,8 @@ through the editor's Cmd box with `LogPython` read back.
 `cascadeur.exe --run-script scripts.mcp.start_server` forwards into the already-running instance
 rather than spawning a second, comes up in about 30 s, and `GET /health` answers once it has. Community bridges do the same job
 (`ysk424/cascadeur-mcp`, TCP with viewport capture; `BYGGOLDENSTONE/cascadeur-mcp-bridge`,
-file-polling). **Registering any of them takes a Claude Code restart** — the startup rule.
+file-polling). **Registering any of them needs the app up at session start, or `/mcp` → Reconnect
+after** *(2026-08-28)* — the startup rule; a Claude Code restart is not required.
 
 **Both FBX directions are script-exposed.** UE: `AssetExportTask` + `FbxExportOption`,
 `AssetImportTask` + `FbxImportUI`, all `BlueprintType`. Cascadeur: `FbxLoader.import_animation` /
