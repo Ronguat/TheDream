@@ -358,11 +358,12 @@ session where a restart discards it.
 the failure list — the client list is built at startup, so a later entry constructs no client
 *(Bash, confirmed 2026-08-28)*. `.mcp.json`'s mtime is not watched.
 
-**The bridge is verified for reading only** *(Bash, 2026-08-28)* — `list_toolsets`,
-`describe_toolset` and `call_tool` → `get_current_level` through `Tools/McpBridge/ue-mcp.sh`. **No
-write has been put through it.** Same `tools/call` dispatch, so it should carry; prove one before an
-unattended authoring run depends on it. A stale session id answers **404 / -32600 `Unknown session
-id ... client should reinitialize`**, which the script retries through once.
+**The bridge carries writes, not just reads** *(Bash, confirmed 2026-08-28)* — `list_toolsets`,
+`describe_toolset`, and `call_tool` on both `get_current_level` and `SetCameraTransform`. The write
+was verified through `run-in-editor.py` rather than its own return, which is `null` and settles
+nothing; the camera was restored afterwards and `get_dirty_content_packages` stayed empty, so the
+proof cost no package. A stale session id answers **404 / -32600 `Unknown session id ... client
+should reinitialize`**, which the script retries through once.
 
 **Why the original verdict stood**: one negative test, never re-run. **Why this correction nearly
 repeated it**: every surface reachable from inside the session was tested and none worked, and

@@ -61,8 +61,11 @@ through the editor's Cmd box with `LogPython` read back.
 
 **Cascadeur Pro** — `%LOCALAPPDATA%\Cascadeur`, user-mode, bundled Python 3.11,
 `samples/UE5_Manny.casc`. Its **native MCP server listens on `127.0.0.1:8765`**: `POST /mcp`
-(JSON-RPC, one tool — `run_script(code)`, run on the next scene-idle event) and `POST /run
-{"code"}`. Source under `resources/scripts/python/scripts/mcp`; it ships its own `.mcp.json`.
+(JSON-RPC, `run_script(code)` run on the next scene-idle event) and `POST /run {"code"}`. Source
+under `resources/scripts/python/scripts/mcp`; it ships its own `.mcp.json`. **`tools/list` returns
+exactly that one tool and the endpoint is stateless**, so the MCP route reaches nothing
+`casc-run.sh` does not *(MCP, enumerated 2026-08-28 — the first session to call the registered
+tool)*.
 `Tools/AnimPipeline/casc-run.sh` drives it over HTTP. **Starting it needs no human**:
 `cascadeur.exe --run-script scripts.mcp.start_server` forwards into the already-running instance
 rather than spawning a second, comes up in about 30 s, and `GET /health` answers once it has. Community bridges do the same job

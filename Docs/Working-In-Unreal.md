@@ -204,7 +204,9 @@ re-path and actors silently go missing. Use File → New Level → Empty.
 **Python sets cvars directly, and the Slate console is the fallback rather than the only route**
 *(Python, 2026-08-27)*. `unreal.SystemLibrary.execute_console_command(None, "Cvar.Name 1")` sets one
 and `get_console_variable_int_value` reads it back — measured `TD.DebugCombatTiming` 1 → 0 → 1
-through `run-in-editor.py`. `EditorAppToolset` searching but not setting is true of **MCP only**.
+through `run-in-editor.py`. `EditorAppToolset` searching but not setting is true of **MCP only**
+*(re-confirmed 2026-08-28 — its tools are `SearchCVars` and no setter, though the toolset's own
+description advertises "modifying ... console variables")*.
 
 **The Slate console still matters for anything that is not a console command** *(Slate, confirmed
 2026-08-15)*. `Observe` the main window, `Snapshot` for the status-bar textbox
