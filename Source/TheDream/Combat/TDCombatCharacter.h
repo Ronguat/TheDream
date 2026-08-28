@@ -549,12 +549,20 @@ protected:
 	 *  Knockdown is here because camera rotation while down is wanted -- the free camera is the
 	 *  aiming instrument the block get-up reads from -- while the body spinning on its back is not.
 	 *
+	 *  **Hitstun is here for the same reason and was missing.** Forced facing turns the victim
+	 *  toward their attacker once per hit and then releases, so between hits the camera-relative
+	 *  facing dragged the body away again -- invisible from behind and obvious from any other
+	 *  angle. The camera stays free either way, so an aim held through a stun is not lost.
+	 *
+	 *  **Not blockstun**, which leaves the defender free to walk and so free to turn; and not the
+	 *  guard break or the parry lockout, which have the same shape and have not been ruled on.
+	 *
 	 *  Forced facing is unaffected and must be: TickForcedFacing writes rotation directly rather
 	 *  than through the desired-rotation path, so the turn toward the attacker still runs.
 	 *
 	 *  Released at the stand boundary with the tag, symmetric with the movement lock.
 	 */
-	virtual bool IsFacingLocked() const override { return bDead || bKnockedDown || Super::IsFacingLocked(); }
+	virtual bool IsFacingLocked() const override { return bDead || bKnockedDown || bInHitstun || Super::IsFacingLocked(); }
 	/**
 	 *  Lockouts take movement, not just abilities.
 	 *
