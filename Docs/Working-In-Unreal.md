@@ -5,18 +5,20 @@ not a reference for when
 something breaks; it is what must already be in your head before you touch the editor, because most
 of what it describes **fails silently** — a write that returns true and changes nothing, a build
 that never happened, a log that lies about absence. It is kept short enough for that to be
-reasonable: **anything that can be compressed to its rule has been**, and the incidents live in git
-and `Docs/Combat-Decisions.md`.
+reasonable: **anything that can be compressed to its rule has been**; the per-capability answers
+live in `Docs/Unreal-Findings.md`, and the incidents in git and `Docs/Combat-Decisions.md`.
 
 **Confidence marks.** *(confirmed)* was observed directly; *(reported once)* comes from a single
 unreproduced incident; ***(inherited)* means nobody has observed it** — recorded from an error
 message, a snapshot, or an assumption, and indistinguishable from a confirmed claim without this
 mark. Never promote a mark without re-observing the behaviour, and never by repetition.
 
-***(toolset)* narrows a limit to the MCP surface.** Python is a wider one — see `Docs/Unreal-Findings.md`
-section — so a `(toolset)` wall is a claim about what these tools reach, not about the engine.
+***(toolset)* narrows a limit to the MCP surface.** Python is a wider one — see
+`Docs/Unreal-Findings.md` — so a `(toolset)` wall is a claim about what these tools reach, not about
+the engine.
 
-**An undated mark predates the dating convention**; seven remain, in the oldest material.
+**An undated mark predates the dating convention**; **three remain** *(counted 2026-08-27)*, all in
+the oldest material.
 
 **Re-test any limit that blocks you, whatever its mark, and record the result** — a fresh date if it held, a correction if it did not. **A limit is a measurement with a date, not a property of the
 engine.**
@@ -28,9 +30,9 @@ engine.**
 **Everything in this file is a claim about a surface, not about the engine.** That sentence used to
 be a caveat on the `(toolset)` mark; on 2026-08-24 a deliberate sweep refuted **eight** recorded
 walls in one session, and it is now the operating assumption. The findings are in
-`Docs/Combat-Decisions.md`; what follows is the method, which is worth more than any of them.
+`Docs/Unreal-Findings.md`; what follows is the method, which is worth more than any of them.
 
-**There are three surfaces, widest last.** Test in this order and record which one you tested:
+**There are four rungs, widest last.** Test in this order and record which one you tested:
 
 | | Reaches | Costs |
 |---|---|---|
@@ -100,10 +102,10 @@ scaffolding, not a capability.
 **`CLAUDE.md` carries the startup registration rule** *(reported twice)*, because it has to be
 known before this file is triggered.
 
-- **Editor closed and reopened mid-session** *(confirmed)* — fine, tools resume by themselves.
+- **Editor closed and reopened mid-session** *(confirmed 2026-08-27 — quit and relaunched, the tools
+  answered again with no Claude Code restart)* — fine, tools resume by themselves.
 
-The distinction is **registration versus connection** *(confirmed 2026-08-27 by quitting and
-relaunching mid-session — the tools answered again with no Claude Code restart)*: schemas are picked up once at session start,
+The distinction is **registration versus connection**: schemas are picked up once at session start,
 the connection can drop and re-establish. So closing the editor for a rebuild is safe; starting
 without one is not. If asset writes are needed, confirm the tools respond before promising any.
 
@@ -124,7 +126,7 @@ tool-level diffing is available when a question needs it — it is simply not wh
 | Running? | `tasklist \| grep -i UnrealEditor.exe` |
 | Open | `nohup "/c/Program Files (x86)/UE_5.8/Engine/Binaries/Win64/UnrealEditor.exe" "<abs path>/TheDream.uproject" >/dev/null 2>&1 &` |
 | Save | `AssetTools.save_assets` naming the paths — **stop PIE first**, or every path call fails; see the empty-list trap below |
-| Close | `taskkill //F //IM UnrealEditor.exe` — exits in ~2 s |
+| Close | `run-in-editor.py -c "import unreal; unreal.SystemLibrary.quit_editor()"` — graceful; `taskkill //F //IM UnrealEditor.exe` is the fallback |
 
 **Save, then read `git status`, then kill.** Calling `save_assets` is not the check; *seeing the
 files listed* is. **Two failure modes wear the same face:** a write that is saved but not yet live
@@ -175,10 +177,12 @@ re-path and actors silently go missing. Use File → New Level → Empty.
 `Windows`, `Observe`, `Snapshot`, `Click`, `Type`, `PressKey`, `Drag`, `Screenshot`.
 
 **Python sets cvars directly, and the Slate console is the fallback rather than the only route**
-*(refuted 2026-08-27)*. `unreal.SystemLibrary.execute_console_command(None, "Cvar.Name 1")` sets one
+*(Python, 2026-08-27)*. `unreal.SystemLibrary.execute_console_command(None, "Cvar.Name 1")` sets one
 and `get_console_variable_int_value` reads it back — measured `TD.DebugCombatTiming` 1 → 0 → 1
 through `run-in-editor.py`. `EditorAppToolset` searching but not setting is true of **MCP only**.
-The Slate route below still matters for anything that is not a cvar or a console command. `Observe` the main window, `Snapshot` for the status-bar textbox
+
+**The Slate console still matters for anything that is not a console command** *(Slate, confirmed
+2026-08-15)*. `Observe` the main window, `Snapshot` for the status-bar textbox
 beside the **"Cmd"** combobox, **`Click` it to focus**, then `Type` with `submit: true` *(confirmed 2026-08-15; the `Click` confirmed 2026-08-25 — without it `Type` returns `false` and looks exactly like the quote bug next door)*. **`Type` fails on a single quote** *(confirmed
 2026-08-21)* — it returns `false`, logs nothing, enters nothing, and reads like a permissions
 refusal. Double quotes are fine, so write `print("x")` and never `print('x')`.
@@ -312,7 +316,7 @@ several distinct ways:
 **For a CDO, the artefact is the runtime instance** — not the CDO, not the file. Reach it during PIE
 via `ActivatableAbilities` on the ASC; each spec's `nonReplicatedInstances` holds the live ability's
 `refPath`. The GAS **inspector toolset** returns names only (`GetGrantedAbilities`) and offers no
-mechanism for why properties differ — **an MCP limit, not a project one** *(refuted 2026-08-27)*.
+mechanism for why properties differ — **an MCP limit, not a project one** *(Python, 2026-08-27)*.
 From Python the component answers directly: `AbilitySystemComponent` exposes `get_all_abilities`,
 `activatable_abilities`, `find_all_abilities_with_tags` and `find_all_abilities_with_input_id`.
 
@@ -342,7 +346,7 @@ value.**
 
 **`reset_properties` resets to the property's *default*, not the inherited archetype value**
 *(confirmed 2026-08-12)* — it wrote `(0,0,0)` over a component offset, so **set the inherited value
-explicitly** rather than resetting. **Detecting an override *is* scriptable** *(refuted 2026-08-27)*:
+explicitly** rather than resetting. **Detecting an override *is* scriptable** *(Python, 2026-08-27)*:
 `EditorAssetLibrary.is_editor_property_overridden(obj, "PropName")` returns `OVERRIDDEN` / `DEFAULT`
 / `NOT_FOUND` / `ACCESS_DENIED`. **It is an enum, not a bool** — the object is truthy at every value,
 so compare against the members or every property reads as overridden. Measured 2026-08-27: both
@@ -371,7 +375,7 @@ type** — a broken one usually looks fine alone.
   `EditDefaultsOnly` number can be swept without a rebuild -- but a value that *ships* belongs in
   the C++ default with no Blueprint override left behind to shadow it.
 - **An asset the registry has no entry for still saves — through the *package*, not the path**
-  *(refuted 2026-08-25)*. `AS_SwordAndShieldAnimV1_Defense_Hit_Fw_RM` answers **False** to
+  *(Python, 2026-08-25)*. `AS_SwordAndShieldAnimV1_Defense_Hit_Fw_RM` answers **False** to
   `does_asset_exist` while `load_asset` returns it and `set_editor_property` takes, so every
   path-based save refuses: `AssetTools.save_assets` reports *"Asset does not exist"* and
   `EditorAssetLibrary.save_asset` / `save_loaded_asset` both return False. **`save_packages` takes
@@ -389,12 +393,12 @@ type** — a broken one usually looks fine alone.
   *(Python, 2026-08-27)* — address `get_default_object(bp.generated_class())` and
   `inheritable_owned_tags_container` / `ongoing_tag_requirements` return proper
   `InheritedTagContainer` / `GameplayTagRequirements` structs. **Addressing the Blueprint instead of
-  its CDO is what reads empty.** Writing at the CDO address is untested. UE
-  5.8 moved this to `gEComponents`. Numeric properties on the same asset write fine, so a
-  partially-configured effect is the likely outcome. **Adding a GEComponent is scriptable from C++**
-  *(corrected 2026-08-24)* — `UGameplayEffect::GEComponents` is a public array with a header-inline
-  `AddComponent<T>()`, and `gE_components` already reads from Python. Only the *reflection* route is
-  shut.
+  its CDO is what reads empty.** Writing at the CDO address is untested; through reflection the
+  write is accepted and changes nothing, while numeric properties on the same asset write fine, so a
+  **partially-configured effect** is the likely outcome. **UE 5.8 moved this configuration to
+  `gEComponents`** *(C++, 2026-08-24)* — `UGameplayEffect::GEComponents` is a public array with a
+  header-inline `AddComponent<T>()`, and `gE_components` reads from Python. Only the *reflection*
+  route is shut.
 - **Object references need the full path** *(confirmed 2026-08-21)* — `/Game/Path/Asset.Asset`. A
   short path is refused outright; this one fails loudly rather than silently.
 - **Array edits** *(confirmed 2026-08-21, corrected)* — changing an element and adding one in one
@@ -420,10 +424,10 @@ type** — a broken one usually looks fine alone.
 - **The two `save_assets` forms do different jobs, and picking the wrong one bakes a trap**
   *(2026-08-20)*. The empty list saves everything dirty **including the level**, which is how the
   stale-override trap below gets created after a CDO session. **Naming the assets works and scopes
-  the write** — re-tested 2026-08-20, contradicting the older advice to always pass an empty list —
+  the write** *(MCP, re-tested 2026-08-20)*,
   **but it fails like every other path call while PIE is up**, which is a reason to stop PIE, never
   a reason to reach for the empty list. **The MCP layer has no discovery call, Python does**
-  *(refuted 2026-08-27; the 2026-08-21 enumeration was of `AssetTools` only)*: the empty list saves
+  *(Python, 2026-08-27)*: the empty list saves
   rather than lists and `is_dirty` takes one `asset_path`, but
   `EditorLoadingAndSavingUtils.get_dirty_content_packages()` and `get_dirty_map_packages()` return
   the list outright, with `save_dirty_packages()` beside them. **The bullet above already used one**,
@@ -531,7 +535,10 @@ explicitly, every time.**
 
 **The combat trace itself is in `Docs/Debug-Instruments.md`** — every tag it prints, the three
 cvars and their defaults, the two ungated warnings, and the traps in reading it. Split out
-2026-08-14; it grows with combat features and this file does not.
+2026-08-14; it grows with combat features, where this file is held to a line budget so that
+"read it front to back" stays a real instruction.
+
+---
 
 ## Verifying combat changes
 
