@@ -151,6 +151,8 @@ about *what* or *why* emerges mid-run, stop and raise it.
 
 - **The test is reversibility.** A HOW you can undo alone; a WHAT needs the user to undo it.
   **Irreversibility converts a HOW into a WHAT** — deleting an asset looks like a how and is not.
+- **Inventing a constraint is a WHAT**, however mechanical it looks: a number read out of the code is
+  not a design brief. **A premise found only in your own reasoning is invented** — ask, never present.
 - **The tell is composing a justification.** If a choice needs *defending* in a commit message, it
   was a WHAT.
 - **Not every WHAT interrupts.** One that blocks the work does; one merely noticed goes in the

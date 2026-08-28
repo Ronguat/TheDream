@@ -161,6 +161,12 @@ only after several seconds)*. The port can listen while the engine boots and a c
 fails with `Unable to connect`; the only reliable signal is **an MCP call returning a result**.
 Poll `SceneTools.get_current_level` rather than sleeping — a blind wait is wrong in both directions.
 
+**`StartPIE`'s error on a long warmup is the MCP call timing out, not PIE failing to start**
+*(MCP, confirmed 2026-08-28)*. `warmupSeconds` past roughly 25 makes the call return
+*"Timed out waiting for PIE to start"* while the session comes up and runs normally — `IsPIERunning`
+answers `true` straight after. **Poll it before believing the error**, and expect a second `StartPIE`
+to refuse with *"A play session is already running."*
+
 **Calling a tool takes three fields**: `toolset_name` exactly as `list_toolsets` prints it, `tool_name` as the bare function
 name, and `arguments`. Inside `execute_tool_script`, call `get_execution_environment` once first;
 scripts define `run()` returning a dict and pass **full dotted names** to `execute_tool`.
