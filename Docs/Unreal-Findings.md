@@ -331,6 +331,46 @@ combat log; a finding *about a surface* belongs in this file.
 
 ## Dated findings — newest first
 
+## 2026-08-28 — A session that starts without an editor keeps the toolset, and loses only the tools
+
+**The standing rule held; the conclusion drawn from it did not.** `CLAUDE.md`'s registration rule —
+tools register only if the editor was open when Claude Code started — was marked *(reported twice)*
+and is now **confirmed** *(MCP, 2026-08-28)*: the editor was launched mid-session, the endpoint
+answered `200` within ~40 s, and `mcp__unreal-mcp__*` never appeared. Nothing reachable from inside
+the session recovers it.
+
+**What was wrong was the second half — that this leaves the session locked out of the editor.** It
+does not. The plugin is an ordinary MCP streamable-HTTP server and `curl` speaks to it directly
+*(Bash, confirmed 2026-08-28)*:
+
+```bash
+# initialize -- keep the Mcp-Session-Id response header; every later call needs it
+curl -s -i -X POST http://127.0.0.1:8000/mcp \
+  -H "Content-Type: application/json" -H "Accept: application/json, text/event-stream" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"c","version":"1"}}}'
+# then notifications/initialized, then tools/list, then tools/call
+```
+
+Measured: `list_toolsets` returned the full registry, `describe_toolset` enumerated
+`editor_toolset.toolsets.scene.SceneTools`, and `call_tool` on `get_current_level` returned
+`/Game/TheDream/Maps/L_CombatTest`. `run-in-editor.py` cross-confirmed the same level from Python,
+which is the check that does not go back through the layer being tested.
+
+**Three things about the route worth keeping.** Responses arrive as plain JSON, not SSE, so no
+event-stream parsing is needed. **The session id survives across separate shell calls** — one
+`initialize` covers a working session. And **`toolset_name` wants the full dotted path**
+(`editor_toolset.toolsets.scene.SceneTools`), which is what `list_toolsets` prints if you read the
+whole line rather than the tail.
+
+**The harness's error text is stale by construction** *(MCP, 2026-08-28)*. It replayed
+`ConnectionRefused` while the endpoint was answering, because what it reports is session start.
+**Anything derived from that message is a claim about the past** — the port is the only live signal,
+and this is the same shape as process-up not meaning editor-ready.
+
+**Why it was believed settled**: one negative test, never re-run, against hundreds of positive
+closed-and-reopened cases. The rule it produced is right; the scope inferred from it was not — which
+is the distinction this file exists to keep, *which surface* and *when*.
+
 ## 2026-08-27 — The unqualified capability claim becomes a build failure
 
 **The designer's ruling, after three waves of refutations in one session**: *"documentation drift

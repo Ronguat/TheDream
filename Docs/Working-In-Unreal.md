@@ -99,15 +99,25 @@ scaffolding, not a capability.
 ## Before you start
 
 `unreal-mcp` is an HTTP server hosted by the in-editor plugin (`127.0.0.1:8000`, see `.mcp.json`).
-**`CLAUDE.md` carries the startup registration rule** *(reported twice)*, because it has to be
+**`CLAUDE.md` carries the startup registration rule** *(confirmed 2026-08-28)*, because it has to be
 known before this file is triggered.
 
 - **Editor closed and reopened mid-session** *(confirmed 2026-08-27 — quit and relaunched, the tools
   answered again with no Claude Code restart)* — fine, tools resume by themselves.
+- **Session started with no editor** *(MCP, confirmed 2026-08-28 — launched mid-session, endpoint
+  answering `200`, schemas never appeared)* — they do not arrive later. Was *(reported twice)*.
 
 The distinction is **registration versus connection**: schemas are picked up once at session start,
 the connection can drop and re-establish. So closing the editor for a rebuild is safe; starting
 without one is not. If asset writes are needed, confirm the tools respond before promising any.
+
+**The harness latches that verdict and replays it** *(MCP, confirmed 2026-08-28)* — it reported
+`ConnectionRefused` while the endpoint returned `200` to a handshake the same minute. **The message
+is a recording of session start, not a probe.** Read the port, never the message.
+
+**Registration is not the toolset**: a hand-rolled MCP client over `curl` reaches all three tools
+and live engine data whatever the harness thinks *(Bash, confirmed 2026-08-28)*. The handshake is in
+`Docs/Unreal-Findings.md` — four calls, and cheaper than a restart.
 
 **Diff the registry against `Docs/Toolset-Snapshot.tsv`** — one `list_toolsets` call. A new row
 means the surface grew and this file's limits deserve re-reading. **Toolset-level only** *(MCP,
