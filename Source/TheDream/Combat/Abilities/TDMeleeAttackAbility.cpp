@@ -543,7 +543,12 @@ void UTDMeleeAttackAbility::ApplyKnockbackToTarget(ATDCombatCharacter* Target, b
 		LateralCm,
 		bBlocked ? TEXT(" (blocked)") : TEXT(""));
 
-	Target->ReceiveKnockback(Destination, KnockbackDurationSeconds, KnockbackTimeMappingCurve);
+	// **The two paths are timed by different stuns and animated by different clips.** The hit path's
+	// duration and curve track the stagger clip's own travel so the feet move when the body does;
+	// blockstun is shorter and plays a guard reaction, so it keeps the short uniform push.
+	Target->ReceiveKnockback(Destination,
+		bBlocked ? KnockbackBlockedDurationSeconds : KnockbackDurationSeconds,
+		(bBlocked && !bKnockbackCurveOnBlocked) ? nullptr : KnockbackTimeMappingCurve);
 }
 
 void UTDMeleeAttackAbility::ApplyParryRecoil(ATDCombatCharacter* Parrier, ATDCombatCharacter* Attacker, float DurationSeconds) const

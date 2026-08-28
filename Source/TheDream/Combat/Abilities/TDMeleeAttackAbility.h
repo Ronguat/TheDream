@@ -149,7 +149,18 @@ protected:
 	 *  or the target regains control mid-slide.
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Knockback", meta=(ClampMin="0.01"))
-	float KnockbackDurationSeconds = 0.2f;
+	float KnockbackDurationSeconds = 0.45f;
+
+	/**
+	 *  How long the translation takes when the hit was blocked. Separate because blockstun is much
+	 *  shorter than hitstun -- 0.350 against 0.550 for a light -- so the duration that lets the hit
+	 *  path track its stagger clip would carry a blocked defender well past the moment they regain
+	 *  control.
+	 *
+	 *  Must sit inside the *blockstun* that accompanies it, on the same rule the hit path follows.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Knockback", meta=(ClampMin="0.01"))
+	float KnockbackBlockedDurationSeconds = 0.2f;
 
 	/**
 	 *  Optional pacing for the translation. **A time-mapping curve, not a strength curve**: it maps
@@ -158,6 +169,14 @@ protected:
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Knockback")
 	TObjectPtr<UCurveFloat> KnockbackTimeMappingCurve = nullptr;
+
+	/**
+	 *  Whether the blocked path takes the pacing curve too. Off: the curve is derived from the
+	 *  *hitstun* stagger clip, and a blocked hit plays a different animation entirely, so applying
+	 *  it there would pace the slide against a clip nobody is watching.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Knockback")
+	bool bKnockbackCurveOnBlocked = false;
 
 	// Facing has no tuning knobs by design: an attack freezes it at commit and returns it in
 	// EndAbility, both instantly.
