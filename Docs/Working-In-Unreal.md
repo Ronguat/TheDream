@@ -73,6 +73,11 @@ which is a complete answer and still carries its date.
 the **address** and try again — and never change the address and the target in the same step, which
 is how the original test convinced itself.
 
+**A limit found by exhausting your own reach is the narrowest kind there is.** Every surface a
+session can drive may refuse what a control one keystroke outside it does — four routes came back
+empty against the MCP registration wall, and a `/mcp` click went through *(2026-08-28)*. Exhausting
+what you can drive measures *you*, not what is possible. **Say which of the two you measured.**
+
 **Three things make a limit expensive rather than merely wrong**, and all three are about the record:
 
 - **`(toolset)` names one surface and stops reading that way after about a week** on the page.
