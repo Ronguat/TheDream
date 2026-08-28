@@ -1731,6 +1731,39 @@ prose.
 any particular wrong fact. *"There is no X"* invites no re-test; *"the MCP layer has no X, Python
 does"* dates itself and routes the reader.
 
+### Third wave: the one I called held was the one I tested wrong
+
+**The designer pushed back on the single survivor** — *"things can indeed navigate to a state graph's
+interior, because a previous session authored the interior of the locomotion state machine using
+C++."* Correct, and the pushback landed on a claim I had just re-tested and marked **held**. My test
+checked Python only, one paragraph after this same entry argued that header reconnaissance is the
+cheap third check. **Applying a method and skipping it in the next breath is its own failure mode.**
+
+Refuted properly: `FKismetEditorUtilities::BringKismetToFocusAttentionOnObject` is `UNREALED_API`
+(`KismetEditorUtilities.h:442`), and `FBlueprintEditor` carries `OpenGraphAndBringToFront`,
+`JumpToHyperlink` and `JumpToPin` (`BlueprintEditor.h:260-265`).
+
+**Then the neighbour, which is the worse one.** Fifteen lines above sat *"Not yet proven: populating
+interiors — a `SequencePlayer` into a state, a rule into a transition — and nothing built this way
+has driven a mesh in PIE."* Commit `1391d54`, **the same day that sentence was written**, created
+the hitstun state's sequence player on `AS_SwordSwordAnimV3_Hit_Fw_RM` and three transition rules
+entirely through `UTDStateMachineTools`, taking the machine 15 nodes to 19; the flinch was judged
+legible in play on 2026-08-25. **Both halves of the caveat were false, one of them within hours.**
+
+### The count, and what it says
+
+Across three waves: **fourteen surface claims tested, twelve refuted, two held** — state-graph
+navigation moved from held to refuted, leaving *"writing inline tag containers"* and *"no direct
+attribute-base setter below C++"* as the only survivors. **The first pass' five-of-ten estimate was
+too generous to the docs**, and the correction came from the designer's memory of what a past
+session had actually built rather than from any search of mine.
+
+**Every one of the three waves ended the same way**: the refutation was already inside the repo —
+four lines below, in the same tool list, or in that day's own commit message. **The scarce resource
+is not testing but re-reading**, and the standing rule that follows is the one this entry exists
+for: *a claim about a surface must name the surface, and a claim that something was not proven must
+name the date it was last checked.*
+
 ### Still untested, and not blocking
 
 Client-world reach under PIE, and whether a state graph's interior can be navigated for capture.

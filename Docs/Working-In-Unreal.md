@@ -589,11 +589,13 @@ which is exactly what the two failing tools do not.
 as `UTDStateMachineTools`. **Proven 2026-08-24:** reading a machine's 15 nodes, creating a named
 state with its `AnimationStateGraph` and `StateResult`, creating a transition with its rule graph
 and `TransitionResult`, and compiling the result to a valid `AnimBlueprintGeneratedClass`, verified
-through MCP rather than the layer that wrote it. **Not yet proven: populating interiors** — a
-`SequencePlayer` into a state, a rule into a transition — and **nothing built this way has driven a
-mesh in PIE**, which by this file's own rule about assets with a build step is the confirmation that
-counts. **The module is engine-version-coupled**; `SpawnNodeFromTemplate` already carries a
-deprecating vector parameter.
+through MCP rather than the layer that wrote it. **Populating interiors is proven too, and this
+paragraph was already wrong when it was written** *(corrected 2026-08-27)*: `1391d54`, the same day,
+built the hitstun state's **sequence player** on `AS_SwordSwordAnimV3_Hit_Fw_RM` **and three
+transition rules** entirely through the module, taking the machine from 15 nodes to 19 with a clean
+compile — and the designer judged the flinch legible **in play** on 2026-08-25, which is the
+driving-a-mesh confirmation this paragraph asked for. **The module is engine-version-coupled**;
+`SpawnNodeFromTemplate` already carries a deprecating vector parameter.
 
 **Transition direction is unreadable from Python or MCP, and C++ lifts it** *(re-tested 2026-08-27;
 the Python half held, the C++ half is a header citation not a guess)*. Python sees neither
@@ -703,10 +705,14 @@ time dilation below, any moment in combat is capturable: slow the world, drive t
 the state, shoot.
 
 `CaptureAssetImage` and the Slate `Screenshot`/`CaptureEditorImage` still cover one asset's
-thumbnail and windows, and **nothing can navigate to a state graph's interior** *(re-tested
-2026-08-27, held — `AssetEditorSubsystem.open_editor_for_assets` opens the asset and
-`BlueprintEditorLibrary` offers only `refresh_*`, nothing that focuses a nested graph)*. *Untested hybrid:
-have the user open the graph, then `CaptureEditorImage`.*
+thumbnail and windows. **Navigating to a state graph's interior is a C++ route, not an absence**
+*(refuted 2026-08-27, after a first pass wrongly called it held by testing only Python)*.
+`FKismetEditorUtilities::BringKismetToFocusAttentionOnObject(const UObject*)` is `UNREALED_API`
+(`KismetEditorUtilities.h:442`), and `FBlueprintEditor` exposes `OpenGraphAndBringToFront`,
+`JumpToHyperlink` and `JumpToPin` (`BlueprintEditor.h:260-265`). Python reaches none of them —
+`AssetEditorSubsystem.open_editor_for_assets` opens the asset and `BlueprintEditorLibrary` offers
+only `refresh_*` — so this is **five lines in `TheDreamEditor` whenever a capture needs it**, and
+asking the user to open the graph is a convenience rather than the only way.
 
 ---
 
