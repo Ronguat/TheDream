@@ -1,4 +1,5 @@
 # Snapshot of the MCP toolset registry, taken 2026-08-15.
+# Re-diffed 2026-08-28 against a live list_toolsets: 56 = 56, unchanged both ways.
 #
 # WHY: capabilities kept appearing to "spawn" mid-project, and nobody could tell
 # whether the surface was actually growing or had simply never been enumerated.
