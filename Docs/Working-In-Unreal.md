@@ -102,7 +102,8 @@ known before this file is triggered.
 
 - **Editor closed and reopened mid-session** *(confirmed)* — fine, tools resume by themselves.
 
-The distinction is **registration versus connection**: schemas are picked up once at session start,
+The distinction is **registration versus connection** *(confirmed 2026-08-27 by quitting and
+relaunching mid-session — the tools answered again with no Claude Code restart)*: schemas are picked up once at session start,
 the connection can drop and re-establish. So closing the editor for a rebuild is safe; starting
 without one is not. If asset writes are needed, confirm the tools respond before promising any.
 
@@ -131,9 +132,15 @@ needs a restart and is safe, and a write that was never saved is already gone. B
 from inside the editor. `git status` is the only thing that separates them and it must happen
 *before* the kill.
 
-**Closing: `taskkill` is what this project uses; `unreal.SystemLibrary.quit_editor()` is the
-graceful route** *(Python, 2026-08-27 — present, never exercised here)*. The MCP registry carries no
-quit tool. **Saving covers assets only** either way: in-progress asset-editor state dies unasked.
+**Closing: `unreal.SystemLibrary.quit_editor()` is the graceful route and it works** *(Python,
+exercised 2026-08-27)*. The MCP registry carries no quit tool; `taskkill` is the fallback. The
+call **returns before teardown** — the runner printed `RESULT` and exited 0 — and the shutdown is
+orderly: the log ends `LogExit: Exiting.` then `Log file closed`, and
+`PackageRestoreData.json` is **rewritten** with the clean marker rather than left stale, which is
+what a forced kill leaves behind. **Untested on a dirty editor**: nothing was dirty when this ran,
+so whether it prompts is unknown — and a save dialog would hang an unattended run, so check
+`get_dirty_content_packages()` before calling it that way. **Saving covers assets only** either
+way: in-progress asset-editor state dies unasked.
 `Saved/Autosaves/PackageRestoreData.json` reading `Packages: []` confirms nothing was stranded;
 **`Packages` is the field that matters, not `RestoreEnabled`**, which is not a stable signal.
 **Read it only against a closed editor**: a running one populates it by autosaving a dirty package,
