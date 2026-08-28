@@ -213,6 +213,14 @@ there. The *editor's* Python is a separate thing and does work; see the scriptab
 Bash ships `base64`, `reg`, `xxd`, `certutil` and `curl`. Check for the binary before concluding
 otherwise.
 
+**`grep -o -i -F` together crashes Git Bash's grep** *(confirmed 2026-08-27, reproduced in an empty
+directory)* — SIGABRT, exit **134**, core dumped, and a `grep.exe.stackdump` left in the working
+directory. `-o -F` and `-o -i` each work alone; only the trio aborts. **Piped into `wc -l` the crash
+is invisible** — the count reads `0` and the absence looks clean, which is how it nearly produced a
+false absence claim during the limit audit. **A stackdump file appearing is the tell**, and `echo $?`
+is the check. The standing rule already covers it: a filter finding nothing proves only that the
+filter did not match — and here the filter did not even run.
+
 **A single Bash tool command near ~14 KB can arrive mangled** *(reported once, 2026-08-19)* —
 a quoted heredoc died with a shell parse error mid-content, while the same content in ~5 KB
 appended chunks wrote cleanly. Write large files in chunks and read the line count back.

@@ -107,3 +107,6 @@ Saved/Cooked/
 # Note: Do NOT ignore Content/ or Config/ (excluding Config/*.ini overrides above) —
 # those contain the actual game data that must be versioned.
 # ==============================
+
+# Git Bash crash artefacts (see Working-In-Unreal.md, grep -o -i -F)
+*.stackdump
