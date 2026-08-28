@@ -353,10 +353,11 @@ session**. A failed initial connect never built one, which is the whole asymmetr
 So the move is to **ask**: *"type `/mcp`, hit Reconnect on unreal-mcp"* — specific, and it keeps the
 session where a restart discards it.
 
-**A config write mid-session does nothing.** A fresh name on the same URL, added with
+**A config write does not reach the running session.** A fresh name on the same URL, added with
 `claude mcp add -s local` and health-checked connected, stayed invisible and was never named even in
 the failure list — the client list is built at startup, so a later entry constructs no client
-*(Bash, confirmed 2026-08-28)*. `.mcp.json`'s mtime is not watched.
+*(Bash, confirmed 2026-08-28)*. `.mcp.json`'s mtime is not watched. **Whether `/mcp` Reconnect
+re-reads config is untested**: this measured the session's own view, not the panel's.
 
 **The bridge carries writes, not just reads** *(Bash, confirmed 2026-08-28)* — `list_toolsets`,
 `describe_toolset`, and `call_tool` on both `get_current_level` and `SetCameraTransform`. The write
