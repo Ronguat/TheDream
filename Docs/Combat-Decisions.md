@@ -1000,6 +1000,22 @@ and the same instrument — an eye, or a screenshot. The designer judged it in p
 shipped; **that confirmation does not transfer to the next change.**
 
 
+**Whenever a knockdown curve is edited — *both are normalised over fall plus settle, and the arc is
+keyed in path fractions the pacing decides.*** Filed 2026-08-28. `C_KnockdownArc` is authored against
+*time* and written through `C_KnockdownCarry` into path fractions, so **editing the pacing silently
+re-times the arc** and editing `KnockdownFallSeconds` or `KnockdownCarrySettleSeconds` re-times both.
+Neither curve can be judged alone: the composite is the only thing that has a shape. The derivation
+script is in the 2026-08-28 composite entry; re-run it rather than dragging keys. **And the arc is a
+*correction*, not the motion** — it is the difference between the body's intended path and what the
+clip already supplies, so a change to `AM_Knockdown`'s stretch curve or blend-in invalidates it too.
+
+**~~Whenever the knockdown arc's height is authored above about 41 cm — *it is silently clipped.*~~
+WITHDRAWN 2026-08-28, the day it was filed.** The arc now authors 47.4 cm and the capsule delivers
+47.4. The reading came from two coarse samples of an arc whose apex sat at 57% of its flight, plus a
+control that agreed by luck — and the lift was computed across *two actors*, floor from the attacker
+and peak from the victim. **There is no ceiling.** Kept rather than deleted because the claim was
+reported to the designer and acted on.
+
 **Whenever the knockdown arc or its slide pacing changes — *nothing in the loop sees the height, and
 the airborne guard rests on one sample.*** Filed 2026-08-28 with the arc. `s6-knockdown` asserts the
 fall lands inside its lockout and `s4-string` proves the arc stayed off the knockback, but **no
@@ -1183,6 +1199,8 @@ than a refusal.
 |---|---|---|
 | The knockdown reads flat, or lacks impact | **`C_KnockdownArc`**, the Z of its path offset — **60 cm of lift, authored against *time* as two half-parabolas and mapped back through the pacing curve**, so the keys sit at uneven path fractions by construction. Regenerate it rather than dragging keys; the script is in the 2026-08-28 entry | `KnockdownFallSeconds`. It moves the whole event including the animation, and the arc's shape is authored in path fractions, so a duration change rescales the arc rather than reshaping it. Also **not** an impulse or `LaunchCharacter` — 2026-08-16 and `StartLunge`'s header rule both out, the second on netcode grounds. |
 | The landing has no weight, or eases in | **The arc's descent shape**, and check it composed rather than in isolation: the slide's ease-out slows the path fraction near the end, so a descent that looks steep in path space still decelerates in time. **Linear keys** — cubic auto tangents flatten toward a final key and that alone reinstates the cushion | The montage's stretch curve. Its tail is the clip's last 6 cm against the capsule's 60, so it ramps for consistency and cannot carry the impact. |
+| The knockdown's landing has no follow-through, or inertia evaporates | **`KnockdownCarrySettleSeconds`** (0.08) — the carry outlives the fall and the extra span is a skid decaying to zero. Purely cosmetic: the victim is invincible and the destination is unchanged, so this moves only *when* the spacing is reached | A longer pacing tail alone. The tail is bounded by the carry's duration, so while the carry ended with the fall no curve shape could put horizontal where there was no time. |
+| The body's height is not what was authored | **`BODY_APEX` in the composite derivation**, which is the *body's* lift — the capsule's offset is derived from it and is larger, currently 47 cm to deliver 35 | Tuning the capsule arc directly. Every apex authored before 2026-08-28 was a capsule number the body never matched; the animation was cancelling roughly a third of it. Chart the pelvis, not the actor. |
 | The knockdown's path reads as a U rather than an arc | **`C_KnockdownCarry`** — it is **linear to contact on purpose**, because constant horizontal speed is what makes a trajectory a parabola. Easing it spends the horizontal before the apex and leaves the descent nowhere to go but down; measured at 85%/15% before, 58%/42% after | Steepening the arc to compensate. The descent was already accelerating; the fault was the horizontal, and adding vertical only sharpens the U. **Judge the composition, never the two curves separately** — each looks correct alone in both states. |
 | Any change to either knockdown curve | **Re-derive the other.** The arc's keys are authored against time and mapped through the pacing, so a pacing edit silently re-times the arc | Editing one and looking. The shape lives only in the composition and no single curve shows it. |
 | Dodge reads fast-forwarded | **`DodgeClipSeconds`** (2026-08-28) — how much of the section is fitted, the rate following from it. `DodgeSeconds` moves the whole dodge and is mechanical, so it is the wrong knob for a look | Trimming the **section in the asset**, still, and the animator's midpoint is still not the design. **This row named the clip as the wrong answer outright until 2026-08-28**, its stated reason being that the baseline had not been felt; it had by then, and the seam is authored where the clip's own travel stops rather than at a midpoint. |
@@ -1546,6 +1564,7 @@ long.
 | `IsMovementLocked` | 08-20, 08-24 |
 | `IsNonFinalStringLight` | 08-25 |
 | `JumpRegenPauseSeconds` | 08-10 |
+| `KnockdownCarrySettleSeconds` | 08-28 |
 | `KnockdownFallClipSeconds` | 08-25 |
 | `KnockdownFallClipStartSeconds` | 08-25 |
 | `KnockdownFallSeconds` | 08-20, 08-25 |
@@ -1703,6 +1722,88 @@ long.
 | `bUseControllerRotationYaw` | 08-12 |
 | `compositeSections` | 08-15, 08-18, 08-28 |
 | `gEComponents` | 08-10, 08-11 |
+
+## 2026-08-28 — The capsule was never what anyone was looking at, and the fix needed an instrument that did not exist
+
+**The designer's theory, after four rounds of tuning that each improved a number and not the feel**:
+*"I imagine these measurements are from the capsule's position, and don't take into account where the
+literal body is in space. I think the remaining unfeasibility I'm seeing might be where the animation
+itself is fighting with or against your math. It's a shame we can't chart bone positions through time
+in-world."*
+
+**Right on the first half, and wrong on the second — which is the good outcome.** Every physics figure
+in the entries above describes the **capsule**. The mesh does something materially different, because
+the animation moves the body inside the capsule, and nothing in this project had ever measured that.
+
+### The instrument
+
+`SkeletalMeshComponent::GetSocketLocation` resolves **bone** names and returns world space, live in
+PIE. Paired with `set_global_time_dilation` it charts any bone through any event — the method is in
+`Docs/Debug-Instruments.md`. **It is the first instrument here that sees what the player sees** rather
+than what the capsule does.
+
+### What it found
+
+Charted through a knockdown, capsule against pelvis: **the body peaked 0.167 s before the capsule
+did** — a third of the whole fall — and **at the capsule's apex the pelvis was back within 5 cm of its
+standing height.** The arc and the animation were cancelling. Every apex value tuned before this was a
+capsule number the body never matched.
+
+### The fix is to author the composite
+
+The capsule arc is no longer the motion; it is the **difference** between the motion wanted and the
+motion the animation already supplies. `capsuleOffset(t) = desiredPelvis(t) − clipPelvis(mapping(t))`,
+sampled across the fall and written through the pacing curve into path fractions.
+
+**The apex falls out of the arithmetic rather than being chosen.** A gravity-consistent arc rising
+35 cm and then falling the 110 cm to a lying pose spends **36%** of its flight rising — which puts the
+apex at 0.179 s, within 4 ms of where the clip's own pelvis peaks. The phase fight dissolves rather
+than being fought.
+
+### Half the event was a pose nobody authored
+
+The first composite overshot by 25%, and the reason was **`AM_Knockdown` blending in over 0.25 s
+against a 0.5 s fall**. For the entire first half the body was a moving mixture of idle and the death
+clip, so subtracting the clip at full weight was wrong exactly where it mattered. **Blend-in to 0.05.**
+
+**That the lift then *dropped* is the fix working, not regressing.** The long blend had been erasing
+the clip's authored gather — the pelvis dipping to 76.7 in its first 0.17 s — and with it visible the
+capsule must pay 47 cm to deliver 35. The anticipation the animator wrote had never been on screen.
+
+### The carry now outlives the fall
+
+**Both the V's vertical bottom stroke and the "velcro landing" were one defect**: the carry ran for
+`KnockdownFallSeconds` while the montage played past its fitted window, so the body's last stretch of
+descent had **zero horizontal**. No curve could fix it — the tail was bounded by the same 0.5 s.
+`KnockdownCarrySettleSeconds` **0.08** extends the carry, and the pacing hands its flight speed
+smoothly to a skid that decays to zero: **92.2% of the distance in flight, 7.8% across the skid**.
+
+**The designer's ruling made this free**: *"Whatever happens during the knockdown is completely
+cosmetic. Target is invincible and where they end up is predetermined."* The carry's duration is
+therefore unconstrained; only its endpoint is load-bearing.
+
+### Measured after
+
+| | before the composite | after |
+|---|---|---|
+| body lift, against 35 authored | +31 | **+34.1** |
+| pelvis at the capsule's apex | +5 | **+22.7** |
+| terminal path angle | **−85°** | **−4.2°** |
+| horizontal after landing | 0 | **~21 cm, decaying to zero** |
+
+Model against measured body position agrees within 3–8 cm across the whole arc, most of that being
+sampling jitter — each sample is a separate round trip, so the game time between them is uneven.
+
+### Two corrections
+
+**The ~41 cm capsule ceiling recorded above does not exist.** This arc authors 47.4 and the capsule
+delivers 47.4. The earlier reading was a sampling artefact of an arc whose apex sat at 57% of the
+flight where this one sits at 36%; two coarse measurements and a control that happened to agree
+produced a limit that was never there. **Heights above 40 are available.**
+
+**And the lift measurement that produced it was taken across two actors** — floor from the attacker at
+96.0, peak from the victim whose standing height is 98.15 — which is the trap
+`Docs/Working-In-Unreal.md` states in as many words, walked into on the same day it was quoted.
 
 ## 2026-08-28 — The path was a U because two good fixes composed into one bad shape
 

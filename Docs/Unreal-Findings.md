@@ -103,6 +103,10 @@ rather than an engine limit** *(swept 2026-08-24)*:
   `AssetTools`; only the keys needed C++. The Python half was re-confirmed shut the same day —
   `FloatCurve` answers *"is protected and cannot be read"*, there is no `AddKey` UFUNCTION and no
   curve-editing library.
+- **Bone positions in world space, live in PIE, confirmed from Python** *(2026-08-28)*.
+  `SkeletalMeshComponent::GetSocketLocation` resolves bone names, not only sockets, and answers
+  during a play session. With `set_global_time_dilation` it charts any bone through any event. The
+  method and its sampling trap are in `Docs/Debug-Instruments.md`.
 - **A root motion source can carry an authored arc, confirmed from C++** *(2026-08-28)*.
   `FRootMotionSource_MoveToDynamicForce::PathOffsetCurve` is a `UCurveVector` evaluated at the
   move fraction and rotated into the direction of travel with pitch zeroed, so its Z is world up.

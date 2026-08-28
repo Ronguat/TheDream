@@ -1508,7 +1508,12 @@ void ATDCombatCharacter::ApplyKnockdownFall(AActor* Attacker)
 	// root motion source -- see ReceiveKnockback, where the juggling it prevents is explained. An
 	// airborne victim is knocked down mid-air and falls while the fall moves them.
 	Destination.Z = GetActorLocation().Z;
-	ReceiveKnockback(Destination, KnockdownFallSeconds, KnockdownFallTimeMappingCurve, KnockdownFallPathOffsetCurve);
+	// **The carry outlives the fall deliberately.** The montage plays past its fitted window while
+	// the body settles, and a carry ending on the fitted boundary strands that settle with no
+	// horizontal at all -- which reads as inertia vanishing on contact. The extra span carries the
+	// decaying skid; both curves are normalised over the total, not over the fall.
+	ReceiveKnockback(Destination, KnockdownFallSeconds + KnockdownCarrySettleSeconds,
+		KnockdownFallTimeMappingCurve, KnockdownFallPathOffsetCurve);
 }
 
 void ATDCombatCharacter::OpenParryWindow(float DurationSeconds, float WhiffRecoverySeconds)

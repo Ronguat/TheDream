@@ -752,6 +752,30 @@ off the deck is airborne by the flag and has nothing to fall, so it can neither 
 to — the three samples logged before this scenario existed were all of that kind. Only samples
 clearing the height bar carry the hang assertion.
 
+## Charting a bone through time, in world space
+
+**The capsule is not what the player looks at, and until 2026-08-28 nothing here measured anything
+else.** Four rounds of knockdown tuning each moved a capsule number and left the feel unfixed,
+because the animation moves the body *inside* the capsule and the two were cancelling.
+
+**`SkeletalMeshComponent::GetSocketLocation` resolves bone names and returns world space, live in
+PIE** *(Python, confirmed 2026-08-28)*. Reach the component with
+`actor.get_component_by_class(unreal.SkeletalMeshComponent)`, then `get_socket_location("pelvis")`.
+Nothing needed building; it had simply never been asked for.
+
+**Pair it with time dilation or it sees nothing.** A round trip through `run-in-editor.py` is about
+100 ms, so a 0.5 s event yields five samples. At `set_global_time_dilation` **0.10** the same event
+spans five seconds and yields fifty. Restore dilation to 1.0 before reading any trace timestamp.
+
+**Sample the same actor's own floor, never another's.** The first run of this measured lift as peak
+minus floor across *both* dummies -- floor from the attacker at 96.0, peak from the victim standing
+at 98.15 -- and invented a 41 cm ceiling that did not exist. `Docs/Working-In-Unreal.md` states that
+trap; it was quoted the same day it was walked into.
+
+**What it is good for beyond knockdowns**: any question of the form *"the mechanic is correct and it
+looks wrong"*. It answers where the body actually is, which is the only thing a feel verdict is ever
+about.
+
 ## Build a scenario from a human demonstration, not from intuition about the fixture
 
 **Amended 2026-08-24: the *driving* half of this is obsolete; the *measuring* half is not.**

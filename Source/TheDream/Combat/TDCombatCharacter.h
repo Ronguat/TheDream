@@ -735,7 +735,7 @@ protected:
 	 *  which outlasts this whenever KnockdownFallClipSeconds is shorter than the clip.
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Knockdown", meta=(ClampMin="0.01"))
-	float KnockdownFallSeconds = 0.6f;
+	float KnockdownFallSeconds = 0.5f;
 
 	/**
 	 *  Where the fall clip has landed, in seconds from its start. The span fitted to
@@ -786,6 +786,19 @@ protected:
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Knockdown")
 	TObjectPtr<UCurveVector> KnockdownFallPathOffsetCurve;
+
+	/**
+	 *  How long the carry runs past the fall, in seconds. The body is still laying itself down
+	 *  after the fitted window ends, and the carry used to stop dead at that boundary; this is the
+	 *  span the skid decays across.
+	 *
+	 *  Purely cosmetic: the victim is invincible throughout and the destination is unchanged, so
+	 *  this moves only when the authored spacing is *reached*, never where. Zero restores the
+	 *  carry ending with the fall. **The pacing and arc curves are normalised over fall plus this**,
+	 *  so changing it without re-deriving them re-times both.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Knockdown", meta=(ClampMin="0.0"))
+	float KnockdownCarrySettleSeconds = 0.08f;
 
 	/**
 	 *  Degrees per second the body turns to face its attacker after any clean hit.
