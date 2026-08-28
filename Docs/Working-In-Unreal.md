@@ -365,7 +365,12 @@ type** — a broken one usually looks fine alone.
   it null as recorded: it **keeps the previous attribute**. Wrote `Health` on a duplicate;
   `attribute` stayed `...:Stamina` while `attributeName` read `Health`, so the effect modifies the
   old one while reading as the new — worse than an empty field. Re-pick in the details panel.
-- **A GameplayEffect's inline tag containers cannot be written** *(confirmed 2026-08-10)* —
+- **A GameplayEffect's inline tag containers cannot be written *through reflection*, and they read
+  fine from the CDO** *(the read half refuted 2026-08-27)* — from Python
+  `inheritable_owned_tags_container` and `ongoing_tag_requirements` return proper
+  `InheritedTagContainer` / `GameplayTagRequirements` structs off
+  `get_default_object(bp.generated_class())`, so "read back empty" was a fact about addressing the
+  Blueprint instead of its CDO. **Writing them is still untested at that address.**
   `inheritableOwnedTagsContainer` and `ongoingTagRequirements` accept writes and read back empty; UE
   5.8 moved this to `gEComponents`. Numeric properties on the same asset write fine, so a
   partially-configured effect is the likely outcome. **Adding a GEComponent is scriptable from C++**
@@ -399,9 +404,12 @@ type** — a broken one usually looks fine alone.
   stale-override trap below gets created after a CDO session. **Naming the assets works and scopes
   the write** — re-tested 2026-08-20, contradicting the older advice to always pass an empty list —
   **but it fails like every other path call while PIE is up**, which is a reason to stop PIE, never
-  a reason to reach for the empty list. **There is no discovery call** *(enumerated 2026-08-21)*:
-  the empty list saves rather than lists, and `is_dirty` takes one `asset_path`, so it can only
-  confirm a file you already suspect. Name the paths, and **`git status` either way** — seeing the
+  a reason to reach for the empty list. **The MCP layer has no discovery call, Python does**
+  *(refuted 2026-08-27; the 2026-08-21 enumeration was of `AssetTools` only)*: the empty list saves
+  rather than lists and `is_dirty` takes one `asset_path`, but
+  `EditorLoadingAndSavingUtils.get_dirty_content_packages()` and `get_dirty_map_packages()` return
+  the list outright, with `save_dirty_packages()` beside them. **The bullet above already used one**,
+  which is how this was caught. Name the paths, and **`git status` either way** — seeing the
   files listed is the check, calling save is not. Against a **clean tree** it doubles as the audit
   showing whether the level got caught up, so commit or stash before saving.
 - **`delete` is inconsistent about removing the `.uasset` from disk** *(confirmed both ways)*.
@@ -443,7 +451,8 @@ is the exact condition under which a capability goes unnoticed for months.**
 **There is no IK Rig or IK Retargeter toolset** *(2026-08-21, read off a full `list_toolsets`
 response — `ControlRigTools` is Control Rig, a different system, and `SkeletalMeshTools` is mesh,
 bones and sockets)*. The `IKRig` plugin is enabled, so the system exists; only the MCP surface is
-missing. Python is the only candidate route and is untested for it.
+missing. **Python carries the system in full** *(confirmed 2026-08-27)* — 129 `IKRig`/`IKRetarget`
+classes are exposed, so the absent toolset is a routing fact rather than a limit.
 
 **The Unreal Python API is reachable, and nothing needs installing** *(confirmed 2026-08-21)*.
 `PythonScriptPlugin` is an engine default, so it is enabled while absent from the uproject's plugin
@@ -562,8 +571,11 @@ transition nodes by path — `bAlwaysResetOnEntry`, the `stateEntered` / `stateL
 nested graph is a node — *"Cannot cast type 'AnimGraphNode_StateMachine' to 'Blueprint'"*. Identical
 by path and by name, so it is a too-shallow outer walk rather than an addressing problem.
 `EdGraph.Nodes` refuses reflection both directions, `EdGraph` exposes no methods to Python, and
-`new_object` will construct an `AnimStateNode` that nothing can register. There is no clipboard or
-graph-text route anywhere in the API.
+`new_object` will construct an `AnimStateNode` that nothing can register. **The clipboard route does
+exist, in C++** *(refuted 2026-08-27)*: `FEdGraphUtilities::ExportNodesToText`, `ImportNodesFromText`
+and `CanImportNodesFromText` are all `UNREALED_API` — `EdGraphUtilities.h:110-127`. *"Anywhere in the
+API"* was a claim about two surfaces of three. Nothing needs it while `UTDStateMachineTools` covers
+state creation, but a copy-paste route is there if node kinds it does not cover ever come up.
 
 **C++ lifts it, and the engine's own entry point is exported.**
 `FEdGraphSchemaAction_NewStateNode::PerformAction` is `ANIMGRAPH_API` with a public header-inline
@@ -640,8 +652,10 @@ the pin at it, PIE, `CaptureViewport`, point it back.
 
 **AnimGraph *editing* is scriptable** *(confirmed 2026-08-11)*; only creation is not. `BlueprintTools`
 has `list_graphs`, `find_nodes`, `get_node_infos`, `create_node`, `connect_pins`, `set_pin_value`,
-`retarget_node_class`, `compile_blueprint` and `delete_node`. There is no disconnect function;
-deleting a node breaks its links. **Reconnecting an exec output replaces its existing link**, which
+`retarget_node_class`, `compile_blueprint`, `delete_node` — and **`break_pins`, which is the
+disconnect function this file said did not exist** *(refuted 2026-08-27, read off the live toolset
+schema; it takes an `output_pin` and an `input_pin` as `PinID`s)*. Deleting a node still breaks its
+links, but it is no longer the only way. **Reconnecting an exec output replaces its existing link**, which
 is how a node is spliced into a running chain without one. `read_graph_dsl` returned empty for
 `ABP_Combat:AnimGraph` — use `find_nodes` with `title: ""` plus `get_node_infos`, which reports pin
 connections both ways. Change a node by a **partial** write to its `Node` struct; a full write
@@ -689,7 +703,9 @@ time dilation below, any moment in combat is capturable: slow the world, drive t
 the state, shoot.
 
 `CaptureAssetImage` and the Slate `Screenshot`/`CaptureEditorImage` still cover one asset's
-thumbnail and windows, and **nothing can navigate to a state graph's interior**. *Untested hybrid:
+thumbnail and windows, and **nothing can navigate to a state graph's interior** *(re-tested
+2026-08-27, held — `AssetEditorSubsystem.open_editor_for_assets` opens the asset and
+`BlueprintEditorLibrary` offers only `refresh_*`, nothing that focuses a nested graph)*. *Untested hybrid:
 have the user open the graph, then `CaptureEditorImage`.*
 
 ---

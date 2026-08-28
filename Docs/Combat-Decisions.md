@@ -109,6 +109,7 @@ and not the order anyone reads in. Keep it sorted when adding.)*
 | 2026-08-13 — Target Lock's rotational half aims the lunge | reach is authored per branch — "author it longer in reach than the damage wedge", roughly this branch's lunge plus its damage reach | 2026-08-14 — Aim assist reach is derived (reach is no longer authorable at all; the struct has no reach field. Travel plus damage reach plus one shared `AimAssistMarginCm`, so the *estimate* in that entry was right and hand-authoring it was the mistake) |
 | 2026-08-13 — Target Lock's rotational half aims the lunge | the wedge is per branch and *is* the contract — "aim inside it and the body ends at 0 degrees of error", authored per tier | 2026-08-14 — The homing wedge follows the ladder (it was per branch only at commit, while homing ran every tier on branch 0's; the heavy's and charged's values did nothing and had never been observed. The contract is real *after* this fix, not before it) |
 | 2026-08-13 — The gate is per tick, and lunge duration is a designed quantity | the per-tick gate is the whole answer to a lunge arriving at a body — it "can only ever subtract travel", so the authored distance is the only ceiling needed | 2026-08-14 — The lunge stops on a hit (a pause is not a stop: the gate reopens when the body stops existing, so a killed target is slid through. The gate's own reasoning survives untouched — this is a second mechanism, not a correction to it) |
+| 2026-08-14 — Exhaustion recovers at its own rate | *"the attribute set cannot be written through the toolset ... so there is no automated path to a non-full bar"* | 2026-08-15 for the drain (`ETDDebugDefendMode` spends unattended), and 2026-08-27 for the claim's absolute form — `UAbilitySystemComponent::SetNumericAttributeBase` is public `UE_API`, so a direct setter is a build rather than an impossibility. The rate arithmetic the entry exists for is untouched |
 | 2026-08-14 — The lunge stops on a hit | the ~117 / ~175 / ~233 cm client-overtravel bounds are "bounded arithmetic, since nothing has ever run two machines" | 2026-08-15 — Two machines run for the first time. **Same shape as the row above**: the bounds are still arithmetic rather than measurement, because V2 drove no client input and tested nothing under latency. Only the premise clause is out of date. |
 | 2026-08-14 — Aim assist reach is derived | the margin is 200, "signed off but unfelt" | **Played the same day and settled at 100**, giving reaches of 550/650/750. No entry supersedes it — the derivation and the margin's meaning are unchanged, only the number. `GA_Attack`'s CDO is authoritative; treat the 200 in that entry as a dated measurement. |
 | 2026-08-14 — The homing wedge follows the ladder | the three authored numbers are live placeholders to be authored by feel, and reaches must be kept non-decreasing by hand | 2026-08-14 — Aim assist reach is derived (same day: reach stopped being authored, so there is nothing to feel out per branch and monotonicity became unrepresentable. Only the margin is a feel number now) |
@@ -1702,6 +1703,33 @@ re-probed: `ProgrammaticToolset`'s sandbox is a policy in the MCP plugin rather 
 "no usable Python on PATH" is a machine fact; and `EdGraph::Nodes` was already lifted at C++ by
 `UTDStateMachineTools`. **Header reconnaissance is the cheap third check** the three-surface table
 was missing — it costs a grep and it dates a limit properly.
+
+### Second wave: scanning for what is still phrased as impossible
+
+**Asked after the first pass: are any claims left that state something as not possible?** The scan
+was `grep -rn -i -E "impossible|no way to|there is no |nothing can |not possible|cannot be
+(read|written|saved|set|created|done|reached)" Docs/ CLAUDE.md`. Most hits are design statements or
+engine facts. Six were surface claims, and **five fell**:
+
+| Claim | Verdict |
+|---|---|
+| *"There is no discovery call"* for dirty assets | **Refuted** — `get_dirty_content_packages` / `get_dirty_map_packages` / `save_dirty_packages`. **The bullet four lines above it already used one** |
+| *"There is no disconnect function"* in `BlueprintTools` | **Refuted** — `break_pins` is in the live schema, taking two `PinID`s |
+| *"There is no clipboard or graph-text route anywhere in the API"* | **Refuted** — `FEdGraphUtilities::ExportNodesToText` / `ImportNodesFromText` / `CanImportNodesFromText`, all `UNREALED_API`, `EdGraphUtilities.h:110-127` |
+| *"Inline tag containers ... read back empty"* | **Refuted for reading** — off the CDO they return real `InheritedTagContainer` / `GameplayTagRequirements` structs; the Blueprint was the wrong address. Writing still untested |
+| *"Python is the only candidate route [for IK Rig] and is untested"* | **Refuted** — 129 `IKRig`/`IKRetarget` classes exposed |
+| *"Nothing can navigate to a state graph's interior"* | **Held** — `open_editor_for_assets` opens the asset; nothing focuses a nested graph |
+
+**Two of those contradicted material inside their own file**, which is the finding that matters more
+than any of them. *"There is no discovery call"* sits four lines below a bullet that calls
+`get_dirty_content_packages()`; *"there is no disconnect function"* sits beside a tool list that
+ships `break_pins`. **Neither needed a test — only a reading.** Both survived because the enumeration
+that produced them was of one toolset at one moment, and nothing re-reads a claim once it is
+prose.
+
+**The pattern across both waves: an absolute phrased without a surface is the failure mode**, not
+any particular wrong fact. *"There is no X"* invites no re-test; *"the MCP layer has no X, Python
+does"* dates itself and routes the reader.
 
 ### Still untested, and not blocking
 
