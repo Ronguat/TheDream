@@ -762,7 +762,14 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Knockdown", meta=(ClampMin="0.0"))
 	float KnockdownFallClipStartSeconds = 0.0f;
 
-	/** Optional shape for the fall, as the knockback's curve. Must average 1.0. */
+	/**
+	 *  Optional pacing for the carry. **A time-mapping curve, not a strength curve**: it maps
+	 *  normalised time to normalised progress and must run monotonically 0 to 1, the endpoint
+	 *  staying pinned whatever it does. Null is linear.
+	 *
+	 *  Paces the capsule alone. AM_Knockdown's own TimeStretchCurve paces the animation, and the
+	 *  two are separate assets under separate contracts.
+	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Knockdown")
 	TObjectPtr<UCurveFloat> KnockdownFallTimeMappingCurve;
 

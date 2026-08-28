@@ -1380,7 +1380,7 @@ long.
 | `AM_Attack` | 08-12, 08-24, 08-27 |
 | `AM_Dodge` | 08-10, 08-11, 08-12, 08-13, 08-21, 08-28 |
 | `AM_GetUpAttack` | 08-21, 08-22 |
-| `AM_Knockdown` | 08-25 |
+| `AM_Knockdown` | 08-25, 08-28 |
 | `AM_Parry` | 08-24 |
 | `animSegments` | 08-21 |
 | `APawn::FaceRotation` | 08-12 |
@@ -1532,7 +1532,7 @@ long.
 | `KnockdownFallClipSeconds` | 08-25 |
 | `KnockdownFallClipStartSeconds` | 08-25 |
 | `KnockdownFallSeconds` | 08-20, 08-25 |
-| `KnockdownFallTimeMappingCurve` | 08-25 |
+| `KnockdownFallTimeMappingCurve` | 08-25, 08-28 |
 | `KnockdownLockoutSecondsNormal` | 08-25 |
 | `KnockdownRiseSeconds` | 08-20 |
 | `KnockdownRollSeconds` | 08-25, 08-28 |
@@ -1685,6 +1685,74 @@ long.
 | `bUseControllerRotationYaw` | 08-12 |
 | `compositeSections` | 08-15, 08-18, 08-28 |
 | `gEComponents` | 08-10, 08-11 |
+
+## 2026-08-28 — The fall's cushion goes to the engine's own time-stretch curve, and the brief's mechanism was not needed
+
+**The brief specified a hand-built rate-zero driver** — hold `Montage_Play`'s rate at zero and drive
+the playhead per tick from a curve, *"exactly as `UTDAnimTellTools` does for the stun tells."*
+**`UAnimMontage` already has the feature.** `TimeStretchCurve` exists to *"define where a montage is
+allowed to speed up or slow down… by defining which regions can be play rated more or less"*, and the
+engine's own worked example is an attack authored with holds, compressed so the strikes look
+unaffected. It engages precisely when the play rate is non-default, which the fall's 1.333× is.
+
+**The brief's analogy was to a different surface.** `UTDAnimTellTools` drives **anim-graph sequence
+players**; a montage is a separate API. That mattered more than it looks — the sequence-player route
+is the one whose `SetPlayRate(0)` was silently refused for two weeks until the 08-28 fix.
+
+### What it does, measured off the baked curve
+
+The curve is authored 1 where stretching is allowed and 0 where it is not: **squashable through the
+gather and rise (0.00–0.37) and through the cushion (0.67–0.90), protected through the fall itself
+(0.40–0.63)**. The engine then solves for a uniform rate `U` and a scale `S`, preferring `U = 1`
+whenever the curve can absorb the compression alone. It could:
+
+| span | what it is | rate |
+|---|---|---|
+| 0.000–0.400 | gather and rise | **1.514×** |
+| 0.400–0.633 | the fall proper | **1.000× — natural speed** |
+| 0.633–0.900 | cushion and settle | **1.395 → 1.515×** |
+
+**The fall now plays at the speed it was animated at**, which no constant rate could give while also
+fitting 0.6 s. The 08-25 ceiling — *"duration and landing speed cannot both be had from this asset at
+a constant rate"* — was true of a constant rate and is not a property of the asset.
+
+### It dissolves the trimming trap rather than working around it
+
+08-25 recorded that *"removing an artifact at one end inflated one at the other, because with a
+single rate the two are the same knob."* They are no longer one knob. **The gather is now compressed
+rather than skipped**, which is what `KnockdownFallClipStartSeconds` was reaching for when it
+stretched the flat tail by 78%; that property stays at 0.0 and is now unlikely to be needed at all.
+
+### The loop debt does not come due
+
+The brief filed that `run_s6`'s *"fall lands inside lockout"* — `(played - from) / rate` — *"stops
+meaning anything once the rate is not constant."* **It keeps meaning exactly what it meant.** The
+engine guarantees `T_Target = T_Original / PlayRate` and redistributes time strictly inside that
+budget, so the montage's total span is unchanged and only its internal pacing moves. `s6-knockdown`
+**6/6**, the guard included, n=8. On the rate-zero route the debt would have been real.
+
+### The cost, stated because it is the reason to prefer the other route
+
+`U` and `S` are the engine's to choose, so **the animation's pacing and the carry's pacing can agree
+in shape but not to the frame** — the rate-zero route would author both from one curve and lock them.
+Quantified here: the fitted window's end, clip 0.80, arrives at **0.609 s** against the carry's
+**0.600**, because the fit is computed over the fitted window while the curve is baked over the whole
+0.900. Nine milliseconds, about half a frame at 60 fps.
+
+**The carry is still uniform.** Whether it needs the matching curve at all is the open question, and
+it is a look judgement rather than a derivation — the brief predicts *"the body slams down while
+sliding uniformly"*, but the carry is horizontal and the fall is vertical, so the prediction is worth
+testing before it is built against. **Authoring the matching curve is blocked on tooling either way**:
+`UCurveFloat`'s keys are unreachable from Python — `FloatCurve` is protected to reflection, there is
+no `AddKey` UFUNCTION and no curve-editing library — re-confirmed 2026-08-28 against the 08-24
+finding. It needs C++ in `TheDreamEditor` or a human in the curve editor.
+
+### Two documentation defects found while surveying, both corrected
+
+`KnockdownFallTimeMappingCurve`'s header read *"Must average 1.0"* — **the strength-curve contract on
+a time-mapping curve**, and the wrong one of two this project documents correctly one file over in
+`KnockbackTimeMappingCurve`. And the Polish brief still called `KnockdownFallSeconds` *"provisional at
+0.45"*, a value the parking entry later the same day had already superseded with **0.6**.
 
 ## 2026-08-28 — The dodge is fitted to the dash, and a 0.05 s blend-out was cutting off what was left
 
@@ -8863,7 +8931,7 @@ never covered the ender's 0.9725, and how to resolve that is a coverage question
 tune — the options are recorded in the trap. **Not a bug hunt**: the mechanic verifies, and what is
 in question is whether the derivation is authorable.
 
-**The parried attacker's recoil tell shipped 2026-08-27**, closing the recoil gap named above: a `ParryLockout` state in the Locomotion machine on `AS_SwordSwordAnimV3_Hit_Fw_RM`, positioned from lockout progress by `UTDAnimTellTools::DriveParryLockoutTell` against `ParryLockoutTellPortionSeconds` (0.684, hitstun's seam). **The designer's ruling picked the clip**: blockstun reads guarded and hitstun reads vulnerable, and a parry lockout *is* a punish window, so the victim carries the vulnerable tell rather than a block reaction. What Polish still inherits here is **the look, not the construction** — and the open preview question of whether V3's parry pose reads consistently beside V1's held guard, which is unchanged. **The editor work is no longer human either** *(2026-08-24)*: `UTDStateMachineTools` creates states, transitions and rules from script, which is how the hitstun flinch was built. A search for a blockstun *asset* still finds nothing and still proves nothing -- the state is why.  **And one that is mechanical rather than presentational, filed here so it is not forgotten** *(the designer, 2026-08-24)*: **a guard break should count as a hit for the *attacker's* input freedom.** A blocked hit returns before the on-hit waiver, so the attacker stays pinned for the full recovery — the waiver's own comment keeps recovery as the punish window *"against whiffs and against blocks."* A **break** should not sit on that side of the line: it waives like a connect. **The defender side is unchanged.** **The knockdown fall wants a time curve, and this is the brief for it** *(2026-08-25)*. The fall is skipped past its gather and cut before its settle, and what remains is that the clip **decelerates into the ground** where gravity would accelerate — an animator's cushion that every constant rate reproduces faithfully. **The fix is to redistribute time along the trajectory**: roughly linear through the descent, accelerating through the last third so the landing arrives rather than settles. *Half the mechanism exists* — `KnockdownFallTimeMappingCurve` is already a property but shapes the **carry**, not the clip; the missing half is applying it to the montage playhead. **The technique is already proven in this codebase**: `Montage_Play` takes only a constant rate, so hold the rate at zero and drive the position per tick from the curve, exactly as `UTDAnimTellTools` does for the stun tells. **Carry and clip should share one curve** or the body slams down while sliding uniformly. **The curve has a second job, learned after the brief was first written**: not only flattening the cushion but **buying duration without slowing the landing**. The usable window is 0.45 s of clip, so at a constant rate 1.0x *is* 0.45 s and 0.6 s *is* 0.75x — duration and landing speed cannot both be had. Sketched at 0.75x over clip 0.35–0.65 and 1.0x over 0.65–0.80: 0.55 s total with the impact still at speed. **The risk is that the slowed topple reads floaty.** **The fall is parked at carry 0.6 with `KnockdownFallClipStartSeconds` at 0.0** — the offset mechanism is built and guarded but disabled, because alone it trades the gather for a longer flat tail; the measured 0.35 waits in the property header. **It owes the loop a rethink**: `run_s6`'s *"fall lands inside lockout"* computes the montage span as `(played - from) / rate`, which stops meaning anything once the rate is not constant. **`KnockdownFallSeconds` is provisional at 0.45 pending this** — a curve changes which carry is right, so settling it first is wasted work. **What a curve cannot do** is change the trajectory's *shape*; the measurement says the shape is fine and only the timing is wrong, which is why this precedes both reauthoring the clip and the physics option below. **If it does not land, the two remaining routes are** authoring a replacement in Cascadeur, or a `PhysicalAnimationComponent` blend — physics driven toward the animated pose, which keeps the capsule deterministic (and so keeps `KnockdownSpacingCm`'s coupling to each tier's reach intact) while the mesh gains give. A **full** ragdoll knockdown is refused: it cannot hold an authored 450, and 2026-08-16 already rejected impulses for knockback on exactly that ground. **The target windups shipped 2026-08-25** — heavy **400 ms**, charged **800 ms**, with each tier's `HoldUntilSeconds` moved alongside so every runway and commit rate is preserved; `DodgeRecoverySeconds` retired to 0 in the same pass. **What clip selection inherits is a ceiling**: the heavy cannot grow past roughly **450 ms** without the light↔heavy gap outgrowing the parry window's usable margin and one press ceasing to cover both tiers, so there is about 50 ms of headroom to fit a clip into. The corrected reactability reference — measured from the light's arrival, not the coil — and the five audited relationships are in that day's entry. **The eight directional dodges are fitted to the dash as of 2026-08-28**, the designer's proposal from play and the get-up roll's construction reused: `DodgeClipSeconds` **0.667** fits only the travelling portion of each 0.8333 s section, dropping the rate 2.083x → **1.668** and leaving 0.167 s of settle outside the i-frames, cut short by any montage started over it. `AM_Dodge`'s blend-out went **0.05 → 0.10** in the same pass, it being the *whole* budget for a tail — GAS ends a montage with `Montage_Stop(BlendOut.GetBlendTime())` — and `AM_Dodge` was the only montage in the project not at 0.25. Judged *"a subtle but major improvement visually"* in play. **What is left here is one look question nobody has asked**: the seam is a single shared value because all eight clips agreed on it to the frame, but they differ by up to **100 ms** in where their feet settle, so whether any direction wants its own remains open. The coverage gap is a dated trap.
+**The parried attacker's recoil tell shipped 2026-08-27**, closing the recoil gap named above: a `ParryLockout` state in the Locomotion machine on `AS_SwordSwordAnimV3_Hit_Fw_RM`, positioned from lockout progress by `UTDAnimTellTools::DriveParryLockoutTell` against `ParryLockoutTellPortionSeconds` (0.684, hitstun's seam). **The designer's ruling picked the clip**: blockstun reads guarded and hitstun reads vulnerable, and a parry lockout *is* a punish window, so the victim carries the vulnerable tell rather than a block reaction. What Polish still inherits here is **the look, not the construction** — and the open preview question of whether V3's parry pose reads consistently beside V1's held guard, which is unchanged. **The editor work is no longer human either** *(2026-08-24)*: `UTDStateMachineTools` creates states, transitions and rules from script, which is how the hitstun flinch was built. A search for a blockstun *asset* still finds nothing and still proves nothing -- the state is why.  **And one that is mechanical rather than presentational, filed here so it is not forgotten** *(the designer, 2026-08-24)*: **a guard break should count as a hit for the *attacker's* input freedom.** A blocked hit returns before the on-hit waiver, so the attacker stays pinned for the full recovery — the waiver's own comment keeps recovery as the punish window *"against whiffs and against blocks."* A **break** should not sit on that side of the line: it waives like a connect. **The defender side is unchanged.** **The knockdown fall wants a time curve, and this is the brief for it** *(2026-08-25)*. The fall is skipped past its gather and cut before its settle, and what remains is that the clip **decelerates into the ground** where gravity would accelerate — an animator's cushion that every constant rate reproduces faithfully. **The fix is to redistribute time along the trajectory**: roughly linear through the descent, accelerating through the last third so the landing arrives rather than settles. *Half the mechanism exists* — `KnockdownFallTimeMappingCurve` is already a property but shapes the **carry**, not the clip; the missing half is applying it to the montage playhead. **The technique is already proven in this codebase**: `Montage_Play` takes only a constant rate, so hold the rate at zero and drive the position per tick from the curve, exactly as `UTDAnimTellTools` does for the stun tells. **Carry and clip should share one curve** or the body slams down while sliding uniformly. **The curve has a second job, learned after the brief was first written**: not only flattening the cushion but **buying duration without slowing the landing**. The usable window is 0.45 s of clip, so at a constant rate 1.0x *is* 0.45 s and 0.6 s *is* 0.75x — duration and landing speed cannot both be had. Sketched at 0.75x over clip 0.35–0.65 and 1.0x over 0.65–0.80: 0.55 s total with the impact still at speed. **The risk is that the slowed topple reads floaty.** **The fall is parked at carry 0.6 with `KnockdownFallClipStartSeconds` at 0.0** — the offset mechanism is built and guarded but disabled, because alone it trades the gather for a longer flat tail; the measured 0.35 waits in the property header. **It owes the loop a rethink**: `run_s6`'s *"fall lands inside lockout"* computes the montage span as `(played - from) / rate`, which stops meaning anything once the rate is not constant. **`KnockdownFallSeconds` is provisional pending this** — at **0.6** since the parking entry later the same day superseded the 0.45 interim, which this clause went on naming until 2026-08-28 — a curve changes which carry is right, so settling it first is wasted work. **What a curve cannot do** is change the trajectory's *shape*; the measurement says the shape is fine and only the timing is wrong, which is why this precedes both reauthoring the clip and the physics option below. **If it does not land, the two remaining routes are** authoring a replacement in Cascadeur, or a `PhysicalAnimationComponent` blend — physics driven toward the animated pose, which keeps the capsule deterministic (and so keeps `KnockdownSpacingCm`'s coupling to each tier's reach intact) while the mesh gains give. A **full** ragdoll knockdown is refused: it cannot hold an authored 450, and 2026-08-16 already rejected impulses for knockback on exactly that ground. **The target windups shipped 2026-08-25** — heavy **400 ms**, charged **800 ms**, with each tier's `HoldUntilSeconds` moved alongside so every runway and commit rate is preserved; `DodgeRecoverySeconds` retired to 0 in the same pass. **What clip selection inherits is a ceiling**: the heavy cannot grow past roughly **450 ms** without the light↔heavy gap outgrowing the parry window's usable margin and one press ceasing to cover both tiers, so there is about 50 ms of headroom to fit a clip into. The corrected reactability reference — measured from the light's arrival, not the coil — and the five audited relationships are in that day's entry. **The eight directional dodges are fitted to the dash as of 2026-08-28**, the designer's proposal from play and the get-up roll's construction reused: `DodgeClipSeconds` **0.667** fits only the travelling portion of each 0.8333 s section, dropping the rate 2.083x → **1.668** and leaving 0.167 s of settle outside the i-frames, cut short by any montage started over it. `AM_Dodge`'s blend-out went **0.05 → 0.10** in the same pass, it being the *whole* budget for a tail — GAS ends a montage with `Montage_Stop(BlendOut.GetBlendTime())` — and `AM_Dodge` was the only montage in the project not at 0.25. Judged *"a subtle but major improvement visually"* in play. **What is left here is one look question nobody has asked**: the seam is a single shared value because all eight clips agreed on it to the frame, but they differ by up to **100 ms** in where their feet settle, so whether any direction wants its own remains open. The coverage gap is a dated trap.
 - **Settings menu.** Raised 2026-08-12. Mouse sensitivity is the immediate want, and it should own
   **`TurnRateDegrees`** too — that number stopped being cosmetic the moment attacks began pointing
   wherever it had turned to, so exposing it is a balance decision rather than a comfort one, and a
