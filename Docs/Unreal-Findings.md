@@ -107,7 +107,7 @@ rather than an engine limit** *(swept 2026-08-24)*:
   `FRootMotionSource_MoveToDynamicForce::PathOffsetCurve` is a `UCurveVector` evaluated at the
   move fraction and rotated into the direction of travel with pitch zeroed, so its Z is world up.
   Sampled **after** `TimeMappingCurve`, so a pacing curve and an arc on one source share a time
-  base and cannot drift. `IgnoreZAccumulate` must be off or the Z is discarded.
+  base and stay in step. `IgnoreZAccumulate` must be off, or the source's Z is discarded.
 - **`UCurveFloat`'s keys — refuted from C++** *(2026-08-24; the reflection half of the 2026-08-13
   entry stands)*. `FloatCurve` is a bare `UPROPERTY()` the reflection layer cannot see, **and it is a
   public `FRichCurve` member**, so `AddKey` from an editor module authors keys directly. The old

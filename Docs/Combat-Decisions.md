@@ -1181,7 +1181,8 @@ than a refusal.
 
 | Feels wrong | Move this | **Not** this |
 |---|---|---|
-| The knockdown reads flat, or lacks impact | **`C_KnockdownArc`**, the Z of its path offset — apex 60 cm at path 0.90, and the apex's *path* position is what sets whether the descent is a crash or a float once the pacing is applied | `KnockdownFallSeconds`. It moves the whole event including the animation, and the arc's shape is authored in path fractions, so a duration change rescales the arc rather than reshaping it. Also **not** an impulse or `LaunchCharacter` — 2026-08-16 and `StartLunge`'s header rule both out, the second on netcode grounds. |
+| The knockdown reads flat, or lacks impact | **`C_KnockdownArc`**, the Z of its path offset — **60 cm of lift, authored against *time* as two half-parabolas and mapped back through the pacing curve**, so the keys sit at uneven path fractions by construction. Regenerate it rather than dragging keys; the script is in the 2026-08-28 entry | `KnockdownFallSeconds`. It moves the whole event including the animation, and the arc's shape is authored in path fractions, so a duration change rescales the arc rather than reshaping it. Also **not** an impulse or `LaunchCharacter` — 2026-08-16 and `StartLunge`'s header rule both out, the second on netcode grounds. |
+| The landing has no weight, or eases in | **The arc's descent shape**, and check it composed rather than in isolation: the slide's ease-out slows the path fraction near the end, so a descent that looks steep in path space still decelerates in time. **Linear keys** — cubic auto tangents flatten toward a final key and that alone reinstates the cushion | The montage's stretch curve. Its tail is the clip's last 6 cm against the capsule's 60, so it ramps for consistency and cannot carry the impact. |
 | The knockdown slides backward too evenly | **`C_KnockdownCarry`**, the carry's time mapping — linear keys, monotonic 0 to 1 by construction | Making it cubic "to smooth it". Auto tangents overshoot, and a time-mapping curve that passes 1.0 drives the body past `KnockdownSpacingCm` and back. The measured overshoot on the first draft was 0.5 cm; the contract is what stops it being more. |
 | Dodge reads fast-forwarded | **`DodgeClipSeconds`** (2026-08-28) — how much of the section is fitted, the rate following from it. `DodgeSeconds` moves the whole dodge and is mechanical, so it is the wrong knob for a look | Trimming the **section in the asset**, still, and the animator's midpoint is still not the design. **This row named the clip as the wrong answer outright until 2026-08-28**, its stated reason being that the baseline had not been felt; it had by then, and the seam is authored where the clip's own travel stops rather than at a midpoint. |
 | The dodge snaps to idle rather than settling | **`AM_Dodge`'s blend-out**, 0.10. A montage's blend-out time is the *whole* budget for anything playing after an ability ends — GAS stops it with `Montage_Stop(BlendOut.GetBlendTime())` and the montage advances while it fades | Lengthening it past the tail. At 0.10 the montage reaches zero weight as the section ends; longer and it advances into the next direction's section, whose chaining nothing has read. **Derived from `DodgeClipSeconds`** — move one and re-derive the other. |
@@ -1701,6 +1702,54 @@ long.
 | `bUseControllerRotationYaw` | 08-12 |
 | `compositeSections` | 08-15, 08-18, 08-28 |
 | `gEComponents` | 08-10, 08-11 |
+
+## 2026-08-28 — The arc carried the same cushion it was built to remove
+
+**The designer, on the shipped arc**: *"It actually looks really good. The main thing I'm seeing is
+that the character still decelerates into the ground, and I think I'm wanting them to accelerate into
+the ground so it sells the weight of the impact rather than this visual of an invisible safety net."*
+
+**Correct, and my own arc was the cause.** Its Z per 20 ms through the descent read **−11.7, −9.1,
+−9.8, −9.5, −8.3, −4.6, −2.0, −1.5, −1.0, −0.3** — peaking mid-fall and easing into contact. The
+capsule had been given exactly the animator's cushion the whole slice existed to remove. The entry
+above claimed *"the descent is the faster half, which is the crash"*, and that was true of the halves
+and false of the moment that matters.
+
+### Two causes, and the second is the price of a thing recorded as a benefit
+
+**Cubic auto tangents flatten toward a final key**, so an arc ending at zero eases into it by
+construction. That one is a mechanism fault and linear keys fix it.
+
+**The other is structural.** The arc is sampled at the fraction `TimeMappingCurve` returns, which the
+entry above records as the reason the two *"cannot drift"*. They also **cannot differ**: the slide's
+ease-out means path fraction advances slowly near the end, so the arc is traversed slowly there no
+matter what its own shape says. A shared time base was sold as a benefit and is equally a constraint,
+and this is the first time that has cost anything.
+
+### The fix authors against time and maps back
+
+`z(t)` is now two half-parabolas — the rise **decelerating** to apex as a real launch does, the fall
+**accelerating** so contact arrives at maximum speed — sampled at 29 points and each one mapped
+through the pacing curve to the path fraction the source will ask for. **Linear keys**, so nothing
+re-smooths the landing.
+
+Composed descent per 20 ms: **−0.46, −1.27, −2.10, −3.38, −4.58, −5.41, −6.57, −6.74, −7.90, −8.73,
+−8.86**, monotonic into contact. **Impact speed 443 cm/s against the previous 15** — thirty times
+faster arrival for the same 60 cm of lift.
+
+### The animation's own cushion is the smaller half, and is ramped rather than solved
+
+`MontageTimeStretchCurve`'s tail was flat at 1, which gives the whole cushion **one** rate — fast, but
+not accelerating. Ramped 0 → 0.35 → 0.70 → 1.0 across 0.633–0.900 so each later slice is compressed
+more than the one before: measured **1.445 → 1.540**. That is a mild effect on the clip's last 6 cm
+and is kept because it is on the right axis, not because it is doing the work. **The capsule moves
+ten times as far near contact and is what sells this.**
+
+### Verified
+
+`s6-knockdown` **6/6** (n=9), `s4-string` **7/7**, lift **59.8 cm** measured across 140 PIE samples
+against an authored 60. The fall proper still reads **1.000×** — the protection survived the retune,
+which is the property the engine's solver was chosen for.
 
 ## 2026-08-28 — The knockdown arcs, and the arc rides the channel the slide was already on
 
