@@ -1724,6 +1724,13 @@ the third surface again: `UTDStateMachineTools::SetAnimNodePropertyAlwaysDynamic
 three tells; the warning count went **3,207 → 0** across a session in which 2 parry lockouts, 14
 hitstun and 8 blockstun tells demonstrably ran.
 
+### Judged in play, all three
+
+**The designer re-judged hitstun, blockstun and the parry deliberately after the fix** and reported
+all three *"slightly more precise"* — the first verdict any of them has had on the mechanism the
+2026-08-25 entry describes, since the rate-zero hold was never in effect before today. The 17 ms was
+predicted to be imperceptible and was not.
+
 ### The correction that outlives both
 
 The standing trap says of the tells: *"no instrument in this project can see it, and the loop never

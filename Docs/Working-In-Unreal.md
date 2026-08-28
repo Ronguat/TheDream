@@ -139,10 +139,12 @@ exercised 2026-08-27)*. The MCP registry carries no quit tool; `taskkill` is the
 call **returns before teardown** — the runner printed `RESULT` and exited 0 — and the shutdown is
 orderly: the log ends `LogExit: Exiting.` then `Log file closed`, and
 `PackageRestoreData.json` is **rewritten** with the clean marker rather than left stale, which is
-what a forced kill leaves behind. **Untested on a dirty editor**: nothing was dirty when this ran,
-so whether it prompts is unknown — and a save dialog would hang an unattended run, so check
-`get_dirty_content_packages()` before calling it that way. **Saving covers assets only** either
-way: in-progress asset-editor state dies unasked.
+what a forced kill leaves behind. **A dirty map does not prompt it** *(confirmed 2026-08-28)*.
+**Dirty content is untested and deliberately stays that way** *(the designer, 2026-08-28)*: closedown
+saves first every time, so the case should not arise, and the mechanism this replaced was
+`taskkill //F`, which discards dirty content without asking — **the swap can only be neutral or
+safer, so no new risk was introduced and there is nothing to prove.** **Saving covers assets only**
+either way: in-progress asset-editor state dies unasked.
 `Saved/Autosaves/PackageRestoreData.json` reading `Packages: []` confirms nothing was stranded;
 **`Packages` is the field that matters, not `RestoreEnabled`**, which is not a stable signal.
 **Read it only against a closed editor**: a running one populates it by autosaving a dirty package,
