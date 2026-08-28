@@ -1199,6 +1199,7 @@ than a refusal.
 |---|---|---|
 | The knockdown reads flat, or lacks impact | **`C_KnockdownArc`**, the Z of its path offset — **60 cm of lift, authored against *time* as two half-parabolas and mapped back through the pacing curve**, so the keys sit at uneven path fractions by construction. Regenerate it rather than dragging keys; the script is in the 2026-08-28 entry | `KnockdownFallSeconds`. It moves the whole event including the animation, and the arc's shape is authored in path fractions, so a duration change rescales the arc rather than reshaping it. Also **not** an impulse or `LaunchCharacter` — 2026-08-16 and `StartLunge`'s header rule both out, the second on netcode grounds. |
 | The landing has no weight, or eases in | **The arc's descent shape**, and check it composed rather than in isolation: the slide's ease-out slows the path fraction near the end, so a descent that looks steep in path space still decelerates in time. **Linear keys** — cubic auto tangents flatten toward a final key and that alone reinstates the cushion | The montage's stretch curve. Its tail is the clip's last 6 cm against the capsule's 60, so it ramps for consistency and cannot carry the impact. |
+| The knockdown snaps or vibrates at the landing | **The arc's press into the floor**, `PRESS_CM` 4.0 in the derivation. Clearing `IgnoreZAccumulate` to get the arc means the source owns Z and holds the capsule at its entry height; releasing it makes the movement component find the floor and pay in one frame. Commanding downward keeps it on collision so there is nothing to pay | Shortening the carry, or tuning the pacing. The snap is 1.37 cm and one frame — it is a handoff fault, not a timing one, and it is invisible to every instrument here except bone charting under dilation. |
 | The knockdown's landing has no follow-through, or inertia evaporates | **`KnockdownCarrySettleSeconds`** (0.08) — the carry outlives the fall and the extra span is a skid decaying to zero. Purely cosmetic: the victim is invincible and the destination is unchanged, so this moves only *when* the spacing is reached | A longer pacing tail alone. The tail is bounded by the carry's duration, so while the carry ended with the fall no curve shape could put horizontal where there was no time. |
 | The body's height is not what was authored | **`BODY_APEX` in the composite derivation**, which is the *body's* lift — the capsule's offset is derived from it and is larger, currently 47 cm to deliver 35 | Tuning the capsule arc directly. Every apex authored before 2026-08-28 was a capsule number the body never matched; the animation was cancelling roughly a third of it. Chart the pelvis, not the actor. |
 | The knockdown's path reads as a U rather than an arc | **`C_KnockdownCarry`** — it is **linear to contact on purpose**, because constant horizontal speed is what makes a trajectory a parabola. Easing it spends the horizontal before the apex and leaves the descent nowhere to go but down; measured at 85%/15% before, 58%/42% after | Steepening the arc to compensate. The descent was already accelerating; the fault was the horizontal, and adding vertical only sharpens the U. **Judge the composition, never the two curves separately** — each looks correct alone in both states. |
@@ -1722,6 +1723,52 @@ long.
 | `bUseControllerRotationYaw` | 08-12 |
 | `compositeSections` | 08-15, 08-18, 08-28 |
 | `gEComponents` | 08-10, 08-11 |
+
+## 2026-08-28 — The snap was the root motion source letting go, and the skid was hiding behind it
+
+**The designer, watching a knockdown at 0.04 time dilation**: *"It almost looks like the body is
+reaching the floor early, then it gets sucked INTO the floor a bit, and then rubber bands back up in
+one frame. Even with these extremely dilated conditions, the snap is 1 frame."*
+
+**Charted, and it is exactly that.** Capsule Z through the landing: `98.15, 97.83, 96.78, 98.15` —
+**sunk 1.37 cm and rebounded in a single sample**, at 22.79–22.84 against a carry ending at 22.77.
+Being one frame *at 0.04 dilation* is the tell: a frame-quantised correction, not a movement.
+
+### Cause
+
+Getting the arc at all meant clearing `IgnoreZAccumulate`, so **the source owns Z for its whole
+duration** and holds the capsule at its entry height. The instant it releases, the movement component
+re-establishes the floor and pays the discrepancy in one frame. Nothing handed the capsule back to
+gravity.
+
+### Fix, and it needs no code
+
+**The arc presses into the floor across the skid** — `PRESS_CM` 4.0, ramped in over the first 30% of
+the settle — so the capsule is already resting on collision when the source lets go and there is
+nothing left to correct. Root motion deltas go through `SafeMoveUpdatedComponent`, so the floor stops
+it; commanding downward is free. Measured after: capsule Z holds **98.15 across the entire tail**,
+no dip and no rebound, confirmed by the designer's eye the same minute.
+
+### The skid had been invisible because the snap was on top of it
+
+*"This was the first time I could see the skid"* — after the press, with no other change to the
+horizontal. A 21 cm skid decaying over 84 ms was being masked by a one-frame pop landing in the
+middle of it. **Doubled on the designer's call**: `KnockdownCarrySettleSeconds` **0.16**, which by the
+speed-matching gives the skid **14.2%** of the distance rather than 7.8% — measured **37 cm decaying
+to zero over 0.166 s** against an authored 0.164.
+
+### Why this took an instrument rather than an argument
+
+The snap is 1.37 cm and one frame. **No trace line, no scenario and no capsule-position sample at
+normal speed could have found it**, and it survived four rounds of tuning because every earlier
+measurement was too coarse to see it. What found it was the bone charting from the entry above, run
+at 0.04 dilation — and the designer watching the same dilated session.
+
+### Verified
+
+`s6-knockdown` **6/6** (n=8), `s4-string` **7/7** (n=17). `KnockdownCarrySettleSeconds` 0.16 and
+`KnockdownFallSeconds` 0.5 both live in the C++ default with no Blueprint override behind them;
+the 0.16 was trialled through a CDO write first and the trial reverted on restart as designed.
 
 ## 2026-08-28 — The capsule was never what anyone was looking at, and the fix needed an instrument that did not exist
 

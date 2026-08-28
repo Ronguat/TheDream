@@ -798,7 +798,7 @@ protected:
 	 *  so changing it without re-deriving them re-times both.
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Knockdown", meta=(ClampMin="0.0"))
-	float KnockdownCarrySettleSeconds = 0.08f;
+	float KnockdownCarrySettleSeconds = 0.16f;
 
 	/**
 	 *  Degrees per second the body turns to face its attacker after any clean hit.
