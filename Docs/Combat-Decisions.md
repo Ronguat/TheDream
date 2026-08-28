@@ -1000,6 +1000,31 @@ and the same instrument — an eye, or a screenshot. The designer judged it in p
 shipped; **that confirmation does not transfer to the next change.**
 
 
+**Before wiring either lunge strength curve — *both assets that exist break the contract their own
+socket documents.*** Filed 2026-08-28, found while surveying curve sockets for the knockdown fall.
+`LungeStrengthCurve` scales **per-tick speed**, so distance is `LungeDistanceCm` times the curve's
+**mean** — the header says so and says an ease-out from 2 to 0 keeps it while one falling from 1 to 0
+halves it. The two authored assets are both the second kind:
+
+| asset | shape | mean | distance if wired in today |
+|---|---|---|---|
+| `C_Lunge_Base` | linear 0.5 → 1.0 | **0.750** | **75%** of authored |
+| `C_Lunge_Attack` | flat 0.80, dropping to 0.20 over the last tenth | **0.770** | **77%** of authored |
+
+**Harmless today and only today**: `GA_Attack`'s `LungeStrengthCurve` and `KnockbackTimeMappingCurve`
+both read null, nothing references either asset, and every lunge travels its authored distance. The
+failure on wiring one in is **silent** — no warning, no error, just every lunge landing short, which
+reads as a reach or spacing bug and would be chased there. **Renormalise before wiring, or author a
+replacement**; the fix is to divide the curve through by its own mean.
+
+**And there are three curve contracts in this project, not two** — the mistake is confusing them.
+Strength curves (`LungeStrengthCurve`, `FTDRootMotionSource_FacingForce::StrengthOverTime`) scale
+velocity and must average 1.0. Time-mapping curves (`KnockbackTimeMappingCurve`,
+`KnockdownFallTimeMappingCurve`) *are* the progress and must run monotonically (0,0) to (1,1), with
+the endpoint pinned whatever they do. A montage's `TimeStretchCurve` is a third and acts on the
+animation rather than the capsule. `KnockbackTimeMappingCurve`'s header states the first distinction
+correctly and is the one to copy.
+
 **Before duplicating any montage — *the copy inherits notifies you cannot see.*** Filed 2026-08-15,
 and it is the sharper half of what `AM_Blockstun` taught. Cloning `AM_Attack` carried its **Release
 Window** across; `notifies` is unreadable through the toolset, so nothing available to an assistant
