@@ -763,9 +763,13 @@ PIE** *(Python, confirmed 2026-08-28)*. Reach the component with
 `actor.get_component_by_class(unreal.SkeletalMeshComponent)`, then `get_socket_location("pelvis")`.
 Nothing needed building; it had simply never been asked for.
 
-**Pair it with time dilation or it sees nothing.** A round trip through `run-in-editor.py` is about
-100 ms, so a 0.5 s event yields five samples. At `set_global_time_dilation` **0.10** the same event
-spans five seconds and yields fifty. Restore dilation to 1.0 before reading any trace timestamp.
+**Pair it with time dilation or it sees nothing.** A round trip through `run-in-editor.py` costs
+**0.7 to 1.0 s of wall clock** on this machine — measured, 290 samples across 200 s — so at normal
+speed a 0.5 s event yields **less than one sample**. At `set_global_time_dilation` **0.10** it yields
+five to seven, and at **0.04** roughly fifteen. Restore dilation to 1.0 before reading any trace
+timestamp. **The console's `slomo` is the same knob** — `UCheatManager::Slomo` calls
+`WorldSettings->SetTimeDilation`, which is what `set_global_time_dilation` uses — so a human can
+drive it from the PIE console while a script samples.
 
 **Sample the same actor's own floor, never another's.** The first run of this measured lift as peak
 minus floor across *both* dummies -- floor from the attacker at 96.0, peak from the victim standing
