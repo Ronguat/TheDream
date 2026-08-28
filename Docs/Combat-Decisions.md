@@ -983,8 +983,12 @@ could detect it, and **the user found it by eye in the editor**. The hazard is s
 `UAnimNotifyState_MeleeWindow` emits `RELEASE BEGIN`/`END`, which `s1-light`/`s1-heavy`/`s1-charged`
 assert press→release timing against — so a stray window on an unrelated montage **poisons the
 regression checker while reading as a timing bug**, which is the worst possible disguise.
-*`AnimationLibrary.get_animation_notify_events` is a candidate detector as of 2026-08-22 —
-verified 2026-08-22; `Working-In-Unreal.md`.*
+**The detector is no longer a candidate** *(2026-08-27)*: `unreal.AnimationLibrary.get_animation_notify_events`
+reads any montage's notifies from Python, with `get_animation_notify_event_names` and
+`get_anim_notify_event_trigger_time` / `_duration` beside it. Measured on `AM_Attack`: **one event,
+`MeleeWindow`**. So the blindness that made this trap undetectable is gone; **the rule against
+cloning an attack montage stands**, because a checked copy is still a copy of the wrong thing.
+See `Working-In-Unreal.md`.
 
 **Never clone an attack montage to make a non-attack one.** The general rule is that duplication is
 only safe from a source whose notifies you actively want, and that a montage the toolset reports as
@@ -1303,7 +1307,7 @@ reading the file front to back found it.** An index nobody has to read front to 
 
 Generated from the archive rather than maintained by hand, so it goes stale rather than wrong —
 a missing row means the entry is newer than the index, never that the symbol is absent.
-Current through **2026-08-25** — update the date when regenerating, and `docs-check` turns
+Current through **2026-08-27** — update the date when regenerating, and `docs-check` turns
 staleness into a red row by comparing it against the newest entry. The rule for reading it is the standing one,
 that **a search finding nothing proves only that the filter did not match.**
 
@@ -1322,7 +1326,7 @@ long.
 | `AM_Attack_S2` | 08-16 |
 | `AM_Attack_S3` | 08-16 |
 | `AM_Attack_S4` | 08-16 |
-| `AM_Attack` | 08-12, 08-24 |
+| `AM_Attack` | 08-12, 08-24, 08-27 |
 | `AM_Dodge` | 08-10, 08-11, 08-12, 08-13, 08-21 |
 | `AM_GetUpAttack` | 08-21, 08-22 |
 | `AM_Knockdown` | 08-25 |
@@ -1622,6 +1626,65 @@ long.
 | `bUseControllerRotationYaw` | 08-12 |
 | `compositeSections` | 08-15, 08-18 |
 | `gEComponents` | 08-10, 08-11 |
+
+## 2026-08-27 — The limit sweep finishes: five walls fall, five hold, and the marks were the real defect
+
+**Why it ran.** The Polish brief claimed one of the two stun tells still needed building and supplied
+instructions for building it; the state had shipped 2026-08-15. Chasing that back showed the
+2026-08-24 sweep had covered exactly one list — *"needs a human in the editor"* — leaving every other
+recorded limit dated against an MCP-only workflow with nothing marking it as such. **The designer's
+ruling: documentation drift corrupts planning, and that is not a price this project pays for speed.**
+
+### Method
+
+The three surfaces in the file's own order, driven through `Tools/AnimPipeline/run-in-editor.py` —
+the editor's remote-execution pipe, and a far cheaper Python route than the Slate Cmd box the docs
+lead with. Instrument proved first: `get_engine_version()` returned 5.8.1.
+
+### What fell, and what held
+
+| Claim | Verdict |
+|---|---|
+| *"There is no graceful quit"* | **Refuted** — `SystemLibrary.quit_editor` exists. Present, **not yet exercised** |
+| *"The console is the only console route; `EditorAppToolset` cannot set a cvar"* | **Refuted** — `execute_console_command` sets one; `TD.DebugCombatTiming` 1 → 0 → 1 |
+| *"The GAS inspector returns names only"* | **Refuted** — the ASC answers `get_all_abilities`, `activatable_abilities`, `find_all_abilities_with_tags` |
+| *"The toolset cannot read a montage's notifies"* | **Refuted** — `AnimationLibrary`; `AM_Attack` reads one event, `MeleeWindow` |
+| *"No scriptable equivalent of the revert arrow"* | **Refuted for detection** — `is_editor_property_overridden` |
+| *"Transition direction is unreadable from Python or MCP"* | **Held** |
+| *"`EdGraph.Nodes` refuses reflection"* | **Held** |
+| *"`ProgrammaticToolset` refuses `import unreal`"* | **Held** — six stdlib modules |
+| *"The attribute set cannot be written"* | **Held at two surfaces** — `AbilitySystemLibrary` has 132 members and only getters; C++ `SetNumericAttributeBase` untested |
+| *"No usable Python on PATH"* | **Held** — hit again this session |
+
+**Five of ten, not ten of ten.** The prediction going in was that every one would fall. Half is the
+honest rate, and the surface-independent rules — *only play confirms an asset with a build step* —
+were never at risk. **A selected sample refutes at a higher rate than a full pass**, which is what
+8-for-8 on 2026-08-24 was.
+
+### Two test-design errors worth copying
+
+**Four probes returned nothing because the address was wrong, not because the capability was
+absent** — a guessed API name where the real one differed, and the Blueprint asset where the CDO was
+wanted. Each looked exactly like a wall.
+
+**`is_editor_property_overridden` returns an enum whose every member is truthy.** Tested with
+`if r:` it reported every name probed as overridden, including method names; compared against
+`EditorPropertyValueState.OVERRIDDEN` it reports none, which is the true answer for both training
+dummies and both PlayerStarts across nine combat properties. **A test that cannot return "no" is not
+a test** — the same shape as a checker that cannot fail.
+
+### What the marks were actually hiding
+
+Only **7 `(toolset)` marks** existed against roughly 76 dated claims, and both of the two that were
+real claims had already been converted to routing facts. Everything else asserted a limit while
+saying nothing about the surface it was measured on, so an MCP-only measurement read identically to
+one tested everywhere. **That silence, not any single claim, is what let a wrong limit sit inert** —
+and it is why the fix is a required surface field rather than a caveat.
+
+### Still untested, and not blocking
+
+Client-world reach under PIE, and whether a state graph's interior can be navigated for capture.
+Both need a running PIE session.
 
 ## 2026-08-25 — The knockdown fall parks at 0.6, and the rest is filed rather than chased
 

@@ -114,8 +114,11 @@ needs a restart and is safe, and a write that was never saved is already gone. B
 from inside the editor. `git status` is the only thing that separates them and it must happen
 *before* the kill.
 
-There is **no graceful quit** — checked across the whole toolset registry. So closing is always a
-forced kill, and **saving covers assets only**: in-progress asset-editor state dies unasked.
+**The MCP registry has no quit tool; Python does** *(refuted 2026-08-27)*.
+`unreal.SystemLibrary.quit_editor()` exists, so "closing is always a forced kill" was a claim about
+one surface. **The API is confirmed present and has not been exercised** — `taskkill` remains what
+this project has actually used. **Saving covers assets only** either way: in-progress asset-editor
+state dies unasked.
 `Saved/Autosaves/PackageRestoreData.json` reading `Packages: []` confirms nothing was stranded;
 **`Packages` is the field that matters, not `RestoreEnabled`**, which is not a stable signal.
 **Read it only against a closed editor**: a running one populates it by autosaving a dirty package,
@@ -148,8 +151,11 @@ re-path and actors silently go missing. Use File → New Level → Empty.
 **`SlateInspectorToolset` is a Playwright-style surface over the editor's own widget tree** —
 `Windows`, `Observe`, `Snapshot`, `Click`, `Type`, `PressKey`, `Drag`, `Screenshot`.
 
-**The editor console is drivable, and it is the only console route there is** — `EditorAppToolset`
-searches cvars and cannot set one. `Observe` the main window, `Snapshot` for the status-bar textbox
+**Python sets cvars directly, and the Slate console is the fallback rather than the only route**
+*(refuted 2026-08-27)*. `unreal.SystemLibrary.execute_console_command(None, "Cvar.Name 1")` sets one
+and `get_console_variable_int_value` reads it back — measured `TD.DebugCombatTiming` 1 → 0 → 1
+through `run-in-editor.py`. `EditorAppToolset` searching but not setting is true of **MCP only**.
+The Slate route below still matters for anything that is not a cvar or a console command. `Observe` the main window, `Snapshot` for the status-bar textbox
 beside the **"Cmd"** combobox, **`Click` it to focus**, then `Type` with `submit: true` *(confirmed 2026-08-15; the `Click` confirmed 2026-08-25 — without it `Type` returns `false` and looks exactly like the quote bug next door)*. **`Type` fails on a single quote** *(confirmed
 2026-08-21)* — it returns `false`, logs nothing, enters nothing, and reads like a permissions
 refusal. Double quotes are fine, so write `print("x")` and never `print('x')`.
@@ -274,8 +280,10 @@ several distinct ways:
 
 **For a CDO, the artefact is the runtime instance** — not the CDO, not the file. Reach it during PIE
 via `ActivatableAbilities` on the ASC; each spec's `nonReplicatedInstances` holds the live ability's
-`refPath`. The GAS inspector cannot (`GetGrantedAbilities` returns names only), and no mechanism is
-offered for why properties differ.
+`refPath`. The GAS **inspector toolset** returns names only (`GetGrantedAbilities`) and offers no
+mechanism for why properties differ — **an MCP limit, not a project one** *(refuted 2026-08-27)*.
+From Python the component answers directly: `AbilitySystemComponent` exposes `get_all_abilities`,
+`activatable_abilities`, `find_all_abilities_with_tags` and `find_all_abilities_with_input_id`.
 
 **A Blueprint CDO property set programmatically is generally not live in the current editor
 session** *(confirmed 2026-08-10, reproduced deliberately)*. Return value, read-back and the file
@@ -302,8 +310,12 @@ measurable, confirm it, then trust what follows. **Where a value drives behaviou
 value.**
 
 **`reset_properties` resets to the property's *default*, not the inherited archetype value**
-*(confirmed 2026-08-12)* — it wrote `(0,0,0)` over a component offset. There is no scriptable
-equivalent of the details panel's revert arrow; **set the inherited value explicitly instead.**
+*(confirmed 2026-08-12)* — it wrote `(0,0,0)` over a component offset, so **set the inherited value
+explicitly** rather than resetting. **Detecting an override *is* scriptable** *(refuted 2026-08-27)*:
+`EditorAssetLibrary.is_editor_property_overridden(obj, "PropName")` returns `OVERRIDDEN` / `DEFAULT`
+/ `NOT_FOUND` / `ACCESS_DENIED`. **It is an enum, not a bool** — the object is truthy at every value,
+so compare against the members or every property reads as overridden. Measured 2026-08-27: both
+training dummies and both PlayerStarts read `DEFAULT` on nine combat properties.
 
 **A C++ component default reaches nothing if a Blueprint or placed actor overrides it** *(confirmed
 2026-08-12)* — a mesh offset needed **three** writes, two Blueprints and the placed actor, each a
@@ -400,7 +412,9 @@ type** — a broken one usually looks fine alone.
   succeeding on `EditAnywhere` ones, which is the cheapest confirmation; `set_properties` refuses
   them too *(both confirmed 2026-08-14)*, so **delete-and-re-place is the only route**, not merely
   the tidiest. **Diff the whole instance against the CDO first, not the properties you suspect** —
-  overrides are the one thing nobody has a list of — and note the transform and label. Expect the
+  overrides used to be the one thing nobody had a list of, and
+  `EditorAssetLibrary.is_editor_property_overridden` now enumerates them *(refuted 2026-08-27)* —
+  and note the transform and label. Expect the
   actor's internal name to change (`_C_1` → `_C_0`), which breaks any doc naming it.
 
 ---
@@ -505,12 +519,14 @@ each is loaded, `modify()`d and saved. There is **no `FixupReferencers`** on `As
 `scan_paths_synchronous(force_rescan=True)`**, and read wrong long after the files are right —
 `git status` is the check, not the registry.
 
-**Duplication carries the source's notifies, and the toolset cannot read them — so you cannot see
-what you copied** *(confirmed 2026-08-15)*. A cloned attack montage brings its **Release Window**
-with it, and `UAnimNotifyState_MeleeWindow` emits `RELEASE BEGIN`/`END`, which `s1-*` asserts
-timing against — so a stray one poisons the checker while reading as a timing bug. **Never clone an
-attack montage to make a non-attack one.** The Python read above, once verified, lifts the
-blindness, not the rule.
+**Duplication carries the source's notifies — the *rule* stands, the blindness does not**
+*(blindness refuted 2026-08-27)*. A cloned attack montage brings its **Release Window** with it, and
+`UAnimNotifyState_MeleeWindow` emits `RELEASE BEGIN`/`END`, which `s1-*` asserts timing against — so
+a stray one poisons the checker while reading as a timing bug. **Never clone an attack montage to
+make a non-attack one.** But you can now *see* what you copied: `unreal.AnimationLibrary` reads
+notifies off any montage — `get_animation_notify_events`, `get_animation_notify_event_names`,
+`get_anim_notify_event_trigger_time`, `_duration`. Measured on `AM_Attack`: **one event,
+`MeleeWindow`**. **Read a duplicate before trusting it**; the check is one call.
 
 **But creation is per-toolset, not a blanket limitation** *(confirmed 2026-08-12)*. `MaterialTools`
 and `MaterialInstanceTools` create and build whole graphs end to end. Check the toolset that owns the
@@ -559,7 +575,8 @@ mesh in PIE**, which by this file's own rule about assets with a build step is t
 counts. **The module is engine-version-coupled**; `SpawnNodeFromTemplate` already carries a
 deprecating vector parameter.
 
-**Transition direction is still unreadable from Python or MCP** — `AnimStateTransitionNode` is not a
+**Transition direction is still unreadable from Python or MCP** *(re-tested 2026-08-27, held —
+`AnimStateTransitionNode` exposes neither `get_previous_state` nor `get_next_state` to Python)* — `AnimStateTransitionNode` is not a
 `UK2Node`, so `get_node_infos` fails on `get_node_title` and `list_all_pins` refuses it. From C++ the
 pins are in hand, so this falls whenever it is worth five lines.
 

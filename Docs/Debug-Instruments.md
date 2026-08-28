@@ -837,9 +837,12 @@ With the stamina economy involved, add:
   Stamina section is the rule; the checker is the check
 - **Stamina can now be drained unattended** *(2026-08-15, replacing "nothing in the build can drain
   stamina without a human at the keyboard")* — `ETDDebugDefendMode` on the training dummy holds a
-  guard or dodges on a timer. **The attribute set still cannot be written through the toolset** —
-  `SpawnedAttributes` is not reflection-readable — so *setting* a bar to an arbitrary value remains
-  impossible; you drive it by spending, not by assignment
+  guard or dodges on a timer. **No scripting surface writes an attribute base directly**
+  *(re-tested 2026-08-27, held at two surfaces of three)* — `SpawnedAttributes` is not
+  reflection-readable, and `AbilitySystemLibrary`'s 132 members carry only getters
+  (`get_float_attribute_base`). **C++ `SetNumericAttributeBase` is the untested third surface**, and
+  applying a GameplayEffect from Python is the route that already exists. You drive a bar by
+  spending, not by assignment
 - **Attribute *base* values are clamped, not just current.** A base drifted above Max is invisible on
   the bar and makes every cost read wrong
 - **Costs never gate.** Dodging below the cost must still work and empty the bar
