@@ -90,6 +90,13 @@ rather than an engine limit** *(swept 2026-08-24)*:
   AddAnimCompositeSection(FName, float)` writes them. **`slotAnimTracks` reads back in full
   structural detail**, not only writes whole: every segment's `animReference`, `startPos`,
   `animStartTime`, `animEndTime` and `animPlayRate` come back *(2026-08-21)*.
+  **The `(toolset)` mark was too narrow** *(Python, 2026-08-28)*: `composite_sections` is refused
+  from Python too — *"is protected and cannot be read"*, the reflection verdict rather than an
+  access one — so **`FCompositeSection::NextSectionName` cannot be read from any scripting surface**
+  and whether a multi-section montage chains its sections is unknown without C++. `CompositeSections`
+  is a public member with `ENGINE_API GetAnimCompositeSection(int32)` beside it, so `TheDreamEditor`
+  lifts it for the cost of a build. **Deliberately not built** — the dodge's tail was capped at the
+  section length instead, which makes the answer irrelevant; see the 2026-08-28 entry.
 - **`UCurveFloat`'s keys — refuted from C++** *(2026-08-24; the reflection half of the 2026-08-13
   entry stands)*. `FloatCurve` is a bare `UPROPERTY()` the reflection layer cannot see, **and it is a
   public `FRichCurve` member**, so `AddKey` from an editor module authors keys directly. The old

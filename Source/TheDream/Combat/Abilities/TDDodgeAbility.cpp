@@ -168,13 +168,20 @@ void UTDDodgeAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, c
 		// length is eight rolls and dividing by that would play each at a crawl. A get-up montage
 		// has one segment, so there is no boundary to fit to and KnockdownRollSeconds marks where
 		// the roll ends by hand -- the same fit, applied where the asset carries no seam.
+		// **Both paths fit a portion rather than the whole**: a section boundary marks where the
+		// clip ends, not where the dash does. A zero-length section leaves FitLength zero and
+		// falls through to the warning below.
 		float PlayRate = 1.0f;
 		const float RollPortion = (bIsKnockdownGetUp && !bIsKnockdownKipUp && KnockdownRollSeconds > 0.0f)
 			? FMath::Min(KnockdownRollSeconds, MontageToPlay->GetPlayLength())
 			: MontageToPlay->GetPlayLength();
-		const float FitLength = bUseSection
-			? ((SectionIndex != INDEX_NONE) ? MontageToPlay->GetSectionLength(SectionIndex) : 0.0f)
-			: RollPortion;
+		const float SectionLength = (bUseSection && SectionIndex != INDEX_NONE)
+			? MontageToPlay->GetSectionLength(SectionIndex)
+			: 0.0f;
+		const float DashPortion = (DodgeClipSeconds > 0.0f)
+			? FMath::Min(DodgeClipSeconds, SectionLength)
+			: SectionLength;
+		const float FitLength = bUseSection ? DashPortion : RollPortion;
 		if (FitLength > 0.0f && DodgeSeconds > 0.0f)
 		{
 			PlayRate = FMath::Max(FitLength / DodgeSeconds, 0.01f);

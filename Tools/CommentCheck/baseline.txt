@@ -14,7 +14,7 @@ Source/TheDream/Combat/Abilities/TDBlockAbility.h	45	373
 Source/TheDream/Combat/Abilities/TDChargedAttackAbility.cpp	195	2746
 Source/TheDream/Combat/Abilities/TDChargedAttackAbility.h	326	2764
 Source/TheDream/Combat/Abilities/TDDodgeAbility.cpp	114	1427
-Source/TheDream/Combat/Abilities/TDDodgeAbility.h	87	671
+Source/TheDream/Combat/Abilities/TDDodgeAbility.h	95	749
 Source/TheDream/Combat/Abilities/TDGameplayAbility.cpp	105	1381
 Source/TheDream/Combat/Abilities/TDGameplayAbility.h	155	1256
 Source/TheDream/Combat/Abilities/TDGetUpAttackAbility.cpp	14	177

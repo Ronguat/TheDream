@@ -987,6 +987,19 @@ a neutral press still resolves `Bw` now that the heading is recorded rather than
 last one is the regression risk of the fix itself — `MoveAction`'s `Completed` binding is the only
 thing writing the zero that clears a stale heading.
 
+**Whenever the dodge's clip fit or `AM_Dodge`'s blend-out moves — *one direction in eight is
+asserted, and whether the tail draws is asserted by nothing.*** Filed 2026-08-28 with
+`DodgeClipSeconds`, as the coverage half of that change. `s3` now asserts `fitLen` is exactly
+**0.667** and not the 0.833 section, which catches a silent revert to fitting the whole clip — but
+its dodger is the same stationary dummy the trap above describes, so **every sample is `Bw`** and
+the other seven sections could be fitted to anything without the loop noticing. **The larger gap is
+that the tail is animation-side**: the trace prints the rate the montage was *started* at and
+nothing observes the montage still drawing after the ability ends, so a blend-out returned to 0.05
+would delete the settle entirely and **`s3` would still print 8/8**. Same family as the stun tells,
+and the same instrument — an eye, or a screenshot. The designer judged it in play the day it
+shipped; **that confirmation does not transfer to the next change.**
+
+
 **Before duplicating any montage — *the copy inherits notifies you cannot see.*** Filed 2026-08-15,
 and it is the sharper half of what `AM_Blockstun` taught. Cloning `AM_Attack` carried its **Release
 Window** across; `notifies` is unreadable through the toolset, so nothing available to an assistant
@@ -1130,7 +1143,8 @@ than a refusal.
 
 | Feels wrong | Move this | **Not** this |
 |---|---|---|
-| Dodge reads fast-forwarded | `DodgeSeconds` | The clip. Trimming sections to drop the play rate makes the animator's midpoint the design, and does it before the baseline has been felt. |
+| Dodge reads fast-forwarded | **`DodgeClipSeconds`** (2026-08-28) — how much of the section is fitted, the rate following from it. `DodgeSeconds` moves the whole dodge and is mechanical, so it is the wrong knob for a look | Trimming the **section in the asset**, still, and the animator's midpoint is still not the design. **This row named the clip as the wrong answer outright until 2026-08-28**, its stated reason being that the baseline had not been felt; it had by then, and the seam is authored where the clip's own travel stops rather than at a midpoint. |
+| The dodge snaps to idle rather than settling | **`AM_Dodge`'s blend-out**, 0.10. A montage's blend-out time is the *whole* budget for anything playing after an ability ends — GAS stops it with `Montage_Stop(BlendOut.GetBlendTime())` and the montage advances while it fades | Lengthening it past the tail. At 0.10 the montage reaches zero weight as the section ends; longer and it advances into the next direction's section, whose chaining nothing has read. **Derived from `DodgeClipSeconds`** — move one and re-derive the other. |
 | Dodge travels too far or short | `DodgeTargetDistanceCm` — one number, every direction, as of 2026-08-13 | The play rate, and **not `AnimRootMotionTranslationScale`**, which this row named until 2026-08-14 and which now does nothing at all: the dash clips carry `bEnableRootMotion = false`, so there is no animation root motion left to scale. Rate changes *duration*, never *distance* — a faster dash covers the same ground in less time. |
 | Dodge is too safe | A recovery window in **absolute** time, i-frames derived as `DodgeSeconds - RecoverySeconds` | A *fraction* of the dodge. What makes recovery punishable is how it compares to an attack's startup, and a fraction shrinks the punish window below usable whenever the dodge is retuned faster. |
 | An attack is too reactable, or not enough | That tier's **`ReleaseAtSeconds`**. The window is its arrival minus the **light's** — the defender's read is *"no light landed"*, available at 200 ms | `CoilEndSeconds` or where the coil starts. Reactability is still measured from the **tell** rather than the press, but the tell is the light's non-arrival and not the coil — which is why deprecating the coil touches none of this arithmetic. Corrected 2026-08-25; the coil-referenced form overstated every window by 50 ms |
@@ -1339,7 +1353,7 @@ long.
 | `AM_Attack_S3` | 08-16 |
 | `AM_Attack_S4` | 08-16 |
 | `AM_Attack` | 08-12, 08-24, 08-27 |
-| `AM_Dodge` | 08-10, 08-11, 08-12, 08-13, 08-21 |
+| `AM_Dodge` | 08-10, 08-11, 08-12, 08-13, 08-21, 08-28 |
 | `AM_GetUpAttack` | 08-21, 08-22 |
 | `AM_Knockdown` | 08-25 |
 | `AM_Parry` | 08-24 |
@@ -1406,7 +1420,8 @@ long.
 | `DisableMovement` | 08-11 |
 | `DodgeRecoverySeconds` | 08-25 |
 | `DoMove` | 08-12, 08-16 |
-| `DodgeSeconds` | 08-10, 08-11, 08-25 |
+| `DodgeClipSeconds` | 08-28 |
+| `DodgeSeconds` | 08-10, 08-11, 08-25, 08-28 |
 | `DodgeTargetDistanceCm` | 08-11, 08-12, 08-13 |
 | `ECC_Camera` | 08-12, 08-13 |
 | `ETDDebugFacingMode` | 08-21 |
@@ -1495,6 +1510,7 @@ long.
 | `KnockdownFallTimeMappingCurve` | 08-25 |
 | `KnockdownLockoutSecondsNormal` | 08-25 |
 | `KnockdownRiseSeconds` | 08-20 |
+| `KnockdownRollSeconds` | 08-25, 08-28 |
 | `KnockdownSpacingCm` | 08-20 |
 | `LastRequestedMoveInput` | 08-16 |
 | `LaunchCharacter` | 08-12 |
@@ -1642,8 +1658,80 @@ long.
 | `bTookMovementLock` | 08-12, 08-24 |
 | `bUseControllerDesiredRotation` | 08-12 |
 | `bUseControllerRotationYaw` | 08-12 |
-| `compositeSections` | 08-15, 08-18 |
+| `compositeSections` | 08-15, 08-18, 08-28 |
 | `gEComponents` | 08-10, 08-11 |
+
+## 2026-08-28 — The dodge is fitted to the dash, and a 0.05 s blend-out was cutting off what was left
+
+**The designer's report, from play**: the eight directional dodges *"look kinda rapid and by the time
+the dodge is over, they're already blended back to idle, which should realistically happen just after
+the dodge."* The proposal came with it — fit the travelling portion, let the rest play afterwards,
+overridably — and the precedent was settled the same way: *"you can already act right after a wake up
+roll and it looks and feels correct. That same behavior is fine for the 8 standard dodges."* So this
+is the get-up roll's construction applied to the ordinary dodge, not a new mechanism.
+
+### Two faults, and the second would not have been found by looking at the fit
+
+`AM_Dodge` holds eight sections of exactly **0.8333 s**, each one whole `Dash_*_RM` clip, untrimmed.
+The fit took the **whole section** against `DodgeSeconds` **0.400**, so every direction ran at
+**2.083x** — push-off, landing and settle to stance all inside the i-frames, with nothing left over.
+
+**The second fault is a GAS mechanism nothing here had written down.** When the ability ends the
+montage task calls `CurrentMontageStop`, which is `Montage_Stop(BlendOut.GetBlendTime())`, and a
+montage keeps advancing while it fades — so **a montage's own blend-out time is the entire budget for
+anything that plays after the ability ends**. `AM_Dodge`'s was **0.05 s** against
+`AM_KnockdownRoll`'s **0.25 s**, and `AM_Dodge` is the **only montage in the project** not at 0.25.
+That gap is why the roll reads correct and the dodge did not, and it means either fix alone
+under-delivers.
+
+### The seam is not where travel stops, because travel never stops
+
+Sampled off the root bone at 30 fps across all eight clips: 99% of displacement is not reached until
+**0.800 s** of 0.8333, and the closing frames still carry 156–186 cm/s. **There is no travel plateau
+to find**, unlike the roll where the rolling was a discrete event. What the clips do have is a speed
+peak at 0.30–0.33 and a hard deceleration after it.
+
+Three defensible seams, measured and put to the designer rather than chosen:
+
+| Criterion | Fw | across all eight |
+|---|---|---|
+| root decelerated to 25% of peak | 0.667 | **0.667, every direction** |
+| pelvis back to stance height | 0.733 | 0.700–0.733 |
+| feet quiet | 0.700 | 0.700–0.800 |
+
+**Chosen: 0.667** — the earliest of the three and the only one that is uniform, which is what makes
+one shared value right rather than eight. It is also the floor: a seam before the clip's own travel
+ends has the body depicting travel while the capsule is already parked, which reads as sliding.
+
+### What shipped
+
+`DodgeClipSeconds` **0.667**, `KnockdownRollSeconds`' shape applied to the sectioned path — rate falls
+to **1.668** and the remaining 0.167 s plays after the i-frames, cut short by any montage started over
+it, which is what makes it overridable with no code. `AM_Dodge`'s blend-out **0.05 → 0.10**, which is
+the tail's own wall length at that rate, so the montage reaches zero weight as the section ends and
+**cannot bleed into the next direction's dash** whatever the sections' chaining turns out to be.
+**Blend-in stays 0.05**: that is the dodge's responsiveness and was not what was reported.
+
+**Nothing mechanical moved.** `DodgeSeconds` is untouched, so i-frames, travel, cost and the knockdown
+rise are where they were.
+
+### Verified
+
+`s3` **8/8**, including the new assertion — `fitLen` n=56, all exactly 0.667 — and travel unchanged at
+400–420 cm across 34 clean samples, which is the check that the presentational change stayed
+presentational. `s6-dodge` **8/8**, the roll still printing `fitLen=0.600 rate=1.500` on
+`section=None`, which is what proves the get-up path was not disturbed. **Judged in play by the
+designer**: *"a subtle but major improvement visually."* That is the only instrument for the half of
+this that is animation-side.
+
+### One limit re-tested, and deliberately not lifted
+
+`UAnimMontage::CompositeSections` is **protected to reflection from Python as well as MCP**, so the
+`(toolset)` mark was too narrow and `NextSectionName` cannot be read — the sections' chaining is still
+unknown. The header shows `CompositeSections` public to C++ with `ENGINE_API GetAnimCompositeSection`
+beside it, so `TheDreamEditor` would read it for the cost of a build. **Not built**: capping the
+blend-out at the tail length makes the answer irrelevant, and the rule is to record the refutation and
+build only when a slice needs it.
 
 ## 2026-08-28 — The recoil ceiling was mine, invented from a misread number, and is deleted
 
@@ -8750,7 +8838,7 @@ never covered the ender's 0.9725, and how to resolve that is a coverage question
 tune — the options are recorded in the trap. **Not a bug hunt**: the mechanic verifies, and what is
 in question is whether the derivation is authorable.
 
-**The parried attacker's recoil tell shipped 2026-08-27**, closing the recoil gap named above: a `ParryLockout` state in the Locomotion machine on `AS_SwordSwordAnimV3_Hit_Fw_RM`, positioned from lockout progress by `UTDAnimTellTools::DriveParryLockoutTell` against `ParryLockoutTellPortionSeconds` (0.684, hitstun's seam). **The designer's ruling picked the clip**: blockstun reads guarded and hitstun reads vulnerable, and a parry lockout *is* a punish window, so the victim carries the vulnerable tell rather than a block reaction. What Polish still inherits here is **the look, not the construction** — and the open preview question of whether V3's parry pose reads consistently beside V1's held guard, which is unchanged. **The editor work is no longer human either** *(2026-08-24)*: `UTDStateMachineTools` creates states, transitions and rules from script, which is how the hitstun flinch was built. A search for a blockstun *asset* still finds nothing and still proves nothing -- the state is why.  **And one that is mechanical rather than presentational, filed here so it is not forgotten** *(the designer, 2026-08-24)*: **a guard break should count as a hit for the *attacker's* input freedom.** A blocked hit returns before the on-hit waiver, so the attacker stays pinned for the full recovery — the waiver's own comment keeps recovery as the punish window *"against whiffs and against blocks."* A **break** should not sit on that side of the line: it waives like a connect. **The defender side is unchanged.** **The knockdown fall wants a time curve, and this is the brief for it** *(2026-08-25)*. The fall is skipped past its gather and cut before its settle, and what remains is that the clip **decelerates into the ground** where gravity would accelerate — an animator's cushion that every constant rate reproduces faithfully. **The fix is to redistribute time along the trajectory**: roughly linear through the descent, accelerating through the last third so the landing arrives rather than settles. *Half the mechanism exists* — `KnockdownFallTimeMappingCurve` is already a property but shapes the **carry**, not the clip; the missing half is applying it to the montage playhead. **The technique is already proven in this codebase**: `Montage_Play` takes only a constant rate, so hold the rate at zero and drive the position per tick from the curve, exactly as `UTDAnimTellTools` does for the stun tells. **Carry and clip should share one curve** or the body slams down while sliding uniformly. **The curve has a second job, learned after the brief was first written**: not only flattening the cushion but **buying duration without slowing the landing**. The usable window is 0.45 s of clip, so at a constant rate 1.0x *is* 0.45 s and 0.6 s *is* 0.75x — duration and landing speed cannot both be had. Sketched at 0.75x over clip 0.35–0.65 and 1.0x over 0.65–0.80: 0.55 s total with the impact still at speed. **The risk is that the slowed topple reads floaty.** **The fall is parked at carry 0.6 with `KnockdownFallClipStartSeconds` at 0.0** — the offset mechanism is built and guarded but disabled, because alone it trades the gather for a longer flat tail; the measured 0.35 waits in the property header. **It owes the loop a rethink**: `run_s6`'s *"fall lands inside lockout"* computes the montage span as `(played - from) / rate`, which stops meaning anything once the rate is not constant. **`KnockdownFallSeconds` is provisional at 0.45 pending this** — a curve changes which carry is right, so settling it first is wasted work. **What a curve cannot do** is change the trajectory's *shape*; the measurement says the shape is fine and only the timing is wrong, which is why this precedes both reauthoring the clip and the physics option below. **If it does not land, the two remaining routes are** authoring a replacement in Cascadeur, or a `PhysicalAnimationComponent` blend — physics driven toward the animated pose, which keeps the capsule deterministic (and so keeps `KnockdownSpacingCm`'s coupling to each tier's reach intact) while the mesh gains give. A **full** ragdoll knockdown is refused: it cannot hold an authored 450, and 2026-08-16 already rejected impulses for knockback on exactly that ground. **The target windups shipped 2026-08-25** — heavy **400 ms**, charged **800 ms**, with each tier's `HoldUntilSeconds` moved alongside so every runway and commit rate is preserved; `DodgeRecoverySeconds` retired to 0 in the same pass. **What clip selection inherits is a ceiling**: the heavy cannot grow past roughly **450 ms** without the light↔heavy gap outgrowing the parry window's usable margin and one press ceasing to cover both tiers, so there is about 50 ms of headroom to fit a clip into. The corrected reactability reference — measured from the light's arrival, not the coil — and the five audited relationships are in that day's entry.
+**The parried attacker's recoil tell shipped 2026-08-27**, closing the recoil gap named above: a `ParryLockout` state in the Locomotion machine on `AS_SwordSwordAnimV3_Hit_Fw_RM`, positioned from lockout progress by `UTDAnimTellTools::DriveParryLockoutTell` against `ParryLockoutTellPortionSeconds` (0.684, hitstun's seam). **The designer's ruling picked the clip**: blockstun reads guarded and hitstun reads vulnerable, and a parry lockout *is* a punish window, so the victim carries the vulnerable tell rather than a block reaction. What Polish still inherits here is **the look, not the construction** — and the open preview question of whether V3's parry pose reads consistently beside V1's held guard, which is unchanged. **The editor work is no longer human either** *(2026-08-24)*: `UTDStateMachineTools` creates states, transitions and rules from script, which is how the hitstun flinch was built. A search for a blockstun *asset* still finds nothing and still proves nothing -- the state is why.  **And one that is mechanical rather than presentational, filed here so it is not forgotten** *(the designer, 2026-08-24)*: **a guard break should count as a hit for the *attacker's* input freedom.** A blocked hit returns before the on-hit waiver, so the attacker stays pinned for the full recovery — the waiver's own comment keeps recovery as the punish window *"against whiffs and against blocks."* A **break** should not sit on that side of the line: it waives like a connect. **The defender side is unchanged.** **The knockdown fall wants a time curve, and this is the brief for it** *(2026-08-25)*. The fall is skipped past its gather and cut before its settle, and what remains is that the clip **decelerates into the ground** where gravity would accelerate — an animator's cushion that every constant rate reproduces faithfully. **The fix is to redistribute time along the trajectory**: roughly linear through the descent, accelerating through the last third so the landing arrives rather than settles. *Half the mechanism exists* — `KnockdownFallTimeMappingCurve` is already a property but shapes the **carry**, not the clip; the missing half is applying it to the montage playhead. **The technique is already proven in this codebase**: `Montage_Play` takes only a constant rate, so hold the rate at zero and drive the position per tick from the curve, exactly as `UTDAnimTellTools` does for the stun tells. **Carry and clip should share one curve** or the body slams down while sliding uniformly. **The curve has a second job, learned after the brief was first written**: not only flattening the cushion but **buying duration without slowing the landing**. The usable window is 0.45 s of clip, so at a constant rate 1.0x *is* 0.45 s and 0.6 s *is* 0.75x — duration and landing speed cannot both be had. Sketched at 0.75x over clip 0.35–0.65 and 1.0x over 0.65–0.80: 0.55 s total with the impact still at speed. **The risk is that the slowed topple reads floaty.** **The fall is parked at carry 0.6 with `KnockdownFallClipStartSeconds` at 0.0** — the offset mechanism is built and guarded but disabled, because alone it trades the gather for a longer flat tail; the measured 0.35 waits in the property header. **It owes the loop a rethink**: `run_s6`'s *"fall lands inside lockout"* computes the montage span as `(played - from) / rate`, which stops meaning anything once the rate is not constant. **`KnockdownFallSeconds` is provisional at 0.45 pending this** — a curve changes which carry is right, so settling it first is wasted work. **What a curve cannot do** is change the trajectory's *shape*; the measurement says the shape is fine and only the timing is wrong, which is why this precedes both reauthoring the clip and the physics option below. **If it does not land, the two remaining routes are** authoring a replacement in Cascadeur, or a `PhysicalAnimationComponent` blend — physics driven toward the animated pose, which keeps the capsule deterministic (and so keeps `KnockdownSpacingCm`'s coupling to each tier's reach intact) while the mesh gains give. A **full** ragdoll knockdown is refused: it cannot hold an authored 450, and 2026-08-16 already rejected impulses for knockback on exactly that ground. **The target windups shipped 2026-08-25** — heavy **400 ms**, charged **800 ms**, with each tier's `HoldUntilSeconds` moved alongside so every runway and commit rate is preserved; `DodgeRecoverySeconds` retired to 0 in the same pass. **What clip selection inherits is a ceiling**: the heavy cannot grow past roughly **450 ms** without the light↔heavy gap outgrowing the parry window's usable margin and one press ceasing to cover both tiers, so there is about 50 ms of headroom to fit a clip into. The corrected reactability reference — measured from the light's arrival, not the coil — and the five audited relationships are in that day's entry. **The eight directional dodges are fitted to the dash as of 2026-08-28**, the designer's proposal from play and the get-up roll's construction reused: `DodgeClipSeconds` **0.667** fits only the travelling portion of each 0.8333 s section, dropping the rate 2.083x → **1.668** and leaving 0.167 s of settle outside the i-frames, cut short by any montage started over it. `AM_Dodge`'s blend-out went **0.05 → 0.10** in the same pass, it being the *whole* budget for a tail — GAS ends a montage with `Montage_Stop(BlendOut.GetBlendTime())` — and `AM_Dodge` was the only montage in the project not at 0.25. Judged *"a subtle but major improvement visually"* in play. **What is left here is one look question nobody has asked**: the seam is a single shared value because all eight clips agreed on it to the frame, but they differ by up to **100 ms** in where their feet settle, so whether any direction wants its own remains open. The coverage gap is a dated trap.
 - **Settings menu.** Raised 2026-08-12. Mouse sensitivity is the immediate want, and it should own
   **`TurnRateDegrees`** too — that number stopped being cosmetic the moment attacks began pointing
   wherever it had turned to, so exposing it is a balance decision rather than a comfort one, and a

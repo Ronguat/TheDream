@@ -128,6 +128,9 @@ BAND_DODGE_MIN_DURATION=0.38
 BAND_DODGE_LATERAL_MAX=1.0
 # Dodge cost from a full bar.
 BAND_DODGE_REMAINING_FROM_FULL=50.0
+# The dash portion fitted to DodgeSeconds -- UTDDodgeAbility::DodgeClipSeconds, not the 0.833
+# section length. A revert to fitting the whole section reads here and nowhere else.
+BAND_DODGE_FIT=0.667
 
 # Exhaustion: enters at 0, leaves at Max. Not a timer -- these two numbers are
 # the whole assertion.
@@ -808,6 +811,15 @@ run_s3() {
 		assert_count "no DODGE RECOVERY (gap retired)" 			"$(grep -c 'DODGE RECOVERY' "$SLICE")" 0
 	fi
 
+	# The dash is fitted, not the whole section. Guarded against the vacuous pass the same way
+	# the gap assertion above is: with no dodges in the log there is nothing to be right about.
+	if [ "$starts" -eq 0 ]; then
+		check "dodge fits the dash not the section" 1 "no dodges in log; absence proves nothing"
+	else
+		assert_all_equal "dodge fits the dash not the section" "dodge_fit_lengths" \
+			"$BAND_DODGE_FIT"
+	fi
+
 	# Travel, clean samples only -- one filter, defined in clean_dodge_distances.
 	clean_n=$(clean_dodge_distances | grep -c '[0-9]')
 	if [ "$clean_n" -eq 0 ]; then
@@ -1283,6 +1295,21 @@ clean_dodge_distances() {
 				if ($i ~ /^dist=/)  { split($i,b,"="); d=b[2]; sub(/uu$/,"",d) }
 			}
 			if (dur >= mind && r != "" && r <= m) print d
+		}' "$SLICE"
+}
+
+dodge_fit_lengths() { # fitLen= from every DODGE that resolved a directional section
+	# Scoped to sectioned dodges: a get-up brings a single-segment montage, prints section=None
+	# and is fitted by KnockdownRollSeconds instead, so including it would assert two different
+	# values against one band.
+	awk '
+		/^\[[0-9.]+\] DODGE      dir=/ {
+			sec=""; fit=""
+			for (i=1;i<=NF;i++) {
+				if ($i ~ /^section=/) { split($i,a,"="); sec=a[2] }
+				if ($i ~ /^fitLen=/)  { split($i,b,"="); fit=b[2] }
+			}
+			if (sec != "" && sec != "None" && fit != "") print fit
 		}' "$SLICE"
 }
 

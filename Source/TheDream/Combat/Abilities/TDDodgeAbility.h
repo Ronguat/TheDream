@@ -80,6 +80,17 @@ protected:
 	float DodgeSeconds = 0.5f;
 
 	/**
+	 *  How much of the directional dash section is the dash itself, in its own unscaled seconds.
+	 *  Only this portion is fitted to DodgeSeconds; the tail past it plays out afterwards at the
+	 *  same rate, outside the i-frames, and any montage started over it cuts it short.
+	 *
+	 *  Clamped to the section length; zero fits the whole section. The tail renders only while
+	 *  AM_Dodge blends out, so that montage's blend out time bounds how much of it is seen.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Dodge", meta=(ClampMin="0.0"))
+	float DodgeClipSeconds = 0.667f;
+
+	/**
 	 *  How much of KnockdownRollMontage is the roll itself, in its own unscaled seconds. Only
 	 *  this portion is fitted to DodgeSeconds; the tail past it plays out afterwards at the
 	 *  same rate, outside the i-frames.
