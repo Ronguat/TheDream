@@ -20,6 +20,7 @@
 #include "EnhancedInputComponent.h"
 #include "PhysicsEngine/PhysicsAsset.h"
 #include "Curves/CurveFloat.h"
+#include "Curves/CurveVector.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/RootMotionSource.h"
 #include "GameplayEffect.h"
@@ -1507,7 +1508,7 @@ void ATDCombatCharacter::ApplyKnockdownFall(AActor* Attacker)
 	// root motion source -- see ReceiveKnockback, where the juggling it prevents is explained. An
 	// airborne victim is knocked down mid-air and falls while the fall moves them.
 	Destination.Z = GetActorLocation().Z;
-	ReceiveKnockback(Destination, KnockdownFallSeconds, KnockdownFallTimeMappingCurve);
+	ReceiveKnockback(Destination, KnockdownFallSeconds, KnockdownFallTimeMappingCurve, KnockdownFallPathOffsetCurve);
 }
 
 void ATDCombatCharacter::OpenParryWindow(float DurationSeconds, float WhiffRecoverySeconds)
@@ -1970,7 +1971,8 @@ void ATDCombatCharacter::BeginOnHitMovementWaiver(float DelaySeconds)
 	}
 }
 
-void ATDCombatCharacter::ReceiveKnockback(const FVector& DestinationWorld, float DurationSeconds, UCurveFloat* TimeMappingCurve)
+void ATDCombatCharacter::ReceiveKnockback(const FVector& DestinationWorld, float DurationSeconds, UCurveFloat* TimeMappingCurve,
+	UCurveVector* PathOffsetCurve)
 {
 	UCharacterMovementComponent* Movement = GetCharacterMovement();
 	if (!Movement || !HasAuthority() || bDead || DurationSeconds <= 0.0f)
@@ -2000,6 +2002,7 @@ void ATDCombatCharacter::ReceiveKnockback(const FVector& DestinationWorld, float
 	MoveTo->Duration = DurationSeconds;
 	MoveTo->bRestrictSpeedToExpected = false;
 	MoveTo->TimeMappingCurve = TimeMappingCurve;
+	MoveTo->PathOffsetCurve = PathOffsetCurve;
 	MoveTo->FinishVelocityParams.Mode = ERootMotionFinishVelocityMode::ClampVelocity;
 	MoveTo->FinishVelocityParams.ClampVelocity = 0.0f;
 
@@ -2014,7 +2017,23 @@ void ATDCombatCharacter::ReceiveKnockback(const FVector& DestinationWorld, float
 	//
 	// Applied to both paths: the knockdown carry and the knockback share this function, and a rule
 	// holding for one of two displacement paths would be rediscovered as a bug.
-	MoveTo->Settings.SetFlag(ERootMotionSourceSettingsFlags::IgnoreZAccumulate);
+	//
+	// **An authored arc is the one case that wants Z back.** A path offset whose Z is discarded is
+	// no arc at all, so supplying one drops the flag and the source owns the vertical for its
+	// duration. Scoped to the caller rather than to the function: the knockback's spacing reset
+	// passes no curve and keeps gravity, so a light hit does not start arcing because a knockdown
+	// does.
+	//
+	// **An already-airborne victim keeps gravity even so**, because the destination's Z is their
+	// own current height: the lerp would hold them there for the whole duration and the arc would
+	// hop from a height they never fell from. That is the hang IgnoreZAccumulate exists to stop,
+	// and it is what s6-airborne asserts against. An arc is authored from the ground, so a body
+	// that is not on it has no reference to arc from.
+	const bool bAirborne = Movement->IsFalling();
+	if (!PathOffsetCurve || bAirborne)
+	{
+		MoveTo->Settings.SetFlag(ERootMotionSourceSettingsFlags::IgnoreZAccumulate);
+	}
 
 	KnockbackRootMotionSourceID = Movement->ApplyRootMotionSource(MoveTo);
 }

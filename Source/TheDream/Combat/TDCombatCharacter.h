@@ -14,6 +14,7 @@
 
 class UAbilitySystemComponent;
 class UCurveFloat;
+class UCurveVector;
 class UGameplayAbility;
 class UGameplayEffect;
 class UInputAction;
@@ -461,7 +462,8 @@ public:
 	 *  and owns the never-inward clamp. A re-hit mid-slide replaces the running translation, last
 	 *  hit wins. Server only; no-ops on the dead.
 	 */
-	void ReceiveKnockback(const FVector& DestinationWorld, float DurationSeconds, UCurveFloat* TimeMappingCurve);
+	void ReceiveKnockback(const FVector& DestinationWorld, float DurationSeconds, UCurveFloat* TimeMappingCurve,
+		class UCurveVector* PathOffsetCurve = nullptr);
 
 	/**
 	 *  Which swing an attack activating now should be. Advances while the link window is open and a
@@ -772,6 +774,18 @@ protected:
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Knockdown")
 	TObjectPtr<UCurveFloat> KnockdownFallTimeMappingCurve;
+
+	/**
+	 *  Optional arc for the carry, in cm, offsetting the straight path. Z is world up; X and Y
+	 *  offset along and across the travel. Sampled at the same fraction as the time mapping curve,
+	 *  after it, so the two share one time base and an arc cannot drift from the slide.
+	 *
+	 *  **Setting one hands the carry's Z to the root motion source**: IgnoreZAccumulate is dropped
+	 *  for this displacement, so the body follows the authored arc rather than gravity, and a
+	 *  victim floored while already airborne is carried from where they are. Null keeps gravity.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Knockdown")
+	TObjectPtr<UCurveVector> KnockdownFallPathOffsetCurve;
 
 	/**
 	 *  Degrees per second the body turns to face its attacker after any clean hit.

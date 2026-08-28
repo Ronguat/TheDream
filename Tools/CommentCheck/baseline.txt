@@ -13,7 +13,7 @@ Source/TheDream/Combat/Abilities/TDBlockAbility.cpp	39	499
 Source/TheDream/Combat/Abilities/TDBlockAbility.h	45	373
 Source/TheDream/Combat/Abilities/TDChargedAttackAbility.cpp	195	2746
 Source/TheDream/Combat/Abilities/TDChargedAttackAbility.h	326	2764
-Source/TheDream/Combat/Abilities/TDDodgeAbility.cpp	114	1427
+Source/TheDream/Combat/Abilities/TDDodgeAbility.cpp	117	1462
 Source/TheDream/Combat/Abilities/TDDodgeAbility.h	95	749
 Source/TheDream/Combat/Abilities/TDGameplayAbility.cpp	105	1381
 Source/TheDream/Combat/Abilities/TDGameplayAbility.h	155	1256
@@ -35,7 +35,7 @@ Source/TheDream/Combat/Notifies/AnimNotify_ParryGesture.cpp	19	257
 Source/TheDream/Combat/Notifies/AnimNotify_ParryGesture.h	17	169
 Source/TheDream/Combat/TDAttackHitbox.cpp	26	371
 Source/TheDream/Combat/TDAttackHitbox.h	108	871
-Source/TheDream/Combat/TDCombatCharacter.h	1204	9929
+Source/TheDream/Combat/TDCombatCharacter.h	1254	10361
 Source/TheDream/Combat/TDCombatDebug.cpp	6	79
 Source/TheDream/Combat/TDCombatDebug.h	29	232
 Source/TheDream/Combat/TDGameplayTags.cpp	1	7
@@ -63,9 +63,11 @@ Tools/AnimPipeline/casc-run.sh	3	34
 Tools/DocsCheck/docs-check.sh	94	940
 Tools/RegressionCheck/session-count.sh	3	36
 Tools/SkeletonCheck/skeleton-check.sh	17	169
+Source/TheDreamEditor/Private/TDCurveTools.cpp	2	27
 Source/TheDreamEditor/Private/TDStateMachineTools.cpp	3	47
+Source/TheDreamEditor/Public/TDCurveTools.h	16	131
 Source/TheDreamEditor/Public/TDInputTools.h	10	96
 Source/TheDreamEditor/Public/TDStateMachineTools.h	49	385
-Source/TheDream/Combat/TDCombatCharacter.cpp	872	11347
-Tools/RegressionCheck/regression-check.sh	521	6439
+Source/TheDream/Combat/TDCombatCharacter.cpp	889	11571
+Tools/RegressionCheck/regression-check.sh	561	6993
 Tools/McpBridge/ue-mcp.sh	12	88

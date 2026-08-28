@@ -97,6 +97,17 @@ rather than an engine limit** *(swept 2026-08-24)*:
   is a public member with `ENGINE_API GetAnimCompositeSection(int32)` beside it, so `TheDreamEditor`
   lifts it for the cost of a build. **Deliberately not built** — the dodge's tail was capped at the
   section length instead, which makes the answer irrelevant; see the 2026-08-28 entry.
+- **`UCurveFloat` and `UCurveVector` keys — the route is built** *(C++, 2026-08-28)*.
+  `UTDCurveTools::SetFloatCurveKeys` / `SetVectorCurveKeys` in `TheDreamEditor` write them, and
+  `GetFloatCurveMean` reads the strength-curve contract's one number. Creation stays with
+  `AssetTools`; only the keys needed C++. The Python half was re-confirmed shut the same day —
+  `FloatCurve` answers *"is protected and cannot be read"*, there is no `AddKey` UFUNCTION and no
+  curve-editing library.
+- **A root motion source can carry an authored arc, confirmed from C++** *(2026-08-28)*.
+  `FRootMotionSource_MoveToDynamicForce::PathOffsetCurve` is a `UCurveVector` evaluated at the
+  move fraction and rotated into the direction of travel with pitch zeroed, so its Z is world up.
+  Sampled **after** `TimeMappingCurve`, so a pacing curve and an arc on one source share a time
+  base and cannot drift. `IgnoreZAccumulate` must be off or the Z is discarded.
 - **`UCurveFloat`'s keys — refuted from C++** *(2026-08-24; the reflection half of the 2026-08-13
   entry stands)*. `FloatCurve` is a bare `UPROPERTY()` the reflection layer cannot see, **and it is a
   public `FRichCurve` member**, so `AddKey` from an editor module authors keys directly. The old
