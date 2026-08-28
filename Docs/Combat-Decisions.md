@@ -1681,6 +1681,28 @@ saying nothing about the surface it was measured on, so an MCP-only measurement 
 one tested everywhere. **That silence, not any single claim, is what let a wrong limit sit inert** —
 and it is why the fix is a required surface field rather than a caveat.
 
+### The C++ surface was settled by reading headers, not by building
+
+**Asked the same day: should the five that held be probed via C++?** Mostly no, and the reason is
+the asymmetry this file already states. **At the C++ surface the probe *is* the build** — there is no
+introspection call, only new code in `TheDreamEditor` and a rebuild. But **reading the engine's
+headers is free and decisive**, which is how the 2026-08-24 sweep established `UEdGraph::Nodes` and
+`PerformAction`. Two of the five were ever C++ questions, and both fell to a grep:
+
+| | |
+|---|---|
+| `UAbilitySystemComponent::SetNumericAttributeBase` | public `UE_API`, `AbilitySystemComponent.h:233` |
+| `UAnimStateTransitionNode::GetPreviousState` / `GetNextState` | public `ANIMGRAPH_API`, `AnimStateTransitionNode.h:175-176` |
+
+**Neither was built**, per the standing economics. Both are now routing facts naming the exact
+symbol, which is what a dead limit should decay into.
+
+**The other three are closed for reasons C++ does not touch**, and saying so stops them being
+re-probed: `ProgrammaticToolset`'s sandbox is a policy in the MCP plugin rather than an API limit;
+"no usable Python on PATH" is a machine fact; and `EdGraph::Nodes` was already lifted at C++ by
+`UTDStateMachineTools`. **Header reconnaissance is the cheap third check** the three-surface table
+was missing — it costs a grep and it dates a limit properly.
+
 ### Still untested, and not blocking
 
 Client-world reach under PIE, and whether a state graph's interior can be navigated for capture.

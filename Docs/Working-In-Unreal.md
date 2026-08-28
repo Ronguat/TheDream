@@ -583,8 +583,12 @@ mesh in PIE**, which by this file's own rule about assets with a build step is t
 counts. **The module is engine-version-coupled**; `SpawnNodeFromTemplate` already carries a
 deprecating vector parameter.
 
-**Transition direction is still unreadable from Python or MCP** *(re-tested 2026-08-27, held —
-`AnimStateTransitionNode` exposes neither `get_previous_state` nor `get_next_state` to Python)* — `AnimStateTransitionNode` is not a
+**Transition direction is unreadable from Python or MCP, and C++ lifts it** *(re-tested 2026-08-27;
+the Python half held, the C++ half is a header citation not a guess)*. Python sees neither
+`get_previous_state` nor `get_next_state`, while `UAnimStateTransitionNode::GetPreviousState()` and
+`GetNextState()` are **public and `ANIMGRAPH_API`** — `AnimStateTransitionNode.h:175-176`. So this is
+a routing fact: **add five lines to `UTDStateMachineTools` when something needs direction**, and
+nothing does today. — `AnimStateTransitionNode` is not a
 `UK2Node`, so `get_node_infos` fails on `get_node_title` and `list_all_pins` refuses it. From C++ the
 pins are in hand, so this falls whenever it is worth five lines.
 
