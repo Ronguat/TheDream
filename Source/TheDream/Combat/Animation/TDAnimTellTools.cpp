@@ -8,15 +8,20 @@
 
 void UTDAnimTellTools::DriveHitstunTell(const FAnimUpdateContext& Context, const FAnimNodeReference& Node)
 {
-	DriveTell(Context, Node, /*bHitstun=*/true);
+	DriveTell(Context, Node, ETellSource::Hitstun);
 }
 
 void UTDAnimTellTools::DriveBlockstunTell(const FAnimUpdateContext& Context, const FAnimNodeReference& Node)
 {
-	DriveTell(Context, Node, /*bHitstun=*/false);
+	DriveTell(Context, Node, ETellSource::Blockstun);
 }
 
-void UTDAnimTellTools::DriveTell(const FAnimUpdateContext& Context, const FAnimNodeReference& Node, bool bHitstun)
+void UTDAnimTellTools::DriveParryLockoutTell(const FAnimUpdateContext& Context, const FAnimNodeReference& Node)
+{
+	DriveTell(Context, Node, ETellSource::ParryLockout);
+}
+
+void UTDAnimTellTools::DriveTell(const FAnimUpdateContext& Context, const FAnimNodeReference& Node, ETellSource Source)
 {
 	EAnimNodeReferenceConversionResult Result = EAnimNodeReferenceConversionResult::Failed;
 	const FSequencePlayerReference Player = USequencePlayerLibrary::ConvertToSequencePlayer(Node, Result);
@@ -37,6 +42,13 @@ void UTDAnimTellTools::DriveTell(const FAnimUpdateContext& Context, const FAnimN
 	// accumulator to the tick record, which advances it by delta * rate after this runs. Any
 	// non-zero rate would drift the position set below by one frame's worth every frame.
 	USequencePlayerLibrary::SetPlayRate(Player, 0.0f);
-	USequencePlayerLibrary::SetAccumulatedTime(Player,
-		bHitstun ? Character->GetHitstunTellTime() : Character->GetBlockstunTellTime());
+
+	float TellTime = 0.0f;
+	switch (Source)
+	{
+		case ETellSource::Hitstun:      TellTime = Character->GetHitstunTellTime();      break;
+		case ETellSource::Blockstun:    TellTime = Character->GetBlockstunTellTime();    break;
+		case ETellSource::ParryLockout: TellTime = Character->GetParryLockoutTellTime(); break;
+	}
+	USequencePlayerLibrary::SetAccumulatedTime(Player, TellTime);
 }

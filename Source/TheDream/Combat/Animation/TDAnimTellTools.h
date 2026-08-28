@@ -34,7 +34,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category="TheDream|Anim", meta=(BlueprintThreadSafe))
 	static void DriveBlockstunTell(const FAnimUpdateContext& Context, const FAnimNodeReference& Node);
 
+	/** Positions the parried attacker's recoil. Bind as the parry-lockout player's On Update. */
+	UFUNCTION(BlueprintCallable, Category="TheDream|Anim", meta=(BlueprintThreadSafe))
+	static void DriveParryLockoutTell(const FAnimUpdateContext& Context, const FAnimNodeReference& Node);
+
 private:
+	/** Which lockout supplies the playhead position. */
+	enum class ETellSource : uint8 { Hitstun, Blockstun, ParryLockout };
+
 	/** Resolves the player and the owning character, then parks the playhead at the tell time. */
-	static void DriveTell(const FAnimUpdateContext& Context, const FAnimNodeReference& Node, bool bHitstun);
+	static void DriveTell(const FAnimUpdateContext& Context, const FAnimNodeReference& Node, ETellSource Source);
 };

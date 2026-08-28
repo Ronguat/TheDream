@@ -303,6 +303,10 @@ public:
 	UFUNCTION(BlueprintPure, Category="Combat|Block")
 	float GetBlockstunTellTime() const;
 
+	/** The third of the family, against ParryLockoutTellPortionSeconds. */
+	UFUNCTION(BlueprintPure, Category="Combat|Parry")
+	float GetParryLockoutTellTime() const;
+
 	/** Whether this body is on the floor -- lockout, input window or rise. */
 	bool IsKnockedDown() const { return bKnockedDown; }
 
@@ -789,6 +793,10 @@ protected:
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Block", meta=(ClampMin="0.01"))
 	float BlockstunTellPortionSeconds = 0.485f;
+
+	/** The parry lockout's equivalent -- hitstun's clip, so hitstun's seam and hitstun's span. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Parry", meta=(ClampMin="0.01"))
+	float ParryLockoutTellPortionSeconds = 0.684f;
 
 	/**
 	 *  Played on entering the down state. Rate derived as `length / KnockdownFallSeconds`.
@@ -1666,6 +1674,9 @@ private:
 	void OnRep_BlockstunTell();
 
 	UFUNCTION()
+	void OnRep_ParryLockoutTell();
+
+	UFUNCTION()
 	void OnRep_KnockedDown();
 
 	UFUNCTION()
@@ -1848,6 +1859,15 @@ private:
 
 	/** Authority-side deadline. Authored on the caught swing; see EnterParryLockout. */
 	float ParryLockoutEndsAt = 0.0f;
+
+	/** The stuns' three, same contract. Spans the extended end, so max-extension needs no handling. */
+	UPROPERTY(ReplicatedUsing = OnRep_ParryLockoutTell)
+	uint8 ParryLockoutTellSerial = 0;
+
+	UPROPERTY(Replicated)
+	float ParryLockoutTellSpanSeconds = 0.0f;
+
+	float ParryLockoutTellStartTime = 0.0f;
 
 	/**
 	 *  A parry window is open. Sixth of the replicated-state family, same contract.

@@ -860,6 +860,11 @@ float ATDCombatCharacter::GetBlockstunTellTime() const
 	return ComputeTellTime(BlockstunTellStartTime, BlockstunTellSpanSeconds, BlockstunTellPortionSeconds);
 }
 
+float ATDCombatCharacter::GetParryLockoutTellTime() const
+{
+	return ComputeTellTime(ParryLockoutTellStartTime, ParryLockoutTellSpanSeconds, ParryLockoutTellPortionSeconds);
+}
+
 void ATDCombatCharacter::OnRep_HitstunTell()
 {
 	// The client's clock starts when it learns of the hit, not when the server logged it. Both are
@@ -872,6 +877,12 @@ void ATDCombatCharacter::OnRep_BlockstunTell()
 {
 	const UWorld* World = GetWorld();
 	BlockstunTellStartTime = World ? World->GetTimeSeconds() : 0.0f;
+}
+
+void ATDCombatCharacter::OnRep_ParryLockoutTell()
+{
+	const UWorld* World = GetWorld();
+	ParryLockoutTellStartTime = World ? World->GetTimeSeconds() : 0.0f;
 }
 
 void ATDCombatCharacter::EnterHitstun(float DurationSeconds)
@@ -1209,6 +1220,12 @@ void ATDCombatCharacter::EnterParryLockout(float LockoutSeconds)
 	// Max-extended like every other lockout on this character: a second parry landing inside a
 	// running one lengthens the sentence and can never shorten it.
 	ParryLockoutEndsAt = FMath::Max(ParryLockoutEndsAt, World->GetTimeSeconds() + LockoutSeconds);
+
+	// The stuns' stamp, same contract -- see EnterHitstun. Measured to the extended end, so a
+	// second catch inside a running lockout lengthens the tell with the sentence.
+	++ParryLockoutTellSerial;
+	ParryLockoutTellSpanSeconds = ParryLockoutEndsAt - World->GetTimeSeconds();
+	ParryLockoutTellStartTime = World->GetTimeSeconds();
 
 	// **The string dies explicitly, and stays explicit.** bParried's chain gate is subsumed by the
 	// ability no longer existing -- there is nothing left to chain out of -- so this is now the
@@ -2163,6 +2180,8 @@ void ATDCombatCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& O
 	DOREPLIFETIME(ATDCombatCharacter, bKnockedDown);
 	DOREPLIFETIME(ATDCombatCharacter, KnockdownType);
 	DOREPLIFETIME(ATDCombatCharacter, bInParryLockout);
+	DOREPLIFETIME(ATDCombatCharacter, ParryLockoutTellSerial);
+	DOREPLIFETIME(ATDCombatCharacter, ParryLockoutTellSpanSeconds);
 	DOREPLIFETIME(ATDCombatCharacter, bParryWindowOpen);
 	DOREPLIFETIME(ATDCombatCharacter, bInParryRecovery);
 	DOREPLIFETIME(ATDCombatCharacter, bInDodgeRecovery);
