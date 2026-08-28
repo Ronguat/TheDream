@@ -23,7 +23,7 @@ use strict; use warnings;
 # not to go hunting a wider one -- so it satisfies the check while the date still dates it.
 my $SURFACE  = qr/\b(toolset|MCP|Python|C\+\+|reflection|Slate|Bash|PowerShell|registry
                     |ENGINE_API|UNREALED_API|ANIMGRAPH_API|KISMET_API|UE_API
-                    |engine\ behaviour|fixture\ behaviour|machine\ fact|gameplay\ rule)\b/x;
+                    |engine\ behaviour|fixture\ behaviour|machine\ fact|gameplay\ rule)(?!\w)/x;
 my $ABSENCE  = qr/\b(cannot|can't|unable\ to|impossible|no\ way\ to|there\ is\ no\ |nothing\ can\ 
                     |not\ possible|unsupported|not\ supported|not\ available|not\ exposed
                     |not\ reachable|unreadable|not\ scriptable|no\ route|not\ proven|refuses)\b/xi;
