@@ -1201,6 +1201,7 @@ than a refusal.
 | The landing has no weight, or eases in | **The arc's descent shape**, and check it composed rather than in isolation: the slide's ease-out slows the path fraction near the end, so a descent that looks steep in path space still decelerates in time. **Linear keys** — cubic auto tangents flatten toward a final key and that alone reinstates the cushion | The montage's stretch curve. Its tail is the clip's last 6 cm against the capsule's 60, so it ramps for consistency and cannot carry the impact. |
 | The knockdown snaps or vibrates at the landing | **The arc's press into the floor**, `PRESS_CM` 4.0 in the derivation. Clearing `IgnoreZAccumulate` to get the arc means the source owns Z and holds the capsule at its entry height; releasing it makes the movement component find the floor and pay in one frame. Commanding downward keeps it on collision so there is nothing to pay | Shortening the carry, or tuning the pacing. The snap is 1.37 cm and one frame — it is a handoff fault, not a timing one, and it is invisible to every instrument here except bone charting under dilation. |
 | The knockdown's landing has no follow-through, or inertia evaporates | **`KnockdownCarrySettleSeconds`** (0.08) — the carry outlives the fall and the extra span is a skid decaying to zero. Purely cosmetic: the victim is invincible and the destination is unchanged, so this moves only *when* the spacing is reached | A longer pacing tail alone. The tail is bounded by the carry's duration, so while the carry ended with the fall no curve shape could put horizontal where there was no time. |
+| The knockdown's arc reads too pronounced, or too weak | **`BODY_APEX` in `Tools/AnimPipeline/ue_knockdown_curves.py`**, then re-run it — 15 ships, and the rungs 15/25/35 sit at 1.48/1.87/2.24 g. **Check what the height is compensating for first**: it carried the sense of force while the landing had none, and reading as excessive is what happened when the skid took that job back | Treating it as centimetres. It is monotonic and stable but uncalibrated in absolute terms — 35 measures +34.1 and 15 measures +18.3. Chart the pelvis if an absolute figure is needed. |
 | The body's height is not what was authored | **`BODY_APEX` in the composite derivation**, which is the *body's* lift — the capsule's offset is derived from it and is larger, currently 47 cm to deliver 35 | Tuning the capsule arc directly. Every apex authored before 2026-08-28 was a capsule number the body never matched; the animation was cancelling roughly a third of it. Chart the pelvis, not the actor. |
 | The knockdown's path reads as a U rather than an arc | **`C_KnockdownCarry`** — it is **linear to contact on purpose**, because constant horizontal speed is what makes a trajectory a parabola. Easing it spends the horizontal before the apex and leaves the descent nowhere to go but down; measured at 85%/15% before, 58%/42% after | Steepening the arc to compensate. The descent was already accelerating; the fault was the horizontal, and adding vertical only sharpens the U. **Judge the composition, never the two curves separately** — each looks correct alone in both states. |
 | Any change to either knockdown curve | **Re-derive the other.** The arc's keys are authored against time and mapped through the pacing, so a pacing edit silently re-times the arc | Editing one and looking. The shape lives only in the composition and no single curve shows it. |
@@ -1723,6 +1724,67 @@ long.
 | `bUseControllerRotationYaw` | 08-12 |
 | `compositeSections` | 08-15, 08-18, 08-28 |
 | `gEComponents` | 08-10, 08-11 |
+
+## 2026-08-28 — The height was compensating for the landing, and outlived it
+
+**The designer, after the skid landed** *(their words, and the observation is the entry)*: *"Now that
+there is a proper skid, I almost suspect that the Z-axis can stand to be less dramatic. I think I was
+looking for the selling of force, and the velcro was eating that, so the up and away trajectory was
+another mechanism by which to convey that. Now that the velcro is gone and everything is derived from
+the real motion, the upward motion, ironically, looks pronounced. Which is exactly what I asked for
+initially."*
+
+**The general form, which is why this is an entry and not a value change.** An exaggeration added to
+compensate for a defect **stays after the defect is fixed**, and by then it looks like intent rather
+than like scaffolding. The height was never wrong when it was asked for — it was the only lever
+available while the landing had no force in it. **Two things had been sharing one knob**: force and
+displacement. The skid gave force its own, and the moment it did, the borrowed height read as excess.
+
+**Expect the rest of Polish to carry the same shape.** The block get-up *"underwhelming and looks a
+tad undeliberate"* and the parry pose mix are both *"this reads weak"* complaints, and a compensation
+already in place is the first thing to look for rather than the last.
+
+### Settled at 15
+
+Walked down 35 → 25 → **0** as a control → **15**, the designer's call at each step. The zero was
+theirs and was read correctly as *no net rise* rather than *no capsule involvement* — at apex 0 the
+arc still lifts 7.9 cm to cancel the clip's gather, which is a different test and was offered.
+
+| body apex | rise share | apex at | implied gravity |
+|---|---|---|---|
+| 15 **(shipped)** | 28.9% | 0.144 s | **1.48 g** |
+| 25 | 33.3% | 0.165 s | 1.87 g |
+| 35 | 36.0% | 0.179 s | 2.24 g |
+
+The knockdown runs at a uniform multiple of real gravity — both halves scale together, which is why
+it reads coherent at any rung rather than broken.
+
+### The derivation is in the repo now, because the curves cannot be maintained without it
+
+`Tools/AnimPipeline/ue_knockdown_curves.py`. The curve assets encode a result whose *method* — the
+composite subtraction, the ballistic split, the speed-matched skid, the press into the floor — lived
+only in a scratchpad until this commit. **Anything that changes `KnockdownFallSeconds`,
+`KnockdownCarrySettleSeconds`, `KnockdownFallClipSeconds` or `AM_Knockdown`'s stretch curve invalidates
+both curves**, and re-running the script is the only correct response.
+
+### `BODY_APEX` is a dial, not a measurement
+
+**Recorded because it would otherwise read as a bug.** At 35 the body measured +34.1, within a
+centimetre. At 15 it measures **+18.1 and +18.5** across two arcs — over by about a fifth. The capsule
+delivers its authored offset exactly at both ends (24.99 authored, 24.7 and 24.8 measured), so the
+gap is in the model's baseline rather than in the carry. **Not chased**: the designer signed off on
+the look, the parameter is monotonic and stable, and the residual is uncalibrated only in absolute
+centimetres. Chart the pelvis if an absolute figure is ever needed.
+
+### Verified
+
+`s6-knockdown` **6/6** (n=18), `s4-string` **7/7**, `s6-airborne` **4/4** — the last run against its
+own fixture deliberately, since the settle lengthens the carry on that path too and the earlier red
+in this session was a fixture mismatch rather than a regression. Landing tail charted clean: capsule
+flat at 98.15, skid decaying to zero, no snap.
+
+**The designer's sign-off**: *"Given the constraints we're working within, this is pretty damn good.
+I'm willing to sign off on this as polished appropriately to prototype-grade."*
 
 ## 2026-08-28 — The snap was the root motion source letting go, and the skid was hiding behind it
 
