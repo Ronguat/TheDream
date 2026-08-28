@@ -1183,7 +1183,8 @@ than a refusal.
 |---|---|---|
 | The knockdown reads flat, or lacks impact | **`C_KnockdownArc`**, the Z of its path offset — **60 cm of lift, authored against *time* as two half-parabolas and mapped back through the pacing curve**, so the keys sit at uneven path fractions by construction. Regenerate it rather than dragging keys; the script is in the 2026-08-28 entry | `KnockdownFallSeconds`. It moves the whole event including the animation, and the arc's shape is authored in path fractions, so a duration change rescales the arc rather than reshaping it. Also **not** an impulse or `LaunchCharacter` — 2026-08-16 and `StartLunge`'s header rule both out, the second on netcode grounds. |
 | The landing has no weight, or eases in | **The arc's descent shape**, and check it composed rather than in isolation: the slide's ease-out slows the path fraction near the end, so a descent that looks steep in path space still decelerates in time. **Linear keys** — cubic auto tangents flatten toward a final key and that alone reinstates the cushion | The montage's stretch curve. Its tail is the clip's last 6 cm against the capsule's 60, so it ramps for consistency and cannot carry the impact. |
-| The knockdown slides backward too evenly | **`C_KnockdownCarry`**, the carry's time mapping — linear keys, monotonic 0 to 1 by construction | Making it cubic "to smooth it". Auto tangents overshoot, and a time-mapping curve that passes 1.0 drives the body past `KnockdownSpacingCm` and back. The measured overshoot on the first draft was 0.5 cm; the contract is what stops it being more. |
+| The knockdown's path reads as a U rather than an arc | **`C_KnockdownCarry`** — it is **linear to contact on purpose**, because constant horizontal speed is what makes a trajectory a parabola. Easing it spends the horizontal before the apex and leaves the descent nowhere to go but down; measured at 85%/15% before, 58%/42% after | Steepening the arc to compensate. The descent was already accelerating; the fault was the horizontal, and adding vertical only sharpens the U. **Judge the composition, never the two curves separately** — each looks correct alone in both states. |
+| Any change to either knockdown curve | **Re-derive the other.** The arc's keys are authored against time and mapped through the pacing, so a pacing edit silently re-times the arc | Editing one and looking. The shape lives only in the composition and no single curve shows it. |
 | Dodge reads fast-forwarded | **`DodgeClipSeconds`** (2026-08-28) — how much of the section is fitted, the rate following from it. `DodgeSeconds` moves the whole dodge and is mechanical, so it is the wrong knob for a look | Trimming the **section in the asset**, still, and the animator's midpoint is still not the design. **This row named the clip as the wrong answer outright until 2026-08-28**, its stated reason being that the baseline had not been felt; it had by then, and the seam is authored where the clip's own travel stops rather than at a midpoint. |
 | The dodge snaps to idle rather than settling | **`AM_Dodge`'s blend-out**, 0.10. A montage's blend-out time is the *whole* budget for anything playing after an ability ends — GAS stops it with `Montage_Stop(BlendOut.GetBlendTime())` and the montage advances while it fades | Lengthening it past the tail. At 0.10 the montage reaches zero weight as the section ends; longer and it advances into the next direction's section, whose chaining nothing has read. **Derived from `DodgeClipSeconds`** — move one and re-derive the other. |
 | Dodge travels too far or short | `DodgeTargetDistanceCm` — one number, every direction, as of 2026-08-13 | The play rate, and **not `AnimRootMotionTranslationScale`**, which this row named until 2026-08-14 and which now does nothing at all: the dash clips carry `bEnableRootMotion = false`, so there is no animation root motion left to scale. Rate changes *duration*, never *distance* — a faster dash covers the same ground in less time. |
@@ -1702,6 +1703,62 @@ long.
 | `bUseControllerRotationYaw` | 08-12 |
 | `compositeSections` | 08-15, 08-18, 08-28 |
 | `gEComponents` | 08-10, 08-11 |
+
+## 2026-08-28 — The path was a U because two good fixes composed into one bad shape
+
+**The designer, still on the knockdown**: *"The parabola reads more like a U and I think I'm wishing
+it was more of a C. An arc rather than an up, then across, then seemingly nearly straight down. Do
+you see any data that supports my anecdote?"*
+
+**The data supports it outright**, and it is the sharpest of the three readings this slice produced:
+
+| | measured | a ballistic arc |
+|---|---|---|
+| horizontal spent **before** apex | **382.5 cm, 85%** | ~58% |
+| horizontal spent **in the descent** | **66.5 cm, 14.8%** | ~42% |
+
+Path angle along the way: **+10° rising, +3° at the top, then −35°, −54°, −74°, −77°**. Shallow rise,
+flat roof, near-vertical drop. Up, across, and straight down, exactly as described.
+
+### The cause is two previous fixes composing
+
+Neither was wrong alone. The **ease-out slide** was added because a uniform one read wrong against the
+fall; the **accelerating descent** was added because the arc was easing into the ground. Together the
+first spends the horizontal early and the second then has almost none left to travel through — so the
+descent has nowhere to go but down.
+
+**The general form, which is the part worth keeping**: two curves composed on one time base cannot be
+judged separately, and each of these was judged separately and passed. The shape only exists in the
+composition, and only a measurement of the composition can see it — neither curve looks wrong on its
+own even now.
+
+### The physics was the answer and had been available throughout
+
+**A thrown body has constant horizontal speed** — that is what makes a trajectory a parabola. The
+ease-out was the deviation. And the original *"the sliding is uniform"* complaint was made when there
+was **no vertical motion at all**: uniformity only reads as wrong when it is the only motion there is.
+So the fix restores what the first complaint appeared to forbid, and does not contradict it.
+
+### After
+
+Pacing linear to contact, flat after — constant horizontal through the whole flight. The arc is
+re-derived through the new pacing, so the vertical time profile is now **undistorted**: with a linear
+pacing the composition *is* the authored `z(t)`, where before the ease-out was bending it.
+
+| | before | after |
+|---|---|---|
+| horizontal before apex | 85% | **57.6%** |
+| horizontal in descent | 14.8% | **42.4%** |
+| path angle | +10° → +3° → −77° | **+23.5° → +3° → −30.5°** |
+| impact speed | 443 cm/s | **480 cm/s** |
+
+Smooth continuous curvature, and the impact got *faster* rather than being traded away — the
+straightening removed a distortion rather than softening anything.
+
+### Verified
+
+`s6-knockdown` **6/6** (n=8), `s4-string` **7/7**, lift **59.88 cm** across 140 PIE samples against an
+authored 60.
 
 ## 2026-08-28 — The arc carried the same cushion it was built to remove
 
