@@ -295,3 +295,21 @@ bool UTDStateMachineTools::SetNodeUpdateFunction(UEdGraphNode* AnimNode, UClass*
 	}
 	return true;
 }
+
+bool UTDStateMachineTools::SetAnimNodePropertyAlwaysDynamic(UEdGraphNode* AnimNode, FName PropertyName)
+{
+	UAnimGraphNode_Base* Node = Cast<UAnimGraphNode_Base>(AnimNode);
+	if (Node == nullptr || PropertyName.IsNone())
+	{
+		return false;
+	}
+
+	Node->Modify();
+	Node->AlwaysDynamicProperties.Add(PropertyName);
+
+	if (UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForNode(Node))
+	{
+		FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(Blueprint);
+	}
+	return Node->AlwaysDynamicProperties.Contains(PropertyName);
+}

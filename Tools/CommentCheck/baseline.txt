@@ -28,7 +28,7 @@ Source/TheDream/Combat/Abilities/TDParryAbility.h	51	452
 Source/TheDream/Combat/Attributes/TDAttributeSet.cpp	8	83
 Source/TheDream/Combat/Attributes/TDAttributeSet.h	20	144
 Source/TheDream/Combat/Animation/TDAnimTellTools.cpp	6	53
-Source/TheDream/Combat/Animation/TDAnimTellTools.h	23	168
+Source/TheDream/Combat/Animation/TDAnimTellTools.h	26	189
 Source/TheDream/Combat/Notifies/AnimNotifyState_MeleeWindow.cpp	17	168
 Source/TheDream/Combat/Notifies/AnimNotifyState_MeleeWindow.h	14	109
 Source/TheDream/Combat/Notifies/AnimNotify_ParryGesture.cpp	19	257
@@ -65,6 +65,6 @@ Tools/RegressionCheck/session-count.sh	3	36
 Tools/SkeletonCheck/skeleton-check.sh	17	169
 Source/TheDreamEditor/Private/TDStateMachineTools.cpp	3	47
 Source/TheDreamEditor/Public/TDInputTools.h	10	96
-Source/TheDreamEditor/Public/TDStateMachineTools.h	40	314
+Source/TheDreamEditor/Public/TDStateMachineTools.h	49	385
 Source/TheDream/Combat/TDCombatCharacter.cpp	872	11347
 Tools/RegressionCheck/regression-check.sh	521	6439

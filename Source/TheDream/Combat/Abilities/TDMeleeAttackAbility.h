@@ -121,6 +121,18 @@ protected:
 	float ParryLockoutSeconds = 0.65f;
 
 	/**
+	 *  How far a parried attacker is carried back, in cm added to wherever the catch left them.
+	 *  **Relative**, unlike HitSpacingCm and BlockedSpacingCm, which are destinations. Read off the
+	 *  flinch clip's own authored root motion across the portion the tell plays.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Knockback", meta=(ClampMin="0.0"))
+	float ParryRecoilCm = 93.0f;
+
+	/** The recoil destination's ceiling, in cm from the parrier. Holds a far catch inside the damage reach. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Knockback", meta=(ClampMin="0.0"))
+	float ParryRecoilCeilingCm = 180.0f;
+
+	/**
 	 *  The spacing reset: where a clean non-final string hit parks its target, in cm from the
 	 *  attacker along facing. **0 disables knockback entirely, and is the C++ default.** See
 	 *  GetKnockbackSpacingCm for the fixed-destination model; the live value is on the CDO.
@@ -241,6 +253,13 @@ protected:
 
 	/** Parry lockout for the swing being resolved. Authored; see ParryLockoutSeconds. */
 	virtual float GetAttackParryLockoutSeconds() const { return ParryLockoutSeconds; }
+
+	/**
+	 *  Carries a parried attacker back from the parrier over the lockout, on the knockback's
+	 *  root-motion-source channel. Sources are consumed whatever the AnimBlueprint's RootMotionMode
+	 *  is, which animation root motion from a state is not.
+	 */
+	void ApplyParryRecoil(ATDCombatCharacter* Parrier, ATDCombatCharacter* Attacker, float DurationSeconds) const;
 
 	/**
 	 *  How far from the attacker this swing parks a target it touches, or 0 for no knockback.

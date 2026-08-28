@@ -74,4 +74,16 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category="TheDream|StateMachine")
 	static bool SetNodeUpdateFunction(UEdGraphNode* AnimNode, UClass* OwnerClass, FName FunctionName);
+
+	/**
+	 *  Marks an anim node property **Always Dynamic**, which is what permits a runtime setter such
+	 *  as `USequencePlayerLibrary::SetPlayRate` to write it. Without the mark the write is refused
+	 *  and logs *"value is not dynamic"* every frame while the node is relevant, leaving the
+	 *  authored value in place.
+	 *
+	 *  Exists because `AlwaysDynamicProperties` is a bare `UPROPERTY()` -- public to C++, invisible
+	 *  to reflection -- so no Python or MCP route reaches it.
+	 */
+	UFUNCTION(BlueprintCallable, Category="TheDream|StateMachine")
+	static bool SetAnimNodePropertyAlwaysDynamic(UEdGraphNode* AnimNode, FName PropertyName);
 };

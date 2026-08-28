@@ -333,7 +333,9 @@ void UTDMeleeAttackAbility::HandleTraceHit(const FHitResult& Hit)
 			StopLunge();
 
 			// Everything the hit would have done is simply not done: no damage, no stamina damage,
-			// no blockstun, no hitstun, no knockback. The early return is the whole negation.
+			// no blockstun, no hitstun. The early return is the whole negation. **The one thing a
+			// parry does impart is the recoil below**, which is the attacker's own carry rather
+			// than the hit's spacing reset -- relative, ceilinged, and on the parrier's axis.
 			bParried = true;
 
 			// This one flag stops two things: IsChainOutOpen reads it to forbid skipping recovery, and
@@ -359,6 +361,10 @@ void UTDMeleeAttackAbility::HandleTraceHit(const FHitResult& Hit)
 			if (ParriedAttacker)
 			{
 				ParriedAttacker->EnterParryLockout(LockoutSeconds);
+
+				// After the lockout, so the carry runs under a movement lock that is already up and
+				// finishes as control returns rather than before it.
+				ApplyParryRecoil(Parrier, ParriedAttacker, LockoutSeconds);
 			}
 			return;
 		}
@@ -538,6 +544,53 @@ void UTDMeleeAttackAbility::ApplyKnockbackToTarget(ATDCombatCharacter* Target, b
 		bBlocked ? TEXT(" (blocked)") : TEXT(""));
 
 	Target->ReceiveKnockback(Destination, KnockbackDurationSeconds, KnockbackTimeMappingCurve);
+}
+
+void UTDMeleeAttackAbility::ApplyParryRecoil(ATDCombatCharacter* Parrier, ATDCombatCharacter* Attacker, float DurationSeconds) const
+{
+	if (!Parrier || !Attacker || ParryRecoilCm <= 0.0f || DurationSeconds <= 0.0f)
+	{
+		return;
+	}
+
+	const FVector ParrierLoc = Parrier->GetActorLocation();
+	const FVector AttackerLoc = Attacker->GetActorLocation();
+
+	// Radial from the parrier, falling back to their facing when the two are co-located -- the
+	// knockback's shape, with the parrier as origin instead of the attacker.
+	FVector Away = AttackerLoc - ParrierLoc;
+	Away.Z = 0.0f;
+	if (!Away.Normalize())
+	{
+		Away = Parrier->GetActorForwardVector();
+		Away.Z = 0.0f;
+		if (!Away.Normalize())
+		{
+			return;
+		}
+	}
+
+	const float CurrentAlongCm = FVector::DotProduct(AttackerLoc - ParrierLoc, Away);
+
+	// Push, then ceiling, then never inward -- in that order, so a catch already beyond the ceiling
+	// keeps its distance rather than being pulled back to it.
+	const float PushedCm = CurrentAlongCm + ParryRecoilCm;
+	const float FinalCm = FMath::Max(FMath::Min(PushedCm, ParryRecoilCeilingCm), CurrentAlongCm);
+
+	FVector Destination = ParrierLoc + Away * FinalCm;
+	Destination.Z = AttackerLoc.Z;
+
+	TD_TIMING_LOG(TEXT("[%.3f] PARRY RECOIL  %s by %s  from=%.0f to=%.0f  push=%.0f ceiling=%.0f  over=%.3f"),
+		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f,
+		*Attacker->GetName(),
+		*Parrier->GetName(),
+		CurrentAlongCm,
+		FinalCm,
+		ParryRecoilCm,
+		ParryRecoilCeilingCm,
+		DurationSeconds);
+
+	Attacker->ReceiveKnockback(Destination, DurationSeconds, nullptr);
 }
 
 void UTDMeleeAttackAbility::HandleMontageCompleted()

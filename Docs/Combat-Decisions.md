@@ -297,7 +297,15 @@ properties, against three before.
 
 **The stun tells: discharged 2026-08-25** by positioning both playheads from stun progress instead of playing them at a rate — see the dated entry. Only a string's first hit used to be told, because the tell is a state entered on a cached bool and a hit landing inside a running stun re-enters nothing.
 
-**Whenever any of the three tells is changed — *no instrument in this project can see it, and the loop never could.*** Filed 2026-08-25; **widened 2026-08-27 to three when the parry recoil joined hitstun and blockstun**, built the same way and equally invisible. One thing did improve: `GetParryLockoutTellTime()` is `BlueprintPure`, so a *sampled* tell time is scriptable from Python during PIE — it was watched climbing 0.025 → 0.322 across a live lockout. **That proves the character's half, never the anim graph's**; whether the clip draws still needs an eye or a screenshot. `HITSTUN` and `BLOCKSTUN` already fire per hit and their spans are asserted by `s4-string` and `s4-block`, so **every existing assertion stays green whether the tell draws or not** — what changed is cosmetic by construction and the loop asserts mechanics. The chain is verified structurally as far as the compile (the binding persists in `ABP_Combat.uasset`; `ValidateFunctionRef` raises no error, and that error is exactly what an unresolvable reference produces), and **confirmed in play the same day** — the designer judged both tells correct, which nothing but a running `UTDAnimTellTools::DriveTell` produces. **That confirmation does not transfer.** It was a person looking once; the cheapest standing instrument would be an anim-side trace, which is graph work nobody has costed. A silent regression here — a rebind lost to a recompile, a renamed function — would look exactly like nothing, and every scenario would still print green.
+**Whenever `s5-parry`'s lockout band is trusted — *it never covered the string ender.*** Filed
+2026-08-28. `BAND_PARRY_LOCKOUT` is [0.725, 0.775], which admits the branches' 0.75 and excludes
+`string_swings[1]`'s authored **0.9725**. Every earlier run passed because the fixture caught swing 0
+and a string ender was never parried; an isolated fixture reaches it and the assertion reads
+*"outside [0.725,0.775]s: 0.973"*. **Not widened, deliberately** — patching a band to green is what
+this project forbids, and the right fix is a per-tier assertion rather than one range stretched over
+a spread it was never derived against.
+
+**Whenever any of the three tells is changed — *no instrument **we built** can see it, and the loop never could.*** **Corrected 2026-08-28: the engine's own log could see it all along.** `SetPlayRate(0)` was refused every frame from the day the tells shipped, logging *"value is not dynamic"* 3,207 to 14,294 times per session, and nobody read the log for anything but combat tags — through a full audit of this subsystem included. **Before trusting any "no instrument" claim, grep the raw log for warnings, not just for trace tags.** Filed 2026-08-25; **widened 2026-08-27 to three when the parry recoil joined hitstun and blockstun**, built the same way and equally invisible. One thing did improve: `GetParryLockoutTellTime()` is `BlueprintPure`, so a *sampled* tell time is scriptable from Python during PIE — it was watched climbing 0.025 → 0.322 across a live lockout. **That proves the character's half, never the anim graph's**; whether the clip draws still needs an eye or a screenshot. `HITSTUN` and `BLOCKSTUN` already fire per hit and their spans are asserted by `s4-string` and `s4-block`, so **every existing assertion stays green whether the tell draws or not** — what changed is cosmetic by construction and the loop asserts mechanics. The chain is verified structurally as far as the compile (the binding persists in `ABP_Combat.uasset`; `ValidateFunctionRef` raises no error, and that error is exactly what an unresolvable reference produces), and **confirmed in play the same day** — the designer judged both tells correct, which nothing but a running `UTDAnimTellTools::DriveTell` produces. **That confirmation does not transfer.** It was a person looking once; the cheapest standing instrument would be an anim-side trace, which is graph work nobody has costed. A silent regression here — a rebind lost to a recompile, a renamed function — would look exactly like nothing, and every scenario would still print green.
 
 **Whenever an authored duration is asserted against a log — *the value it lands on is partly the test machine's frame rate.*** The release window closes on the first tick at or past its deadline, so every ability's total carries the distance from that deadline to the next tick: nil at 60 fps where 150 ms is exactly nine frames, +17 ms at 30. **`s6-getup` is where this bit first** — one sample in twelve past an elapsed ceiling, read as a flake until the sweep showed it scaling with frame time. Weakened rather than discharged by the 2026-08-25 fix: the overrun no longer *grows* without bound and the damaging span never exceeds its authored length, but a band derived on one machine still encodes that machine's frame time. **Re-derive an elapsed band from measurement on the machine that will run it**, and treat a single sample past a ceiling as a question about frame time before a question about combat.
 
@@ -1184,6 +1192,7 @@ than a refusal.
 | A parried attacker gets away with too much | **Nothing — the reward is derived and already per-tier.** Recovery *is* the punish window, so a parried charged pays more than a parried light without anyone authoring it; the string reset is what compensates at the light end | A per-branch parry bonus. Raised 2026-08-18 and rejected: the derived model pays by the victim's commitment rather than by the read's difficulty, and an authored bonus exists only if play demands read-difficulty compensation |
 | The charged feels unreactable, or trivially reactable | Its **`ReleaseAtSeconds`**, **authored** — checked against reaction time rather than moved by feel alone. 800 leaves 600 ms after the light's arrival, a reaction (~200) plus a full dodge (400). The arithmetic is what it was tuned *against*, not what produced it | Moving it without re-checking the **gap to the heavy**, which is the real fence and is welded at 400 (see the row below). Cut the window below a reaction plus a dodge and the slow layer stops being answerable by the defence it exists to reward |
 | A knockdown holds you down too long, or lets you up too early | That type's `KnockdownLockoutSeconds*` and `KnockdownInputWindowSeconds*` **as a pair summing to the same total** — each type's split is its own dial | The total, or `KnockdownRiseSeconds`. Both types spend 2.5 s down and begin rising at 2.0 **by design**, and every derivation keyed to the total is grade-blind because of it: the exhausted player's ~62 stamina return, the netcode window. Move the split, never the sum. |
+| A parried attacker recoils too far or too little | **`ParryRecoilCeilingCm`** (180), **not** `ParryRecoilCm` (93). Catches land at 114–184 cm, so the ceiling binds on nearly every one and the push is inert above about 57 — raising 93 does nothing at all. The ceiling trades travel against the punish: 192 cm is damage reach, and past it the parry stops guaranteeing one. Duration is the lockout's own span and is not separately tunable |
 | The fall looks rushed, or the knockdown reads too brief | **`KnockdownFallSeconds`** — the carry, **0.6**, and the rate too, since the fitted window is divided by it. **Ceiling is `KnockdownLockoutSecondsNormal`**, the shorter lockout; what must fit under it is the montage, `(played - from) / rate` | Chasing the remaining stiffness here. **The clip contains 0.45 s of natural-speed motion and no more**, so every value trades duration against landing speed — 1.0x buys 0.45 s, 0.6 s costs 0.75x and the cushion. The fix is the time curve in the Polish brief. Also not `HitstunSeconds`: on a graded swing it keys only the attacker's movement return. |
 | The body lands flat, or slides after visibly landing | **`KnockdownFallClipSeconds`** (0.8, the landing) and **`KnockdownFallClipStartSeconds`** (**0.0**; the measured commit is 0.35, held in the header for the curve slice) | Enabling the start offset on its own. It shortens the window, which lowers the rate, which stretched the flat tail from 81 ms to 144 ms — **with one rate the two artifacts are the same knob**. **Re-measure if the clip is swapped**; every one of these numbers belongs to `AS_SwordSwordAnimV3_Death_Bw_RM`, not to knockdowns. |
 | The body slides after it has visibly landed, or lands before it stops | **`KnockdownFallClipSeconds`** — where the clip's landing is, **0.8 of 0.900**, measured as the frame the pelvis stops descending (the last 0.10 s gives up 1.6 cm). Raise it toward the clip length to slide longer, lower it to land sooner | Fixing it with `KnockdownFallSeconds`. That moves *both* the landing and the playback rate, which is the coupling this pair exists to break — and it is why the two complaints could not be told apart while one number served both. **Re-measure if the clip is ever swapped**; the value is a property of `AS_SwordSwordAnimV3_Death_Bw_RM`, not of knockdowns. |
@@ -1308,7 +1317,7 @@ reading the file front to back found it.** An index nobody has to read front to 
 
 Generated from the archive rather than maintained by hand, so it goes stale rather than wrong —
 a missing row means the entry is newer than the index, never that the symbol is absent.
-Current through **2026-08-27** — update the date when regenerating, and `docs-check` turns
+Current through **2026-08-28** — update the date when regenerating, and `docs-check` turns
 staleness into a red row by comparing it against the newest entry. The rule for reading it is the standing one,
 that **a search finding nothing proves only that the filter did not match.**
 
@@ -1457,6 +1466,9 @@ long.
 | `Hitboxes` | 08-12 |
 | `HitstunSeconds` | 08-16, 08-18 |
 | `HitstunTellPortionSeconds` | 08-25 |
+| `GetParryLockoutTellTime` | 08-27, 08-28 |
+| `DriveParryLockoutTell` | 08-27 |
+| `ApplyParryRecoil` | 08-28 |
 | `HitstunTellSerial` | 08-25 |
 | `HitstunTellSpanSeconds` | 08-25 |
 | `HoldSeconds` | 08-11 |
@@ -1503,7 +1515,10 @@ long.
 | `OnRep_PlayerState` | 08-15 |
 | `OnRep` | 08-11, 08-16 |
 | `OverlapsCapsule` | 08-14 |
-| `ParryLockoutSeconds` | 08-20 |
+| `ParryLockoutSeconds` | 08-20, 08-28 |
+| `ParryLockoutTellPortionSeconds` | 08-27 |
+| `ParryRecoilCeilingCm` | 08-28 |
+| `ParryRecoilCm` | 08-28 |
 | `ParryWhiffRecoverySeconds` | 08-19 |
 | `ParryWindowSeconds` | 08-19, 08-25 |
 | `PeriodicDodge` | 08-15 |
@@ -1627,6 +1642,65 @@ long.
 | `bUseControllerRotationYaw` | 08-12 |
 | `compositeSections` | 08-15, 08-18 |
 | `gEComponents` | 08-10, 08-11 |
+
+## 2026-08-28 — The parry recoil ships, and the rate-zero hold had never worked
+
+**Two things, and the second is the larger.**
+
+### The recoil
+
+A parried attacker is now carried back, because the flinch clip plays in place and a parry
+deliberately applied no carry — so the stagger had nothing under it. **The designer's correction is
+what found this**: hitstun reads as a linear stagger *because* every hit that inflicts it also
+applies knockback; the clip is in place in both cases, and only the pairing differs.
+
+`ParryRecoilCm` **93**, relative rather than a destination, read off the flinch clip's own authored
+root motion across the portion the tell plays. `ParryRecoilCeilingCm` **180**, over the lockout's own
+span. Push, then ceiling, then never-inward, in that order.
+
+**Measured catches land at 114–184 cm, not the 84–124 estimated**, because contact is at weapon reach
+rather than capsule contact. So **the ceiling binds on nearly every catch and is the live knob;
+93 is its input and is inert above about 57.** That belongs in the tuning map and is why the row
+exists. Travel in play is **37–61 cm**, judged good.
+
+### The rate-zero hold has never worked, on any tell, since they shipped
+
+`USequencePlayerLibrary::SetPlayRate(Player, 0.0f)` was refused every frame with
+*"value is not dynamic. Set it as Always Dynamic."* — **3,207 times in one log, and 7,822 to 14,294
+in logs from 2026-08-26**, two days before this slice. The 2026-08-25 entry calls rate zero
+"load-bearing and not merely tidy"; it was never in effect.
+
+**Why it looked fine**: `SetAccumulatedTime` overwrites the position every update, so the tick
+record's `delta * rate` is a constant **one-frame lead** rather than accumulating drift. At 60 fps
+that is ~17 ms, which is why the tells read correctly and the 08-25 verdict was not wrong. It would
+only diverge if an update were ever skipped, at which point the clip free-runs.
+
+**The fix is `AlwaysDynamicProperties`**, a bare `UPROPERTY()` — public to C++, invisible to
+reflection, refused by `get_editor_property`, `set_editor_property` and `call_method` alike. So it is
+the third surface again: `UTDStateMachineTools::SetAnimNodePropertyAlwaysDynamic`. Applied to all
+three tells; the warning count went **3,207 → 0** across a session in which 2 parry lockouts, 14
+hitstun and 8 blockstun tells demonstrably ran.
+
+### The correction that outlives both
+
+The standing trap says of the tells: *"no instrument in this project can see it, and the loop never
+could."* **That is false, and was false when it was written.** An engine warning had been firing
+thousands of times per session since the day they shipped. The instrument existed; nobody read the
+log for anything but combat tags — including me, across a full audit of this exact subsystem earlier
+the same day. **"No instrument can see it" should have read "no instrument we built"**, and the
+engine's own log is the one nobody checks.
+
+### It also retro-explains the root-motion experiment
+
+Enabling root motion on the flinch appeared to work and then snapped back. With the rate stuck at
+1.0 the clip was genuinely playing, so that was ordinary playback producing ordinary root motion —
+displayed on the mesh, discarded by the movement component because `ABP_Combat` is
+`ROOT_MOTION_FROM_MONTAGES_ONLY`. Every observation lines up only once the rate bug is known.
+
+### Verified
+
+`s5-parry` **11/11**. Recoil parity exact — every lockout produces one. Zero
+`LogSequencePlayerLibrary` lines of any kind.
 
 ## 2026-08-27 — The parried attacker gets a tell, and it is the vulnerable one
 
