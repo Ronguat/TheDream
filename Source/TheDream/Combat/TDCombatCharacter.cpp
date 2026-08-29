@@ -3462,6 +3462,19 @@ bool ATDCombatCharacter::TryActivateAbilitiesForInput(const FGameplayTag& InputT
 		}
 	}
 
+	// **A refused press still says the button is down.** The spec was marked above whether or not
+	// activation took, but only an ability *ending* ever requested the resume tick -- so a press
+	// that fails while nothing is running was marked and then never retried. Holding block through
+	// a knockdown lockout hit exactly that: the press was refused, the window opened a moment
+	// later, and nothing looked again.
+	//
+	// Requesting unconditionally is safe because the resume tick filters to abilities that opted
+	// into bResumeWhileInputHeld and still read InputPressed; a refused attack asks for nothing.
+	if (!bActivated && !Handles.IsEmpty())
+	{
+		bResumePending = true;
+	}
+
 	return bActivated;
 }
 

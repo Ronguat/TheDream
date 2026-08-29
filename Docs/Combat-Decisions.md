@@ -1005,6 +1005,17 @@ and the same instrument — an eye, or a screenshot. The designer judged it in p
 shipped; **that confirmation does not transfer to the next change.**
 
 
+**Whenever the get-up input path changes — *no scenario can press during the lockout, because the
+fixture is clamped out of it.*** Filed 2026-08-28 with the resume fix. `DebugGetUpDelaySeconds` is
+`ClampMin="0.0"` and the press fires at `KnockdownLockoutEndsAt + delay`, so **every scripted get-up
+presses inside the window and none can press before it** — which is precisely the case that was
+broken: a press refused during the lockout and then never retried. `s6-block` passes on the path that
+always worked. **Reaching it needs the clamp relaxed to allow a negative delay**, one meta change and
+a rebuild, plus a scenario asserting `RISE by=block` from a press made before the window. Until then
+the guarded rise's only reachable route is verified by a human and by nothing else. **And the dummy
+cannot stand in**: `HoldBlock` drives the tag directly where a player drives Enhanced Input, and that
+difference is what made this defect invisible for a session.
+
 **Whenever a knockdown curve is edited — *both are normalised over fall plus settle, and the arc is
 keyed in path fractions the pacing decides.*** Filed 2026-08-28. `C_KnockdownArc` is authored against
 *time* and written through `C_KnockdownCarry` into path fractions, so **editing the pacing silently
@@ -1740,6 +1751,60 @@ long.
 | `bUseControllerRotationYaw` | 08-12 |
 | `compositeSections` | 08-15, 08-18, 08-28 |
 | `gEComponents` | 08-10, 08-11 |
+
+## 2026-08-28 — A refused press was never retried, and the guarded rise had no reachable route
+
+**The designer, from play**: *"The guarded rise input feels a bit unintuitive. I think the input
+mechanism should check for a held blocking input that was pre-existing, because it's not super
+intuitive when to start holding."*
+
+### I told them it already worked, and it did not
+
+`GA_Block` opts into `bResumeWhileInputHeld`, and a held-guard test on the **dummy** produced a
+`RISE by=block` with nothing scripted pressing anything — eleven consecutive per-frame `REFUSED …
+knocked down (lockout)` lines, then a rise on the tick the window opened. That looked conclusive and
+was reported as such.
+
+**It was the fixture's synthetic input, not the real one.** `ETDDebugDefendMode::HoldBlock` drives
+the tag directly; a human drives Enhanced Input. **The refusal counts are what gave it away** —
+39,652 on the dummy against **one per knockdown** on the player. One refusal is not a retry loop.
+`Working-In-Unreal.md` states this trap in as many words: *a single fixed test configuration is a
+filter*.
+
+### The actual fault, from the existing log
+
+```
+[19.256] KNOCKDOWN   lockout=1.000 inputWindow=1.000
+[20.004] INPUT       InputTag.Block pressed        <- refused, still in lockout
+[21.257] KNOCKDOWN RISE  by=auto                   <- window opened and closed
+[22.316] INPUT       InputTag.Block released       <- held throughout
+```
+
+`ActivateAbilitiesForInput` marks the spec `InputPressed` **whether or not activation succeeds**, so
+the held state was recorded correctly. What was missing is that **only an ability *ending* ever
+requested the resume tick** — `bResumePending` is set solely by `HandleAbilityEndedForResume`. A press
+that fails while nothing is running is therefore marked and then never looked at again.
+
+The dummy passed only by accident: its guard breaks and cancels constantly, so ability-end events
+kept re-arming the request.
+
+**Fixed** by requesting a resume when a press activates nothing. Safe unconditionally because the
+resume tick already filters to abilities that opted into `bResumeWhileInputHeld` and still read
+`InputPressed` — a refused attack asks for nothing.
+
+### The designer's second observation is the one that makes this the whole fix
+
+*"There's no state where you get knocked over while always holding block without being exhausted."*
+Holding drains stamina, so a **pre-existing** hold cannot survive to the moment of a knockdown. The
+press-during-the-knockdown path was therefore not one of two routes to a guarded rise — **it was the
+only one**, and it did not work. The block get-up was effectively unreachable except by pressing
+inside a window whose bounds are invisible.
+
+### Verified
+
+**By the designer in play.** The fixtures cannot see this: dummy rises moved 1-in-8 to 2-in-10
+`by=block`, which is the wrong input path measured again and is reported here only to say it is not
+evidence. Refusal volume stayed flat at 935, so nothing retries runaway.
 
 ## 2026-08-28 — The tell's playhead was linear too, and the same single-knob fault was hiding in it
 
@@ -9418,7 +9483,12 @@ long it is held, and block and parry will share a button.
 a brief binds the session that picks that slice up and no other, so it was triggered content
 sitting in the always-read file.
 
-- **Polish** *(style over substance; split from Knockdown 2026-08-18, the designer's call)* — deferred work that changes how something *reads* rather than what it does. **Carries the bespoke windup pass**: heavy and charged get their own clips, their windups become **blended transitions** into real anticipation, and **coil is deprecated**. It belongs here rather than in Knockdown because the reactability arithmetic is untouched — the blend occupies exactly the window the coil did, 350 ms light→heavy and 300 ms heavy→charged — so only the tell's *expression* changes, freeze to visible repositioning. **Sits early deliberately**, right after Knockdown: it must precede Interplay or the feel verdict is taken with both tiers still playing the light's clip. **Clip-fitting values are Polish's; whole-surface greening is not** — the hypothesis dataset lands at the Tuning Rig (2026-08-18). Spec, candidate pool and the two measured findings behind it are in `Docs/Combat-Decisions.md`, 2026-08-18. **Inherited from Parry when it shipped 2026-08-19:** the parried attacker's **recoil tell** and all parry presentation — a parry currently reads only on the parrier, so the victim of one has no tell at all; and the open preview question of **whether V3's parry pose reads consistently beside V1's held guard**, which is a pack mix that shipped without being judged. Neither needs a search — both need looking at. **Knockdown's presentation is inherited whole (2026-08-20)**: the designer's verdict on the shipped state machine was *"needs polish, but the functionality is there"*, and specifically that the transition into the down state reads **abrupt** — there is no impact moment, the fall simply starts. Also here *(clause updated 2026-08-24 — an authored source now exists)*: polishing the get-up clip in its authored scene (`AnimSource/GetUpAttack.casc`; the rough ships as Knockdown's interim per that day's verification-bar entry), plus **Knockdown's re-scope inheritance**: the knockdown/fall/rise clip batch and the get-up options' look — everything past the tell-what-fired legibility bar; and the two rises deliberately blend into idle over their second half, which is a choice to revisit once idle poses are real. **Two more from the legibility glance of 2026-08-24, both of which *passed* the tell-what-fired bar, so neither is a defect:** the **block get-up** does blend to a guard on standing -- contradicting the assumption, mine, that it showed nothing at all -- and the designer's verdict on it is *"underwhelming and looks a tad undeliberate"*; and the **dodge get-up's roll** shipped 2026-08-25: it aims itself at the input direction, and `KnockdownRollSeconds` fits the rolling portion rather than the whole clip, so the recovery-to-stance plays out after the dodge instead of during it. Frame 18 was the designer's call between two defensible frames, and the asset puts it at 0.600 s rather than the 0.623 the earlier note derived. **What is left is the blend-out's own look** — at the old 2.25x it triggered mid-travel; at the resulting 1.50x it clears the dodge but starts eating the recovery, and the trigger time wants re-measuring at that rate rather than scaling the old figure. **Both stun tells are built; Polish inherits their *look*, not their construction.** Blockstun's has been a **state in the Locomotion machine, not a montage**, since 2026-08-15 — `AM_Blockstun` was built, tested and deleted at `eb658ee`, *the same commit that made the state*, because the montage route *"cost more than it buys"*. The hitstun flinch followed 2026-08-24 (*Death-full*, `1391d54`), on `AS_SwordSwordAnimV3_Hit_Fw_RM`, entered from Idle and Walk / Run on a cached `IsInHitstun` and left on its negation. Both were repositioned from stun progress at `92d9620` (2026-08-25) and judged legible in play; a state needs no C++ at all, which is how each was built. ***Corrected 2026-08-27***: from 2026-08-24 until then this brief read *"one is built and one remains"* and supplied build instructions for a state that had already existed for nine days — wrong on the day it was written. The trap filed beside it says how that survived. **Parry lockout wants a functionality audit** *(the designer, 2026-08-28)*. Their reason, kept as
+- **Polish** *(style over substance; split from Knockdown 2026-08-18, the designer's call)* — deferred work that changes how something *reads* rather than what it does. **Carries the bespoke windup pass**: heavy and charged get their own clips, their windups become **blended transitions** into real anticipation, and **coil is deprecated**. It belongs here rather than in Knockdown because the reactability arithmetic is untouched — the blend occupies exactly the window the coil did, 350 ms light→heavy and 300 ms heavy→charged — so only the tell's *expression* changes, freeze to visible repositioning. **Sits early deliberately**, right after Knockdown: it must precede Interplay or the feel verdict is taken with both tiers still playing the light's clip. **Clip-fitting values are Polish's; whole-surface greening is not** — the hypothesis dataset lands at the Tuning Rig (2026-08-18). Spec, candidate pool and the two measured findings behind it are in `Docs/Combat-Decisions.md`, 2026-08-18. **Inherited from Parry when it shipped 2026-08-19:** the parried attacker's **recoil tell** and all parry presentation — a parry currently reads only on the parrier, so the victim of one has no tell at all; and the open preview question of **whether V3's parry pose reads consistently beside V1's held guard**, which is a pack mix that shipped without being judged. Neither needs a search — both need looking at. **Knockdown's presentation is inherited whole (2026-08-20)**: the designer's verdict on the shipped state machine was *"needs polish, but the functionality is there"*, and specifically that the transition into the down state reads **abrupt** — there is no impact moment, the fall simply starts. Also here *(clause updated 2026-08-24 — an authored source now exists)*: polishing the get-up clip in its authored scene (`AnimSource/GetUpAttack.casc`; the rough ships as Knockdown's interim per that day's verification-bar entry), plus **Knockdown's re-scope inheritance**: the knockdown/fall/rise clip batch and the get-up options' look — everything past the tell-what-fired legibility bar; and the two rises deliberately blend into idle over their second half, which is a choice to revisit once idle poses are real. **The guarded rise's input was fixed 2026-08-28** and was the more serious half of the block get-up's
+problems: a press refused during the knockdown lockout was marked as held and then never retried, so
+the only reachable route to a guarded rise did not work. The designer's *"it's not super intuitive
+when to start holding"* had no good answer because no answer existed. Holding drains stamina, so a
+pre-existing hold cannot survive to a knockdown — the press-during-the-window path was the only one.
+**The look complaint below is untouched by this** and still stands. **Two more from the legibility glance of 2026-08-24, both of which *passed* the tell-what-fired bar, so neither is a defect:** the **block get-up** does blend to a guard on standing -- contradicting the assumption, mine, that it showed nothing at all -- and the designer's verdict on it is *"underwhelming and looks a tad undeliberate"*; and the **dodge get-up's roll** shipped 2026-08-25: it aims itself at the input direction, and `KnockdownRollSeconds` fits the rolling portion rather than the whole clip, so the recovery-to-stance plays out after the dodge instead of during it. Frame 18 was the designer's call between two defensible frames, and the asset puts it at 0.600 s rather than the 0.623 the earlier note derived. **What is left is the blend-out's own look** — at the old 2.25x it triggered mid-travel; at the resulting 1.50x it clears the dodge but starts eating the recovery, and the trigger time wants re-measuring at that rate rather than scaling the old figure. **Both stun tells are built; Polish inherits their *look*, not their construction.** Blockstun's has been a **state in the Locomotion machine, not a montage**, since 2026-08-15 — `AM_Blockstun` was built, tested and deleted at `eb658ee`, *the same commit that made the state*, because the montage route *"cost more than it buys"*. The hitstun flinch followed 2026-08-24 (*Death-full*, `1391d54`), on `AS_SwordSwordAnimV3_Hit_Fw_RM`, entered from Idle and Walk / Run on a cached `IsInHitstun` and left on its negation. Both were repositioned from stun progress at `92d9620` (2026-08-25) and judged legible in play; a state needs no C++ at all, which is how each was built. ***Corrected 2026-08-27***: from 2026-08-24 until then this brief read *"one is built and one remains"* and supplied build instructions for a state that had already existed for nine days — wrong on the day it was written. The trap filed beside it says how that survived. **Parry lockout wants a functionality audit** *(the designer, 2026-08-28)*. Their reason, kept as
 given: *"It is not intuitive to me how parry lockout is derived, which is an indication that I have
 failed to effectively author parry lockout."* What the audit inherits, measured this session: the
 value resolves through **three levels behind one virtual** — `UTDMeleeAttackAbility`'s 0.65
