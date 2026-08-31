@@ -69,10 +69,8 @@ and not the order anyone reads in. Keep it sorted when adding.)*
 | This entry | …has a claim that is now wrong | Corrected by |
 |---|---|---|
 | 2026-08-09 — Ability input is routed by gameplay tag | block and parry will share one button | 2026-08-10 — The four questions gating defense |
-| 2026-08-15 — The Tuning Rig | the felt-numbers table takes provenance from the rig's log | 2026-08-18 — The felt-numbers table is retired (the table no longer exists; the rig instead *generates* the Interplay worklist, which is what it was approximating by hand) |
-| 2026-08-15 — Netcode precedes Interplay | cites "the felt-table preamble" for why final feel waits on the megaslice | 2026-08-18 — The felt-numbers table is retired (the preamble's argument survives and is restated in that entry; only its location is gone) |
-| 2026-08-09 — One ability with three branches | `GA_LightAttack` is kept on disk as a fallback | 2026-08-10 — The `GA_LightAttack` fallback is removed |
 | 2026-08-09 — Documentation: a decision log, not per-system design docs | "header comments in this codebase already carry local rationale well", so local rationale belongs in them | 2026-08-21 — Comments carry WHAT and HOW; WHY moves to Docs/ (the entry's primary claim survives untouched — per-system design docs are still rejected. Only the half sending *rationale* into header comments reversed: comments now carry what a symbol is, does and requires, and never why) |
+| 2026-08-09 — One ability with three branches | `GA_LightAttack` is kept on disk as a fallback | 2026-08-10 — The `GA_LightAttack` fallback is removed |
 | 2026-08-10 — Costs are paid, not required | exhaustion lasts a flat 4 s (`ExhaustionSeconds`) | 2026-08-10 — Exhaustion ends at full |
 | 2026-08-10 — Exhaustion ends at full | recovery speed is one number, so `StaminaRegenPerSecond` *is* the exhaustion duration | 2026-08-14 — Exhaustion recovers at its own rate (the rate is split; exhaustion still ends at Max and nowhere else, so the entry's actual claim survives — what changed is which number sets how long it takes) |
 | 2026-08-10 — Facing is camera-relative | locomotion ships from `SwordAndShieldAnimV1`, and mixing packs must be avoided | 2026-08-11 — V3 becomes the base stance (V1 reads as permanently guarding, and V1 has no `Hit`/`Death` clips so mixing was never avoidable) |
@@ -83,21 +81,21 @@ and not the order anyone reads in. Keep it sorted when adding.)*
 | 2026-08-10 — Sword and shield, rolls for every evade | the library has "no shield mesh at all" | **Never superseded by an entry — corrected in `Docs/Animation-Library.md`**, which records both the mesh (`Shield_Heater`) and why it was missed: it carries no `SM_` prefix, so a prefix-filtered search returned nothing. Found still uncorrected here by the 2026-08-12 audit. |
 | 2026-08-10 — The dodge is 0.4 s, judged before it had an animation | if the rate reads fast-forwarded, the lever is "trimming the sections" | 2026-08-10 — Animations play whole (same day, and it names this as the advice it supersedes; the row was never added). The rule is now also in `CLAUDE.md`: fit the clip to the duration, change the duration if it feels wrong. |
 | 2026-08-10 — The four questions gating defense | only *block* can cancel an attack's startup | 2026-08-10 — Costs are paid, not required |
+| 2026-08-11 — Death cancels what exhaustion lets finish | *"a ragdoll, because inert and dead look identical... the directional `Death_<DIR>` clips belong to item 11 — and it is behind `bRagdollOnDeath` so that slice can switch it off"* — the ragdoll filed as a placeholder **for** those clips | 2026-08-24 — Death-full's presentation goes to physics and a state. The ragdoll **is** the treatment, given an impulse along the killer-to-victim bearing; the eight directional clips were never used. The flag stays, now as a tuning switch rather than a stand-in |
 | 2026-08-11 — Dodge travel ships at the clips' authored distance | displacement comes from the montage's root motion, corrected per direction by MeasuredTravelCm | 2026-08-13 — The dodge stops reading displacement off its clips (both the scales and the measurements are deleted; all eight directions travel DodgeTargetDistanceCm) |
 | 2026-08-11 — Dodge travel ships at the clips' authored distance | reach is unmeasurable because the trace follows `hand_r` and nobody knows where that socket is at the impact frame | 2026-08-12 — A hitbox is authored, not traced (reach is `MaxReachCm`, an authored number, so the dodge-versus-reach comparison is now simply readable) |
 | 2026-08-11 — Dodge travel ships at the clips' authored distance | the eight directions agree, so one uniform scale is the right shape and no per-direction data is needed | 2026-08-11 — V3 becomes the base stance (true of V1's clips, false of V3's: spread 90.6 uu) |
-| 2026-08-11 — PvP is the destination | 14 network-unaware `SetTimer` sites | corrected **inline** in that same entry — the real figure is **2**; the count swept in Epic template code, debug timers, and one that must stay local |
-| 2026-08-11 — Death cancels what exhaustion lets finish | *"a ragdoll, because inert and dead look identical... the directional `Death_<DIR>` clips belong to item 11 — and it is behind `bRagdollOnDeath` so that slice can switch it off"* — the ragdoll filed as a placeholder **for** those clips | 2026-08-24 — Death-full's presentation goes to physics and a state. The ragdoll **is** the treatment, given an impulse along the killer-to-victim bearing; the eight directional clips were never used. The flag stays, now as a tuning switch rather than a stand-in |
-| 2026-08-11 — PvP is the destination | `CLAUDE.md` still lists netcode as out of scope "and that stands" | corrected **inline** in that same entry, within the hour — the user withdrew the scope call once it was restated back to them |
 | 2026-08-11 — PvP is the destination | *actually networking* is the final frontier, held with a stretch-goal mentality, and the prototype is not a failure if netcode proves too hard — verified-good was assumed reachable locally | 2026-08-15 — Netcode precedes Interplay (one local human makes the second player remote, so netcode is a prerequisite for the feel verdict; the kill-question is front-loaded into emulation instead of fallen back on) |
+| 2026-08-11 — PvP is the destination | 14 network-unaware `SetTimer` sites | corrected **inline** in that same entry — the real figure is **2**; the count swept in Epic template code, debug timers, and one that must stay local |
+| 2026-08-11 — PvP is the destination | `CLAUDE.md` still lists netcode as out of scope "and that stands" | corrected **inline** in that same entry, within the hour — the user withdrew the scope call once it was restated back to them |
 | 2026-08-11 — The light is reactable at 250 ms | facing snaps on movement input and turns smoothly at rest | 2026-08-12 — Facing becomes one rate (one derived rate in all states, plus an idle rate) |
 | 2026-08-11 — The light is reactable at 250 ms | prefer scaling root motion over code-driven movement; code is the exception to pay for knowingly | 2026-08-12 — Root motion scaling is not enough control (play says a multiplier only amplifies the animator's curve; the netcode reason survives and is answered by GAS root motion *sources*, not by hand-rolled movement) |
 | 2026-08-11 — The training dummy gets the sword too | the blade's length is an authored number, `BladeLengthCm` | 2026-08-12 — A hitbox is authored, not traced (the *principle* survives and is why it generalised: authored beat mesh-derived, then authored volumes beat authored blades) |
 | 2026-08-12 — A hitbox is authored, not traced | the hover is "cosmetic, filed rather than fixed" and shared by every *root-motion* montage | 2026-08-12 — The hover was six centimetres of mesh offset (it is shared by every pose, root motion irrelevant, and it is fixed) |
 | 2026-08-12 — Attack displacement is two scales | displacement is two multipliers on the clip's root motion, and a branch can only differentiate the travel its clip performs after commit | 2026-08-12 — Lunge is two authored distances (both scales are deleted; displacement is authored in centimetres and the clip contributes nothing, so what a branch can differentiate no longer depends on the clip at all) |
 | 2026-08-12 — Lunge is two authored distances | Lunge added two distances and **zero** timing values, because the boundaries it needed already existed — recorded as a virtue | 2026-08-13 — The gate is per tick, and lunge duration is a designed quantity (play found the lunge simultaneously too slow and too far, which is one fact: `ReleaseSeconds` was setting a movement feel) |
-| 2026-08-12 — Lunge is two authored distances | reading facing during `PrepareRootMotion` "should replay correctly under prediction" is mechanism-level reasoning "since nothing here has run two machines" | 2026-08-15 — Two machines run for the first time. **The entry's conclusion stands and only its premise is stale**: two machines have now run, and that session was observational with no client input, so prediction replay is still unmeasured. Treat the reasoning as reasoning. |
 | 2026-08-12 — Lunge is two authored distances | `CoilTurnRateDegrees` is "600, the user's value" | **Not superseded — confirmed 2026-08-14 by reading the CDO.** `BP_PlayerCharacter` overrides the C++ 300 with **600**, so the entry was right and the code default was the misleading half. Kept as a row because the flag that stood here for a day is worth leaving visible: a C++ default disagreeing with an entry is not evidence the entry is wrong, and this is the case that demonstrates it. |
+| 2026-08-12 — Lunge is two authored distances | reading facing during `PrepareRootMotion` "should replay correctly under prediction" is mechanism-level reasoning "since nothing here has run two machines" | 2026-08-15 — Two machines run for the first time. **The entry's conclusion stands and only its premise is stale**: two machines have now run, and that session was observational with no client input, so prediction replay is still unmeasured. Treat the reasoning as reasoning. |
 | 2026-08-12 — Root motion scaling is not enough control | the likely answer is that Lunge takes `RootMotionScale` to 0 and owns displacement outright | 2026-08-12 — Lunge is two authored distances (taking the scale to 0 does **not** work: animation root motion suppresses root motion sources whether or not it is scaled, so the character stops moving entirely. The montage must carry no root motion) |
 | 2026-08-12 — The attack montage hovers because it is bound to the wrong skeleton | the whole entry — the skeleton was never the cause | 2026-08-12 — The hover was six centimetres of mesh offset |
 | 2026-08-12 — The facing unlock is asymmetrical with the lock | facing fades into and out of its lock, over 50 ms in and half of recovery out | 2026-08-12 — The real cause was an engine default (the fades were deleted the same day: any value below full authority disables the snap, so chained attacks never caught the camera) |
@@ -109,37 +107,39 @@ and not the order anyone reads in. Keep it sorted when adding.)*
 | 2026-08-13 — Target Lock's rotational half aims the lunge | reach is authored per branch — "author it longer in reach than the damage wedge", roughly this branch's lunge plus its damage reach | 2026-08-14 — Aim assist reach is derived (reach is no longer authorable at all; the struct has no reach field. Travel plus damage reach plus one shared `AimAssistMarginCm`, so the *estimate* in that entry was right and hand-authoring it was the mistake) |
 | 2026-08-13 — Target Lock's rotational half aims the lunge | the wedge is per branch and *is* the contract — "aim inside it and the body ends at 0 degrees of error", authored per tier | 2026-08-14 — The homing wedge follows the ladder (it was per branch only at commit, while homing ran every tier on branch 0's; the heavy's and charged's values did nothing and had never been observed. The contract is real *after* this fix, not before it) |
 | 2026-08-13 — The gate is per tick, and lunge duration is a designed quantity | the per-tick gate is the whole answer to a lunge arriving at a body — it "can only ever subtract travel", so the authored distance is the only ceiling needed | 2026-08-14 — The lunge stops on a hit (a pause is not a stop: the gate reopens when the body stops existing, so a killed target is slid through. The gate's own reasoning survives untouched — this is a second mechanism, not a correction to it) |
-| 2026-08-14 — Exhaustion recovers at its own rate | *"the attribute set cannot be written through the toolset ... so there is no automated path to a non-full bar"* | 2026-08-15 for the drain (`ETDDebugDefendMode` spends unattended), and 2026-08-27 for the claim's absolute form — `UAbilitySystemComponent::SetNumericAttributeBase` is public `UE_API`, so a direct setter is a build rather than an impossibility. The rate arithmetic the entry exists for is untouched |
-| 2026-08-14 — The lunge stops on a hit | the ~117 / ~175 / ~233 cm client-overtravel bounds are "bounded arithmetic, since nothing has ever run two machines" | 2026-08-15 — Two machines run for the first time. **Same shape as the row above**: the bounds are still arithmetic rather than measurement, because V2 drove no client input and tested nothing under latency. Only the premise clause is out of date. |
 | 2026-08-14 — Aim assist reach is derived | the margin is 200, "signed off but unfelt" | **Played the same day and settled at 100**, giving reaches of 550/650/750. No entry supersedes it — the derivation and the margin's meaning are unchanged, only the number. `GA_Attack`'s CDO is authoritative; treat the 200 in that entry as a dated measurement. |
-| 2026-08-14 — The homing wedge follows the ladder | the three authored numbers are live placeholders to be authored by feel, and reaches must be kept non-decreasing by hand | 2026-08-14 — Aim assist reach is derived (same day: reach stopped being authored, so there is nothing to feel out per branch and monotonicity became unrepresentable. Only the margin is a feel number now) |
 | 2026-08-14 — Block survives contact with play | `REFUSED` "now names the offending tags", offered as a fixed instrument | 2026-08-14 — The refusal trace lied about the tag doing the refusing (it named tags it merely *matched a parent of*, so it accused `State.Blocking.Committed` on every refusal thrown during any block — the feature was real, the tag set it printed was not. Fixed the same day by reversing the `Filter` direction; **the fix is unexercised in play**) |
 | 2026-08-14 — Blockstun is the guard break's counterpart | blockstun "refuses offense and parry while leaving movement, dodging and the guard itself alone" | 2026-08-15 — Blockstun disables offense and never defense (the user's rule: **blockstun and parry never know about each other**. The parry clause was wrong from the spec's beginning and the code never implemented it — `GA_Attack` is and always was the only carrier of `State.Blockstun`. Everything else in that entry stands) |
-| 2026-08-16 — Light String's plan session | the chain-on-whiff cost to the light's whiff-punish window is "named and accepted; Interplay judges it" | 2026-08-16 — Knockback is a spacing reset (the long-recovery redesign *converts* the window into the delay-and-bait game rather than accepting its loss; Interplay still judges the result) |
-| 2026-08-16 — Knockback is a spacing reset | the blocked hit is an active per-swing lateral deflection with no re-centring — written as the primary reading, with a surviving-offset alternative flagged | 2026-08-16 — The blocked reading, corrected by the veto it asked for (both readings were wrong: full centring identical to a clean hit, smaller backward distance — one mechanism, two authored spacings) |
+| 2026-08-14 — Exhaustion recovers at its own rate | *"the attribute set cannot be written through the toolset ... so there is no automated path to a non-full bar"* | 2026-08-15 for the drain (`ETDDebugDefendMode` spends unattended), and 2026-08-27 for the claim's absolute form — `UAbilitySystemComponent::SetNumericAttributeBase` is public `UE_API`, so a direct setter is a build rather than an impossibility. The rate arithmetic the entry exists for is untouched |
+| 2026-08-14 — The homing wedge follows the ladder | the three authored numbers are live placeholders to be authored by feel, and reaches must be kept non-decreasing by hand | 2026-08-14 — Aim assist reach is derived (same day: reach stopped being authored, so there is nothing to feel out per branch and monotonicity became unrepresentable. Only the margin is a feel number now) |
+| 2026-08-14 — The lunge stops on a hit | the ~117 / ~175 / ~233 cm client-overtravel bounds are "bounded arithmetic, since nothing has ever run two machines" | 2026-08-15 — Two machines run for the first time. **Same shape as the row above**: the bounds are still arithmetic rather than measurement, because V2 drove no client input and tested nothing under latency. Only the premise clause is out of date. |
+| 2026-08-15 — Netcode precedes Interplay | cites "the felt-table preamble" for why final feel waits on the megaslice | 2026-08-18 — The felt-numbers table is retired (the preamble's argument survives and is restated in that entry; only its location is gone) |
+| 2026-08-15 — The Tuning Rig | the felt-numbers table takes provenance from the rig's log | 2026-08-18 — The felt-numbers table is retired (the table no longer exists; the rig instead *generates* the Interplay worklist, which is what it was approximating by hand) |
 | 2026-08-16 — Knockback is a spacing reset | hard knockdown is **the charged's** distinction — "the charged's knockdown is hard, with fewer get-up options" | 2026-08-19 — Knockdown's plan session (the heavy also knocks down hard; the grade rule restates as *committed single hits knock down hard, the string's volume finisher normal*. Ruled at the plan's review; ships with Knockdown) |
-| 2026-08-18 — A parry makes them whiff at your feet | the catch leaves the attacker at **zero centimetres**, the whiff-punish maximizer | 2026-08-28 — partially. The whiff is still manufactured at zero by `StopLunge`; a 93 cm recoil then carries them back over the lockout. Immaterial to whether a punish lands — a light reaches 550 — but they no longer *stand* at zero |
-| 2026-08-18 — A parry makes them whiff at your feet | the reward is **derived** — the parried attacker rides their own attack into recovery, and an authored form exists only if play demands compensation | 2026-08-19 — Knockdown's plan session (the rework, locked at review: a catch **ends** the attack — its release was staying live against bystanders — and inflicts `State.ParryLockout`, duration derived as the swing's remaining planned total, so the per-tier punish survives inside the new structure. Ships with Knockdown's sub-slice E) |
+| 2026-08-16 — Knockback is a spacing reset | the blocked hit is an active per-swing lateral deflection with no re-centring — written as the primary reading, with a surviving-offset alternative flagged | 2026-08-16 — The blocked reading, corrected by the veto it asked for (both readings were wrong: full centring identical to a clean hit, smaller backward distance — one mechanism, two authored spacings) |
+| 2026-08-16 — Light String's plan session | the chain-on-whiff cost to the light's whiff-punish window is "named and accepted; Interplay judges it" | 2026-08-16 — Knockback is a spacing reset (the long-recovery redesign *converts* the window into the delay-and-bait game rather than accepting its loss; Interplay still judges the result) |
 | 2026-08-18 — A parry makes them whiff at your feet | a whiffed parry "pays a **defensive** lockout", and the parry is refused only while blocking, exhausted and inside the post-dodge gap | 2026-08-19 — Parry recovery commits you, then the lockout (two widenings the same day: the whiff's tail refuses **every** ability and holds the movement lock, and the commitment starts at the *press* rather than at window close, so the window refuses everything too. The pricing symmetry and the floor derivation are untouched — only what the price *buys* changed) |
-| 2026-08-25 — The knockdown fall parks at 0.6 | the asset ceiling: *"0.45 s is all the natural-speed motion this clip contains"* and *"duration and landing speed cannot both be had from this asset at a constant rate"* | 2026-08-28 — The fall's cushion goes to the engine's own time-stretch curve (true of a **constant rate**, not of the asset — `AM_Knockdown`'s own `TimeStretchCurve` holds the fall at **1.000x** while the gather and cushion absorb the compression, and the parked 0.6 carry settled at **0.5**) |
-| 2026-08-25 — The knockdown fall's remaining fault is its time curve | the values it shipped: carry **0.45** with `KnockdownFallClipStartSeconds` at **0.35** | 2026-08-25 — The knockdown fall parks at 0.6 (same day, the designer calling a halt: the offset alone trades the gather for a longer flat tail, so it ships at 0.0 and the carry returns to 0.6. **The entry's findings all stand** — the cushion, the flat-before-landing, the 0.45 s ceiling — only its shipped values moved) |
-| 2026-08-25 — The knockdown fall stops being a snap | `KnockdownFallSeconds` at **0.9** fitting the **whole** clip, and *"fall lands inside lockout"* comparing **`want=`** against `lockout=` | 2026-08-25 — The fall's carry and its clip stop being one number (same day: the clip's last 0.10 s is a settle, so fitting all of it spent the settle as travel. Carry is now 0.8 against a 0.8 portion, and the guard reads `played / rate`, which the carry no longer bounds. The raise itself and its reasoning stand) |
-| 2026-08-25 — The stun tells are positioned by stun progress | the sequence player is held at **rate zero**, called "load-bearing and not merely tidy" | 2026-08-28 — The recoil ships, and the rate-zero hold had never worked. `SetPlayRate(0)` was refused every frame from the day it shipped; the rate was 1.0 throughout. The mechanism the entry describes is now true for the first time, and the entry is right about why it matters |
-| 2026-08-25 — The get-up roll aims itself | the roll **snaps** to its heading at activation | 2026-08-25 — The get-up roll turns into its heading (same day: a snap gives an observer a static pose to re-read, where a turn gives motion to track, so the heading reads earlier. Possible only once the travel direction stopped being derived from facing every tick) |
-| 2026-08-24 — The flinch is a state, not a montage | **"a state is not rate-fitted to a duration"**, so a 1.333 s clip against a 0.55 s stun is not a fitting problem | 2026-08-25 — The stun tells are positioned by stun progress (true of a state that merely plays; the tell is now held at rate zero and its playhead written each update, which fits *and* restarts it without the state re-entering. The rest of that entry stands) |
+| 2026-08-18 — A parry makes them whiff at your feet | the catch leaves the attacker at **zero centimetres**, the whiff-punish maximizer | 2026-08-28 — partially. The whiff is still manufactured at zero by `StopLunge`; a 93 cm recoil then carries them back over the lockout. Immaterial to whether a punish lands — a light reaches 550 — but they no longer *stand* at zero |
 | 2026-08-18 — A parry makes them whiff at your feet | the post-dodge gap is "a derived ~150 ms" that stops a predictive dodge chaining into a parry covering the charged | 2026-08-25 — The windups move as a pair (the derivation was `charged − DodgeSeconds − light arrival` and it never closed the case, release not being instantaneous; `DodgeRecoverySeconds` retires to 0 and the chain stands as priced RPS) |
+| 2026-08-18 — A parry makes them whiff at your feet | the reward is **derived** — the parried attacker rides their own attack into recovery, and an authored form exists only if play demands compensation | 2026-08-19 — Knockdown's plan session (the rework, locked at review: a catch **ends** the attack — its release was staying live against bystanders — and inflicts `State.ParryLockout`, duration derived as the swing's remaining planned total, so the per-tier punish survives inside the new structure. Ships with Knockdown's sub-slice E) |
+| 2026-08-18 — The bespoke windup pass deprecates the coil | "the surviving invariant: the parry window must be ≥ the longest authored `ReleaseSeconds`" | 2026-08-19 — Knockdown's plan session (the floor retires with the parry rework — it bought tell-timing sufficiency, a forgiveness guarantee rather than correctness, at the price of capping every release; the designer's prior-art argument. The window keeps only the anti-option-select ceiling; the tuning-map row updates when the rework ships) |
 | 2026-08-18 — The bespoke windup pass deprecates the coil | the blend windows are stated against the coil's start — "350 ms light→heavy (0.150 → 0.500)" | 2026-08-25 — The windups move as a pair (reactability is measured from the **light's arrival** at 200, not the coil's start at 150; every coil-referenced window was 50 ms wide of the mark) |
 | 2026-08-18 — The ladder re-poles: rapid heavy | the heavy arrives at 350 and "that shortening is the point rather than a side effect" | 2026-08-25 — The windups move as a pair (400 now, partly walking the shortening back: at a 150 ms window the heavy sat below the reaction figure outright, and 200 puts it exactly on it. The fast/slow poling the entry argues for survives) |
-| 2026-08-18 — The bespoke windup pass deprecates the coil | "the surviving invariant: the parry window must be ≥ the longest authored `ReleaseSeconds`" | 2026-08-19 — Knockdown's plan session (the floor retires with the parry rework — it bought tell-timing sufficiency, a forgiveness guarantee rather than correctness, at the price of capping every release; the designer's prior-art argument. The window keeps only the anti-option-select ceiling; the tuning-map row updates when the rework ships) |
+| 2026-08-19 — Knockdown's plan session | `KnockdownSpacingCm` 450 is justified as "a full light's coverage of separation" | 2026-08-20 — measured against the ladder: the light covers **410**, so 450 is *past* its full coverage and the light must walk the last 40 cm. The heavy (510) and charged (610) lunge it. The three-way split is intended and now recorded in the tuning map as a five-number coupling |
+| 2026-08-19 — Knockdown's plan session | the parry lockout's duration is **derived** as the swing's remaining planned total, "so the per-tier punish survives inside the new structure" | 2026-08-20 — The parry lockout is authored (it never survived: a catch only lands once the hitbox is live, so the windup always cancelled out and what remained was `Release + Recovery` — 0.75 / 0.65 / 0.75 across the ladder, measured at light **0.736** n=14 and heavy **0.636** n=15. The derivation retired in favour of an authored `ParryLockoutSeconds` per branch and swing, seeded at those values; `ParryLockoutFloorSeconds` retired unused) |
 | 2026-08-19 — The instrument finding: one refusal now shadows the other | the shadowing is "a finding rather than laziness", an accepted property to assert around | 2026-08-19 — `State.Parrying` marks the window, not the ability that opens it (same day, on the designer's question: it was a **defect**, not a property. The tag rode in GA_Parry's ActivationOwnedTags and re-scoped itself when the ability began outliving the window. The superseded subsection is left standing deliberately — its reasoning is the trap it describes) |
 | 2026-08-19 — The parry recovery commits you | *“the two parry tails forbid very different things and are both recoveries”* reads as though parry has **two** recoveries | 2026-08-24 — it never did, and the phrasing went stale the same day it was written. The two tails shared `State.ParryRecovery` until that session split them; the half that *refuses parry only* became **`State.DodgeRecovery`** and stopped being a parry state at all. Parry has exactly one recovery, the whiff's. A success has none — only Grace's 150 ms tail, which aids rather than restricts. Misread once, by an assistant, straight off this sentence |
 | 2026-08-19 — The parry recovery commits you | `State.ParryLockout` is reserved and unused, pending the derived reward proving under-authored | 2026-08-19 — Knockdown's plan session (proven as predicted: the reservation resolves and the tag goes live as the parried attacker's state, with Knockdown's sub-slice E) |
-| 2026-08-19 — Knockdown's plan session | the parry lockout's duration is **derived** as the swing's remaining planned total, "so the per-tier punish survives inside the new structure" | 2026-08-20 — The parry lockout is authored (it never survived: a catch only lands once the hitbox is live, so the windup always cancelled out and what remained was `Release + Recovery` — 0.75 / 0.65 / 0.75 across the ladder, measured at light **0.736** n=14 and heavy **0.636** n=15. The derivation retired in favour of an authored `ParryLockoutSeconds` per branch and swing, seeded at those values; `ParryLockoutFloorSeconds` retired unused) |
-| 2026-08-19 — Knockdown's plan session | `KnockdownSpacingCm` 450 is justified as "a full light's coverage of separation" | 2026-08-20 — measured against the ladder: the light covers **410**, so 450 is *past* its full coverage and the light must walk the last 40 cm. The heavy (510) and charged (610) lunge it. The three-way split is intended and now recorded in the tuning map as a five-number coupling |
 | 2026-08-22 — The get-up attack is authored in Cascadeur | the designer's polish precedes F shipping — the plan's gate, and the ship-with-the-polished-clip-or-not-at-all bundle rule that rode on it | 2026-08-24 — The verification bar (F ships on the rough, which meets functionality-plus-legibility; the polish is Polish's work; the authoring route and the endpoint argument are untouched) |
+| 2026-08-24 — The flinch is a state, not a montage | **"a state is not rate-fitted to a duration"**, so a 1.333 s clip against a 0.55 s stun is not a fitting problem | 2026-08-25 — The stun tells are positioned by stun progress (true of a state that merely plays; the tell is now held at rate zero and its playhead written each update, which fits *and* restarts it without the state re-entering. The rest of that entry stands) |
 | 2026-08-24 — The parry handed movement back | the structural fix "was declined rather than missed", and **two** hand-orderings hold the hazard shut | 2026-08-24 — The parry lockout stops sharing the movement bool (same day, on the designer's call: its first step was taken, so one hand-ordering is gone and the decline now covers only the ability-side residue) |
 | 2026-08-24 — The parry handed movement back | the tooling finding — `AssetTools`' `exists`, `is_dirty`, `get_asset_class` and named `save_assets` "now answer *Asset does not exist*", read as a regression against the 2026-08-21 bullet | **Not a regression, and the wrapper was never the variable.** Isolated at closedown the same day to **PIE being up**: all four answer correctly the moment it stops, and `EditorAssetLibrary.does_asset_exist` behaves identically through `run-in-editor.py` — `False` for five paths including the loaded level, `True` for all five with PIE stopped. The 08-21 bullet stands, the named save was never broken, and the empty-list save that carried the level-save trap was never necessary. Corrected form in `Docs/Working-In-Unreal.md` |
 | 2026-08-24 — The parry lockout stops sharing the movement bool | *"verified by compile and by inspection, not by play"* | Confirmed in play by the designer the same day, so the change is proven rather than merely reasoned. **Nothing automated changed** — `SetAbilityMovementLocked` still has no instrument, and the trap's standing-record clause stands untouched |
+| 2026-08-25 — The get-up roll aims itself | the roll **snaps** to its heading at activation | 2026-08-25 — The get-up roll turns into its heading (same day: a snap gives an observer a static pose to re-read, where a turn gives motion to track, so the heading reads earlier. Possible only once the travel direction stopped being derived from facing every tick) |
+| 2026-08-25 — The knockdown fall parks at 0.6 | the asset ceiling: *"0.45 s is all the natural-speed motion this clip contains"* and *"duration and landing speed cannot both be had from this asset at a constant rate"* | 2026-08-28 — The fall's cushion goes to the engine's own time-stretch curve (true of a **constant rate**, not of the asset — `AM_Knockdown`'s own `TimeStretchCurve` holds the fall at **1.000x** while the gather and cushion absorb the compression, and the parked 0.6 carry settled at **0.5**) |
+| 2026-08-25 — The knockdown fall stops being a snap | `KnockdownFallSeconds` at **0.9** fitting the **whole** clip, and *"fall lands inside lockout"* comparing **`want=`** against `lockout=` | 2026-08-25 — The fall's carry and its clip stop being one number (same day: the clip's last 0.10 s is a settle, so fitting all of it spent the settle as travel. Carry is now 0.8 against a 0.8 portion, and the guard reads `played / rate`, which the carry no longer bounds. The raise itself and its reasoning stand) |
+| 2026-08-25 — The knockdown fall's remaining fault is its time curve | the values it shipped: carry **0.45** with `KnockdownFallClipStartSeconds` at **0.35** | 2026-08-25 — The knockdown fall parks at 0.6 (same day, the designer calling a halt: the offset alone trades the gather for a longer flat tail, so it ships at 0.0 and the carry returns to 0.6. **The entry's findings all stand** — the cushion, the flat-before-landing, the 0.45 s ceiling — only its shipped values moved) |
+| 2026-08-25 — The stun tells are positioned by stun progress | the sequence player is held at **rate zero**, called "load-bearing and not merely tidy" | 2026-08-28 — The recoil ships, and the rate-zero hold had never worked. `SetPlayRate(0)` was refused every frame from the day it shipped; the rate was 1.0 throughout. The mechanism the entry describes is now true for the first time, and the entry is right about why it matters |
 
 ---
 
@@ -301,7 +301,7 @@ properties, against three before.
 **The stun tells: discharged 2026-08-25** by positioning both playheads from stun progress instead of playing them at a rate — see the dated entry. Only a string's first hit used to be told, because the tell is a state entered on a cached bool and a hit landing inside a running stun re-enters nothing.
 
 **Whenever `s5-parry`'s lockout band is trusted — *it never covered the string ender.*** Filed
-2026-08-28. `BAND_PARRY_LOCKOUT` is [0.725, 0.775], which admits the branches' 0.75 and excludes
+2026-08-28. `BAND_PARRY_LOCKOUT_LIGHT` is [0.725, 0.775], which admits the branches' 0.75 and excludes
 `string_swings[1]`'s authored **0.9725**. Every earlier run passed because the fixture caught swing 0
 and a string ender was never parried; an isolated fixture reaches it and the assertion reads
 *"outside [0.725,0.775]s: 0.973"*. **Not widened, deliberately** — patching a band to green is what
@@ -629,63 +629,17 @@ arbitrary window: `DODGE END`'s `dist=` belongs to the dodge, `HOME RESET`'s `mo
 `KNOCKBACK`'s `spacing=` to a destination. **One knob and one line discharge three assertions**,
 `IsMovementLocked()` covering guard break, hitstun and knockdown alike.
 
-**Sub-slice F shipped 2026-08-24** on the authored clip, and `s6-getup` reads 7/7 against it. *The notify half of that step gained a scripted candidate on 2026-08-22 —
-`AnimationLibrary`, in `Working-In-Unreal.md` — verified on a scratch montage the same day.*
-
-**Update 2026-08-22: sub-slice F's *code* is built** (`5b08169` + the wedge fix that
-day), and the get-up attack fires from the floor. What is untested is below.
-
-**Before trusting `s6-getup`, or shipping the get-up attack — *the scenario reads 4/7 and none of
-the three reds is the ability failing.*** Filed 2026-08-22. The attack fires from the floor, rises
-the body, opens its Release Window (`AIM WEDGE reach=150 arc=360` now prints once per rise — a
-missing `SetAimAssistHoming` call was the reported bug, fixed same day), commits, and never chains.
-The three non-green assertions, in descending order of how much they matter:
-- **Fixture contamination makes the run untrustworthy.** This run logged **9 `by=attack` rises but
-  only 2 from the configured defender `_C_1`**; the other 7 activate on `BP_PlayerCharacter_C_0`,
-  which should have no get-up fixture and spawned off in the corner. Until only the configured pawn
-  rises by attack, `s6-getup`'s counts mean nothing — **this is the one to fix first.** The
-  `STRING`-lines red (8, all naming `_C_0`) is a symptom: `getup_string_lines_after_rise` marks
-  every by=attack riser and counts any later `STRING` naming one, so `_C_0`'s ordinary strings are
-  counted. **No `STRING` ever names `_C_1`** — the get-up attack itself did not chain.
-- **The hitbox reaches no target in this fixture, by geometry.** `KnockdownSpacingCm` 450 against
-  the volume's 150 reach: the riser swings into empty air, and the lone attacker only closes by
-  lunging, which lands on the riser. So **0 `DAMAGED` by the riser, and one attacker can never
-  produce one.** The path is the shared `StartMeleeTrace` / `UAbilityTask_MeleeTrace` every attack
-  uses — correct by construction, and the designer accepted that as sufficient 2026-08-22. Proving
-  it in play needs an approach-and-hold attacker mode or a second riser in reach — joins the 1vX
-  owed traps.
-- **The total runs 1.221–1.254 s against authored 1.250, band [1.255, 1.285].** The 2.111× windup
-  opens the window a frame late (`pos` ~0.653 vs the notify's 0.633) and the shared
-  `windowLen ÷ ReleaseSeconds` release rate ignores the overshoot, so the release plays ~25–45 ms
-  short. A WHAT question — fix in the subclass, the base, or the band — left for the user.
-
-**Update 2026-08-24 — re-measured unattended after the defender-homing change: 6/7, the only red
-the under-run above.** The contamination red dissolved: every `by=attack` rise names the configured
-`_C_1`, so the killed run's `_C_0` rises were the user playing inside the measured session — an
-attended-run artefact, not fixture state. The geometry red closed, but **not by the mechanism recorded here
-that day** — corrected 2026-08-24 (later), from the legibility glance, the designer spotting it in
-play. It is not the attacker's chase arriving inside the release. **`bDebugHomeAtStand` teleports
-the *riser* into range mid-release**: `HOME RESET moved=327.0cm` and the riser's `DAMAGED` share a
-timestamp, twice over, with `RELEASE BEGIN` 0.2 s earlier and `RELEASE END` 0.16 s later.
-
-**The functionality is proven and that is what this slice owed** — the package's stated obligation
-was that the hitbox opens and the attack commits. `StartMeleeTrace` runs, selects a target, applies
-the authored 10, and resolves against a **genuine 150 cm separation**: the teleport lands the body
-on its placed spacing, inside the volume's 150 reach, so the volume math ran on real geometry.
-
-**What the mechanism does not settle is range, which was never Knockdown's question.** The hit's
-timing is fixture-determined — it lands at the stand boundary because that is when the teleport
-fires — so nothing here says what distance a riser can cover unaided. That belongs to the
-reach/travel/spacing trap above, whose own reading is *everything mechanical about it is discharged;
-what remains is design*, and whose home is the Tuning Rig's greening. Recorded so the next reader
-does not mistake a tuning question for an unverified mechanic. Totals 1.245–1.250 against
-[1.255, 1.285]: the under-run stands, the WHAT above unanswered.
-
-**Answered 2026-08-24, same day — (a), the subclass.** `UTDGetUpAttackAbility` derives its release
-rate from the remaining window at the measured `RELEASE BEGIN` position (its `RELEASE` line prints
-`remaining=`); the base and the charged keep the authored-length formula, whose ~10 ms loss at 1×
-the s1 bands were calibrated with. **`s6-getup` 7/7 on the rough** — totals n=4 all inside
-[1.255, 1.285], the rate visibly adapting per swing (0.453 at pos 0.6414, 0.397 at 0.6609).
+**~~Before trusting `s6-getup`, or shipping the get-up attack — the scenario reads 4/7 and none of
+the three reds is the ability failing~~ — DISCHARGED 2026-08-24**, filed 2026-08-22, all three reds
+closed that day. The contamination was the user playing inside a measured session — unattended,
+every `by=attack` rise names the configured `_C_1`, which is why the matrix row says run it
+unattended. The riser's landed hit is **`bDebugHomeAtStand` teleporting it into range
+mid-release** — real geometry at the placed 150 cm, fixture-timed, so it proves the volume math and
+says nothing about unaided range; that question is the reach/travel/spacing trap's, homed at the
+Tuning Rig's greening. The total's under-run was answered in the subclass: `UTDGetUpAttackAbility`
+derives its release rate from the remaining window at the measured `RELEASE BEGIN` (its `RELEASE`
+line prints `remaining=`), where the base and charged keep the authored-length formula the s1 bands
+were calibrated with. **7/7 on the rough**, totals n=4 in band, the rate adapting per swing.
 
 
 **~~Before trusting the exhaustion exception — nothing prints the stamina ledger while a character is
@@ -1213,14 +1167,14 @@ than a refusal.
 
 | Feels wrong | Move this | **Not** this |
 |---|---|---|
-| The knockdown reads flat, or lacks impact | **`C_KnockdownArc`**, the Z of its path offset — **60 cm of lift, authored against *time* as two half-parabolas and mapped back through the pacing curve**, so the keys sit at uneven path fractions by construction. Regenerate it rather than dragging keys; the script is in the 2026-08-28 entry | `KnockdownFallSeconds`. It moves the whole event including the animation, and the arc's shape is authored in path fractions, so a duration change rescales the arc rather than reshaping it. Also **not** an impulse or `LaunchCharacter` — 2026-08-16 and `StartLunge`'s header rule both out, the second on netcode grounds. |
+| The knockdown reads flat, or lacks impact | **`C_KnockdownArc`**, the Z of its path offset — **authored against *time* as two half-parabolas and mapped back through the pacing curve**, so the keys sit at uneven path fractions by construction; the lift is `BODY_APEX` in `Tools/AnimPipeline/ue_knockdown_curves.py`. Regenerate rather than dragging keys | `KnockdownFallSeconds`. It moves the whole event including the animation, and the arc's shape is authored in path fractions, so a duration change rescales the arc rather than reshaping it. Also **not** an impulse or `LaunchCharacter` — 2026-08-16 and `StartLunge`'s header rule both out, the second on netcode grounds. |
 | The landing has no weight, or eases in | **The arc's descent shape**, and check it composed rather than in isolation: the slide's ease-out slows the path fraction near the end, so a descent that looks steep in path space still decelerates in time. **Linear keys** — cubic auto tangents flatten toward a final key and that alone reinstates the cushion | The montage's stretch curve. Its tail is the clip's last 6 cm against the capsule's arc, so it ramps for consistency and cannot carry the impact. |
 | Hitstun's feet skate through the stagger | **`HitstunTellPacingCurve`**, regenerated with the carry by `Tools/AnimPipeline/ue_hitstun_curves.py`. `ComputeTellTime` was linear, so the whole portion scaled by one factor and the stepping could not run at its own speed unless the absorb did too | Re-pacing the capsule alone. It was already tracking the clip faithfully; the clip itself was 24% fast. **And never author either curve alone** — the carry is derived against the tell's mapping. |
 | Hitstun's feet slide, or the stagger plays standing still | **`KnockbackDurationSeconds`** and **`C_KnockbackPacing`**, regenerated by `Tools/AnimPipeline/ue_knockback_curve.py` from the stagger clip's own root travel. The carry must move when the feet do; it ran 0.2 s against a 0.55 s stun whose clip peaks at 0.509 | Stretching it on the shared path. **Blocked hits use the same function** and blockstun is 0.350, so a shared 0.45 carries a blocked defender 100 ms past regaining control. `KnockbackBlockedDurationSeconds` exists for exactly that. |
 | The knockdown snaps or vibrates at the landing | **The arc's press into the floor**, `PRESS_CM` 4.0 in the derivation. Clearing `IgnoreZAccumulate` to get the arc means the source owns Z and holds the capsule at its entry height; releasing it makes the movement component find the floor and pay in one frame. Commanding downward keeps it on collision so there is nothing to pay | Shortening the carry, or tuning the pacing. The snap is 1.37 cm and one frame — it is a handoff fault, not a timing one, and it is invisible to every instrument here except bone charting under dilation. |
-| The knockdown's landing has no follow-through, or inertia evaporates | **`KnockdownCarrySettleSeconds`** (0.08) — the carry outlives the fall and the extra span is a skid decaying to zero. Purely cosmetic: the victim is invincible and the destination is unchanged, so this moves only *when* the spacing is reached | A longer pacing tail alone. The tail is bounded by the carry's duration, so while the carry ended with the fall no curve shape could put horizontal where there was no time. |
-| The knockdown's arc reads too pronounced, or too weak | **`BODY_APEX` in `Tools/AnimPipeline/ue_knockdown_curves.py`**, then re-run it — 15 ships, and the rungs 15/25/35 sit at 1.48/1.87/2.24 g. **Check what the height is compensating for first**: it carried the sense of force while the landing had none, and reading as excessive is what happened when the skid took that job back | Treating it as centimetres. It is monotonic and stable but uncalibrated in absolute terms — 35 measures +34.1 and 15 measures +18.3. Chart the pelvis if an absolute figure is needed. |
-| The body's height is not what was authored | **`BODY_APEX` in the composite derivation**, which is the *body's* lift — the capsule's offset is derived from it and is larger, currently 47 cm to deliver 35 | Tuning the capsule arc directly. Every apex authored before 2026-08-28 was a capsule number the body never matched; the animation was cancelling roughly a third of it. Chart the pelvis, not the actor. |
+| The knockdown's landing has no follow-through, or inertia evaporates | **`KnockdownCarrySettleSeconds`** — the carry outlives the fall and the extra span is a skid decaying to zero. Purely cosmetic: the victim is invincible and the destination is unchanged, so this moves only *when* the spacing is reached | A longer pacing tail alone. The tail is bounded by the carry's duration, so while the carry ended with the fall no curve shape could put horizontal where there was no time. |
+| The knockdown's arc reads too pronounced, or too weak | **`BODY_APEX` in `Tools/AnimPipeline/ue_knockdown_curves.py`**, then re-run it — the rungs 15/25/35 sit at 1.48/1.87/2.24 g. **Check what the height is compensating for first**: it carried the sense of force while the landing had none, and reading as excessive is what happened when the skid took that job back | Treating it as centimetres. It is monotonic and stable but uncalibrated in absolute terms — 35 measures +34.1 and 15 measures +18.3. Chart the pelvis if an absolute figure is needed. |
+| The body's height is not what was authored | **`BODY_APEX` in the composite derivation**, which is the *body's* lift — the capsule's offset is derived from it and larger; the derivation is the script's | Tuning the capsule arc directly. Every apex authored before 2026-08-28 was a capsule number the body never matched; the animation was cancelling roughly a third of it. Chart the pelvis, not the actor. |
 | The knockdown's path reads as a U rather than an arc | **`C_KnockdownCarry`** — it is **linear to contact on purpose**, because constant horizontal speed is what makes a trajectory a parabola. Easing it spends the horizontal before the apex and leaves the descent nowhere to go but down; measured at 85%/15% before, 58%/42% after | Steepening the arc to compensate. The descent was already accelerating; the fault was the horizontal, and adding vertical only sharpens the U. **Judge the composition, never the two curves separately** — each looks correct alone in both states. |
 | Any change to either knockdown curve | **Re-derive the other.** The arc's keys are authored against time and mapped through the pacing, so a pacing edit silently re-times the arc | Editing one and looking. The shape lives only in the composition and no single curve shows it. |
 | Dodge reads fast-forwarded | **`DodgeClipSeconds`** (2026-08-28) — how much of the section is fitted, the rate following from it. `DodgeSeconds` moves the whole dodge and is mechanical, so it is the wrong knob for a look | Trimming the **section in the asset**, still, and the animator's midpoint is still not the design. **This row named the clip as the wrong answer outright until 2026-08-28**, its stated reason being that the baseline had not been felt; it had by then, and the seam is authored where the clip's own travel stops rather than at a midpoint. |
@@ -1280,7 +1234,7 @@ than a refusal.
 | The window to chain feels too generous | `StringLinkWindowSeconds` for the post-recovery half, `ChainOpenAfterRecoverySeconds` for when the in-swing half opens | The buffer. The chain-out span is the whole of recovery by construction — it is gated on `bInRecovery` — so tightening the *input* window is not what shortens it; `RecoverySeconds` is, and that is the punish window. |
 | The string's cadence feels wrong | **`ChainOpenAfterRecoverySeconds`, but it is derived and not free.** 0.133 comes from `cadence = 0.200 + 0.150 + ChainOpen + one frame` against a **500 ms cadence tapped by the designer**, the one number in the project measured off a human rather than chosen. Moving it moves the cadence away from that measurement, so re-derive rather than nudge — and `HitstunSeconds` must stay above the resulting gap or the string's guarantee silently stops being true | The montage rates or `RecoverySeconds`. Pressing earlier buys no cadence at all: chain-out fires when recovery opens, not when the press arrived. |
 | The parry window feels too tight, or too forgiving | **Nothing, without re-deriving the ceiling** — which is now the only fence. `ParryWindowSeconds` is bounded above by the anti-option-select rule: one press must not cover two read-classes, so it stays under the fast↔charged gap, 800 − 400 = **400 ms**. 300 is legal *only because of the re-pole*; under the old ladder the ceiling was 250. **The gap itself is set by `DodgeSeconds`, not by this window** — see the rows below. **The lower fence — window ≥ the longest authored `ReleaseSeconds` — retired with Knockdown's parry rework; the argument is the 2026-08-19 entry and the superseded row.** **What the window guarantees is first contact with no prior catch**: a catch collapses the remaining cover to Grace, deliberately | Widening it toward the gap "because there is room". The room is the whole margin protecting the read from becoming an option-select, and spending it converts parry from a read into a timing test — which is the identity the entire input scheme was chosen to protect |
-| A whiffed parry is punished too hard, or too cheaply | `ParryWhiffRecoverySeconds`, above its floor. **Re-derive before tuning: 2026-08-19 widened what it buys from "you cannot defend" to "you cannot act", so the number now prices a materially harsher punish than when it was chosen.** The floor is a constraint, not a feel: a whiff timed against the **fast** layer must stay locked through the charged's 750 ms arrival, or reading "fast" wrongly costs nothing and the charged can never collect on it. That is what re-derived it down from the spec's 1000 | Adding a stamina cost to the parry. It is **time**-priced by design, and pricing it in both ledgers makes it block with extra steps — the pricing symmetry (dodge stamina, block both, parry time) is the thing being protected |
+| A whiffed parry is punished too hard, or too cheaply | `ParryWhiffRecoverySeconds`, above its floor — a whiff timed against the **fast** layer stays locked through the charged's arrival (the spec's parry section), or reading "fast" wrongly costs nothing and the charged can never collect on it. 2026-08-19 widened what the tail buys from "you cannot defend" to "you cannot act", so it prices a harsher punish than when chosen | Adding a stamina cost to the parry. It is **time**-priced by design, and pricing it in both ledgers makes it block with extra steps — the pricing symmetry (dodge stamina, block both, parry time) is the thing being protected |
 | Parries feel like they need two presses against two attackers | `ParryGraceSeconds`, and **nothing else** — the window and the recovery are both fenced. **Derived**: 150 ms is roughly the interval humans cannot beat, about seven inputs a second, which is the whole basis for calling two hits "simultaneous". Re-derive against that ceiling, never by feel — QoL math, not a balance value | Widening `ParryWindowSeconds` to cover both hits. That buys the same forgiveness by making the *read* easier, which is the one thing Grace is designed not to do — and it walks into the window's option-select ceiling |
 | Dodging into a parry feels like it covers too much | **Nothing today — `DodgeRecoverySeconds` is retired to 0** (2026-08-25). It was `charged − DodgeSeconds − light arrival`, which is where its 150 came from: 750 − 400 − 200. Reinstating it means re-deriving against the current charged, and **covering every defensive option rather than parry alone** | Restoring the narrow parry-only form. It never closed the case it was built for — a charged stays parryable through its whole release, not just at release-open — and its only reliable effect was to make the chain an execution test, which is the one thing the parry scheme exists not to be |
 | The fast and slow layers feel like one read, or like two unrelated ones | The **gap** between the heavy's and charged's `ReleaseAtSeconds`, moving **both** tiers — it is welded at **400 ms** by `DodgeSeconds` and sits at exactly zero slack: a dodge thrown at the latest moment that still covers the heavy has its i-frames expire exactly as the charged lands | Moving one tier alone. That breaks the dodge property immediately and silently, and it is also what keeps the parry window's ceiling where it is |
@@ -1289,7 +1243,7 @@ than a refusal.
 | The charged feels unreactable, or trivially reactable | Its **`ReleaseAtSeconds`**, **authored** — checked against reaction time rather than moved by feel alone. 800 leaves 600 ms after the light's arrival, a reaction (~200) plus a full dodge (400). The arithmetic is what it was tuned *against*, not what produced it | Moving it without re-checking the **gap to the heavy**, which is the real fence and is welded at 400 (see the row below). Cut the window below a reaction plus a dodge and the slow layer stops being answerable by the defence it exists to reward |
 | A knockdown holds you down too long, or lets you up too early | That type's `KnockdownLockoutSeconds*` and `KnockdownInputWindowSeconds*` **as a pair summing to the same total** — each type's split is its own dial | The total, or `KnockdownRiseSeconds`. Both types spend 2.5 s down and begin rising at 2.0 **by design**, and every derivation keyed to the total is grade-blind because of it: the exhausted player's ~62 stamina return, the netcode window. Move the split, never the sum. |
 | A parried attacker recoils too far or too little | **`ParryRecoilCm`** (93), and it is the only knob — the push is relative, so every catch travels it whatever range the catch happened at. Read off the flinch clip's authored root motion, so moving it away from 93 puts the carry and the clip out of step. Duration is the lockout's own span and is not separately tunable. **There is no ceiling**: an attack's reach is 550 cm for a light and 750 charged, and the lunge closes to a 40 cm standoff, so no recoil this produces can put an attacker out of punishing range |
-| The fall looks rushed, or the knockdown reads too brief | **`KnockdownFallSeconds`** — the carry, **0.6**, and the rate too, since the fitted window is divided by it. **Ceiling is `KnockdownLockoutSecondsNormal`**, the shorter lockout; what must fit under it is the montage, `(played - from) / rate` | Chasing the remaining stiffness here. **The clip contains 0.45 s of natural-speed motion and no more**, so every value trades duration against landing speed — 1.0x buys 0.45 s, 0.6 s costs 0.75x and the cushion. The fix is the time curve in the Polish brief. Also not `HitstunSeconds`: on a graded swing it keys only the attacker's movement return. |
+| The fall looks rushed, or the knockdown reads too brief | **`KnockdownFallSeconds`** — the carry, and the rate too, since the fitted window is divided by it. **Ceiling is `KnockdownLockoutSecondsNormal`**, the shorter lockout; what must fit under it is the montage, `(played - from) / rate` | A constant rate — `AM_Knockdown`'s own `TimeStretchCurve` owns the clip's timing (2026-08-28), and the carry curves re-derive against its markers via `Tools/AnimPipeline/ue_knockdown_curves.py`, so duration and landing speed stopped being one trade. Also not `HitstunSeconds`: on a graded swing it keys only the attacker's movement return. |
 | The body lands flat, or slides after visibly landing | **`KnockdownFallClipSeconds`** (0.8, the landing) and **`KnockdownFallClipStartSeconds`** (**0.0**; the measured commit is 0.35, held in the header for the curve slice) | Enabling the start offset on its own. It shortens the window, which lowers the rate, which stretched the flat tail from 81 ms to 144 ms — **with one rate the two artifacts are the same knob**. **Re-measure if the clip is swapped**; every one of these numbers belongs to `AS_SwordSwordAnimV3_Death_Bw_RM`, not to knockdowns. |
 | The body slides after it has visibly landed, or lands before it stops | **`KnockdownFallClipSeconds`** — where the clip's landing is, **0.8 of 0.900**, measured as the frame the pelvis stops descending (the last 0.10 s gives up 1.6 cm). Raise it toward the clip length to slide longer, lower it to land sooner | Fixing it with `KnockdownFallSeconds`. That moves *both* the landing and the playback rate, which is the coupling this pair exists to break — and it is why the two complaints could not be told apart while one number served both. **Re-measure if the clip is ever swapped**; the value is a property of `AS_SwordSwordAnimV3_Death_Bw_RM`, not of knockdowns. |
 | The corpse flies too far, or drops like a sack | **`DeathImpulseStrength`**, freely — a **first attempt**, not derived, and `DeathImpulseLift` sets how much of it aims upward. Measured on Manny as the distance the corpse settles from where it fell: 12000 about 84 cm, 24000 about 271, **30000 about 397**, 36000 about 480. **30000 is the shipped value**, chosen 2026-08-24 to sit inside the authored spacing family — further than a knockback's 350, about a knockdown's 450 — because death is the terminal outcome and 84 cm read as less movement than a *hit* | Passing it as a velocity change. `AddImpulse`'s `bVelChange` reads the magnitude as cm/s directly and ignores mass, which fired the corpse 180 m out of the level; as a true impulse it divides by mass. Also do not read corpse position as game state — the capsule stays put, and the `Ragdoll` profile ignores `Pawn` |
@@ -1436,16 +1390,8 @@ long.
 | `AM_Dodge` | 08-10, 08-11, 08-12, 08-13, 08-21, 08-28 |
 | `AM_GetUpAttack` | 08-21, 08-22 |
 | `AM_Knockdown` | 08-25, 08-28 |
-| `C_HitstunTellPacing` | 08-28 |
-| `C_KnockbackPacing` | 08-28 |
-| `C_KnockdownArc` | 08-28 |
-| `C_KnockdownCarry` | 08-28 |
 | `AM_Parry` | 08-24 |
-| `animSegments` | 08-21 |
 | `APawn::FaceRotation` | 08-12 |
-| `ApplyDodgeRecovery` | 08-25 |
-| `ApplyKnockbackToTarget` | 08-25 |
-| `ApplyParryLockoutState` | 08-24 |
 | `AS_SwordAndShieldAnimV1_Defense_Hit_Fw_RM` | 08-25 |
 | `AS_SwordSwordAnimV3_Death_Bw_RM` | 08-25 |
 | `ATDCombatCharacter::ComputeTellTime` | 08-25 |
@@ -1467,9 +1413,12 @@ long.
 | `AnimRootMotionTranslationScale` | 08-10 |
 | `ApplyBlockstunState` | 08-15 |
 | `ApplyDeathState` | 08-11, 08-15 |
+| `ApplyDodgeRecovery` | 08-25 |
 | `ApplyExhaustionState` | 08-15 |
+| `ApplyKnockbackToTarget` | 08-25 |
 | `ApplyModToAttribute` | 08-10 |
-| `BlockstunTellPortionSeconds` | 08-25 |
+| `ApplyParryLockoutState` | 08-24 |
+| `ApplyParryRecoil` | 08-28 |
 | `BP_CombatPlayerController` | 08-15 |
 | `BP_PlayerCharacter` | 08-11, 08-12, 08-15 |
 | `BP_TrainingDummy` | 08-11, 08-12 |
@@ -1482,10 +1431,15 @@ long.
 | `BlockingMaxWalkSpeed` | 08-14 |
 | `BlockstunEndsAt` | 08-15 |
 | `BlockstunSeconds` | 08-14, 08-16, 08-18 |
+| `BlockstunTellPortionSeconds` | 08-25 |
 | `BlueprintPure` | 08-15 |
+| `C_HitstunTellPacing` | 08-28 |
+| `C_KnockbackPacing` | 08-28 |
+| `C_KnockdownArc` | 08-28 |
+| `C_KnockdownCarry` | 08-28 |
 | `CanActivateAbility` | 08-10, 08-11 |
-| `CancelAbilities` | 08-14 |
 | `CancelAbilitiesWithTag` | 08-24 |
+| `CancelAbilities` | 08-14 |
 | `CancelAllAbilities` | 08-11, 08-12 |
 | `ChainOpenAfterRecoverySeconds` | 08-16, 08-18 |
 | `ClampVelocity` | 08-14 |
@@ -1502,11 +1456,12 @@ long.
 | `DebugAutoParryCycle` | 08-21 |
 | `DefaultEffects` | 08-10 |
 | `DisableMovement` | 08-11 |
-| `DodgeRecoverySeconds` | 08-25 |
 | `DoMove` | 08-12, 08-16 |
 | `DodgeClipSeconds` | 08-28 |
+| `DodgeRecoverySeconds` | 08-25 |
 | `DodgeSeconds` | 08-10, 08-11, 08-25, 08-28 |
 | `DodgeTargetDistanceCm` | 08-11, 08-12, 08-13 |
+| `DriveParryLockoutTell` | 08-27 |
 | `ECC_Camera` | 08-12, 08-13 |
 | `ETDDebugFacingMode` | 08-21 |
 | `ETDKnockdownType` | 08-20 |
@@ -1558,6 +1513,7 @@ long.
 | `GetAimYawDegrees` | 08-13 |
 | `GetAttackParryLockoutSeconds` | 08-20 |
 | `GetLastInputVector` | 08-10, 08-16 |
+| `GetParryLockoutTellTime` | 08-27, 08-28 |
 | `GetScriptStruct` | 08-12 |
 | `GuardBreakStunSeconds` | 08-14 |
 | `HandleCheckpoint` | 08-14 |
@@ -1566,10 +1522,8 @@ long.
 | `HitSpacingCm` | 08-16, 08-25 |
 | `Hitboxes` | 08-12 |
 | `HitstunSeconds` | 08-16, 08-18 |
+| `HitstunTellPacingCurve` | 08-28 |
 | `HitstunTellPortionSeconds` | 08-25 |
-| `GetParryLockoutTellTime` | 08-27, 08-28 |
-| `DriveParryLockoutTell` | 08-27 |
-| `ApplyParryRecoil` | 08-28 |
 | `HitstunTellSerial` | 08-25 |
 | `HitstunTellSpanSeconds` | 08-25 |
 | `HoldSeconds` | 08-11 |
@@ -1588,16 +1542,14 @@ long.
 | `IsMovementLocked` | 08-20, 08-24 |
 | `IsNonFinalStringLight` | 08-25 |
 | `JumpRegenPauseSeconds` | 08-10 |
-| `HitstunTellPacingCurve` | 08-28 |
 | `KnockbackBlockedDurationSeconds` | 08-28 |
 | `KnockbackDurationSeconds` | 08-28 |
 | `KnockbackTimeMappingCurve` | 08-28 |
 | `KnockdownCarrySettleSeconds` | 08-28 |
-| `UTDCurveTools` | 08-28 |
 | `KnockdownFallClipSeconds` | 08-25 |
 | `KnockdownFallClipStartSeconds` | 08-25 |
-| `KnockdownFallSeconds` | 08-20, 08-25 |
 | `KnockdownFallPathOffsetCurve` | 08-28 |
+| `KnockdownFallSeconds` | 08-20, 08-25 |
 | `KnockdownFallTimeMappingCurve` | 08-25, 08-28 |
 | `KnockdownLockoutSecondsNormal` | 08-25 |
 | `KnockdownRiseSeconds` | 08-20 |
@@ -1638,13 +1590,6 @@ long.
 | `PreAttributeChange` | 08-10 |
 | `PrepareRootMotion` | 08-12 |
 | `REPNOTIFY_Always` | 08-11 |
-| `USequencePlayerLibrary::SetAccumulatedTime` | 08-25 |
-| `UTDAnimTellTools` | 08-25 |
-| `UTDChargedAttackAbility::GetKnockbackSpacingCm` | 08-25 |
-| `UTDInputTools` | 08-24 |
-| `set_global_time_dilation` | 08-24 |
-| `take_high_res_screenshot` | 08-24 |
-| two-world PIE inspection | 08-24 |
 | `RecoveryPlayRate` | 08-12 |
 | `RecoverySeconds` | 08-12, 08-13, 08-16, 08-18 |
 | `RegenSuppressedUntil` | 08-10 |
@@ -1659,10 +1604,8 @@ long.
 | `RotationRate` | 08-10, 08-12 |
 | `SKM_Manny_Simple` | 08-11 |
 | `SKM_Manny` | 08-11, 08-12, 08-24 |
-| `SK_Master` | 08-24 |
-| `UTDStateMachineTools` | 08-24 |
-| `TheDreamEditor` (module) | 08-24 |
 | `SK_Mannequin` (SwordShield) | 08-24 |
+| `SK_Master` | 08-24 |
 | `SetAbilityFacingLocked` | 08-13 |
 | `SetAbilityMovementLocked` | 08-24 |
 | `SetActorLocation` | 08-12 |
@@ -1681,7 +1624,6 @@ long.
 | `State.GuardBroken` | 08-14 |
 | `State.Hitstun` | 08-16 |
 | `State.KnockedDown` | 08-20 |
-| `State.ParryLockout` | 08-19 |
 | `State.ParryLockout` | 08-19, 08-20 |
 | `State.ParryRecovery` | 08-19 |
 | `StopLunge` | 08-14 |
@@ -1694,19 +1636,25 @@ long.
 | `TDDodgeAbility` | 08-11, 08-13 |
 | `TDPlayerState` | 08-15 |
 | `TargetImmunityTags` | 08-13 |
+| `TheDreamEditor` (module) | 08-24 |
 | `TraceRadius` | 08-11, 08-12 |
 | `TurnRateDegrees` | 08-12, 08-13, 08-14, 08-15, 08-18 |
 | `UAbilityTask_PlayMontageAndWait` | 08-12 |
 | `UAnimNotifyState_MeleeWindow` | 08-09 |
 | `UCharacterMovementComponent` | 08-12 |
 | `UGameplayAbility` | 08-11 |
+| `USequencePlayerLibrary::SetAccumulatedTime` | 08-25 |
+| `UTDAnimTellTools` | 08-25 |
 | `UTDAttributeSet` | 08-15 |
+| `UTDChargedAttackAbility::GetKnockbackSpacingCm` | 08-25 |
 | `UTDChargedAttackAbility` | 08-09, 08-10, 08-12 |
+| `UTDCurveTools` | 08-28 |
 | `UTDDodgeAbility` | 08-10 |
 | `UTDGameplayAbility::CanActivateAbility` | 08-19 |
 | `UTDGameplayAbility::InputTag` | 08-09 |
 | `UTDGameplayAbility::StartLunge` | 08-13 |
 | `UTDGameplayAbility` | 08-12, 08-14, 08-24 |
+| `UTDInputTools` | 08-24 |
 | `UTDJumpAbility` | 08-20 |
 | `UTDMeleeAttackAbility::HandleTraceHit` | 08-14 |
 | `UTDMeleeAttackAbility::LungeDistanceCm` | 08-12 |
@@ -1714,12 +1662,14 @@ long.
 | `UTDMeleeAttackAbility::RootMotionScale` | 08-12 |
 | `UTDMeleeAttackAbility` | 08-10, 08-24 |
 | `UTDParryAbility` | 08-24 |
+| `UTDStateMachineTools::SetNodeUpdateFunction` | 08-25 |
+| `UTDStateMachineTools` | 08-24 |
 | `UpdateCameraRelativeFacing` | 08-11, 08-12 |
 | `UpdateStateFrom` | 08-14 |
-| `UTDStateMachineTools::SetNodeUpdateFunction` | 08-25 |
 | `WeaponMesh` | 08-11 |
 | `WithNetSerializer` | 08-12 |
 | `YawOffsetDegrees` | 08-13 |
+| `animSegments` | 08-21 |
 | `bAbilityFacingLocked` | 08-12 |
 | `bAbilityMovementLocked` | 08-24 |
 | `bAllowPhysicsRotationDuringAnimRootMotion` | 08-12 |
