@@ -391,7 +391,7 @@ GA_Parry	bBlockedWhileAirborne	true
 GA_Parry	bBlockedWhileMovementLocked	false
 GA_Parry	bLocksMovement	true
 GA_Parry	bResumeWhileInputHeld	false
-UTDAttributeSet	Health	<Struct 'GameplayAttributeData' (0x000001E4D0D560C0) {base_value: 100.000000, current_value: 100.000000}>
-UTDAttributeSet	MaxHealth	<Struct 'GameplayAttributeData' (0x000001E4D0D560D0) {base_value: 100.000000, current_value: 100.000000}>
-UTDAttributeSet	MaxStamina	<Struct 'GameplayAttributeData' (0x000001E4D0D560F0) {base_value: 100.000000, current_value: 100.000000}>
-UTDAttributeSet	Stamina	<Struct 'GameplayAttributeData' (0x000001E4D0D560E0) {base_value: 100.000000, current_value: 100.000000}>
+UTDAttributeSet	Health	<Struct 'GameplayAttributeData' {base_value: 100.000000, current_value: 100.000000}>
+UTDAttributeSet	MaxHealth	<Struct 'GameplayAttributeData' {base_value: 100.000000, current_value: 100.000000}>
+UTDAttributeSet	MaxStamina	<Struct 'GameplayAttributeData' {base_value: 100.000000, current_value: 100.000000}>
+UTDAttributeSet	Stamina	<Struct 'GameplayAttributeData' {base_value: 100.000000, current_value: 100.000000}>

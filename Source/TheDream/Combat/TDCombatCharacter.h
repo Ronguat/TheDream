@@ -767,7 +767,7 @@ protected:
 	 *  **Zero, which starts at the beginning, and that is deliberate.** Skipping the gather
 	 *  shortens the fitted window, which lowers the rate, which stretches the clip's flat tail --
 	 *  one artifact traded for another, because a constant rate makes them the same knob. The
-	 *  measured 0.35 is kept here for whoever builds the time curve; see the Polish brief.
+	 *  measured 0.35 is kept here for whoever revisits the offset.
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Knockdown", meta=(ClampMin="0.0"))
 	float KnockdownFallClipStartSeconds = 0.0f;

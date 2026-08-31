@@ -8,10 +8,9 @@ Run with the editor open, from the project root:
       Tools/AnimPipeline/run-in-editor.py Tools/ValuesSnapshot/ue_values_snapshot.py
 
 Property names come from parsing Source/TheDream for UPROPERTYs whose Category starts
-with "Combat", plus "Movement", which holds the three facing rates from before the
-Combat| convention; Transient properties are runtime readouts and excluded. FTD*
-struct members are expanded from the same headers whatever their category, struct
-members being categorised per struct ("Attack", "Swing", "Hitbox").
+with "Combat"; Transient properties are runtime readouts and excluded. FTD* struct
+members are expanded from the same headers whatever their category, struct members
+being categorised per struct ("Attack", "Swing", "Hitbox").
 A parsed property no Blueprint CDO answers is read off its C++ class CDO instead, so
 every parsed name lands somewhere or is reported missing. Blueprint-only variables are
 invisible here, which is safe by the standing rule that every tuning value is a C++
@@ -65,7 +64,7 @@ def parse_headers(source_root):
                 if decl and "Transient" not in m.group("spec"):
                     if current.startswith("F"):
                         struct_props.setdefault(current, []).append(decl)
-                    elif cat and (cat.group("cat").startswith("Combat") or cat.group("cat") == "Movement"):
+                    elif cat and cat.group("cat").startswith("Combat"):
                         class_props.setdefault(current, []).append(decl)
             i += 1
     return class_props, struct_props
@@ -90,13 +89,13 @@ def fmt_scalar(v):
         try:
             return str(v.get_editor_property("tag_name"))
         except Exception:
-            return " ".join(str(v).split())
+            return re.sub(r"\s*\(0x[0-9A-Fa-f]+\)", "", " ".join(str(v).split()))
     if isinstance(v, unreal.GameplayTagContainer):
         try:
             return ",".join(fmt_scalar(t) for t in v.get_editor_property("gameplay_tags")) or "(empty)"
         except Exception:
             pass
-    return " ".join(str(v).split())
+    return re.sub(r"\s*\(0x[0-9A-Fa-f]+\)", "", " ".join(str(v).split()))
 
 
 def emit(rows, label, prefix, v, struct_props):

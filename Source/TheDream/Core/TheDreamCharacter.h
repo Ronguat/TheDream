@@ -70,7 +70,7 @@ protected:
 	 *  It does not bound error from turning *after* the press: windup is meant to be steerable, and
 	 *  this rate is what limits how far a committed swing can be redirected.
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Movement", meta=(ClampMin="0.0"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Combat|Facing", meta=(ClampMin="0.0"))
 	float TurnRateDegrees = 1200.0f;
 
 	/**
@@ -81,7 +81,7 @@ protected:
 	 *  than a typical one, and because the fast rate resumes at the **press**, not at the commit
 	 *  checkpoint, so the whole 150 ms windup runs at TurnRateDegrees.
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Movement", meta=(ClampMin="0.0"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Combat|Facing", meta=(ClampMin="0.0"))
 	float IdleTurnRateDegrees = 300.0f;
 
 	/**
@@ -96,11 +96,11 @@ protected:
 	 *  break aim at any value including zero. The light never sees it -- it commits at the instant
 	 *  the coil would start.
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Movement", meta=(ClampMin="0.0"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Combat|Facing", meta=(ClampMin="0.0"))
 	float CoilTurnRateDegrees = 300.0f;
 
 	/** Debug only: signed yaw from facing to the camera right now. Positive means camera is right. */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Movement", Transient)
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Combat|Facing", Transient)
 	float FacingErrorDegrees = 0.0f;
 
 	/**
@@ -111,7 +111,7 @@ protected:
 	 *  It does **not** record which ability took facing, so attacks and dodges are indistinguishable
 	 *  in it -- add that before trying to attribute a bad reading.
 	 */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Movement", Transient)
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Combat|Facing", Transient)
 	float FacingErrorAtLockDegrees = 0.0f;
 
 	/**
