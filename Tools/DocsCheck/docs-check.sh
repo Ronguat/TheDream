@@ -401,7 +401,7 @@ out=$(check_budget CLAUDE.md 280 "read in full every session; audit it against t
 # aspirational; findings growth belongs in Unreal-Findings.md, which is deliberately unbudgeted.
 out=$(check_budget Docs/Working-In-Unreal.md 600 "the lookup half belongs in Docs/Unreal-Findings.md, not here") && ok "budget" "Working-In-Unreal.md inside backstop" || warn "budget" "$out"
 out=$(check_section Docs/Combat-Decisions.md '^## Known traps' '^## Tuning map' -l 1100 "traps section") && ok "budget" "traps section inside backstop" || warn "budget" "$out"
-out=$(check_section Docs/Combat-Decisions.md '^## Slice briefs' '^### Structure Audit' -w 4800 "slice briefs") && ok "budget" "slice briefs inside backstop" || warn "budget" "$out"
+out=$(check_section Docs/Combat-Decisions.md '^## Slice briefs' '^### Structure Audit' -w 2700 "slice briefs") && ok "budget" "slice briefs inside backstop" || warn "budget" "$out"
 
 echo
 if [ "$FAILS" -gt 0 ]; then echo "RESULT: $FAILS FAIL, $WARNS WARN"; exit 1; fi
