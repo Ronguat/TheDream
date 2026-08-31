@@ -163,10 +163,10 @@ Timings land within about a frame, biased late — and **the bias is the tick th
   - **Two types, authored per swing.** `Normal` for the light string's ender; `Hard` for the heavy, the charged and the mid-string hold-conversion. Committed single hits floor you hard, the string's volume finisher gently — the string already extracted its damage, and generous escape is the volume trade. **The pairing is authored, not structural**: the kit's one 360° knockdown carrying the gentle type is what stops a crowd being hard-floored, and another weapon may pair them differently.
   - **The down state is four spans under one tag.** `State.KnockedDown` clears at the **stand**, not when a rise begins.
 
-    | | Fall | Lockout | Input window | Rise | Total |
-    |---|---|---|---|---|---|
-    | Normal | 0.35 | 1.00 | 1.00 | 0.50 | **2.50** |
-    | Hard | 0.35 | 1.50 | 0.50 | 0.50 | **2.50** |
+    | | Lockout | Input window | Rise | Total |
+    |---|---|---|---|---|
+    | Normal | 1.00 | 1.00 | 0.50 | **2.50** |
+    | Hard | 1.50 | 0.50 | 0.50 | **2.50** |
 
     **The rise column is the *shared* length, and an option that brings its own exit sets its
     own** (2026-08-25). The dodge get-up and the kip-up rise for `DodgeSeconds`, so their
@@ -174,7 +174,7 @@ Timings land within about a frame, biased late — and **the bias is the tick th
     their own protection, immobile in both axes. The auto path is unchanged, and the sum above
     still describes it.
 
-    The **fall** runs inside the lockout and carries the displacement; the **lockout** refuses everything and presses **buffer** against it; the **input window** is where the get-up options are legal; the **rise** is committed, unactionable and hittable the whole way up. **The total is type-invariant by design**, so every derivation keyed to it is type-blind — the exhausted player's stamina return, the netcode window. **Move the split, never the sum.**
+    The **fall** (`KnockdownFallSeconds`, shared by both types) runs inside the lockout and carries the displacement; the **lockout** refuses everything and presses **buffer** against it; the **input window** is where the get-up options are legal; the **rise** is committed, unactionable and hittable the whole way up. **The total is type-invariant by design**, so every derivation keyed to it is type-blind — the exhausted player's stamina return, the netcode window. **Move the split, never the sum.**
   - **Displacement is a fixed destination on a radial axis**: attacker + (attacker→victim bearing) × `KnockdownSpacingCm`, 450 cm. **Knockback centres on the attacker's facing and a knockdown radiates — deliberately, and never unified.** The next hit in a string needs its target in front; a side victim of a 360° finisher must fly to its own side. 450 sits past the light's covered range, so the heavy and charged lunge the gap and the light walks it. **An airborne victim is carried without being held up** — the root motion source ignores Z, so XY reaches the destination while gravity keeps the vertical.
   - **Floor invincibility covers the down state and ends the moment any rise begins.** Everyone who *chose* an exit already paid for their protection: the dodge rises i-framed, the block rises guarded, the attack rises naked but threatening, the wait rises plainly hittable.
   - **The get-up options. The action is the exit** — there is no shared pre-rise, and a press buffered through the lockout fires on the input window's first frame.

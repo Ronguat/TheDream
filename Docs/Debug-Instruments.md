@@ -710,11 +710,6 @@ assertion ever starts failing, the ladder has been retuned rather than the check
 drop the charged's stamina damage below `MaxStamina`, or raise `MaxStamina`, and the tier's authored
 `BlockstunSeconds` silently comes alive.
 
-**Measured 2026-08-15, and these are what the bands were set from:** press→release 200–208 / 500–508
-/ 751–757 ms; elapsed overhead +15–19 / +20–26 / +17–31 ms; clean dodge travel 405.1–414.1 cm across
-17 samples. The exhaustion arithmetic reproduces to the millisecond — `GUARD END` + 0.5 s pause +
-100 ÷ 25 exhausted regen predicted 14.733 and 9.279, and both landed exactly there.
-
 **The dodger's travel needs the lateral filter or a fifth of the samples are wrong.** The checker
 keeps only `DODGE END` lines with `|right| ≤ 1.0`; 5 of 22 in the reference run read ~297 cm with
 `right≈-67`, all of them the attacker colliding with a displaced dodger. **Never widen the distance

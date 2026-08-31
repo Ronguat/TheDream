@@ -625,6 +625,6 @@ name the date it was last checked.*
 ### Still untested, and not blocking
 
 Client-world reach under PIE, and **writing** a GameplayEffect's inline tag containers — reading
-them works. *(State-graph navigation was on this list and came off it in the third wave below; the
+them works. *(State-graph navigation was on this list and came off it in the third wave above; the
 line is corrected rather than kept, since this is a working list and not a record.)*
 

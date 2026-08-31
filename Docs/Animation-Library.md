@@ -543,7 +543,7 @@ checked later and say so.
   | `SwordSwordAnimV3` | **discrete block actions** | `Block1`/`Block2`, each with `_Idle` and `_Hit`, plus `Block1_Parry` |
 
   That maps onto this project's two mechanics almost exactly: **block holds** (V1's idiom) while
-  **parry is a 400 ms discrete action** — which is what V3's `Block*` family is. All 19 of these
+  **parry is a discrete timed action** — which is what V3's `Block*` family is. All 19 of these
   clips are **already migrated**; none needs a migrate.
 
   **This paragraph claimed until 2026-08-14 that V1 "is already the pack the dodge and locomotion
@@ -563,7 +563,7 @@ checked later and say so.
   deleted because the name will look alarming to the next reader too.
 
   What still needs a preview rather than a search: whether V3's guard pose reads consistently
-  beside V1's. A mismatch costs far less across a 400 ms flash than across a held pose, but less
+  beside V1's. A mismatch costs far less across a parry's brief flash than across a held pose, but less
   is not none.
 - **Props do not follow the `SM_` / `SKM_` naming convention, so do not search by prefix.**
   `SwordShield/DEMO/StaticMesh/` holds both `SM_Sword` *and* `Shield_Heater` — the shield
