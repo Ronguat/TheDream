@@ -83,9 +83,7 @@ audit in miniature; the rest is making sure nothing is left on the floor.
    fails, and both are cleared by `--baseline` once the session's file set is settled.
 
    Then **run `Tools/DocsCheck/docs-check.sh`: clear every FAIL, read every WARN.** It mechanizes
-   what used to be manual greps — truncated tails, orphaned table rows, the pointer manifest,
-   index freshness, always-read duplication, trailer presence — each invariant commented with the
-   incident that earned it. Two judgments stay yours: `grep -n "supersede" Docs/Combat-Decisions.md`
+   what used to be manual greps, each invariant commented with the incident that earned it. Two judgments stay yours: `grep -n "supersede" Docs/Combat-Decisions.md`
    — every hit in a dated entry needs a row in the supersession table, and two were missing on
    2026-08-12 — and the trap-shortlist WARN needs an eye, because an orphaned trap body reads as
    prose belonging to whatever precedes it and no grep can tell those apart. That happened on 2026-08-12 and was
@@ -100,6 +98,11 @@ audit in miniature; the rest is making sure nothing is left on the floor.
 4. **Discharge what you fixed.** Did this session fix anything filed as a trap? Clear it *and say
    what discharged it*, in the same commit. Did anything supersede an entry, or make an absence
    claim? Rows and dates, per the rules above.
+
+   **Did a value, symbol or mechanism change? Grep the symbol *and the outgoing value* across
+   `Docs/` and `CLAUDE.md`, reconcile every hit — update, demote or supersede — and quote the
+   greps in the handoff.** Cost is proportional to the session's delta; skipping it is how one
+   session's change left five stale readings for an audit to find.
 5. **Update the focus, and route a shipped item's consequences.** If the next item changed,
    `Current Focus` is the only place that says so.
 

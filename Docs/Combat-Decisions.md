@@ -207,7 +207,7 @@ class of invisible failure as a montage that fails to play, and the `played=` fi
 fix would take if it is ever wanted.
 
 **Before the next documentation audit — *nothing mechanical compares two docs for contradicting
-instructions.*** `docs-check` has eight checks and none of them does this. The 2026-08-21 audit
+instructions.*** None of `docs-check`'s checks does this. The 2026-08-21 audit
 found three by hand: `Closing-Down` instructed the exact `save_assets` call `Working-In-Unreal`
 says creates the stale-override trap, and that call sat in a third place inside `Working-In-Unreal`
 itself; `Toolset-Snapshot.tsv` told you to diff the registry "at session start" after that trigger

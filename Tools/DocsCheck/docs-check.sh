@@ -113,12 +113,38 @@ check_index() { # $1=decisions-file -> rc 1 if stale, prints detail
 # --- C5 (WARN): trap-body shortlist ------------------------------------------
 # Catches an orphaned trap body -- an edit that replaced a header instead of inserting
 # before it leaves the body reading as prose belonging to the previous trap. Orphans
-# cannot be told from continuation paragraphs mechanically, so this only shortlists
-# paragraphs in the traps section that open unformatted; the closedown eye judges them.
-check_trap_shortlist() { # $1=decisions-file -> prints shortlist (never fails)
+# cannot be told from continuation paragraphs mechanically, so this shortlists
+# paragraphs in the traps section that open unformatted and are not yet judged; the
+# closedown eye judges a new one, then allowlists its opening prefix below so the
+# same paragraph is never re-judged. All 16 seeded 2026-08-31, each read in place.
+TRAP_OPENER_ALLOW=$(cat <<'ALLOW'
+Latent defects and unverified assumptions in code that
+These are not design questions. Nothing here needs play to
+Two withdrawn readings, recorded so nobody re-derives them
+The obstacle was real: **a parry costs no stamina**, so an
+What it was: the placed attacker held stale per-instance o
+That value has **three** dependents now: where the tiers b
+Worth a trap rather than a comment because **the failure i
+Renaming a reflected property drops whatever a Blueprint s
+Two classes do this today and both are deliberate. `UTDCha
+Covered by `s6-stand`'s lockout refusals and by the full m
+A knockdown carries its victim to `KnockdownSpacingCm` (45
+The evidence carries its own control. At `[16.016] ACTIVAT
+Filed 2026-08-24. Knockdown post-dates the scenario: at ta
+Three items, all unproducible with one attacker: a **meaty
+A whiffed parry's recovery ends when an attacker inflicts
+UE begins a montage's automatic blend-out when the remaini
+ALLOW
+)
+check_trap_shortlist() { # $1=decisions-file -> prints unjudged openers (never fails)
   sed -n '/^## Known traps/,/^## Tuning map/p' "$1" |
-  awk 'prev_blank && /^[A-Za-z]/ && !/^[A-Z][a-z]+:/ {n++; if (n<=8) printf "  line ~%d: %.60s\n", NR, $0}
-       {prev_blank = (NF==0)} END {if (n>8) printf "  ...and %d more\n", n-8; if (n>0) exit 1}'
+  awk -v allow="$TRAP_OPENER_ALLOW" '
+    BEGIN { m=split(allow, a, "\n") }
+    prev_blank && /^[A-Za-z]/ && !/^[A-Z][a-z]+:/ {
+      ok=0; for (i=1; i<=m; i++) if (length(a[i]) && index($0, a[i]) == 1) { ok=1; break }
+      if (!ok) { n++; if (n<=8) printf "  line ~%d: %.60s\n", NR, $0 }
+    }
+    {prev_blank = (NF==0)} END {if (n>8) printf "  ...and %d more\n", n-8; if (n>0) exit 1}'
 }
 
 # --- C5b: unqualified capability claims --------------------------------------
@@ -194,6 +220,64 @@ check_budget() { # $1=file $2=limit $3=what crossing it means
   echo "  $1 at $n lines against ~$2 -- $3"; return 1
 }
 
+# --- C9: bridge-table order ---------------------------------------------------
+# Catches the supersession table drifting off its own contract -- sorted by the
+# superseded entry's date, one entry's rows adjacent. Insertions landed mid-table
+# for two weeks and split one entry's rows, which permits exactly the early-stop
+# the sort exists to prevent: scan to your date, miss the fourth row.
+check_sup_order() { # $1=decisions-file -> prints violations, rc 1 if any
+  sed -n '/^## What has been superseded/,/^## Known traps/p' "$1" |
+  awk -F'|' '
+    /^\| 2026-/ {
+      d=substr($0,3,10); t=$2;
+      if (pd != "" && d < pd)   { printf "  date order broken at: %.55s\n", $0; bad=1 }
+      if (t != pt && seen[t]++) { printf "  entry rows split: %.55s\n", $0; bad=1 }
+      pd=d; pt=t
+    } END { exit bad }'
+}
+
+# --- C10: symbol-index order --------------------------------------------------
+# Catches a hand insertion landing mid-table, and duplicate symbol rows. The index
+# is generated and byte-sorted, so either deviation means an edit bypassed
+# regeneration -- the row is then invisible to a reader scanning alphabetically.
+check_index_order() { # $1=decisions-file -> prints violations, rc 1 if any
+  sed -n '/^## Symbol index/,/^## 2026-/p' "$1" |
+  LC_ALL=C awk -F'|' '
+    /^\| `/ {
+      if (pl != "" && $0 < pl) { printf "  out of order: %.50s\n", $0; bad=1 }
+      if (seen[$2]++)          { printf "  duplicate row: %.50s\n", $0; bad=1 }
+      pl=$0
+    } END { exit bad }'
+}
+
+# --- C11: standing-doc coverage -----------------------------------------------
+# Catches the next Anim-Pipeline.md: a doc added to CLAUDE.md's Project
+# Documentation list but not to STANDING_DOCS, so C1 and C2 silently never run on
+# it while the green table implies they do.
+check_doc_coverage() { # $1=claude-md $2..=standing docs -> prints missing, rc 1
+  local f=$1; shift
+  local d bad=0 listed
+  listed=$(sed -n '/^## Project Documentation/,/^## Communication/p' "$f" |
+           grep -oE '`Docs/[A-Za-z-]+\.md`' | tr -d '\140' | sort -u)
+  [ -z "$listed" ] && { echo "  no docs found in $f's Project Documentation section"; return 1; }
+  for d in $listed; do
+    case " $* " in *" $d "*) ;; *) echo "  $d listed in $f, absent from STANDING_DOCS"; bad=1 ;; esac
+  done
+  return $bad
+}
+
+# --- C12 (WARN): section backstops --------------------------------------------
+# C8's philosophy scoped to the two working sections that grow by accretion and
+# have no file of their own. Crossing one prompts eviction to the archive -- route
+# what is discharged or shipped, never trim what still binds -- and the number
+# ratchets DOWN when a slice ships and its material routes out. The briefs are
+# counted in words because their paragraphs live on single unwrapped lines.
+check_section() { # $1=file $2=start-re $3=end-re $4=wc-flag $5=limit $6=label
+  local n; n=$(sed -n "/$2/,/$3/p" "$1" | wc "$4"); n=$((n))
+  [ "$n" -le "$5" ] && return 0
+  echo "  $6 at $n against ~$5 -- evict to the archive, do not trim"; return 1
+}
+
 # ==== self-test ===============================================================
 self_test() {
   local t; t=$(mktemp -d) || exit 2
@@ -234,8 +318,31 @@ self_test() {
   expect "claims: no surface, no date fails"   1 check_claims "$t/claim_bare.md"
   expect "claims: surface without date fails"  1 check_claims "$t/claim_nodate.md"
   expect "claims: meta discussion passes"      0 check_claims "$t/claim_meta.md"
+
+  printf '## What has been superseded\n| 2026-08-09 — A | x | y |\n| 2026-08-10 — B | x | y |\n## Known traps\n' > "$t/sup_good.md"
+  printf '## What has been superseded\n| 2026-08-10 — B | x | y |\n| 2026-08-09 — A | x | y |\n## Known traps\n' > "$t/sup_date.md"
+  printf '## What has been superseded\n| 2026-08-09 — A | x | y |\n| 2026-08-09 — B | x | y |\n| 2026-08-09 — A | z | y |\n## Known traps\n' > "$t/sup_split.md"
+  printf '## Symbol index\n| `alpha` | 08-01 |\n| `beta` | 08-01 |\n## 2026-08-28 — entry\n' > "$t/sym_good.md"
+  printf '## Symbol index\n| `beta` | 08-01 |\n| `alpha` | 08-01 |\n## 2026-08-28 — entry\n' > "$t/sym_order.md"
+  printf '## Symbol index\n| `alpha` | 08-01 |\n| `alpha` | 08-02 |\n## 2026-08-28 — entry\n' > "$t/sym_dupe.md"
+  printf '## Project Documentation\n- **`Docs/A.md`** — x.\n## Communication\n' > "$t/cl.md"
+  printf '## Known traps\n\nThese are not design questions. Nothing here needs play to settle here.\n\n## Tuning map\n' > "$t/trap_ok.md"
+  printf '## Known traps\n\nSome fresh unformatted opener nobody has judged yet.\n\n## Tuning map\n' > "$t/trap_new.md"
+
+  expect "sup: sorted and adjacent passes"     0 check_sup_order "$t/sup_good.md"
+  expect "sup: broken date order fails"        1 check_sup_order "$t/sup_date.md"
+  expect "sup: split entry rows fail"          1 check_sup_order "$t/sup_split.md"
+  expect "index-order: sorted passes"          0 check_index_order "$t/sym_good.md"
+  expect "index-order: unsorted fails"         1 check_index_order "$t/sym_order.md"
+  expect "index-order: duplicate fails"        1 check_index_order "$t/sym_dupe.md"
+  expect "coverage: listed and checked passes" 0 check_doc_coverage "$t/cl.md" Docs/A.md
+  expect "coverage: listed unchecked fails"    1 check_doc_coverage "$t/cl.md" Docs/B.md
+  expect "shortlist: judged opener passes"     0 check_trap_shortlist "$t/trap_ok.md"
+  expect "shortlist: new opener lists"         1 check_trap_shortlist "$t/trap_new.md"
+  expect "section: inside backstop passes"     0 check_section "$t/trap_ok.md" '^## Known traps' '^## Tuning map' -l 50 "fixture"
+  expect "section: over backstop fails"        1 check_section "$t/trap_ok.md" '^## Known traps' '^## Tuning map' -l 2 "fixture"
   rm -rf "$t"
-  if [ "$bad" -eq 0 ]; then echo "SELF-TEST PASSED (15 assertions)"; exit 0; fi
+  if [ "$bad" -eq 0 ]; then echo "SELF-TEST PASSED (27 assertions)"; exit 0; fi
   exit 1
 }
 
@@ -261,7 +368,13 @@ out=$(check_manifest "$MANIFEST") && ok "pointer-manifest" "all $(printf '%s\n' 
 
 out=$(check_index Docs/Combat-Decisions.md) && ok "index-freshness" "index current" || fail "index-freshness" "$out"
 
-out=$(check_trap_shortlist Docs/Combat-Decisions.md) && ok "trap-shortlist" "no unformatted paragraph openers" || { warn "trap-shortlist" "review these openers:"; printf '%s\n' "$out"; }
+out=$(check_sup_order Docs/Combat-Decisions.md) && ok "bridge-order" "supersession table sorted, entry rows adjacent" || fail "bridge-order" "$out"
+
+out=$(check_index_order Docs/Combat-Decisions.md) && ok "index-order" "symbol index sorted, no duplicate rows" || fail "index-order" "$out"
+
+out=$(check_doc_coverage CLAUDE.md "${STANDING_DOCS[@]}") && ok "doc-coverage" "every doc CLAUDE.md lists is checked" || fail "doc-coverage" "$out"
+
+out=$(check_trap_shortlist Docs/Combat-Decisions.md) && ok "trap-shortlist" "no unjudged paragraph openers" || { warn "trap-shortlist" "review these openers:"; printf '%s\n' "$out"; }
 
 # Scoped to the docs where tooling-capability claims live. Combat-Spec's "cannot" is gameplay
 # language and the decision log's is code behaviour; neither is a claim about a scripting surface.
@@ -285,6 +398,8 @@ out=$(check_budget CLAUDE.md 280 "read in full every session; audit it against t
 # is "read front to back", so the backstop is what keeps that instruction honest rather than
 # aspirational; findings growth belongs in Unreal-Findings.md, which is deliberately unbudgeted.
 out=$(check_budget Docs/Working-In-Unreal.md 600 "the lookup half belongs in Docs/Unreal-Findings.md, not here") && ok "budget" "Working-In-Unreal.md inside backstop" || warn "budget" "$out"
+out=$(check_section Docs/Combat-Decisions.md '^## Known traps' '^## Tuning map' -l 1100 "traps section") && ok "budget" "traps section inside backstop" || warn "budget" "$out"
+out=$(check_section Docs/Combat-Decisions.md '^## Slice briefs' '^### Structure Audit' -w 4800 "slice briefs") && ok "budget" "slice briefs inside backstop" || warn "budget" "$out"
 
 echo
 if [ "$FAILS" -gt 0 ]; then echo "RESULT: $FAILS FAIL, $WARNS WARN"; exit 1; fi
