@@ -102,7 +102,9 @@ audit in miniature; the rest is making sure nothing is left on the floor.
    **Did a value, symbol or mechanism change? Grep the symbol *and the outgoing value* across
    `Docs/` and `CLAUDE.md`, reconcile every hit — update, demote or supersede — and quote the
    greps in the handoff.** Cost is proportional to the session's delta; skipping it is how one
-   session's change left five stale readings for an audit to find.
+   session's change left five stale readings for an audit to find. **Combat values moved?
+   Regenerate `Docs/Combat-Values.tsv`** — the file's header carries the command — so the mirror
+   stays dated to the change.
 5. **Update the focus, and route a shipped item's consequences.** If the next item changed,
    `Current Focus` is the only place that says so.
 

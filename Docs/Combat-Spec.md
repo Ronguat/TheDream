@@ -5,6 +5,8 @@ transition. Not otherwise. `CLAUDE.md` keeps only the vocabulary.
 
 **`GA_Attack`'s `Branches` array and the character Blueprints' CDOs are authoritative for live
 values.** Numbers below carry an argument, not a reading — when the two disagree, the asset wins.
+`Docs/Combat-Values.tsv` is their generated, dated mirror: grep it for a live number rather than
+copying one into prose.
 Reasoning for every choice is in `Docs/Combat-Decisions.md`; which knob to move when a verdict comes
 back is its tuning map.
 

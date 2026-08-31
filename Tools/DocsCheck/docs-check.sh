@@ -75,6 +75,8 @@ Tools/CommentCheck/comment-check.sh:::--self-test:::CLAUDE.md names the script; 
 Tools/CommentCheck/comment-check.sh:::--baseline:::CLAUDE.md and Closing-Down both name the flag as the sanctioned reset
 Tools/CommentCheck/baseline.txt:::comment lines:::CLAUDE.md sends a C7 failure here to raise one line
 Docs/Toolset-Snapshot.tsv:::list_toolsets:::Working-In-Unreal diffs the registry against this file
+Docs/Combat-Values.tsv:::KnockdownFallSeconds:::Combat-Spec sends readers to grep this mirror of the live CDOs
+Docs/Combat-Spec.md:::Docs/Combat-Values.tsv:::the spec names the mirror beside its authority statement
 Tools/DocsCheck/claim-scan.pl:::engine behaviour:::Working-In-Unreal names the no-surface categories the scanner must accept
 Tools/DocsCheck/claim-scan.pl:::--working-only:::the flag that excludes the append-only archive of dated entries
 Docs/Working-In-Unreal.md:::claim-scan.pl:::the method section names the scanner that enforces surface-and-date
@@ -116,7 +118,7 @@ check_index() { # $1=decisions-file -> rc 1 if stale, prints detail
 # cannot be told from continuation paragraphs mechanically, so this shortlists
 # paragraphs in the traps section that open unformatted and are not yet judged; the
 # closedown eye judges a new one, then allowlists its opening prefix below so the
-# same paragraph is never re-judged. All 16 seeded 2026-08-31, each read in place.
+# same paragraph is never re-judged.
 TRAP_OPENER_ALLOW=$(cat <<'ALLOW'
 Latent defects and unverified assumptions in code that
 These are not design questions. Nothing here needs play to
