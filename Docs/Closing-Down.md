@@ -60,7 +60,7 @@ audit in miniature; the rest is making sure nothing is left on the floor.
      cleanly and can still not belong.
 
    **A file cannot trigger its own audit** — that is why this lives here and not in either file.
-   The budgets: `CLAUDE.md` ~280 and `Docs/Working-In-Unreal.md` ~750, both **backstops rather
+   The budgets live in `docs-check.sh` (C8), both **backstops rather
    than gates**, and they police different things. `CLAUDE.md` is read in full every session, so
    its number is a real per-session cost and stays tight. **Working-In-Unreal is triggered and is
    *expected* to balloon** — every engine limit re-measured lands there — so crossing its line is

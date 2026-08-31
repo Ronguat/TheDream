@@ -18,7 +18,7 @@ cd "$ROOT" || exit 2
 
 STANDING_DOCS=(CLAUDE.md Docs/Combat-Spec.md Docs/Working-In-Unreal.md
   Docs/Unreal-Findings.md Docs/Debug-Instruments.md Docs/Combat-Decisions.md
-  Docs/Animation-Library.md Docs/Closing-Down.md)
+  Docs/Animation-Library.md Docs/Anim-Pipeline.md Docs/Closing-Down.md)
 
 FAILS=0; WARNS=0
 row()  { printf '%-22s %-6s %s\n' "$1" "$2" "$3"; }
