@@ -287,6 +287,9 @@ GA_Attack	StringSwings[0].RecoverySeconds	0.6
 GA_Attack	StringSwings[0].ReleaseSeconds	0
 GA_Attack	StringSwings[0].ReleaseStartSeconds	0.6688
 GA_Attack	StringSwings[0].StaminaDamage	5
+GA_Attack	StringSwings[0].TierAnimations[0].EntrySeconds	0.2167
+GA_Attack	StringSwings[0].TierAnimations[0].Montage	/Game/TheDream/Combat/Animations/AM_Heavy2.AM_Heavy2
+GA_Attack	StringSwings[0].TierAnimations[0].ReleaseStartSeconds	0.4667
 GA_Attack	StringSwings[1].BlockstunSeconds	0.35
 GA_Attack	StringSwings[1].CoilEndSeconds	0.4606
 GA_Attack	StringSwings[1].Damage	15
@@ -306,7 +309,13 @@ GA_Attack	StringSwings[1].RecoverySeconds	0.75
 GA_Attack	StringSwings[1].ReleaseSeconds	0.2225
 GA_Attack	StringSwings[1].ReleaseStartSeconds	0.4806
 GA_Attack	StringSwings[1].StaminaDamage	5
+GA_Attack	StringSwings[1].TierAnimations[0].EntrySeconds	0.7167
+GA_Attack	StringSwings[1].TierAnimations[0].Montage	/Game/TheDream/Combat/Animations/AM_Heavy3.AM_Heavy3
+GA_Attack	StringSwings[1].TierAnimations[0].ReleaseStartSeconds	0.9667
 GA_Attack	TargetImmunityTags	State.Dodging
+GA_Attack	TierAnimations[0].EntrySeconds	0.0167
+GA_Attack	TierAnimations[0].Montage	/Game/TheDream/Combat/Animations/AM_Heavy1.AM_Heavy1
+GA_Attack	TierAnimations[0].ReleaseStartSeconds	0.2667
 GA_Attack	WindupSection	None
 GA_Attack	bAllowedFromKnockdown	false
 GA_Attack	bBlockedWhileAirborne	true
