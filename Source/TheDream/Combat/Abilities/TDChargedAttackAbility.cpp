@@ -675,17 +675,28 @@ void UTDChargedAttackAbility::StartTierMontage(const FTDTierAnimation& Tier)
 	// the notify fires while the attack is still escalating and the commit's rate correction has
 	// nothing left to correct -- the window is already open and the release lands early.
 	//
-	// So the rate is whatever carries the entry point to the notify no sooner than the *deepest
-	// branch's release*, not its checkpoint: arriving exactly on the last checkpoint leaves the
-	// commit zero distance to re-rate across, and a zero distance is the one case CommitToBranch
-	// answers with rate 1 -- which fires the notify there and then, the same fault one tier down.
+	// So the rate carries the entry point to the notify no sooner than the release of **the
+	// deepest branch this clip is still the one playing** -- which is not always the deepest
+	// branch. A branch with its own socket replaces this clip at its escalation, so this clip
+	// only has to last until then; pacing it for a release it will never serve makes the commit
+	// sprint across the distance it held back, at nine times rate on a well-fitted heavy.
+	//
+	// Walking to the last unsocketed branch also keeps the inert case exactly as it was: with no
+	// socket anywhere the walk reaches the end and the target is the deepest branch's release.
 	//
 	// **Clamped to 1, never above**: a clip with runway to spare plays at its authored speed and
 	// this is inert, which is what a fitted clip should do. Only a short one is held.
+	int32 LastBranchOnThisClip = SelectedBranchIndex;
+	while (Branches.IsValidIndex(LastBranchOnThisClip + 1)
+		&& !FindTierAnimation(CurrentSwingIndex, LastBranchOnThisClip + 1))
+	{
+		++LastBranchOnThisClip;
+	}
+
 	const float Runway = Tier.ReleaseStartSeconds - Tier.EntrySeconds;
-	const float UntilLastRelease = Branches.Last().ReleaseAtSeconds - GetElapsedSeconds();
-	const float HoldRate = (Runway > 0.0f && UntilLastRelease > 0.0f)
-		? FMath::Clamp(Runway / UntilLastRelease, TDMinPlayRate, 1.0f)
+	const float UntilRelease = Branches[LastBranchOnThisClip].ReleaseAtSeconds - GetElapsedSeconds();
+	const float HoldRate = (Runway > 0.0f && UntilRelease > 0.0f)
+		? FMath::Clamp(Runway / UntilRelease, TDMinPlayRate, 1.0f)
 		: 1.0f;
 
 	if (!StartAttackMontage(NAME_None, HoldRate, Tier.EntrySeconds))
@@ -702,9 +713,12 @@ void UTDChargedAttackAbility::StartTierMontage(const FTDTierAnimation& Tier)
 
 	// rate=1.000 means the clip had runway to spare and nothing is holding it; anything below is
 	// the shortfall, and how far below says how short the clip is for the window it must cover.
-	TD_TIMING_LOG(TEXT("[%.3f] TIER SWAP  branch %d '%s' entry=%.4f release=%.4f rate=%.3f"),
+	// `paces=` is the branch whose release it was rated for, which differs from the branch that
+	// swapped it in exactly when the next tier has no socket of its own.
+	TD_TIMING_LOG(TEXT("[%.3f] TIER SWAP  branch %d '%s' entry=%.4f release=%.4f rate=%.3f paces=%d"),
 		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f, SelectedBranchIndex,
-		*GetNameSafe(Tier.Montage), Tier.EntrySeconds, Tier.ReleaseStartSeconds, HoldRate);
+		*GetNameSafe(Tier.Montage), Tier.EntrySeconds, Tier.ReleaseStartSeconds, HoldRate,
+		LastBranchOnThisClip);
 }
 
 float UTDChargedAttackAbility::GetSwingCoilEndSeconds(int32 SwingIndex) const
