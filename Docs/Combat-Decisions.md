@@ -1807,8 +1807,9 @@ it failed.
 
 ### The freeze had to come back as a hold, and it is the term that dies
 
-**Found by exercising a populated socket rather than by reading.** A probe socket
-(`AM_Attack_S3`, entry 0.300, release 0.4806) made `s1-heavy` fail at 332–346 ms against
+**Found by exercising a populated socket rather than by reading.** A probe socket — `AM_Attack_S3`,
+which is *light 3's own clip*, so the probe was itself a coil and is no kind of selection
+(entry 0.300, release 0.4806) — made `s1-heavy` fail at 332–346 ms against
 [370, 430]: the clip enters with 0.1806 s of runway at rate 1, so its notify fires at elapsed
 0.331 while the heavy commits at 0.350. **The notify beats the commit, so `CommitToBranch`'s rate
 correction has nothing left to correct.** Removing the rate freeze removed the only thing holding
@@ -1820,22 +1821,36 @@ on the last checkpoint, leaving zero distance for the commit to re-rate across �
 is the one case `CommitToBranch` answers with rate 1, firing the notify there and then, the same
 fault one tier down. Caught by arithmetic before it was measured.
 
-**Clamped to 1 and never above, which makes it a fitness meter.** A clip with runway to spare plays
+**Clamped to 1 and never above, which makes it a runway meter.** A clip with runway to spare plays
 at its authored speed and the hold is inert; only a short clip is held. So `TIER SWAP ... rate=`
 reads **1.000** for a clip long enough for its window and below it in proportion to the shortfall —
-measured **0.281** for a clip a third the length it needs and **1.000** for one with runway. Clip
-selection gains a number where it had a judgement.
+measured **0.281** for a clip a third the length it needs and **1.000** for one with runway.
+
+**It measures runway and nothing else** — *not* whether the clip is a good one. Runway geometry
+(where a damage point sits relative to the entry, against the time available) and blend feasibility
+(whether the crossfade into the pose reads) are **orthogonal**: a clip can pass either and fail the
+other. This entry first called the number a *fitness* meter, which reads as though one figure
+covered both; it covers the first. Pose distance, above, is the instrument for the second.
 
 ### The term is retired; the symbols are not
 
-**The designer**: *"If coil literally just means any form of time dilation on the windup of heavy or
-charged attacks, then sure ... I suppose coil to me meant what visually looks like a slomo attack.
-The term should still be deprecated regardless, I suspect, because all three light attacks already
-have lots of dilation throughout, which works great, but we never call any of it coil."*
+**The designer's definition, which is what settles it**: *"Coiling is when the same animation is
+essentially played twice for two or more different attack types, straight up. Right now, all 3
+light anims can also be a heavy or charged attack, conveyed purely by if there's a slomo section
+added."*
 
-**The word marked a degree, not a mechanism.** This session measured the lights' own windup rates at
-**1.50x, 3.34x and 2.40x** — pervasive dilation nobody has ever named — so "coil" picked out only
-the *visible* slow-motion of the 5–10% freeze. `CLAUDE.md`'s vocabulary entry is retired to match.
+**The slomo is how the reuse is effected, not what the word means.** So the term retires because
+**bespoke tier clips end the reuse** — not, as this entry first argued, because rate manipulation is
+too pervasive to be worth naming. That argument was wrong on its own terms: the lights' 1.50x /
+3.34x / 2.40x is one constant set at activation to place a single release point, where a coil is a
+mid-windup correction taken once the tier stops being determined. Related, not the same.
+
+**Two consequences follow from the definition.** Sharing one heavy clip across all three string
+positions is **not** coiling: it serves one tier at three positions, and only *tier* reuse is the
+thing being named. And **an unpopulated socket still coils** — it leaves the tier on the swing's
+clip, rate-warped, which is exactly one animation serving two attack types. The coil is therefore
+the inert fallback and dies as sockets fill, which is the same attrition `CoilEndSeconds` retires
+by. **It is not gone today**; it is scheduled.
 
 **The `Coil*` symbols stay.** `CoilEndSeconds` on the ability and both string swings, and
 `CoilTurnRateDegrees` on both characters, carry **seven Blueprint-authored values** a rename would
