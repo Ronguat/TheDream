@@ -37,8 +37,8 @@ new work:
 - **Recovery** — an input restriction you inflicted on yourself; an attack's third phase is one.
 - **Lockout** — an input restriction someone else inflicted on you. `TDGameplayTags.h` says which
   states are which.
-- **Coil** — *not* a fourth phase: the sub-state of windup slowed while waiting for the commit
-  checkpoint, as visual feedback. Its values are named `Coil*` rather than after a phase.
+- **Coil** — **retired as a term, 2026-09-01**: every windup is rate-manipulated, so it named
+  visible slow-motion rather than a mechanism. `Coil*` symbols stay; renaming them orphans values.
 - **Initiative** — frame advantage; one of the two ledgers an exchange settles in.
 - **Flinch** — hitstun interrupting offense.
 

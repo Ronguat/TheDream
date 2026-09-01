@@ -300,6 +300,17 @@ properties, against three before.
 
 **The stun tells: discharged 2026-08-25** by positioning both playheads from stun progress instead of playing them at a rate — see the dated entry. Only a string's first hit used to be told, because the tell is a state entered on a cached bool and a hit landing inside a running stun re-enters nothing.
 
+**Whenever a tier socket's clip is chosen — *recovery is paced against whatever montage is playing,
+and the elapsed bands were derived against the light's.*** Filed 2026-09-01. With both sockets on
+placeholder clips, `s1-charged` returned one sample of **1.549 s against a [1.550, 1.585] floor** —
+1 ms under, 1 in 7 — while release timing passed at n=7 and the un-socketed control passed 4/4 at
+n=11 on the same build. `GetBlendOutStartSeconds` reads the *active* montage, so recovery now ends
+against the tier clip's blend-out rather than `AM_Attack`'s. **Deliberately not chased**: the probe
+clips were arbitrary, so against them this measures the fixture rather than the system. Re-check
+once real clips are fitted, and **expect the elapsed bands to want re-deriving rather than the code
+to want fixing** — though a shortfall *below* an authored floor is the direction frame quantisation
+does not explain, so rule that out before assuming the bands.
+
 **Whenever `s5-parry`'s lockout band is trusted — *it never covered the string ender.*** Filed
 2026-08-28. `BAND_PARRY_LOCKOUT_LIGHT` is [0.725, 0.775], which admits the branches' 0.75 and excludes
 `string_swings[1]`'s authored **0.9725**. Every earlier run passed because the fixture caught swing 0
@@ -1791,7 +1802,51 @@ elapsed.
 
 Editor-closed rebuild, then `s1-light` 4/4 (n=20), `s1-heavy` 4/4 (n=15), `s1-charged` 4/4 (n=14),
 `s4-string` 7/7 — **every one with no socket populated**, which is the assertion that the swap
-machinery is inert until asked for. Nothing exercises a populated socket yet; that is Phase 2's.
+machinery is inert until asked for. A populated socket was then probed as well; see below, because
+it failed.
+
+### The freeze had to come back as a hold, and it is the term that dies
+
+**Found by exercising a populated socket rather than by reading.** A probe socket
+(`AM_Attack_S3`, entry 0.300, release 0.4806) made `s1-heavy` fail at 332–346 ms against
+[370, 430]: the clip enters with 0.1806 s of runway at rate 1, so its notify fires at elapsed
+0.331 while the heavy commits at 0.350. **The notify beats the commit, so `CommitToBranch`'s rate
+correction has nothing left to correct.** Removing the rate freeze removed the only thing holding
+the montage back — which the 2026-08-18 entry and the coil trap both said in advance.
+
+**The fix derives a hold rate at the swap**, carrying the entry point to the notify no sooner than
+the deepest branch's `ReleaseAtSeconds`. Targeting its *`HoldUntilSeconds`* instead arrives exactly
+on the last checkpoint, leaving zero distance for the commit to re-rate across — and zero distance
+is the one case `CommitToBranch` answers with rate 1, firing the notify there and then, the same
+fault one tier down. Caught by arithmetic before it was measured.
+
+**Clamped to 1 and never above, which makes it a fitness meter.** A clip with runway to spare plays
+at its authored speed and the hold is inert; only a short clip is held. So `TIER SWAP ... rate=`
+reads **1.000** for a clip long enough for its window and below it in proportion to the shortfall —
+measured **0.281** for a clip a third the length it needs and **1.000** for one with runway. Clip
+selection gains a number where it had a judgement.
+
+### The term is retired; the symbols are not
+
+**The designer**: *"If coil literally just means any form of time dilation on the windup of heavy or
+charged attacks, then sure ... I suppose coil to me meant what visually looks like a slomo attack.
+The term should still be deprecated regardless, I suspect, because all three light attacks already
+have lots of dilation throughout, which works great, but we never call any of it coil."*
+
+**The word marked a degree, not a mechanism.** This session measured the lights' own windup rates at
+**1.50x, 3.34x and 2.40x** — pervasive dilation nobody has ever named — so "coil" picked out only
+the *visible* slow-motion of the 5–10% freeze. `CLAUDE.md`'s vocabulary entry is retired to match.
+
+**The `Coil*` symbols stay.** `CoilEndSeconds` on the ability and both string swings, and
+`CoilTurnRateDegrees` on both characters, carry **seven Blueprint-authored values** a rename would
+orphan, and that trap is filed. `CoilEndSeconds` is read only on the un-socketed path, so it
+retires by attrition as sockets populate rather than needing a pass of its own.
+
+### Verified after the fix
+
+`s1-heavy` 4/4 (n=14) and `s1-charged` 3/4 (n=7) **with sockets populated**, both swaps firing and
+rating as predicted; the un-socketed control `s1-charged` 4/4 (n=11) on the same build. The one
+failure is a 1 ms elapsed shortfall, filed as a trap rather than chased against placeholder clips.
 
 ## 2026-08-28 — A refused press was never retried, and the guarded rise had no reachable route
 

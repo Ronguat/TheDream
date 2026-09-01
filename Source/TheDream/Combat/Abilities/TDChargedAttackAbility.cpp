@@ -218,13 +218,12 @@ void UTDChargedAttackAbility::EnterCoil()
 		Character->SetAbilityCoiling(true);
 	}
 
-	// **The freeze is the half a tier montage replaces; the facing clamp above is not.** A blended
-	// transition into a longer clip is what holds the attack back once one is authored, so slowing
-	// the montage on top of it would stretch an anticipation that is already paced. The clamp stays
-	// either way -- it is an aim guarantee rather than a tell, and nothing else caps redirection.
+	// **A tier montage was already rated at the swap to reach its notify no sooner than the last
+	// checkpoint**, so deriving a second rate here would fight the first. The facing clamp above
+	// still applies: it is an aim guarantee rather than a tell, and nothing else caps redirection.
 	if (ActiveTierMontage)
 	{
-		TD_TIMING_LOG(TEXT("[%.3f] COIL START pos=%.4f (tier montage; no rate freeze)"),
+		TD_TIMING_LOG(TEXT("[%.3f] COIL START pos=%.4f (rated at the tier swap)"),
 			GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f, GetMontagePosition());
 		return;
 	}
@@ -672,10 +671,24 @@ void UTDChargedAttackAbility::StartTierMontage(const FTDTierAnimation& Tier)
 	ActiveTierMontage = Tier.Montage;
 	ActiveTierReleaseStart = Tier.ReleaseStartSeconds;
 
-	// Rate 1: the clip runs at its authored speed through the blend, and CommitToBranch derives
-	// whatever rate carries it from wherever it has reached into this branch's ReleaseAtSeconds.
-	// Starting it warped would put the anticipation on a speed the commit then changes again.
-	if (!StartAttackMontage(NAME_None, 1.0f, Tier.EntrySeconds))
+	// **The clip must not reach its own Release Window before the deepest branch can commit**, or
+	// the notify fires while the attack is still escalating and the commit's rate correction has
+	// nothing left to correct -- the window is already open and the release lands early.
+	//
+	// So the rate is whatever carries the entry point to the notify no sooner than the *deepest
+	// branch's release*, not its checkpoint: arriving exactly on the last checkpoint leaves the
+	// commit zero distance to re-rate across, and a zero distance is the one case CommitToBranch
+	// answers with rate 1 -- which fires the notify there and then, the same fault one tier down.
+	//
+	// **Clamped to 1, never above**: a clip with runway to spare plays at its authored speed and
+	// this is inert, which is what a fitted clip should do. Only a short one is held.
+	const float Runway = Tier.ReleaseStartSeconds - Tier.EntrySeconds;
+	const float UntilLastRelease = Branches.Last().ReleaseAtSeconds - GetElapsedSeconds();
+	const float HoldRate = (Runway > 0.0f && UntilLastRelease > 0.0f)
+		? FMath::Clamp(Runway / UntilLastRelease, TDMinPlayRate, 1.0f)
+		: 1.0f;
+
+	if (!StartAttackMontage(NAME_None, HoldRate, Tier.EntrySeconds))
 	{
 		// The swap failed, so the slot still holds the outgoing clip -- but its task is silenced
 		// and nothing will end the ability. Ungated: this is the shape that reads as a hung swing.
@@ -687,9 +700,11 @@ void UTDChargedAttackAbility::StartTierMontage(const FTDTierAnimation& Tier)
 		return;
 	}
 
-	TD_TIMING_LOG(TEXT("[%.3f] TIER SWAP  branch %d '%s' entry=%.4f release=%.4f"),
+	// rate=1.000 means the clip had runway to spare and nothing is holding it; anything below is
+	// the shortfall, and how far below says how short the clip is for the window it must cover.
+	TD_TIMING_LOG(TEXT("[%.3f] TIER SWAP  branch %d '%s' entry=%.4f release=%.4f rate=%.3f"),
 		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f, SelectedBranchIndex,
-		*GetNameSafe(Tier.Montage), Tier.EntrySeconds, Tier.ReleaseStartSeconds);
+		*GetNameSafe(Tier.Montage), Tier.EntrySeconds, Tier.ReleaseStartSeconds, HoldRate);
 }
 
 float UTDChargedAttackAbility::GetSwingCoilEndSeconds(int32 SwingIndex) const
