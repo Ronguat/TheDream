@@ -1,4 +1,4 @@
-# Combat values snapshot, regenerated 2026-08-31 from the live CDOs. The assets stay authoritative: the asset wins over this file, and this file wins over a number in prose.
+# Combat values snapshot, regenerated 2026-09-01 from the live CDOs. The assets stay authoritative: the asset wins over this file, and this file wins over a number in prose.
 # Regenerate with the editor open: "C:/Program Files (x86)/UE_5.8/Engine/Binaries/ThirdParty/Python3/Win64/python.exe" Tools/AnimPipeline/run-in-editor.py Tools/ValuesSnapshot/ue_values_snapshot.py
 Object	Property	Value
 ATDPlayerState	AbilitySystemComponent	/Script/TheDream.Default__TDPlayerState:AbilitySystemComponent

@@ -189,7 +189,7 @@ UAbilityTask_MeleeTrace* UTDMeleeAttackAbility::StartMeleeTrace(const TArray<FTD
 	return TraceTask;
 }
 
-bool UTDMeleeAttackAbility::StartAttackMontage(FName StartSection, float PlayRate)
+bool UTDMeleeAttackAbility::StartAttackMontage(FName StartSection, float PlayRate, float StartTimeSeconds)
 {
 	// Resolved once for the whole function: which montage this activation plays is the swing's
 	// business (see GetActiveAttackMontage), and every log, guard and task below must agree on it.
@@ -252,9 +252,10 @@ bool UTDMeleeAttackAbility::StartAttackMontage(FName StartSection, float PlayRat
 			*ActiveMontage->GetName());
 	}
 
-	UAbilityTask_PlayMontageAndWait* MontageTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(
+	MontageTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(
 		this, NAME_None, ActiveMontage, PlayRate, StartSection,
-		/*bStopWhenAbilityEnds=*/true, /*AnimRootMotionTranslationScale=*/1.0f);
+		/*bStopWhenAbilityEnds=*/true, /*AnimRootMotionTranslationScale=*/1.0f,
+		StartTimeSeconds);
 	// Four separate wrappers rather than two shared handlers, so the trace can say which delegate
 	// ended the attack. They have different causes and different fixes.
 	MontageTask->OnCompleted.AddDynamic(this, &UTDMeleeAttackAbility::HandleMontageCompleted);
@@ -595,6 +596,20 @@ void UTDMeleeAttackAbility::ApplyParryRecoil(ATDCombatCharacter* Parrier, ATDCom
 		DurationSeconds);
 
 	Attacker->ReceiveKnockback(Destination, DurationSeconds, nullptr);
+}
+
+void UTDMeleeAttackAbility::SilenceMontageTask()
+{
+	if (!MontageTask)
+	{
+		return;
+	}
+
+	MontageTask->OnCompleted.RemoveAll(this);
+	MontageTask->OnBlendOut.RemoveAll(this);
+	MontageTask->OnInterrupted.RemoveAll(this);
+	MontageTask->OnCancelled.RemoveAll(this);
+	MontageTask = nullptr;
 }
 
 void UTDMeleeAttackAbility::HandleMontageCompleted()

@@ -374,11 +374,11 @@ Cause unknown and deliberately not theorised. **Watch those two families' stages
 | `Attack1_Stage2_Complete` | 1.367 | Forward lunging uppercut **with the shield** |
 | `Attack1_Stage3_Complete` | 1.567 | Stationary left-to-right slash |
 | `Attack2_Stage1_Complete` | 1.333 | Step-forward jab **with the shield** |
-| `Attack2_Stage2_Complete` | 1.633 | **360° spinning left-to-right slash. Third-light-in-chain candidate** |
+| **`Attack2_Stage2_Complete`** | 1.633 | **360° spinning left-to-right slash. SHIPPED as light 3** (`AM_Attack_S3`) |
 | `Attack3_Stage1_Complete` | 1.767 | Rapid small Spartan-style manoeuvres. **No use here** |
 | `Attack3_Stage2_Complete` | 1.133 | As above. **No use here** |
-| **`Attack4_Stage1_Complete`** | 0.967 | **Diagonal slash, top-right → bottom-left.** Steps forward, settles. **CHOSEN LIGHT** |
-| **`Attack4_Stage2_Complete`** | 1.933 | **360° swing.** Reads too slow at 1×, wants speeding up. **Second-light candidate** |
+| **`Attack4_Stage1_Complete`** | 0.967 | **Diagonal slash, top-right → bottom-left.** Steps forward, settles. **SHIPPED as light 1** (`AM_Attack`) |
+| `Attack4_Stage2_Complete` | 1.933 | **360° swing.** Reads too slow at 1×, wants speeding up. Nominated second light; **not what shipped** |
 | `Attack4_Stage3_Complete` | 1.000 | **Shield bash**, fairly stationary |
 | `Attack4_Stage4_Complete` | 2.300 | Heavy stab + flourish on withdraw. No forward travel |
 | `Attack5` | 2.333 | Idle → brief defensive stance → step-forward left-to-right slash. Only plausible as a **canned counter-attack**, sped up |
@@ -387,7 +387,7 @@ Cause unknown and deliberately not theorised. **Watch those two families' stages
 | `Attack7_Stage2_Complete` | 0.967 | **Shield bash**, steps forward |
 | `Attack7_Stage3_Complete` | 2.500 | Execution animation. **No use here** |
 | `Attack8_Stage1_Complete` | 2.000 | Fencing-like flourishes. **No use here** |
-| `Attack8_Stage2_Complete` | 1.500 | Stepping forward, standard left-to-right slash. Solid but unremarkable; **windup crosses the body**, so it blends with less |
+| **`Attack8_Stage2_Complete`** | 1.500 | Stepping forward, standard left-to-right slash. **SHIPPED as light 2** (`AM_Attack_S2`), judged good in play 2026-09-01; **windup crosses the body**, which still costs it as a blend *source* |
 | **`Attack8_Stage3_Complete`** | 2.233 | **Stepping overhead, top-right → bottom-left.** Windup cocks the arm back on the **right**, then swings forward over the right shoulder — **the most standard windup found, and the closest match to the chosen light** |
 | `Attack9` | 2.533 | Steps into a leaned-forward 3-hit combo but never travels. Canned-animation material only |
 | `Attack10` | 2.133 | Two stabs over and under the shield while advancing, shield held up defensively |
@@ -402,6 +402,9 @@ own anticipation, and **the blend performs the migration**, so a heavy on a diff
 reads as a tell rather than as a glitch. Windup match is therefore no longer asked of a heavy or
 charged candidate; what replaces it is a legible **anticipation apex** to blend into.
 `Attack7_Stage1` and `Attack8_Stage2` — dismissed below on windup grounds — are candidates again.
+***`Attack8_Stage2` was spent as light 2 before either was taken up***, so the reopened pool is
+`Attack7_Stage1` beside the standing favourite `Attack8_Stage3`; see the 2026-09-01 entry, which
+also measures both against all three lights.
 **The shared-windup mechanic is unchanged**: the first 150 ms still carries no information, which
 is what the argument below is really protecting. Entry: `Docs/Combat-Decisions.md`, 2026-08-18.
 

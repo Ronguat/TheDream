@@ -11,6 +11,7 @@
 class ATheDreamCharacter;
 class UAnimMontage;
 class UAbilityTask_MeleeTrace;
+class UAbilityTask_PlayMontageAndWait;
 class UCurveFloat;
 class UGameplayEffect;
 
@@ -360,7 +361,18 @@ protected:
 	 *  montage's first frame: setting it afterwards leaves a window at the wrong speed, and the
 	 *  whole timing model reads the montage's measured position.
 	 */
-	bool StartAttackMontage(FName StartSection, float PlayRate);
+	bool StartAttackMontage(FName StartSection, float PlayRate, float StartTimeSeconds = 0.0f);
+
+	/**
+	 *  Unbinds the running montage task's four end delegates, so the montage it owns can be
+	 *  displaced without ending the ability. A montage started on a slot another montage already
+	 *  holds interrupts that one, and OnInterrupted cancels the attack -- which is correct for an
+	 *  interruption nobody asked for and wrong for a deliberate swap.
+	 *
+	 *  Leaves the task running rather than ending it: EndTask stops the montage it started, and by
+	 *  this point the replacement is what should be playing.
+	 */
+	void SilenceMontageTask();
 
 	UFUNCTION()
 	void HandleTraceHit(const FHitResult& Hit);
@@ -419,6 +431,10 @@ protected:
 	 *  tick-ordered path that set it.
 	 */
 	bool bParried = false;
+
+	/** The task playing the current montage, kept so a deliberate swap can silence it. */
+	UPROPERTY()
+	TObjectPtr<UAbilityTask_PlayMontageAndWait> MontageTask = nullptr;
 
 	/**
 	 *  Computes the fixed destination for this swing's knockback and hands it to the target.

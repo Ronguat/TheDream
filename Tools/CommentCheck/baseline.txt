@@ -11,8 +11,8 @@
 # file<TAB>comment lines<TAB>comment words
 Source/TheDream/Combat/Abilities/TDBlockAbility.cpp	39	499
 Source/TheDream/Combat/Abilities/TDBlockAbility.h	45	373
-Source/TheDream/Combat/Abilities/TDChargedAttackAbility.cpp	195	2746
-Source/TheDream/Combat/Abilities/TDChargedAttackAbility.h	326	2764
+Source/TheDream/Combat/Abilities/TDChargedAttackAbility.cpp	215	3059
+Source/TheDream/Combat/Abilities/TDChargedAttackAbility.h	376	3186
 Source/TheDream/Combat/Abilities/TDDodgeAbility.cpp	117	1462
 Source/TheDream/Combat/Abilities/TDDodgeAbility.h	95	749
 Source/TheDream/Combat/Abilities/TDGameplayAbility.cpp	105	1381
@@ -22,7 +22,7 @@ Source/TheDream/Combat/Abilities/TDGetUpAttackAbility.h	39	317
 Source/TheDream/Combat/Abilities/TDJumpAbility.cpp	37	535
 Source/TheDream/Combat/Abilities/TDJumpAbility.h	25	222
 Source/TheDream/Combat/Abilities/TDMeleeAttackAbility.cpp	180	2220
-Source/TheDream/Combat/Abilities/TDMeleeAttackAbility.h	252	2158
+Source/TheDream/Combat/Abilities/TDMeleeAttackAbility.h	286	2456
 Source/TheDream/Combat/Abilities/TDParryAbility.cpp	61	756
 Source/TheDream/Combat/Abilities/TDParryAbility.h	51	452
 Source/TheDream/Combat/Attributes/TDAttributeSet.cpp	8	83

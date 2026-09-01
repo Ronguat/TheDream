@@ -179,6 +179,37 @@ struct FTDAttackBranch
 };
 
 /**
+ *  One escalated tier's animation at one string position -- the clip, where the blend enters it,
+ *  and where that clip's Release Window sits.
+ *
+ *  Two positions may share one montage and enter it at different points; entry and release are
+ *  properties of the clip *as entered*, so they travel together.
+ *
+ *  An unset Montage leaves the tier on the swing's own clip, rate-warped. The blend's duration is
+ *  the montage asset's own BlendIn.
+ */
+USTRUCT(BlueprintType)
+struct FTDTierAnimation
+{
+	GENERATED_BODY()
+
+	/** This tier's montage at this position. Unset keeps the swing's clip. Must be in-place. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Tier")
+	TObjectPtr<UAnimMontage> Montage = nullptr;
+
+	/** Where the blend enters the clip. The dial that fits one clip to more than one source. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Tier", meta=(ClampMin="0.0"))
+	float EntrySeconds = 0.0f;
+
+	/**
+	 *  Where this montage's Release Window notify opens, hand-copied from its placement and checked
+	 *  at runtime by the drift warning, the same contract FTDStringSwing's field carries.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Tier", meta=(ClampMin="0.0"))
+	float ReleaseStartSeconds = 0.5f;
+};
+
+/**
  *  One hit of the light string beyond the first: its clip, that clip's authored positions, and the
  *  branch-0 values that vary by position.
  *
@@ -198,6 +229,16 @@ struct FTDStringSwing
 	/** This swing's montage. Must play an in-place clip, like AM_Attack, or the lunge dies. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Swing")
 	TObjectPtr<UAnimMontage> Montage = nullptr;
+
+	/**
+	 *  This position's escalated tiers, indexed by branch minus one -- element 0 is branch 1. Branch
+	 *  0 is absent because a light plays the swing's own Montage above and never blends.
+	 *
+	 *  Short or unset entries fall back to that same clip, so a position needs only the tiers it
+	 *  actually gives their own animation.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Swing")
+	TArray<FTDTierAnimation> TierAnimations;
 
 	/**
 	 *  Where this montage's Release Window notify opens, hand-copied from its placement and checked
@@ -346,6 +387,13 @@ protected:
 	FName WindupSection = NAME_None;
 
 	/**
+	 *  The first hit's escalated tiers, indexed by branch minus one. The legacy half of the same
+	 *  asymmetry FTDStringSwing describes: hit 1 keeps its surface here, later hits carry their own.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Animation")
+	TArray<FTDTierAnimation> TierAnimations;
+
+	/**
 	 *  Applied the instant the attack commits, removed when it ends -- the boundary every defensive
 	 *  action cancels before and none cancels after.
 	 *
@@ -480,11 +528,28 @@ private:
 	/** Whether a swing at this index has a string successor to chain into. */
 	bool HasSuccessorSwing(int32 SwingIndex) const { return SwingIndex + 1 < GetSwingCount(); }
 
-	/** This swing's ReleaseStartSeconds: the legacy field for index 0, the swing's otherwise. */
+	/**
+	 *  This swing's ReleaseStartSeconds: the legacy field for index 0, the swing's otherwise --
+	 *  unless a tier montage has taken the slot, whose own release position replaces it, every
+	 *  position being a property of the clip that is actually playing.
+	 */
 	float GetSwingReleaseStartSeconds(int32 SwingIndex) const;
 
 	/** This swing's CoilEndSeconds, resolved the same way. */
 	float GetSwingCoilEndSeconds(int32 SwingIndex) const;
+
+	/**
+	 *  This position's socket for a branch, or null when it authors none or the branch is 0. Both
+	 *  cases mean the same thing: this tier stays on the swing's clip.
+	 */
+	const FTDTierAnimation* FindTierAnimation(int32 SwingIndex, int32 BranchIndex) const;
+
+	/**
+	 *  Swaps the escalated tier's montage in, blending from wherever the windup has reached. The
+	 *  blend replaces the coil's rate freeze as the tell; the clip's own length is what gives the
+	 *  hold somewhere to live. No-op when the branch authors no socket.
+	 */
+	void StartTierMontage(const FTDTierAnimation& Tier);
 
 	/**
 	 *  Per-swing overrides, each resolving swing -> branch -> ability. They take the branch index
@@ -523,6 +588,19 @@ private:
 
 	/** Which swing this activation is, fixed at activation. 0 is the legacy first hit. */
 	int32 CurrentSwingIndex = 0;
+
+	/**
+	 *  The tier montage now holding the slot, once one has been swapped in. Null means the swing's
+	 *  own clip is still playing, which is every light and every unpopulated socket.
+	 *
+	 *  It is what GetActiveAttackMontage returns, so position, play rate, the Release Window filter
+	 *  and the blend-out all follow it without each having to know a swap happened.
+	 */
+	UPROPERTY()
+	TObjectPtr<UAnimMontage> ActiveTierMontage = nullptr;
+
+	/** The swapped-in montage's authored Release Window position. Only read while it is set. */
+	float ActiveTierReleaseStart = 0.0f;
 
 	/** True from RELEASE OFF to the ability's end -- the span the chain-out may open inside. */
 	bool bInRecovery = false;

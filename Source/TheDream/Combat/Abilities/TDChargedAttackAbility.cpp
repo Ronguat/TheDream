@@ -41,6 +41,10 @@ void UTDChargedAttackAbility::ActivateAbility(const FGameplayAbilitySpecHandle H
 	bParried = false;
 	RecoveryStartedAt = 0.0f;
 	AppliedAttackTag = FGameplayTag();
+	// Same InstancedPerActor hazard: a tier montage left set would make the next swing read its
+	// positions off the previous swing's clip, and every one of them would be wrong.
+	ActiveTierMontage = nullptr;
+	ActiveTierReleaseStart = 0.0f;
 
 	UWorld* World = GetWorld();
 	if (!World || Branches.Num() == 0)
@@ -161,6 +165,14 @@ void UTDChargedAttackAbility::HandleCheckpoint()
 	{
 		SelectedBranchIndex = NextIndex;
 
+		// Every escalation swaps, not just the first: light -> heavy and heavy -> charged are two
+		// blends, and the second departs from whatever the first left on the slot. Ahead of the
+		// coil, so EnterCoil sees the montage this branch will actually run on.
+		if (const FTDTierAnimation* Tier = FindTierAnimation(CurrentSwingIndex, NextIndex))
+		{
+			StartTierMontage(*Tier);
+		}
+
 		// Leaving the first branch behind is exactly the moment the attack stops being a
 		// light, which is the moment it earns a tell.
 		if (!bCoiling)
@@ -204,6 +216,17 @@ void UTDChargedAttackAbility::EnterCoil()
 	if (ATheDreamCharacter* Character = GetFacingCharacter())
 	{
 		Character->SetAbilityCoiling(true);
+	}
+
+	// **The freeze is the half a tier montage replaces; the facing clamp above is not.** A blended
+	// transition into a longer clip is what holds the attack back once one is authored, so slowing
+	// the montage on top of it would stretch an anticipation that is already paced. The clamp stays
+	// either way -- it is an aim guarantee rather than a tell, and nothing else caps redirection.
+	if (ActiveTierMontage)
+	{
+		TD_TIMING_LOG(TEXT("[%.3f] COIL START pos=%.4f (tier montage; no rate freeze)"),
+			GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f, GetMontagePosition());
+		return;
 	}
 
 	// Measured, not assumed. The checkpoint timer fires a frame or two late, so the montage is
@@ -608,9 +631,65 @@ bool UTDChargedAttackAbility::IsNonFinalStringLight() const
 
 float UTDChargedAttackAbility::GetSwingReleaseStartSeconds(int32 SwingIndex) const
 {
+	// The swapped-in clip's own notify position. Without this the commit rate would carry the
+	// montage toward a position belonging to a clip that stopped playing at the escalation.
+	if (ActiveTierMontage)
+	{
+		return ActiveTierReleaseStart;
+	}
+
 	return StringSwings.IsValidIndex(SwingIndex - 1)
 		? StringSwings[SwingIndex - 1].ReleaseStartSeconds
 		: ReleaseStartSeconds;
+}
+
+const FTDTierAnimation* UTDChargedAttackAbility::FindTierAnimation(int32 SwingIndex, int32 BranchIndex) const
+{
+	if (BranchIndex <= 0)
+	{
+		return nullptr;
+	}
+
+	const TArray<FTDTierAnimation>& Sockets = StringSwings.IsValidIndex(SwingIndex - 1)
+		? StringSwings[SwingIndex - 1].TierAnimations
+		: TierAnimations;
+
+	const int32 Slot = BranchIndex - 1;
+	if (!Sockets.IsValidIndex(Slot) || !Sockets[Slot].Montage)
+	{
+		return nullptr;
+	}
+
+	return &Sockets[Slot];
+}
+
+void UTDChargedAttackAbility::StartTierMontage(const FTDTierAnimation& Tier)
+{
+	// The outgoing montage is about to be interrupted by the incoming one taking its slot. Its
+	// task must be silenced first: OnInterrupted ends the ability, and this interruption is ours.
+	SilenceMontageTask();
+
+	ActiveTierMontage = Tier.Montage;
+	ActiveTierReleaseStart = Tier.ReleaseStartSeconds;
+
+	// Rate 1: the clip runs at its authored speed through the blend, and CommitToBranch derives
+	// whatever rate carries it from wherever it has reached into this branch's ReleaseAtSeconds.
+	// Starting it warped would put the anticipation on a speed the commit then changes again.
+	if (!StartAttackMontage(NAME_None, 1.0f, Tier.EntrySeconds))
+	{
+		// The swap failed, so the slot still holds the outgoing clip -- but its task is silenced
+		// and nothing will end the ability. Ungated: this is the shape that reads as a hung swing.
+		UE_LOG(LogTDCombatTiming, Warning,
+			TEXT("Tier montage '%s' refused; swing %d branch %d has no animation running."),
+			*GetNameSafe(Tier.Montage), CurrentSwingIndex, SelectedBranchIndex);
+		ActiveTierMontage = nullptr;
+		ActiveTierReleaseStart = 0.0f;
+		return;
+	}
+
+	TD_TIMING_LOG(TEXT("[%.3f] TIER SWAP  branch %d '%s' entry=%.4f release=%.4f"),
+		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f, SelectedBranchIndex,
+		*GetNameSafe(Tier.Montage), Tier.EntrySeconds, Tier.ReleaseStartSeconds);
 }
 
 float UTDChargedAttackAbility::GetSwingCoilEndSeconds(int32 SwingIndex) const
@@ -670,6 +749,13 @@ float UTDChargedAttackAbility::GetSwingLungeDurationSeconds(int32 SwingIndex, in
 
 UAnimMontage* UTDChargedAttackAbility::GetActiveAttackMontage() const
 {
+	// A swapped-in tier montage is what is actually on the slot, so it is what every position,
+	// rate and notify question is about. Checked before the swing, never instead of it.
+	if (ActiveTierMontage)
+	{
+		return ActiveTierMontage;
+	}
+
 	// A swing whose montage was left unset falls back to the first hit's rather than to nothing --
 	// the same reasoning as the hitbox fallback: a silently unplayable swing is the failure this
 	// project keeps a trap list for, and the warning below is the tell rather than a crash.
