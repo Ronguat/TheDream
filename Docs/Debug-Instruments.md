@@ -42,11 +42,13 @@ player's 600 so a raised hold does not silently inherit half-rate tracking, and 
 until something actually coils**.
 
 **`DebugAutoAttackStringTaps` makes each cycle throw a string** *(2026-08-16, inert at its default 1)*.
-Above 1, the dummy re-presses every `DebugAutoAttackStringTapIntervalSeconds` (0.25) so each tap
-lands mid-previous-swing — the buffer extension and chain-out exercised as a masher exercises
-them. **The home reset waits for the string**: taps remaining or an open link window suppress it,
-or a teleport would sever the spacing chain s4 measures. The whole string must fit inside
-`DebugAutoAttackInterval`, exactly as the single attack must.
+Above 1, the dummy re-presses every `DebugAutoAttackStringTapIntervalSeconds` (**0.5 as of
+2026-09-02**, was 0.25) so each tap lands inside the previous swing's chain-open span. **Anything
+under roughly 0.28 no longer chains at all** — the press expires before the span opens, and the old
+0.25 worked only because the buffer extension held it; with the extension dropped it produced a
+two-swing string while every timing assertion still passed. **The home reset waits for the string**:
+taps remaining suppress it, or a teleport would sever the spacing chain s4 measures. The whole
+string must fit inside `DebugAutoAttackInterval`, exactly as the single attack must.
 
 
 **`bDebugPeriodicJump` is orthogonal to `DebugAutoDefendMode`, and that is the point** *(2026-08-20)*.
@@ -219,6 +221,11 @@ enumerated from the source 2026-08-14 rather than remembered — `ACTIVATE`, `CO
 `KNOCKBACK` joined 2026-08-16**, and all three went live when sitting 2 authored the values that
 arm them — they are no longer silent. **`ROTATE` joined 2026-08-18** and fires only while `bDebugAutoAttackRotateTargets` is set;
 **`LUNGE SKIP`** the same day, only under `bDebugSuppressLunge`.
+**`STRING`'s variants changed 2026-09-02**: `link window open ... until <t>` is gone with the window
+it reported, replaced by `advance marked on <pawn> (after swing N)`, which carries **no deadline**
+because there is none — the mark is consumed by the activation in the same tick. `chain out of
+swing N, <n>ms into recovery` and `reset on <pawn> (<reason>)` are unchanged. **A grep for the old
+string returns nothing and means only that**, not that chaining stopped.
 
 ***`ACTIVATE` gained its avatar's name on 2026-08-19 and the format changed: `ACTIVATE   <Actor>
 swing=N ...`.*** Anything parsing it with fixed spacing before `swing=` breaks silently.
@@ -585,7 +592,7 @@ settings rather than assertions — as do measurements, which record what a run 
 | `s4-guarantee` | 0.1, **taps 3** | `PeriodicDodge` | `REFUSED` lines attributed to `State.Hitstun`; **zero `DODGE` between `HITSTUN` and `HITSTUN END`** — the string's guarantee, observable; `HITSTUN` spans as above |
 | `s4-block` | 0.1, **taps 3** | `HoldBlock` | `BLOCKED` staminaDamage `BAND_STAMDMG_LIGHT`; `BLOCKSTUN` spans `BAND_BLOCKSTUN_LIGHT` ±`BAND_BLOCKSTUN_TOL`; **one blocked `KNOCKBACK` per `BLOCKED`**, the ender included; knockback never inward |
 | `s4-360` | 0.1, **taps 3**, `FacingMode` **Never**, **`bDebugSuppressLunge`** | `Off`, plus the player spawned at (200, 150) opposite the defender | **every string**, since 2026-08-24: attacks 1–2 damage **zero** distinct targets throughout; attack 3 damages **two** in string 1 and **exactly one** after; at least two normal-grade `KNOCKDOWN` lines. A single string **fails** — sampling past the first is the point |
-| `s5-parry` | 0.1, **taps 3** | `PeriodicParry` | `PARRY WINDOW` span `BAND_PARRY_WINDOW` ±`BAND_PARRY_SPAN_TOL`; at least one `PARRY SUCCESS` (**n=0 fails**); credited reward inside [`BAND_PARRY_GAINED_MIN`, `BAND_PARRY_GAINED_MAX`]; **zero `STRING` link window after a parried swing**; **every `PARRY GESTURE` inside its own window (n=0 fails)** ; **`PARRY GRACE` span `BAND_PARRY_GRACE` ±`BAND_PARRY_SPAN_TOL`**; every `by=window` success starts exactly one tail; **Grace never re-arms** (no tail from a `by=grace` catch, none overlapping) |
+| `s5-parry` | 0.1, **taps 3** | `PeriodicParry` | `PARRY WINDOW` span `BAND_PARRY_WINDOW` ±`BAND_PARRY_SPAN_TOL`; at least one `PARRY SUCCESS` (**n=0 fails**); credited reward inside [`BAND_PARRY_GAINED_MIN`, `BAND_PARRY_GAINED_MAX`]; **zero `STRING` advance marked after a parried swing**; **every `PARRY GESTURE` inside its own window (n=0 fails)** ; **`PARRY GRACE` span `BAND_PARRY_GRACE` ±`BAND_PARRY_SPAN_TOL`**; every `by=window` success starts exactly one tail; **Grace never re-arms** (no tail from a `by=grace` catch, none overlapping) |
 | `s5-parry-reward` | 0.1, **taps 3**, interval **3.0** | `PeriodicParry`, **`DebugParryIntervalSeconds` 6.0**, **`DebugParryPreBlockSeconds` 3.935** | every `PARRY SUCCESS` following a *released* guard credits `gained` **`BAND_PARRY_GAINED_EXACT`**. **The period is locked to the attacker's and the phase is derived from human timing** — 6.0 is two attack cycles, which is what lets the pre-block be both correctly phased and long enough to drain. Measured **6 of 6 catches**, all crediting 25, bar 60.6–70.6 |
 | `s5-parry-whiff` | 0.1, **taps 3** | `PeriodicParry`, `DebugParryIntervalSeconds` **0.5**, **and the defender also auto-attacks** (`bDebugAutoAttack`, interval **0.7**, `bDebugSuppressLunge`) | `PARRY RECOVERY` span `BAND_PARRY_RECOVERY` ±`BAND_PARRY_SPAN_TOL`; `REFUSED` naming **the lockout** (`parrying` or `parry recovery`) at least once; **nothing activates inside a recovery span (n=0 fails)**; **nothing activates inside a parry window either (n=0 fails)** |
 | `s5-cancel` | 0.1, **`bDebugCancelAttackIntoBlock`** | `Off` | zero `RELEASE BEGIN`; zero `DAMAGED`; `BLOCK cost` at least once |
@@ -602,6 +609,10 @@ settings rather than assertions — as do measurements, which record what a run 
 | `s6-airborne` | 0.1, **taps 3** | `Off`, plus **`bDebugPeriodicJump`** (interval **1.3**) | the airborne carry: at least one knockdown entering `airborne=1` (**n=0 fails**), and of the samples clearing **`BAND_AIRBORNE_MIN_HEIGHT`** above the floor, every one falling back to its own stand — *equal heights across a carry mean the body hung*. **The floor is the lowest grounded stand in the same run**, never the highest: the level has raised geometry and a stand occasionally happens on it. **Rare by nature** — measured 1 airborne in 20 knockdowns, so budget minutes |
 | `s7-death` | 0.1, **taps 3** | `Off`, `DebugAutoReviveSeconds` at its default **3.0** | death's own bookkeeping: `DEATH` fires (**n=0 fails**); every death lands at **exactly 0.0** health; every death has a `REVIVE`; `DEATH`→`REVIVE` is **`BAND_REVIVE_DELAY` ±`BAND_REVIVE_TOL`**, tracking the debug affordance rather than a design value; and **zero `DAMAGED` while dead**, plus the impulse read off `DEATH SETTLE` at ragdoll teardown and banded **`BAND_DEATH_SETTLE_LO`–`BAND_DEATH_SETTLE_HI`** against a measured 396-449 — the killing blow shares the death's timestamp and is excluded by a strict comparison, so only a *later* hit counts |
 | `s7-death-grade` | **0.22**, **taps 1** | `Off` | death supersedes knockdown on one contact: **zero deaths also produced a `KNOCKDOWN`**, with `KNOCKDOWN` count as the control that grading is live in the run. **The fixture is what makes it rigorous, not the assertion** — on heavies every swing is graded, so any death is necessarily a graded kill. On a light string the lethal blow is hit 7 while enders are hits 3 and 6, so it lands on a swing that would not have floored anyway and the check passes without exercising anything. Both assertions proven by injecting a `KNOCKDOWN` at a death's timestamp |
+| `s8-chain-early` | **scripted, not the dummy** — `Tools/RegressionCheck/ue_s8_driver.py` with `{"scen":"chain-early"}`; the dummies are silenced for the run and restored after | n/a | a press in the buffered slice (tap at 0.35) chains: at least one chain-out, **exactly one `STRING advance marked` per chain-out**, and one swing 0 per first-press. The advance count is the assertion that matters — a mark standing with no successor is the stale-window failure the link window had |
+| `s8-chain-late` | as above, `{"scen":"chain-late"}` — tap at 0.60, inside the open span | n/a | same four assertions; the press fires on arrival rather than waiting for the opening |
+| `s8-chain-closed` | as above, `{"scen":"chain-closed"}` — tap at 0.80, past the span's close | n/a | **zero chain-outs, zero advances marked, and every activation swing 0.** This is the row that would go red if the chain span lost its closing |
+| `s8-stale` | as above, `{"scen":"stale"}` — hold 0.00–0.40 for a heavy, then tap at 0.50 | n/a | the held swing activates; **zero chain-outs** (a heavy cannot be chained out of); at least one `BUFFER expired`; and **activations equal expiries**, so no attack fires after the swing that swallowed the press. Before the buffer extension was dropped this produced a stray light 1 up to 1.55 s late |
 | `s6-exhausted` (`-kipup`, `-block`, `-attack`) | 0.1 taps 3; **0.22 taps 1** for `-kipup` | **`PeriodicParry`, `DebugParryPreBlockSeconds` 12.0, `DebugParryIntervalSeconds` 13.0** — `s5-parry-reward`'s pre-block trick used for its side effect, plus the matching `DebugGetUpMode` | of the presses landing **while `State.Exhausted` is up** (**n=0 fails**), the three defensive options produce **zero** rises and the get-up attack produces one every time. **The refusal is asserted as the absent rise, not as a `REFUSED` line** — see the note below |
 
 **`s5-parry-whiff` needs its own interval, and finding out why cost a run** *(2026-08-18)*. At the

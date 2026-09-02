@@ -39,6 +39,9 @@ void UTDChargedAttackAbility::ActivateAbility(const FGameplayAbilitySpecHandle H
 	// is set -- so it clears per activation, or a parry ends chaining for the session rather than
 	// for its own string. The melee base clears it in the ActivateAbility this class bypasses.
 	bParried = false;
+	// The same hazard again: left set from a chain-out, it would make the *next* swing's natural
+	// end mark a string advance, which is the post-recovery continuation this replaced.
+	bEndingViaChainOut = false;
 	RecoveryStartedAt = 0.0f;
 	AppliedAttackTag = FGameplayTag();
 	// Same InstancedPerActor hazard: a tier montage left set would make the next swing read its
@@ -786,7 +789,17 @@ bool UTDChargedAttackAbility::IsChainOutOpen() const
 	}
 
 	const UWorld* World = GetWorld();
-	return World && World->GetTimeSeconds() >= RecoveryStartedAt + ChainOpenAfterRecoverySeconds;
+	if (!World)
+	{
+		return false;
+	}
+
+	// Two-sided: the span opens after ChainOpenAfterRecoverySeconds and closes ChainOpenDurationSeconds
+	// later, which lands inside recovery rather than at its end. Past the close the swing runs the
+	// rest of recovery with no exit, and a press arriving there starts a fresh string instead.
+	const float SinceRecovery = World->GetTimeSeconds() - RecoveryStartedAt;
+	return SinceRecovery >= ChainOpenAfterRecoverySeconds
+		&& SinceRecovery <= ChainOpenAfterRecoverySeconds + ChainOpenDurationSeconds;
 }
 
 bool UTDChargedAttackAbility::TryChainOutForBufferedPress()
@@ -799,12 +812,13 @@ bool UTDChargedAttackAbility::TryChainOutForBufferedPress()
 	// Chaining *skips the rest of recovery* -- that is the entire mechanism behind "lights have a
 	// quite long recovery, but can be chained which skips it". The early end runs the ordinary
 	// EndAbility funnel, so facing, tags, homing and the lunge clean up exactly as on a natural
-	// end, and EndAbility itself opens the link window for the activation the buffer fires next.
+	// end, and EndAbility marks the string advance for the activation the buffer fires next tick.
 	TD_TIMING_LOG(TEXT("[%.3f] STRING     chain out of swing %d, %.0fms into recovery"),
 		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f,
 		CurrentSwingIndex,
 		GetWorld() ? (GetWorld()->GetTimeSeconds() - RecoveryStartedAt) * 1000.0f : 0.0f);
 
+	bEndingViaChainOut = true;
 	EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, false);
 	return true;
 }
@@ -870,8 +884,8 @@ void UTDChargedAttackAbility::EndAbility(const FGameplayAbilitySpecHandle Handle
 
 	// The string's fate at this swing's end, decided where every exit converges. A cancelled swing
 	// -- a defensive cancel of the windup, death, a montage interrupt -- kills the string outright.
-	// A *completed* non-final string light opens the link window instead, whether the end was
-	// natural recovery or the chain-out's early exit. Heavy and charged already reset at commit.
+	// A non-final string light that was *chained out of* marks the advance instead. A natural end
+	// marks nothing, so the string closes with the swing. Heavy and charged already reset at commit.
 	if (ATDCombatCharacter* CombatCharacter = Cast<ATDCombatCharacter>(GetAvatarActorFromActorInfo()))
 	{
 		if (bWasCancelled)
@@ -881,13 +895,13 @@ void UTDChargedAttackAbility::EndAbility(const FGameplayAbilitySpecHandle Handle
 		else if (bParried)
 		{
 			// **A parried swing takes the string with it.** Gated here rather than at the parry
-			// itself, because this is where the link window is *opened*: resetting at contact and
-			// falling through to the branch below would re-open the window the reset just closed.
+			// itself, because this is where the advance is *marked*: resetting at contact and
+			// falling through to the branch below would re-mark what the reset just cleared.
 			CombatCharacter->ResetString(TEXT("parried"));
 		}
-		else if (bAttackCommitted && IsNonFinalStringLight())
+		else if (bAttackCommitted && bEndingViaChainOut && IsNonFinalStringLight())
 		{
-			CombatCharacter->OpenStringLinkWindow(StringLinkWindowSeconds);
+			CombatCharacter->MarkStringAdvancePending();
 		}
 	}
 

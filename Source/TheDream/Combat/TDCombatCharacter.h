@@ -466,21 +466,21 @@ public:
 		class UCurveVector* PathOffsetCurve = nullptr);
 
 	/**
-	 *  Which swing an attack activating now should be. Advances while the link window is open and a
-	 *  successor exists, resets otherwise, and consumes the window either way -- it reopens when the
-	 *  new swing ends, if that swing is chainable. Lives here because the string outlives any one
-	 *  activation.
+	 *  Which swing an attack activating now should be. Advances while the advance is marked and a
+	 *  successor exists, resets otherwise, and consumes the mark either way -- it is set again when
+	 *  the new swing is chained out of. Lives here because the string outlives any one activation.
 	 */
 	int32 ResolveStringSwingIndexForActivation(int32 SwingCount);
 
-	/** Opens the link window: a fresh attack press within it continues the string. */
-	void OpenStringLinkWindow(float WindowSeconds);
+	/**
+	 *  Marks the string to advance on the next activation. Set only by a chain-out, which ends its
+	 *  ability in the same tick the buffer then activates the successor in, so the mark is consumed
+	 *  immediately rather than standing as a window.
+	 */
+	void MarkStringAdvancePending();
 
-	/** Kills the string and its window. The reason is for the trace alone. */
+	/** Kills the string and any pending advance. The reason is for the trace alone. */
 	void ResetString(const TCHAR* Reason);
-
-	/** True while a chain press should outlive its ordinary buffer window; see TickInputBuffer. */
-	bool HasStringLinkWindowOpen() const;
 
 	/**
 	 *  Starts the guard's minimum-duration commitment. Pushed from the ability rather than detected
@@ -1122,9 +1122,13 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat|Debug", meta=(ClampMin="1"))
 	int32 DebugAutoAttackStringTaps = 1;
 
-	/** Seconds between the burst's taps. 0.25 lands each press mid-previous-swing. Debug only. */
+	/**
+	 *  Seconds between the burst's taps. 0.5 lands each press inside the previous swing's chain-open
+	 *  span; anything under roughly 0.28 expires before that span opens and the burst stops chaining.
+	 *  Debug only.
+	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat|Debug", meta=(ClampMin="0.05"))
-	float DebugAutoAttackStringTapIntervalSeconds = 0.25f;
+	float DebugAutoAttackStringTapIntervalSeconds = 0.5f;
 
 	/**
 	 *  Whether this auto-attacker turns to face its target, and when. Debug only.
@@ -1469,8 +1473,8 @@ private:
 
 	/**
 	 *  Whether the buffered press outlives its ordinary window: an ability answering it that opted
-	 *  into extension is running now, or its string link window is open. The policy is the
-	 *  ability's -- see UTDGameplayAbility::ShouldExtendBufferWhileActive.
+	 *  into extension is running now. The policy is the ability's -- see
+	 *  UTDGameplayAbility::ShouldExtendBufferWhileActive. No attack opts in.
 	 */
 	bool ShouldExtendBufferedPress(const FGameplayTag& InputTag) const;
 
@@ -2004,10 +2008,10 @@ private:
 	uint8 StringIndex = 0;
 
 	/**
-	 *  When the string's link window closes. Local like BlockstunEndsAt -- the replicated index is
-	 *  the wire truth, this is only its deadline.
+	 *  Whether the next activation continues the string. Local like BlockstunEndsAt -- the
+	 *  replicated index is the wire truth, this is only the pending step.
 	 */
-	float StringWindowEndsAt = 0.0f;
+	bool bStringAdvancePending = false;
 
 	/** The running knockback translation's root motion source ID, so a re-hit can replace it. */
 	uint16 KnockbackRootMotionSourceID = 0;

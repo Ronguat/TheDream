@@ -256,20 +256,21 @@ protected:
 	TArray<FTDAttackPosition> Positions;
 
 	/**
-	 *  How long after a chainable swing ends a fresh press continues the string, fighting-game link
-	 *  style, before it resets to hit 1. Also how long a buffered chain press outlives the swing that
-	 *  refused it -- one window on purpose. The delay-and-bait game's ceiling.
-	 */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|String", meta=(ClampMin="0.0"))
-	float StringLinkWindowSeconds = 0.4f;
-
-	/**
 	 *  Extra delay after recovery starts before a chain may leave the swing. 0 chains at recovery
 	 *  start, the release window's close. The cadence knob beyond hitstun: raising it slows every
 	 *  string without touching a clip.
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|String", meta=(ClampMin="0.0"))
 	float ChainOpenAfterRecoverySeconds = 0.0f;
+
+	/**
+	 *  How long chain-out stays open once ChainOpenAfterRecoverySeconds has elapsed. The span closes
+	 *  inside recovery rather than at its end, so a swing left unchained past it runs the remainder
+	 *  with no exit. InputBufferSeconds covers the same length before the span opens, making the
+	 *  press-to-press window this value either side of the cadence.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|String", meta=(ClampMin="0.0"))
+	float ChainOpenDurationSeconds = 0.2f;
 
 	virtual float GetAttackDamage() const override;
 	virtual float GetAttackStaminaDamage() const override;
@@ -289,8 +290,7 @@ protected:
 	virtual const TArray<FTDAttackHitbox>& GetAttackHitboxes() const override;
 	virtual UAnimMontage* GetActiveAttackMontage() const override;
 
-	/** Chain presses survive a running attack; see the base's contract. */
-	virtual bool ShouldExtendBufferWhileActive() const override { return true; }
+	/** Inherits the base's refusal: a press expires at InputBufferSeconds whatever is running. */
 
 	/** Ends this swing early for a waiting chain press, if the chain-out span is open. */
 	virtual bool TryChainOutForBufferedPress() override;
@@ -437,6 +437,13 @@ private:
 
 	/** World time recovery began, for ChainOpenAfterRecoverySeconds. */
 	float RecoveryStartedAt = 0.0f;
+
+	/**
+	 *  Set by TryChainOutForBufferedPress immediately before it ends the ability, so EndAbility can
+	 *  tell a chain-out from a natural end -- both arrive through the same funnel, and only the
+	 *  chain-out advances the string.
+	 */
+	bool bEndingViaChainOut = false;
 
 	FTimerHandle CheckpointTimerHandle;
 	FGameplayTag AppliedAttackTag;

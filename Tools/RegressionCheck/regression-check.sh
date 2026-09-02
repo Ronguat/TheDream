@@ -17,6 +17,7 @@
 #            s6-dodge s6-kipup s6-block s6-hard-stand      (sub-slice D's options)
 #            s6-exhausted s6-exhausted-kipup s6-exhausted-block s6-exhausted-attack
 #            s6-airborne s6-exhaust-regen
+#            s8-chain-early s8-chain-late s8-chain-closed s8-stale  (need ue_s8_driver.py)
 # Exit 0 = all assertions passed, 1 = at least one failed, 2 = usage/no data.
 
 set -uo pipefail
@@ -485,15 +486,15 @@ grace_overlap_violations() { # a tail opening while one is already running
 		/^\[[0-9.]+\] PARRY GRACE END/  { open=0 }' "$SLICE"
 }
 
-parried_string_violations() { # a parried swing must not open a link window
-	# The next STRING line after each PARRY SUCCESS has to be a reset, never "link window open".
+parried_string_violations() { # a parried swing must not mark a string advance
+	# The next STRING line after each PARRY SUCCESS has to be a reset, never "advance marked".
 	# Looking forward rather than pairing by swing index because the parried attacker is named on
 	# the WAIVER/STRING lines but not on the parry's own, and the fixture is 1v1 -- so the very next
 	# STRING event is unambiguously this swing's. A second attacker would need the name.
 	awk '
 		/^\[[0-9.]+\] PARRY SUCCESS/ { armed=1; next }
 		armed && /^\[[0-9.]+\] STRING/ {
-			if ($0 ~ /link window open/) print $0
+			if ($0 ~ /advance marked/) print $0
 			armed=0
 		}' "$SLICE"
 }
@@ -901,7 +902,7 @@ run_s5_parry() {
 	assert_gesture_inside_window
 	assert_parry_grace
 
-	# "No more games": a parried swing takes the string with it, so no link window may follow one.
+	# "No more games": a parried swing takes the string with it, so no advance may be marked after one.
 	violations=$(parried_string_violations | grep -c '[0-9]' || true)
 	assert_count "no STRING continuation after a parry" "$violations" 0
 
@@ -1219,6 +1220,61 @@ run_s4_string() {
 		"$(awk -v v="$BAND_HITSTUN_LIGHT" -v t="$BAND_HITSTUN_TOL" 'BEGIN{printf "%.3f", v-t}')" \
 		"$(awk -v v="$BAND_HITSTUN_LIGHT" -v t="$BAND_HITSTUN_TOL" 'BEGIN{printf "%.3f", v+t}')" "s"
 	assert_never_inward
+}
+
+# --- s8: the chain input window --------------------------------------------
+#
+# Driven by Tools/RegressionCheck/ue_s8_driver.py, one press pattern per rep against a pawn parked
+# in open space. Every swing whiffs deliberately: a landed hit waives commitment and resets the
+# string, which is a different question from the input window these assert.
+
+s8_chainouts()  { grep -c "STRING     chain out of swing" "$SLICE" || true; }
+s8_activates()  { grep -c "ACTIVATE   BP_PlayerCharacter" "$SLICE" || true; }
+s8_swing0()     { grep "ACTIVATE   BP_PlayerCharacter" "$SLICE" | grep -c "swing=0" || true; }
+s8_advances()   { grep -c "STRING     advance marked" "$SLICE" || true; }
+s8_expiries()   { grep -c "BUFFER     .*expired" "$SLICE" || true; }
+
+run_s8_chain() { # run_s8_chain <expect-chaining 1/0>
+	local want="$1" outs acts s0 adv reps
+	outs=$(s8_chainouts); acts=$(s8_activates); s0=$(s8_swing0); adv=$(s8_advances)
+
+	# One activation per press that fired. Chaining reps fire twice, a closed window twice as well
+	# -- the difference is *what* the second one is, which the swing index below decides.
+	check "some attack activated" "$([ "$acts" -gt 0 ] && echo 0 || echo 1)" "$acts ACTIVATE lines"
+
+	if [ "$want" -eq 1 ]; then
+		check "chain-out fired" "$([ "$outs" -gt 0 ] && echo 0 || echo 1)" "$outs chain-outs"
+		# Every chain-out marks exactly one advance, and every advance is consumed by a successor:
+		# a mark standing with no successor is the stale-window failure the link window had.
+		assert_count "one advance marked per chain-out" "$adv" "$outs"
+		reps=$((acts - outs))
+		check "each chain-out produced a successor" \
+			"$([ "$s0" -eq "$reps" ] && echo 0 || echo 1)" \
+			"$s0 swing=0 against $reps first-presses"
+	else
+		# The whole point: past the window's close nothing chains, and the buffered press that
+		# arrives there starts a fresh string rather than continuing the old one.
+		assert_count "no chain-out past the window" "$outs" 0
+		assert_count "no advance marked" "$adv" 0
+		assert_count "every activation is swing 0" "$s0" "$acts"
+	fi
+}
+
+run_s8_stale() {
+	# A tap made during a committed swing must expire at InputBufferSeconds rather than outliving
+	# the swing and firing on its end. Before the extension was dropped this produced a second
+	# attack up to 1.55 s after the press.
+	local acts outs exp
+	acts=$(s8_activates); outs=$(s8_chainouts); exp=$(s8_expiries)
+
+	check "the held swing activated" "$([ "$acts" -gt 0 ] && echo 0 || echo 1)" "$acts ACTIVATE lines"
+	assert_count "no chain out of a non-chaining swing" "$outs" 0
+	check "the stray tap expired" "$([ "$exp" -gt 0 ] && echo 0 || echo 1)" \
+		"$exp BUFFER expiries"
+	# One activation per rep and no more: a second would be the stale press firing late.
+	check "no attack activated after the swing" \
+		"$([ "$acts" -eq "$exp" ] && echo 0 || echo 1)" \
+		"$acts activations against $exp expiries"
 }
 
 run_s4_guarantee() {
@@ -2085,6 +2141,10 @@ case "$SCENARIO" in
 	s6-exhaust-regen) run_s6_exhaust_regen ;;
 	s7-death)       run_s7_death ;;
 	s7-death-grade) run_s7_death_grade ;;
+	s8-chain-early)  run_s8_chain 1 ;;
+	s8-chain-late)   run_s8_chain 1 ;;
+	s8-chain-closed) run_s8_chain 0 ;;
+	s8-stale)        run_s8_stale ;;
 	*) echo "regression-check: unknown scenario '$SCENARIO'" >&2; usage ;;
 esac
 

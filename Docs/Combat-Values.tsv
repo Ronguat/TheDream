@@ -16,7 +16,7 @@ BP_PlayerCharacter	DebugAutoAttackHoldSeconds	0.1
 BP_PlayerCharacter	DebugAutoAttackInputTag	None
 BP_PlayerCharacter	DebugAutoAttackInterval	3
 BP_PlayerCharacter	DebugAutoAttackResetDelaySeconds	0.35
-BP_PlayerCharacter	DebugAutoAttackStringTapIntervalSeconds	0.25
+BP_PlayerCharacter	DebugAutoAttackStringTapIntervalSeconds	0.5
 BP_PlayerCharacter	DebugAutoAttackStringTaps	1
 BP_PlayerCharacter	DebugAutoDefendMode	OFF: 0>
 BP_PlayerCharacter	DebugAutoReviveSeconds	3
@@ -99,7 +99,7 @@ BP_TrainingDummy	DebugAutoAttackHoldSeconds	0.1
 BP_TrainingDummy	DebugAutoAttackInputTag	InputTag.Attack
 BP_TrainingDummy	DebugAutoAttackInterval	3
 BP_TrainingDummy	DebugAutoAttackResetDelaySeconds	0.35
-BP_TrainingDummy	DebugAutoAttackStringTapIntervalSeconds	0.25
+BP_TrainingDummy	DebugAutoAttackStringTapIntervalSeconds	0.5
 BP_TrainingDummy	DebugAutoAttackStringTaps	1
 BP_TrainingDummy	DebugAutoDefendMode	OFF: 0>
 BP_TrainingDummy	DebugAutoReviveSeconds	3
@@ -203,6 +203,7 @@ GA_Attack	Branches[2].MontageSection	None
 GA_Attack	Branches[2].ReleaseAtSeconds	0.8
 GA_Attack	Branches[2].bChainsIntoString	false
 GA_Attack	ChainOpenAfterRecoverySeconds	0.133
+GA_Attack	ChainOpenDurationSeconds	0.2
 GA_Attack	CommittedTag	State.Attacking.Committed
 GA_Attack	Damage	15
 GA_Attack	DamageEffectClass	/Game/TheDream/Combat/Effects/GE_Damage_Melee.GE_Damage_Melee_C
@@ -405,7 +406,6 @@ GA_Attack	Positions[2].Cells[2].ReleaseStartSeconds	0.967
 GA_Attack	Positions[2].Cells[2].StaminaDamage	100
 GA_Attack	Positions[2].CoilEndSeconds	0.4606
 GA_Attack	StaminaDamage	5
-GA_Attack	StringLinkWindowSeconds	0.4
 GA_Attack	TargetImmunityTags	State.Dodging
 GA_Attack	WindupSection	None
 GA_Attack	bAllowedFromKnockdown	false

@@ -400,23 +400,13 @@ answerable by the flinch race and by heavy-on-block. Accepted eyes-open per the 
 precedent, **same recorded fallback: a contact gate on chain-out kills both behaviours in one
 condition.** Interplay judges; do not fix on paper.
 
-**Before Interplay's buffer subslice — *the buffer extension lets you queue an attack ahead
-through a heavy or charged, and nobody chose that.*** Filed 2026-08-16 during the extension's
-review. `ShouldExtendBufferWhileActive()` is a property of the **ability**, not of the branch, and
-`UTDChargedAttackAbility` returns true — so it holds a press through *any* active `GA_Attack`,
-including a 1.15 s heavy or a 1.50 s charged, not only a chain-eligible light.
-
-**The consequence is a second commitment stacked on an unresolved first one.** Press attack 200 ms
-into your heavy and the next swing is locked in a second before it happens, decided on
-second-old information. The heavy's whole design is a commitment you can be punished for. Being
-*hit* is safe — hitstun cancels and the press then expires — but **blocked and dodged heavies both
-leave the queued swing live**, which are precisely the outcomes a punish follows.
-
-**Emergent rather than designed**: the plan's wording was "a press made while I run is a request to
-follow me", written with string chaining in mind, and the heavy case rides along for free. Narrowing
-the predicate to chain-eligible attacks is the third of the subslice's three one-line options. **Not
-a defect and not yet felt** — recorded so the subslice inherits it as a known property rather than
-rediscovering it.
+**~~Before Interplay's buffer subslice — *the buffer extension lets you queue an attack ahead
+through a heavy or charged, and nobody chose that.*~~ — DISCHARGED 2026-09-02** by dropping the
+extension outright. **Evicted to the 2026-09-02 entry**, which carries the measurements, the
+designer's reasoning and what the original filing missed: light 3 had the identical property, was
+never named here, and at 1.18 s beat the heavy this trap did name. **The lesson that outlives it**:
+the trap was reviewed at length and reasoned about correctly for the case it named, but nobody
+measured it, and the widest case went unrecorded for two weeks.
 
 **Whenever a `UPROPERTY` is renamed — *Blueprint-authored values are orphaned, and the properties
 cheapest to verify are exactly the ones that cannot break.*** Filed 2026-08-24, from the knockdown
@@ -1188,6 +1178,67 @@ properties, which does not meet this project's own rule. Neither is a teardown:
 calls it. Still owed — replicate the *decision* (this attack is in its lock phase) and let each
 machine run its own fade, rather than putting a per-frame float on the wire.
 
+**Before Interplay rules on defensive options — *a whiffed light cannot be defended out of, but
+chaining into a new one and cancelling that can, and the second route is hidden.*** Filed
+2026-09-02 by the designer, from the description rather than from play; **not a defect, and
+deliberately not fixed here.**
+
+**The mechanism, read off the code rather than inferred.** `State.Attacking.Committed` sits in
+`ActivationBlockedTags` on the defensive abilities, and `CommitAttack` applies it at the branch's
+`HoldUntilSeconds` — *"Past this point the attack can no longer be cancelled into a defensive
+action."* Commit always precedes the release window (light 0.150 against 0.200, heavy 0.350 against
+0.400, charged 0.750 against 0.800), so **every attack's cancel window is spent before you can know
+you whiffed**. The get-up attack alone has none at all: `SetCommitted(true)` runs in its activation.
+A whiffed light therefore refuses defence from 0.150 to 0.950, **800 ms**.
+
+**What makes the light different is not a longer window but a fresh one.** Chaining starts a new
+swing whose commit has not happened, so the tech is: whiff, chain at the chain-out span, then cancel
+the successor. **Holding is both the escalation input and the stay-cancellable input** — each
+checkpoint reschedules to the next branch's `HoldUntilSeconds`, so a held press stays uncommitted to
+**0.750** and the cancel can be taken at leisure. That is the designer's objection: *"This feels
+dirty, and I don't love it"*, against games where gating defence behind an offensive cancel *"were
+sometimes viewed as prohibitively hostile to new players."*
+
+**No punish window survives option 1, and the reason is easy to miss.** A guard is a held state, so
+an attacker who opens defence at the chain span's start is still guarding through everything after
+it — the 267 ms locked span the chain window's close creates is not locked for them. An earlier
+claim in this session that a defender's hit landing in 0.683–0.950 would be guaranteed is **wrong**
+for that reason.
+
+**Three options, each given as all nine cells by the designer. Jump follows the three defensive
+options in every one of them** *(2026-09-02)*; "defence cancel" below means block, dodge, parry and
+jump.
+
+| | L1 | H1 | C1 | L2 | H2 | C2 | L3 | H3 | C3 |
+|---|---|---|---|---|---|---|---|---|---|
+| **1** — level the field | **gains** defence during its chain-out | — | — | **gains** defence during its chain-out | — | — | — | — | — |
+| **2** — give the tech a floor | — | — | — | **loses** | **loses** | — | **loses** | **loses** | — |
+| **3** — half measure | **gains** defence during its chain-out | — | — | — | — | — | **loses** | **loses** | — |
+
+**Read against the tech, in the designer's terms: option 1 makes it fully redundant; option 2 makes
+it weaker but mandatory; option 3 is half and half** — redundant for light 1, weaker but mandatory
+for light 2. Option 1 makes L1 and L2 the first attacks in the game safe on whiff against a
+reacting attacker. Option 2 reduces to *at chained positions, only the charged tier is
+defence-cancellable*, and leaves neutral play untouched. Option 3's gradient is the point: *"new
+players would know to only ever throw out L1 if they're fishing for a stray hit and then hit confirm
+on reaction, while better players would learn they could also look to fish with L2, but it's
+riskier."*
+
+**The option-2 escalation, as given and not sharpened**: *"if this were not enough of a restriction,
+we could go further still and say you need to reach C2 first before you can defense cancel"* — which
+is what the table above encodes, the 0.350 heavy checkpoint being where the restriction bites.
+
+**A fourth was pitched and rejected**: a contact gate on chain-out, this file's own recorded fallback
+for the neighbouring trap. *"Valid but a bit heavy-handed and comes at the cost of depth"* (the
+designer, 2026-09-02).
+
+**Two reasons it waits.** The neighbouring trap already rules *"Interplay judges; do not fix on
+paper"*, and this was reacted to as a description rather than executed in play. And **the tech's cost
+changed under the same session that filed this**: the chain span went from 467 ms to 200 ms, so
+whatever is judged must be judged against the shipped window, not the one the objection formed
+against. The designer's own read on the precedent, after it was checked: the *"first hit safe on
+block"* wording superseded 2026-08-16 is about **block, not whiff**, so *"the precedent does not
+apply here after all, which weakens the case for Option 3"* — and no option is recorded as preferred.
 ---
 
 ---
@@ -1275,8 +1326,8 @@ than a refusal.
 | Exhaustion is invisible until you press something | `ExhaustedMaxWalkSpeed` — a body that moves worse announces the state before a bar does | `ExhaustedStaminaRegenPerSecond`, which changes how *long* exhaustion lasts rather than whether the player can tell they are in it. Different complaint. |
 | The exhausted guard drops too abruptly | Nothing, or `MinimumBlockSeconds` — the drop is at the commitment's expiry **by derivation**: you cannot block while exhausted, and all blocks are created equal | Exempting the exhausted guard from the commitment, or letting it persist while held. The first re-opens the bimodal-duration bug; the second contradicts the exhaustion lockout outright. |
 | Mashed attacks feel over-forgiven, or land on the wrong target in 1vX | `ShouldExtendBufferWhileActive()` — three one-line options: keep, return false to drop it, or narrow it to chain-eligible attacks so it stops queueing through heavies. Interplay's buffer subslice owns the call | `InputBufferSeconds`. That is the global tap grace and shortening it to curb mashing also breaks buffering a heavy, which is what it exists for. And **not** the aim: a swing's direction is read at commit, so what feels like bad aim is press timing, not the wedge. |
-| Chain links drop when mashing fast | Nothing — check the `BUFFER` trace first. Pressing early buys **no** cadence: chain-out fires when recovery opens, not when the press arrived | Widening `InputBufferSeconds`, or `StringLinkWindowSeconds`. A dropped chain tap means the press was *completed* inside the swing's first ~165 ms, which the extension already rescues; if it still drops, the extension is off or the ability stopped opting in. |
-| The window to chain feels too generous | `StringLinkWindowSeconds` for the post-recovery half, `ChainOpenAfterRecoverySeconds` for when the in-swing half opens | The buffer. The chain-out span is the whole of recovery by construction — it is gated on `bInRecovery` — so tightening the *input* window is not what shortens it; `RecoverySeconds` is, and that is the punish window. |
+| Chain links drop when mashing fast | Nothing — check the `BUFFER` trace first. Pressing early buys **no** cadence: chain-out fires when the span opens, not when the press arrived. A press completed before 0.283 is *meant* to expire unfired as of 2026-09-02 | Widening `InputBufferSeconds`. It is the bottom slice of the press-to-press window by construction — 0.2 back from the span's opening — so widening it moves the window's start and nothing else, and the extension that used to rescue an early tap is gone deliberately. |
+| The window to chain feels too generous, or too tight | **`ChainOpenDurationSeconds`** — how long the span stays open past its opening, 0.2, and **the Interplay-deferred knob**: this is the value the 2026-08-16 "a bit vast" deferral was actually about, mis-stated at the time because it did not exist yet | `ChainOpenAfterRecoverySeconds`, which sets when the span *opens* and is the cadence — see the row below. Widening the duration past `HitstunSeconds` 0.55 also costs the string's guarantee at the slow end, which is a design trade rather than a bug (2026-09-02) but is not free. |
 | The string's cadence feels wrong | **`ChainOpenAfterRecoverySeconds`, but it is derived and not free.** 0.133 comes from `cadence = 0.200 + 0.150 + ChainOpen + one frame` against a **500 ms cadence tapped by the designer**, the one number in the project measured off a human rather than chosen. Moving it moves the cadence away from that measurement, so re-derive rather than nudge — and `HitstunSeconds` must stay above the resulting gap or the string's guarantee silently stops being true | The montage rates or `RecoverySeconds`. Pressing earlier buys no cadence at all: chain-out fires when recovery opens, not when the press arrived. |
 | The parry window feels too tight, or too forgiving | **Nothing, without re-deriving the ceiling** — which is now the only fence. `ParryWindowSeconds` is bounded above by the anti-option-select rule: one press must not cover two read-classes, so it stays under the fast↔charged gap, 800 − 400 = **400 ms**. 300 is legal *only because of the re-pole*; under the old ladder the ceiling was 250. **The gap itself is set by `DodgeSeconds`, not by this window** — see the rows below. **The lower fence — window ≥ the longest authored `ReleaseSeconds` — retired with Knockdown's parry rework; the argument is the 2026-08-19 entry and the superseded row.** **What the window guarantees is first contact with no prior catch**: a catch collapses the remaining cover to Grace, deliberately | Widening it toward the gap "because there is room". The room is the whole margin protecting the read from becoming an option-select, and spending it converts parry from a read into a timing test — which is the identity the entire input scheme was chosen to protect |
 | A whiffed parry is punished too hard, or too cheaply | `ParryWhiffRecoverySeconds`, above its floor — a whiff timed against the **fast** layer stays locked through the charged's arrival (the spec's parry section), or reading "fast" wrongly costs nothing and the charged can never collect on it. 2026-08-19 widened what the tail buys from "you cannot defend" to "you cannot act", so it prices a harsher punish than when chosen | Adding a stamina cost to the parry. It is **time**-priced by design, and pricing it in both ledgers makes it block with extra steps — the pricing symmetry (dodge stamina, block both, parry time) is the thing being protected |
@@ -1360,6 +1411,8 @@ concludes the log is wrong rather than merely old. Add a row whenever a name cha
 
 | Entries say | Code now |
 |---|---|
+| **`StringLinkWindowSeconds`**, the **link window**, and `OpenStringLinkWindow` / `HasStringLinkWindowOpen` / `StringWindowEndsAt` | **Gone as of 2026-09-02.** The window did two jobs and only the first survives: advancing the string, now `bStringAdvancePending` marked by `MarkStringAdvancePending` on the chain-out path alone and consumed by the next activation; and keeping that advance available for 400 ms after the ability ended, which is the part that was retired. The trace line `STRING link window open ... until` is now `STRING advance marked ...` with no deadline. Entries before that date describe a fourth phase that no longer exists. |
+| **the chain-out span as "the whole of recovery"** | **A two-sided span**: it opens at `ChainOpenAfterRecoverySeconds` and closes `ChainOpenDurationSeconds` later, both inside recovery. Entries up to 2026-09-02 describe it as running to the ability's end, which was true — `IsChainOutOpen` had an opening and no closing. |
 | **Not scriptable at all** (`Working-In-Unreal.md` section) | **What is and is not scriptable** — retitled because most of the section refutes limits rather than asserting them, then **moved wholesale to `Docs/Unreal-Findings.md` on 2026-08-27** when the lookup half was split from the pre-read. |
 | **the derived parry reward** — “rides their own attack into recovery” | **`State.ParryLockout`, with `ParryLockoutSeconds` authored per cell.** The derivation retired 2026-08-20: a catch only lands once the hitbox is live, so the windup always cancelled out and what remained was `Release + Recovery`. Entries before that date describe the derived model as current. |
 | **`State.ParryLockout` “reserved, unused”** | **Live since Knockdown's sub-slice E** — the tenth replicated family member, inflicted on an attacker who has been parried, refusing everything and taking the full movement lock. Entries up to 2026-08-19 describe it as held in reserve. |
@@ -1493,7 +1546,8 @@ long.
 | `CancelAbilitiesWithTag` | 08-24 |
 | `CancelAbilities` | 08-14 |
 | `CancelAllAbilities` | 08-11, 08-12 |
-| `ChainOpenAfterRecoverySeconds` | 08-16, 08-18 |
+| `ChainOpenAfterRecoverySeconds` | 08-16, 08-18, 09-02 |
+| `ChainOpenDurationSeconds` | 09-02 |
 | `ClampVelocity` | 08-14 |
 | `ClearExhaustionState` | 08-11 |
 | `ClearParryLockoutState` | 08-24 |
@@ -1595,7 +1649,7 @@ long.
 | `InitialiseAbilitySystem` | 08-11, 08-15 |
 | `InputBufferSeconds` | 08-11, 08-12, 08-15, 08-16 |
 | `IsBlocking` | 08-14 |
-| `IsChainOutOpen` | 08-16 |
+| `IsChainOutOpen` | 08-16, 09-02 |
 | `IsFacingLocked` | 08-12 |
 | `IsFalling` | 08-10 |
 | `IsGuardFacing` | 08-14 |
@@ -1623,6 +1677,7 @@ long.
 | `LogTDCombatTiming` | 08-12 |
 | `LungeStandoffCm` | 08-13 |
 | `MakeDisabled` | 08-14 |
+| `MarkStringAdvancePending` | 09-02 — replaced `OpenStringLinkWindow` |
 | `MaxReachCm` | 08-12, 08-14 |
 | `MaxStamina` | 08-18 |
 | `MaxWalkSpeed` | 08-11, 08-12, 08-13 |
@@ -1676,7 +1731,7 @@ long.
 | `SetTimer` | 08-11 |
 | `ShieldMesh` | 08-11 |
 | `ShouldBufferFailedInput` | 08-11, 08-14 |
-| `ShouldExtendBufferWhileActive` | 08-16 |
+| `ShouldExtendBufferWhileActive` | 08-16, 09-02 — no ability overrides it as of 09-02 |
 | `SilenceMontageTask` | 09-01 |
 | `StaminaDamage` | 08-14, 08-18 |
 | `StaminaRegenPauseSeconds` | 08-10, 08-14 |
@@ -1695,7 +1750,7 @@ long.
 | `StopLunge` | 08-14 |
 | `StopRagdoll` | 08-13 |
 | `StrengthOverTime` | 08-12 |
-| `StringLinkWindowSeconds` | 08-16 |
+| `StringLinkWindowSeconds` | 08-16, 09-02 — retired 09-02; see `ChainOpenDurationSeconds` |
 | `StringSwings` | 08-16, 09-02 |
 | `SwordShield` | 08-10, 08-11 |
 | `TDChargedAttackAbility` | 08-11 |
@@ -1773,6 +1828,140 @@ long.
 | `ue_chart_ab.py` | 09-02 |
 | `ue_fit_tier_montages.py` | 09-02 |
 | `ue_seed_cells.py` | 09-02 |
+
+## 2026-09-02 — The link window is retired, the chain window gets a close, and the buffer stops outliving the swing
+
+Found by the designer in play while reaching for all nine sockets, and taken out of roster order
+deliberately: *"It's tricky to polish a system that isn't working as intended."* The Polish windup
+pass — H1, C1, C2, C3 — is parked where the previous entry left it.
+
+### Three spans were doing the work of one, and only one had ever been chosen
+
+**The link window was never authored by a decision.** `StringLinkWindowSeconds` 0.4 arrived in
+`cbbbefe`, "Sitting 1: the string's whole C++ core lands inert", bundled with the buffer extension
+and armed in sitting 2. No dated entry picks it; the symbol index's 08-16 is that commit. Every
+later mention treats it as pre-existing, and two of them disagree about what it is: the 08-16
+fragment note has it closing *"roughly 400 ms after recovery starts"*, which would put it inside
+recovery, while the delay-and-bait analysis has the attacker's dial running *"roughly 480–1350 ms"*,
+which is what was built.
+
+What it actually did: open a fourth phase **after the ability ended**, during which a press from
+neutral continued the string. Measured off the designer's own session — six chain presses, every one
+159–267 ms after `elapsed 0.955`, a full natural end. Total span in which a press did not produce a
+fresh light 1: **0.283 → 1.350, 1067 ms**, against a 500 ms cadence. The window to *ask* for hit 2
+stayed open 650 ms after the moment hit 2 would have landed.
+
+**The designer had already flagged it, on 2026-08-16**, as *"a bit vast"*, deferred to Interplay
+*"under their own rule about not tuning before it is felt."* It has now been felt.
+
+### The sandwich, and what it corrects in this file
+
+The designer's model, which is what shipped: **a 400 ms press-to-press window centred on the
+chain-out opening.** The bottom slice falls out of `InputBufferSeconds` 0.2 and needed nothing built;
+the top slice is `ChainOpenDurationSeconds`, new, and is the only number chosen.
+
+| | Span from the press | Mechanism |
+|---|---|---|
+| bottom slice | 0.283 → 0.483 | the press is buffered and fires when chain-out opens |
+| centre | 0.483 | chain-out opens; fires one frame later |
+| top slice | 0.483 → 0.683 | chain-out still open, fires on the press |
+
+**This leaves the cadence untouched, which is the whole reason it is cheap.** Chain-out still *opens*
+at `ChainOpenAfterRecoverySeconds` 0.133, so the minimum gap is still the 500 ms tapped from 28
+samples, and `HitstunSeconds` 0.55 and `BlockstunSeconds` 0.35 keep their derivations exactly.
+Nothing cascaded.
+
+**It corrects a claim made earlier in the same session, wrong as stated**: that the vulnerable
+portion of recovery and the cadence are "the same number read from two ends", so the light could not
+be made more vulnerable without slowing the string. True of the window's *opening*, which
+`ChainOpen` sets. False of the window as a whole — **closing it early is a second lever and does not
+touch the cadence.** The locked share of the light's 600 ms recovery goes from 22% to 67% (133 ms
+before the span, 267 ms after it) at an unchanged cadence.
+
+**Guarantee, deliberately**: hitstun 0.55 covers a chain pressed up to 0.55, so the last 133 ms of
+the top slice trades "any hit guarantees the rest" for a bait. The designer's ruling, kept as given:
+*"Delaying your chain is a strategic decision that deliberately opens up the opportunity for the
+opponent to interrupt. Its existence is a feature, not a bug."* The exchange it produces is theirs: a
+defender who punishes on reaction loses to an immediate chain, so they must wait; a delayed light is
+the attacker's only tool against that wait; anticipating the delay wins the punish back; and the only
+true escape is escalating to a heavy or charged and cancelling it into a defensive option.
+
+### The link window was load-bearing for chain-out, which is why this was not a deletion
+
+`ResolveStringSwingIndexForActivation` advanced the string **only while `StringWindowEndsAt` was in
+the future**, and `EndAbility` opened that window on the chain-out and natural-end paths alike.
+Removing it naively makes every chain produce swing 0. The window was doing two jobs: *advance the
+string*, which chain-out needs in the same tick, and *keep advancing it for 400 ms*, which is the
+part nobody chose.
+
+Split accordingly: `bStringAdvancePending`, a bool marked only on the chain-out path and consumed by
+the next activation. All chaining runs through the buffer tick, which ends the ability and retries
+activation in the same tick, so the mark is never observable as a window.
+
+**The flag is per-instance and the first build had the bug that implies.** Attack abilities are
+`InstancedPerActor`, so `bEndingViaChainOut`, set during swing 0's chain-out, was still standing at
+swing 1's *natural* end — which marked an advance and continued the string, the exact behaviour being
+removed wearing a different mechanism. Caught by the s8 run on the first build, not by reading. It
+clears per activation now, beside `bParried` and `ActiveTierMontage`, which carry the same hazard and
+say so.
+
+### The buffer extension is dropped outright
+
+`ShouldExtendBufferWhileActive()` returned true on the attack ability unconditionally, so a press
+made during your own swing survived the whole swing rather than `InputBufferSeconds`. Measured in the
+designer's session: **1057, 1057, 1058, 1060 and 1163 ms late**, each firing a stray light 1 after
+the swing that swallowed it. Light 3 is the worst case at 1.18 s, and heavy and charged reach 1.05
+and 1.55, because none of the three can be chained out of — the press has nothing to fire into early
+and simply waits.
+
+**This is the 2026-08-16 trap, one case wider than it was filed.** That entry names heavy and charged
+and calls the behaviour *"emergent rather than designed"*; light 3 has the identical property and was
+never recorded. Its "insurance, not technique" defence holds only for chain-eligible lights, where
+the press fires at chain-out; on a non-chaining swing there is no chain-out to fire into, so pressing
+early buys an unrequested attack rather than insurance.
+
+Dropped rather than narrowed to chain-eligible attacks, on the designer's reasoning: *"This game is
+designed to encourage and reward precision, and a false positive input is several orders of magnitude
+more disastrous than a false negative. And, if someone is rapidly left clicking, they're still gonna
+get three light attacks even without the buffer extension."* The second half was checked rather than
+taken: at a 200 ms buffer a rapid clicker lands a press in [0.283, 0.483] every time. **The cost,
+stated so it is not rediscovered**: a press before 0.283 now expires unfired, and a press in
+(0.683, 0.750) — past the window's close but too early to survive to the ability's end — is dropped
+silently, a 67 ms dead band.
+
+Narrowing was also costed, and is not the one-liner the 08-16 entry calls it:
+`ShouldExtendBufferWhileActive()` is called on `Spec->Ability`, the CDO, while
+`IsNonFinalStringLight()` reads per-instance state. Recorded against a future attempt.
+
+### The fixture was calibrated against the extension, and the loop would have gone quiet
+
+`DebugAutoAttackStringTapIntervalSeconds` 0.25 could no longer produce a three-swing string: the
+burst's third tap expired 156 ms before light 2's chain-out opened, so `s4-string` came back
+`saw 2 distinct swing indices` while its chain gap and latency both passed. **The mechanism was
+correct and the fixture had gone stale** — the old extension held those taps indefinitely, which is
+what made 0.25 work. Now 0.5, with the header's *"0.25 lands each press mid-previous-swing"*
+corrected in the same change.
+
+### Verified
+
+Four new scenarios on the shipped build: `s8-chain-early` 4/4 with 5 chain-outs, 5 advances marked
+and 5 successors; `s8-chain-late` 4/4 at 8; `s8-chain-closed` 4/4 with **16 activations, every one
+swing 0**, no chain-out and no advance marked; `s8-stale` 4/4 with 8 heavies, 8 buffer expiries and
+no attack after any of them. `--self-test` was run first, and the first build's per-instance bug is
+the proof these rows can fail.
+
+Re-verified: `s4-string` **7/7**, 30/30/30 across the three swings, chain gap **n=60 all within
+[0.455, 0.545] s** — the cadence is where the tapping put it. `s5-parry` 11/12, its one red the
+**pre-existing** `PARRY LOCKOUT span` 0.972 against a band that never covered the ender, recorded in
+the Polish brief before this session; the assertion this session edited, *no STRING continuation
+after a parry*, passes at 0, and chaining resumes with 52 chain-outs after the first catch.
+
+**Not cleanly re-run, and not claimed either way**: `s4-guarantee` and `s4-block`. The attacker
+targeted the player rather than the dummy in those sessions, so the defend mode went on a pawn that
+was not receiving the string; `DODGE` lines carry no pawn name, so *zero dodges inside hitstun*
+paired the other dummy's timer-driven dodge with the player's stun — the flagged dodge sits 45 ms
+*after* the stun it was attributed to. The guarantee's own evidence passed in that run: 83 refusals
+naming `State.Hitstun`, spans n=18 in band.
 
 ## 2026-09-02 — Every position authors its tiers, the hand-off goes inertial, and the blend-out boundary was in play time all along
 
@@ -5234,7 +5423,7 @@ moment the player chose to stop, which is when the animation most needs to resol
 **The fragment route was examined and set aside, not overlooked.** It would play the incomplete
 stage and blend to the complete ending once the chain window lapsed. The designer's own read was
 that it is *"likely 80% as good"* against real authoring cost, and there is a mechanical objection
-besides: the link window closes roughly 400 ms after recovery starts, so the swap would land on a
+besides: the chain window closes inside recovery, so the swap would land on a
 character already free to move, block or dodge. Recorded because *"why not use the fragments"* is
 exactly what a future reader asks — the pack is built for it and we are deliberately not.
 
@@ -5403,7 +5592,10 @@ So: finishing is punishable, which pushes the attacker to **end early** — but 
 punishable, and only beats a defender who sits waiting for a hit that never comes. And a defender
 who punishes eagerly loses to an immediate chain, by exactly the 50 ms margin blockstun is derived
 to guarantee. **The attacker's dial is continuous** — chain-out is open across the whole of recovery
-and the link window after it, roughly 480–1350 ms — so the defender is guessing at a position on a
+and the link window after it, roughly 480–1350 ms *(**superseded 2026-09-02**: the link window is
+retired and the chain span closes inside recovery, so the dial is now roughly 283–683 ms. The
+argument survives — still continuous, still a line — with about 30% less room to delay)* — so the
+defender is guessing at a position on a
 line, not picking between two options. Delaying a light to catch a premature punish is the natural
 counter to a defender who has learned to punish early, and so on up.
 
@@ -5465,6 +5657,12 @@ them. **The buffer here is insurance, not technique**, and skilled play pays no 
 of your own swing, which is input at 2–3× the rate the chain accepts. On the beat it is never
 touched; held presses never expire anyway; dodge and block do not opt in.
 
+**Superseded 2026-09-02: the extension is dropped outright, not narrowed.** The probation below ran
+its course — the designer felt it as stray attacks 1057–1163 ms late and ruled that a false positive
+costs far more than a false negative. The examination's two corrections still stand for
+chain-eligible lights; what it missed is that on a swing with no chain-out to fire into, an early
+press buys an unrequested attack rather than insurance. Original text follows.
+
 **Kept, explicitly on probation** (the user): *"I don't want to start overbuffering inputs and
 enabling false positives when the idea of this game is to emphasize and reward deliberate
 precision… I will trust the vision for now, but it should be revisited once the game is more
@@ -5474,6 +5672,10 @@ narrow to chain-eligible attacks only — which is what makes deferring it cheap
 **Also noted and deliberately not acted on:** the user's read that the per-attack input window may
 be *"a bit vast"* — the chain-out span is the whole 600 ms recovery and the link window a further
 400. Same disposition: Interplay, under their own rule about not tuning before it is felt.
+*(**Acted on 2026-09-02**, once it was felt: the link window is retired and the chain span closes
+inside recovery, taking the window from 1067 ms to 400. **What was deferred here was mis-stated** —
+it reads as a deferral of the whole window, and the knob the designer meant did not exist until that
+day. `ChainOpenDurationSeconds` is what carries the deferral now; the tuning map's row says so.)*
 
 ## 2026-08-16 — The blocked reading, corrected by the veto it asked for
 
@@ -9910,9 +10112,10 @@ sitting in the always-read file.
   the heavy's reactability retune and blockstun tuning are greened there and judged here, so every
   verdict is about the design rather than the defaults — and **re-derives the checker's bands once,
   against final numbers, never patching them to green**. The naive player's reads outweigh the designer's.
-  **Owns the input-forgiveness subslice** (2026-08-16): whether the buffer extension over-forgives
-  mashing in a game built on deliberate precision, and whether the chain windows are too vast.
-  Kept on probation rather than settled, because none of it is felt yet; see the decision log.
+  **Owns the input-forgiveness subslice** (2026-08-16), **mostly settled 2026-09-02 rather than
+  deferred** — that entry has what changed and why. What still arrives here is one knob,
+  **`ChainOpenDurationSeconds`**, whose tuning-map row carries its fence; and the **defence-cancel
+  question**, whose trap carries three options as all nine cells with none chosen.
   **Knockdown's deferrals arrive here whole (2026-08-24)**, every one a feel verdict nothing
   mechanical can settle: **floor vulnerability** and whether the down state should be invincible at
   all; **regen paused while down** except for the exhaustion exception, whose generosity — a knockdown

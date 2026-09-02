@@ -921,7 +921,7 @@ void ATDCombatCharacter::EnterHitstun(float DurationSeconds)
 		AbilitySystem->CancelAllAbilities();
 	}
 
-	// The explicit reset covers the victim who was *not* mid-ability: a stale link window from an
+	// The explicit reset covers the victim who was *not* mid-ability: a pending advance from an
 	// earlier swing must not survive being cleanly hit. Idempotent beside the cancel path's.
 	ResetString(TEXT("cleanly hit"));
 
@@ -1038,7 +1038,7 @@ void ATDCombatCharacter::EnterKnockdown(ETDKnockdownType Type, AActor* Attacker)
 		AbilitySystem->CancelAllAbilities();
 	}
 
-	// A stale link window must not survive being floored: a mid-string attacker stands up to swing
+	// A pending advance must not survive being floored: a mid-string attacker stands up to swing
 	// 0. Idempotent beside whatever the cancel path already reset.
 	ResetString(TEXT("knocked down"));
 
@@ -2054,10 +2054,7 @@ void ATDCombatCharacter::ReceiveKnockback(const FVector& DestinationWorld, float
 
 int32 ATDCombatCharacter::ResolveStringSwingIndexForActivation(int32 SwingCount)
 {
-	const UWorld* World = GetWorld();
-	const float Now = World ? World->GetTimeSeconds() : 0.0f;
-
-	if (Now <= StringWindowEndsAt && StringIndex + 1 < SwingCount)
+	if (bStringAdvancePending && StringIndex + 1 < SwingCount)
 	{
 		++StringIndex;
 	}
@@ -2066,32 +2063,26 @@ int32 ATDCombatCharacter::ResolveStringSwingIndexForActivation(int32 SwingCount)
 		StringIndex = 0;
 	}
 
-	// Consumed either way: the window answered this activation's question, and it reopens -- or
-	// does not -- when this swing ends. Leaving it standing would let one window admit two swings.
-	StringWindowEndsAt = 0.0f;
+	// Consumed either way: the mark answered this activation's question, and it is set again -- or
+	// is not -- when this swing ends. Leaving it standing would let one mark admit two swings.
+	bStringAdvancePending = false;
 
 	return StringIndex;
 }
 
-void ATDCombatCharacter::OpenStringLinkWindow(float WindowSeconds)
+void ATDCombatCharacter::MarkStringAdvancePending()
 {
-	const UWorld* World = GetWorld();
-	if (!World || WindowSeconds <= 0.0f)
-	{
-		return;
-	}
+	bStringAdvancePending = true;
 
-	StringWindowEndsAt = World->GetTimeSeconds() + WindowSeconds;
-
-	TD_TIMING_LOG(TEXT("[%.3f] STRING     link window open on %s until %.3f (after swing %d)"),
-		World->GetTimeSeconds(), *GetName(), StringWindowEndsAt, StringIndex);
+	TD_TIMING_LOG(TEXT("[%.3f] STRING     advance marked on %s (after swing %d)"),
+		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f, *GetName(), StringIndex);
 }
 
 void ATDCombatCharacter::ResetString(const TCHAR* Reason)
 {
 	// Silent when there is nothing to reset: this is called defensively from several paths, and a
 	// STRING line per idle no-op would bury the ones that mean something.
-	if (StringIndex == 0 && StringWindowEndsAt <= 0.0f)
+	if (StringIndex == 0 && !bStringAdvancePending)
 	{
 		return;
 	}
@@ -2100,13 +2091,7 @@ void ATDCombatCharacter::ResetString(const TCHAR* Reason)
 		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f, *GetName(), Reason);
 
 	StringIndex = 0;
-	StringWindowEndsAt = 0.0f;
-}
-
-bool ATDCombatCharacter::HasStringLinkWindowOpen() const
-{
-	const UWorld* World = GetWorld();
-	return World && World->GetTimeSeconds() <= StringWindowEndsAt;
+	bStringAdvancePending = false;
 }
 
 bool ATDCombatCharacter::IsIdle() const
@@ -2267,7 +2252,7 @@ void ATDCombatCharacter::EnterDeath(AActor* Killer)
 
 	// Neither does the string: a chain half-thrown by the deceased must not greet the revive.
 	// The cancel above already resets it when death interrupted a swing; this covers dying with
-	// a link window open between swings.
+	// an advance pending between swings.
 	ResetString(TEXT("died"));
 
 	// A buffered press must not survive death: it would fire on revive, an action asked for
@@ -3215,22 +3200,10 @@ void ATDCombatCharacter::HandleDebugAutoAttackEnded(const FAbilityEndedData& End
 		return;
 	}
 
-	// **An open link window defers the reset; it must never drop it.** The window says another swing
-	// *may* follow, so resetting now would teleport the attacker out of a string still in progress.
-	// But returning outright loses the
-	// reset entirely when no press arrives: nothing re-runs this handler, so the attacker idled
-	// displaced for the rest of the cycle and snapped home on the next burst's belt-and-braces
-	// call, one frame before it attacked. Waiting the window out and then applying the ordinary
-	// delay is what gives the reset its second chance.
-	//
-	// It only became reachable when the light became chain-eligible: before that no window ever
-	// opened after a light, so every reset ran on its timer. Any press cancels this timer, so a
-	// swing that does arrive during the window is not undercut by it.
-	float ResetDelay = DebugAutoAttackResetDelaySeconds;
-	if (const UWorld* World = GetWorld())
-	{
-		ResetDelay += FMath::Max(0.0f, StringWindowEndsAt - World->GetTimeSeconds());
-	}
+	// A successor now activates in the same tick the chained-out swing ends in, so there is no
+	// window to wait out before the ordinary delay: either the string continued, in which case the
+	// press cleared this timer, or it closed and the reset runs.
+	const float ResetDelay = DebugAutoAttackResetDelaySeconds;
 
 	if (ResetDelay <= 0.0f)
 	{
@@ -3253,9 +3226,8 @@ void ATDCombatCharacter::DebugAutoAttackPress()
 	// the whole burst on its own. Taps=1 makes every press a first press, which is the
 	// pre-string behaviour exactly.
 	// A pending delayed reset must not survive into *any* swing, or it would snap the attacker
-	// home mid-attack. Cleared on every press rather than only on a burst's first, because the
-	// reset can now be deferred past the link window -- so a chain press arriving inside that
-	// window has a live timer to cancel, which a burst-only clear would have missed.
+	// home mid-attack. Cleared on every press rather than only on a burst's first, because a chain
+	// press arriving mid-string has a live timer to cancel, which a burst-only clear would miss.
 	GetWorldTimerManager().ClearTimer(DebugAutoAttackResetTimerHandle);
 
 	const bool bStartingBurst = DebugStringTapsRemaining <= 0;
@@ -3678,10 +3650,7 @@ bool ATDCombatCharacter::ShouldExtendBufferedPress(const FGameplayTag& InputTag)
 			continue;
 		}
 
-		// Two spans, one rule: while the opted-in ability runs, and through the string's link
-		// window after it ends -- a chain press is live intent across both, and expiring it at
-		// the seam between them would drop exactly the delayed chains the design wants readable.
-		if (Spec->IsActive() || HasStringLinkWindowOpen())
+		if (Spec->IsActive())
 		{
 			return true;
 		}
@@ -3773,11 +3742,9 @@ void ATDCombatCharacter::TickInputBuffer()
 		BufferedInput.ExpiryWorldTime = FMath::Max(BufferedInput.ExpiryWorldTime, Now + InputBufferSeconds);
 	}
 
-	// A chain press outlives the swing that refused it. A tap made early in a swing
-	// would otherwise expire before the chain could open -- 200 ms of grace against a 350 ms
-	// boundary, dropping exactly the mash cadence the string invites. The extension is the
-	// *ability's* choice, is bounded by the swing plus its link window, and rolls the same
-	// deadline the held-button rule above rolls -- so the two idioms cannot disagree.
+	// The extension is the *ability's* choice and no attack opts in: a released press expires at
+	// InputBufferSeconds whatever is running. The buffer still reaches the chain-open span, whose
+	// opening sits exactly InputBufferSeconds past the press that would need carrying there.
 	else if (ShouldExtendBufferedPress(BufferedInput.InputTag))
 	{
 		BufferedInput.ExpiryWorldTime = FMath::Max(BufferedInput.ExpiryWorldTime, Now + InputBufferSeconds);
