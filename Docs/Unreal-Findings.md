@@ -353,6 +353,36 @@ combat log; a finding *about a surface* belongs in this file.
 
 ## Dated findings — newest first
 
+## 2026-09-01 — Montage authoring is fully scriptable; inertialization is one graph node away
+
+**Montages are creatable, notifiable and blend-configurable from Python** *(Python, confirmed
+2026-09-01)*. `AnimMontageFactory` with `target_skeleton` and `source_animation` creates one;
+`AnimationLibrary.add_animation_notify_state_event` places a Release Window on a named track;
+`blend_in` / `blend_out` (`AlphaBlend`, `blend_time` and `blend_option`) and
+`blend_out_trigger_time` all read and write. Four montages were built and re-authored this way.
+**Bone poses come off the AnimSequence, never the montage** — a montage has no bone tracks, and
+sampling one returns zero speed at every frame, which reads as a clip that does not move.
+
+**`UAnimMontage.blend_mode_in` exposes inertialization per asset** *(Python, confirmed
+2026-09-01)*. `unreal.MontageBlendMode` has `STANDARD` and `INERTIALIZATION`; the property is a
+plain reflection write. **What it needs is an Inertialization node in the anim graph**, and its
+absence is loud rather than silent:
+
+```
+PIE: Error: No Inertialization node found for request from AnimGraphNode_Slot_0.
+     Add an Inertialization node after this request.
+```
+
+**`ABP_Combat` has no such node as of this date**, so the flag is set and reverted rather than
+left enabled. Whether the node can be *added* from a surface below C++ is **untested** — anim
+graph node insertion was not attempted, and `EdGraph::Nodes` is the known protected-reflection
+case, so assume nothing from this entry either way.
+
+**Why it matters beyond the flag**: a standard montage crossfade interpolates poses, so it drags
+the skeleton along a straight line between two positions and discards the velocity it had.
+Inertialization decays the difference into the new clip instead. For a tier swap mid-swing that is
+the difference between a hand-off that reads as motion and one that reads as a hitch.
+
 ## 2026-08-28 — `/mcp` Reconnect registers a failed server mid-session
 
 **Supersedes the entry below, filed the same day.** Its measurements hold; its scope did not. Every
