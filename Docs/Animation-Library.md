@@ -388,7 +388,7 @@ Cause unknown and deliberately not theorised. **Watch those two families' stages
 | `Attack7_Stage3_Complete` | 2.500 | Execution animation. **No use here** |
 | `Attack8_Stage1_Complete` | 2.000 | Fencing-like flourishes. **No use here** |
 | **`Attack8_Stage2_Complete`** | 1.500 | Stepping forward, standard left-to-right slash. **SHIPPED as light 2** (`AM_Attack_S2`), judged good in play 2026-09-01; **windup crosses the body**, which still costs it as a blend *source* |
-| **`Attack8_Stage3_Complete`** | 2.233 | **Stepping overhead, top-right → bottom-left.** Windup cocks the arm back on the **right**, then swings forward over the right shoulder — **the most standard windup found, and the closest match to the chosen light** |
+| **`Attack8_Stage3_Complete`** | 2.233 | **Stepping overhead, top-right → bottom-left.** Windup cocks the arm back on the **right**, then swings forward over the right shoulder — **the most standard windup found, and the closest match to the chosen light**. **SHIPPED as H1** (`AM_Heavy1`, 2026-09-02), entered at 0.383 with the window at 0.633 |
 | `Attack9` | 2.533 | Steps into a leaned-forward 3-hit combo but never travels. Canned-animation material only |
 | `Attack10` | 2.133 | Two stabs over and under the shield while advancing, shield held up defensively |
 
@@ -404,7 +404,16 @@ charged candidate; what replaces it is a legible **anticipation apex** to blend 
 `Attack7_Stage1` and `Attack8_Stage2` — dismissed below on windup grounds — are candidates again.
 ***`Attack8_Stage2` was spent as light 2 before either was taken up***, so the reopened pool is
 `Attack7_Stage1` beside the standing favourite `Attack8_Stage3`; see the 2026-09-01 entry, which
-also measures both against all three lights.
+also measures both against all three lights. **Settled 2026-09-02**: `Attack8_Stage3_Complete` is
+H1, and `Attack7_Stage1` is out for any forward-volume cell because its spin has the body facing
+backward by the strike. **The charged tier comes from `SwordAndShieldAnimV1`**, the pack the reviews
+never covered and the only one whose long singles carry a cocked hold before an overhead chop:
+`Attack2_IP` is C1 (`AM_Charged1`, window at 1.600, entered at 1.150) and `Attack7_Stage3_Complete_IP`
+is C2 (`AM_Charged2`, window at 0.900, entered at 0.450). **C3 is V3's `Attack7_IP`**, the full
+stepping spinning overhead (`AM_Charged3`, window at 0.967, entered at 0.517) — chosen over a V1
+chop because that cell carries L3's 360° volume and the third position spins at every tier. Its
+later stages never play: the montage blends out 1.7 s in. The 2026-09-02 entry in
+`Docs/Combat-Decisions.md` carries the ranking and the stills round behind all three.
 **The shared-windup mechanic is unchanged**: the first 150 ms still carries no information, which
 is what the argument below is really protecting. Entry: `Docs/Combat-Decisions.md`, 2026-08-18.
 

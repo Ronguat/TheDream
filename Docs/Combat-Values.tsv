@@ -214,10 +214,12 @@ GA_Attack	InputTag	InputTag.Attack
 GA_Attack	KnockbackBlockedDurationSeconds	0.2
 GA_Attack	KnockbackDurationSeconds	0.45
 GA_Attack	KnockbackTimeMappingCurve	/Game/TheDream/Combat/Data/C_KnockbackPacing.C_KnockbackPacing
+GA_Attack	KnockdownType	NONE: 0>
 GA_Attack	LungeDistanceCm	100
 GA_Attack	LungeDurationSeconds	0.15
 GA_Attack	LungeStandoffCm	40
 GA_Attack	LungeStrengthCurve	None
+GA_Attack	ParryLockoutSeconds	0.65
 GA_Attack	ParryRecoilCm	93
 GA_Attack	Positions[0].Cells[0].BlockstunSeconds	0.35
 GA_Attack	Positions[0].Cells[0].Damage	15
@@ -241,7 +243,7 @@ GA_Attack	Positions[0].Cells[0].ReleaseStartSeconds	0.3
 GA_Attack	Positions[0].Cells[0].StaminaDamage	5
 GA_Attack	Positions[0].Cells[1].BlockstunSeconds	0.6
 GA_Attack	Positions[0].Cells[1].Damage	25
-GA_Attack	Positions[0].Cells[1].EntrySeconds	0
+GA_Attack	Positions[0].Cells[1].EntrySeconds	0.383
 GA_Attack	Positions[0].Cells[1].Hitboxes[0].ArcCentreDegrees	0
 GA_Attack	Positions[0].Cells[1].Hitboxes[0].ArcDegrees	60
 GA_Attack	Positions[0].Cells[1].Hitboxes[0].HeightMaxCm	70
@@ -257,11 +259,11 @@ GA_Attack	Positions[0].Cells[1].Montage	/Game/TheDream/Combat/Animations/AM_Heav
 GA_Attack	Positions[0].Cells[1].ParryLockoutSeconds	0.65
 GA_Attack	Positions[0].Cells[1].RecoverySeconds	0.5
 GA_Attack	Positions[0].Cells[1].ReleaseSeconds	0.15
-GA_Attack	Positions[0].Cells[1].ReleaseStartSeconds	0.2372
+GA_Attack	Positions[0].Cells[1].ReleaseStartSeconds	0.633
 GA_Attack	Positions[0].Cells[1].StaminaDamage	50
 GA_Attack	Positions[0].Cells[2].BlockstunSeconds	0.6
 GA_Attack	Positions[0].Cells[2].Damage	40
-GA_Attack	Positions[0].Cells[2].EntrySeconds	0.4225
+GA_Attack	Positions[0].Cells[2].EntrySeconds	1.15
 GA_Attack	Positions[0].Cells[2].Hitboxes[0].ArcCentreDegrees	0
 GA_Attack	Positions[0].Cells[2].Hitboxes[0].ArcDegrees	60
 GA_Attack	Positions[0].Cells[2].Hitboxes[0].HeightMaxCm	70
@@ -273,11 +275,11 @@ GA_Attack	Positions[0].Cells[2].KnockdownType	HARD: 2>
 GA_Attack	Positions[0].Cells[2].LungeDistanceCm	400
 GA_Attack	Positions[0].Cells[2].LungeDurationSeconds	0.12
 GA_Attack	Positions[0].Cells[2].LungeStrengthCurve	None
-GA_Attack	Positions[0].Cells[2].Montage	/Game/TheDream/Combat/Animations/AM_Heavy2.AM_Heavy2
+GA_Attack	Positions[0].Cells[2].Montage	/Game/TheDream/Combat/Animations/AM_Charged1.AM_Charged1
 GA_Attack	Positions[0].Cells[2].ParryLockoutSeconds	0.75
 GA_Attack	Positions[0].Cells[2].RecoverySeconds	0.6
 GA_Attack	Positions[0].Cells[2].ReleaseSeconds	0.15
-GA_Attack	Positions[0].Cells[2].ReleaseStartSeconds	0.8725
+GA_Attack	Positions[0].Cells[2].ReleaseStartSeconds	1.6
 GA_Attack	Positions[0].Cells[2].StaminaDamage	100
 GA_Attack	Positions[0].CoilEndSeconds	0.28
 GA_Attack	Positions[1].Cells[0].BlockstunSeconds	0.35
@@ -322,7 +324,7 @@ GA_Attack	Positions[1].Cells[1].ReleaseStartSeconds	0.8725
 GA_Attack	Positions[1].Cells[1].StaminaDamage	50
 GA_Attack	Positions[1].Cells[2].BlockstunSeconds	0.6
 GA_Attack	Positions[1].Cells[2].Damage	40
-GA_Attack	Positions[1].Cells[2].EntrySeconds	0.4225
+GA_Attack	Positions[1].Cells[2].EntrySeconds	0.45
 GA_Attack	Positions[1].Cells[2].Hitboxes[0].ArcCentreDegrees	0
 GA_Attack	Positions[1].Cells[2].Hitboxes[0].ArcDegrees	60
 GA_Attack	Positions[1].Cells[2].Hitboxes[0].HeightMaxCm	70
@@ -334,11 +336,11 @@ GA_Attack	Positions[1].Cells[2].KnockdownType	HARD: 2>
 GA_Attack	Positions[1].Cells[2].LungeDistanceCm	400
 GA_Attack	Positions[1].Cells[2].LungeDurationSeconds	0.12
 GA_Attack	Positions[1].Cells[2].LungeStrengthCurve	None
-GA_Attack	Positions[1].Cells[2].Montage	/Game/TheDream/Combat/Animations/AM_Heavy2.AM_Heavy2
+GA_Attack	Positions[1].Cells[2].Montage	/Game/TheDream/Combat/Animations/AM_Charged2.AM_Charged2
 GA_Attack	Positions[1].Cells[2].ParryLockoutSeconds	0.75
 GA_Attack	Positions[1].Cells[2].RecoverySeconds	0.6
 GA_Attack	Positions[1].Cells[2].ReleaseSeconds	0.15
-GA_Attack	Positions[1].Cells[2].ReleaseStartSeconds	0.8725
+GA_Attack	Positions[1].Cells[2].ReleaseStartSeconds	0.9
 GA_Attack	Positions[1].Cells[2].StaminaDamage	100
 GA_Attack	Positions[1].CoilEndSeconds	0.6488
 GA_Attack	Positions[2].Cells[0].BlockstunSeconds	0.35
@@ -383,7 +385,7 @@ GA_Attack	Positions[2].Cells[1].ReleaseStartSeconds	1.1917
 GA_Attack	Positions[2].Cells[1].StaminaDamage	50
 GA_Attack	Positions[2].Cells[2].BlockstunSeconds	0.6
 GA_Attack	Positions[2].Cells[2].Damage	40
-GA_Attack	Positions[2].Cells[2].EntrySeconds	0.4225
+GA_Attack	Positions[2].Cells[2].EntrySeconds	0.517
 GA_Attack	Positions[2].Cells[2].Hitboxes[0].ArcCentreDegrees	0
 GA_Attack	Positions[2].Cells[2].Hitboxes[0].ArcDegrees	360
 GA_Attack	Positions[2].Cells[2].Hitboxes[0].HeightMaxCm	70
@@ -395,11 +397,11 @@ GA_Attack	Positions[2].Cells[2].KnockdownType	HARD: 2>
 GA_Attack	Positions[2].Cells[2].LungeDistanceCm	400
 GA_Attack	Positions[2].Cells[2].LungeDurationSeconds	0.12
 GA_Attack	Positions[2].Cells[2].LungeStrengthCurve	None
-GA_Attack	Positions[2].Cells[2].Montage	/Game/TheDream/Combat/Animations/AM_Heavy2.AM_Heavy2
+GA_Attack	Positions[2].Cells[2].Montage	/Game/TheDream/Combat/Animations/AM_Charged3.AM_Charged3
 GA_Attack	Positions[2].Cells[2].ParryLockoutSeconds	0.75
 GA_Attack	Positions[2].Cells[2].RecoverySeconds	0.6
 GA_Attack	Positions[2].Cells[2].ReleaseSeconds	0.15
-GA_Attack	Positions[2].Cells[2].ReleaseStartSeconds	0.8725
+GA_Attack	Positions[2].Cells[2].ReleaseStartSeconds	0.967
 GA_Attack	Positions[2].Cells[2].StaminaDamage	100
 GA_Attack	Positions[2].CoilEndSeconds	0.4606
 GA_Attack	StaminaDamage	5
@@ -455,13 +457,19 @@ GA_GetUpAttack	InputTag	InputTag.Attack
 GA_GetUpAttack	KnockbackBlockedDurationSeconds	0.2
 GA_GetUpAttack	KnockbackDurationSeconds	0.45
 GA_GetUpAttack	KnockbackTimeMappingCurve	None
+GA_GetUpAttack	KnockdownType	NONE: 0>
 GA_GetUpAttack	LungeDistanceCm	0
 GA_GetUpAttack	LungeDurationSeconds	0.15
 GA_GetUpAttack	LungeStandoffCm	40
 GA_GetUpAttack	LungeStrengthCurve	None
+GA_GetUpAttack	ParryLockoutSeconds	0.65
 GA_GetUpAttack	ParryRecoilCm	93
+GA_GetUpAttack	RecoverySeconds	0.6
+GA_GetUpAttack	ReleaseSeconds	0.35
+GA_GetUpAttack	ReleaseStartSeconds	0.6333
 GA_GetUpAttack	StaminaDamage	10
 GA_GetUpAttack	TargetImmunityTags	State.Dodging
+GA_GetUpAttack	WindupSeconds	0.3
 GA_GetUpAttack	bAllowedFromKnockdown	true
 GA_GetUpAttack	bBlockedWhileAirborne	false
 GA_GetUpAttack	bBlockedWhileMovementLocked	false

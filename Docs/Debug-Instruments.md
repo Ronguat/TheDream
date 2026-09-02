@@ -574,9 +574,9 @@ settings rather than assertions — as do measurements, which record what a run 
 
 | Scenario | Attacker `…HoldSeconds` | Defender `DebugAutoDefendMode` | Asserts |
 |---|---|---|---|
-| `s1-light` | 0.1 | `Off` | press→`RELEASE BEGIN` `BAND_RELEASE_LIGHT` ±`BAND_RELEASE_TOL`; elapsed `BAND_ELAPSED_LIGHT` + `BAND_ELAPSED_MIN`–`BAND_ELAPSED_MAX`; `BAND_ESCALATE_LIGHT` escalations, `BAND_COIL_LIGHT` coils |
-| `s1-heavy` | 0.22 | `Off` | `BAND_RELEASE_HEAVY` ±`BAND_RELEASE_TOL`; elapsed `BAND_ELAPSED_HEAVY` + the same window; exactly `BAND_ESCALATE_HEAVY` escalation, `BAND_COIL_HEAVY` coil |
-| `s1-charged` | **0.85** | `Off` | `BAND_RELEASE_CHARGED` ±`BAND_RELEASE_TOL`; elapsed `BAND_ELAPSED_CHARGED` + the same window; exactly `BAND_ESCALATE_CHARGED` escalations, `BAND_COIL_CHARGED` coil |
+| `s1-light` | 0.1 | `Off` | press→`RELEASE BEGIN` `BAND_RELEASE_LIGHT` ±`BAND_RELEASE_TOL`; elapsed `BAND_ELAPSED_LIGHT` + `BAND_ELAPSED_MIN`–`BAND_ELAPSED_MAX`; `BAND_ESCALATE_LIGHT` escalations, `BAND_COIL_LIGHT` coils; **zero** engine `No Inertialization node found` lines in the raw session *(all three s1 rows, 2026-09-02 — the slice drops engine lines, so this one is counted off the raw log)* |
+| `s1-heavy` | 0.22 | `Off` | `BAND_RELEASE_HEAVY` ±`BAND_RELEASE_TOL`; elapsed `BAND_ELAPSED_HEAVY` + the same window; exactly `BAND_ESCALATE_HEAVY` escalation, `BAND_COIL_HEAVY` coil; the inertialization line |
+| `s1-charged` | **0.85** | `Off` | `BAND_RELEASE_CHARGED` ±`BAND_RELEASE_TOL`; elapsed `BAND_ELAPSED_CHARGED` + the same window; exactly `BAND_ESCALATE_CHARGED` escalations, `BAND_COIL_CHARGED` coil; the inertialization line |
 | `s2-light` | 0.1 | `HoldBlock` | stamina damage `BAND_STAMDMG_LIGHT`; `BLOCK cost` per `BLOCK up`; `GUARD BREAK` count equals blocks at `remaining=0.0`; break stun `BAND_GUARDSTUN` ±`BAND_GUARDSTUN_TOL`; `BLOCKSTUN` span `BAND_BLOCKSTUN_LIGHT` ±`BAND_BLOCKSTUN_TOL`; guard-down `DAMAGED` `BAND_HEALTHDMG_LIGHT` with the health ledger stepping exactly |
 | `s2-heavy` | 0.22 | `HoldBlock` | as above with `BAND_STAMDMG_HEAVY`, `BLOCKSTUN` span `BAND_BLOCKSTUN_HEAVY`, `DAMAGED` `BAND_HEALTHDMG_HEAVY` |
 | `s2-charged` | **0.85** | `HoldBlock` | as above with `BAND_STAMDMG_CHARGED`, `DAMAGED` `BAND_HEALTHDMG_CHARGED`, and **`BLOCKSTUN` never fires at all** |
@@ -774,6 +774,28 @@ trap; it was quoted the same day it was walked into.
 **What it is good for beyond knockdowns**: any question of the form *"the mechanic is correct and it
 looks wrong"*. It answers where the body actually is, which is the only thing a feel verdict is ever
 about.
+
+### Charting the tier hand-off, and shooting it
+
+**`Tools/ClipScan/ue_chart_ab.py` measures what a blend does to the rendered hand** *(2026-09-02)*.
+It injects a tap-then-hold plan through `UTDInputTools` on the PIE player pawn, samples `hand_r`
+in component space every slate tick under 0.10 dilation alongside every candidate montage's
+position, and optionally shoots stills through a window with the camera boom shortened.
+`ue_ab_metrics.py` reduces a chart to the speed step across the swap tick, the largest one-tick
+jump, and a **roughness** figure: the mean absolute change in hand speed per 10 ms bin over the
+first 200 ms, with acceleration reversals and path length beside it. **Shots stall the tick**, so
+roughness comes from runs made without them. **The pawn is teleported home before each run**;
+every attack lunges it forward and twelve runs walked it off the floor.
+
+**Read it against the shipping numbers.** On 2026-09-02, standard crossfade against inertial
+blend on the shipped clips: L2→H2 79 against 27 cm/s per bin, L3→H3 417 against 43, C3 1443
+against 62, with a 35 cm one-tick pop 60 ms into every crossfade out of light 3 and a 110 cm one
+at the charged swap after it, none inertial. L1→H1 reads 117 against 156, C1 120 against 116,
+C2 75 against 70: inertial wins where the outgoing clip is fast, and ties where both sides are
+gathers. The blend-in sweep is the other reading, in the tuning map. **What it measures is
+velocity continuity, not look**: V1 Attack2 had the smallest pose gaps of any charged candidate
+and the largest inertial transient from H1, because its hand was moving 109° off the heavy's at
+entry. Stills are for the eye; the chart is for the number.
 
 ## Build a scenario from a human demonstration, not from intuition about the fixture
 

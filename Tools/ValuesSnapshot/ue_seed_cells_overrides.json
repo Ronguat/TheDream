@@ -1,0 +1,22 @@
+{
+ "P0B1": {
+  "Montage": "/Game/TheDream/Combat/Animations/AM_Heavy1",
+  "EntrySeconds": 0.383,
+  "ReleaseStartSeconds": 0.633
+ },
+ "P0B2": {
+  "Montage": "/Game/TheDream/Combat/Animations/AM_Charged1",
+  "EntrySeconds": 1.15,
+  "ReleaseStartSeconds": 1.6
+ },
+ "P1B2": {
+  "Montage": "/Game/TheDream/Combat/Animations/AM_Charged2",
+  "EntrySeconds": 0.45,
+  "ReleaseStartSeconds": 0.9
+ },
+ "P2B2": {
+  "Montage": "/Game/TheDream/Combat/Animations/AM_Charged3",
+  "EntrySeconds": 0.517,
+  "ReleaseStartSeconds": 0.967
+ }
+}

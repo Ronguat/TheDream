@@ -1,0 +1,56 @@
+[
+ {
+  "montage": "/Game/TheDream/Combat/Animations/AM_Heavy1",
+  "clip": "/Game/GDHBundle/SwordShield/SwordShieldAnimV3/Animation/IP/AS_SwordSwordAnimV3_Attack8_Stage3_Complete_IP",
+  "notify": 0.633,
+  "release": 0.15,
+  "recovery": 0.5,
+  "blend_in": 0.1,
+  "inertial": true
+ },
+ {
+  "montage": "/Game/TheDream/Combat/Animations/AM_Heavy2",
+  "clip": "/Game/GDHBundle/SwordShield/SwordShieldAnimV2/Animation/IP/AS_SwordShieldAnimV2_Attack1_Stage5_Complete_IP",
+  "notify": 0.8725,
+  "release": 0.15,
+  "recovery": 0.5,
+  "blend_in": 0.1,
+  "inertial": true
+ },
+ {
+  "montage": "/Game/TheDream/Combat/Animations/AM_Heavy3",
+  "clip": "/Game/GDHBundle/SwordShield/SwordShieldAnimV3/Animation/IP/AS_SwordSwordAnimV3_Attack4_Stage2_Complete_IP",
+  "notify": 1.1917,
+  "release": 0.15,
+  "recovery": 0.5,
+  "blend_in": 0.1,
+  "inertial": true
+ },
+ {
+  "montage": "/Game/TheDream/Combat/Animations/AM_Charged1",
+  "clip": "/Game/GDHBundle/SwordShield/SwordShieldAnimV1/Animation/IP/AS_SwordAndShieldAnimV1_Attack2_IP",
+  "notify": 1.6,
+  "release": 0.15,
+  "recovery": 0.6,
+  "blend_in": 0.3,
+  "inertial": true
+ },
+ {
+  "montage": "/Game/TheDream/Combat/Animations/AM_Charged2",
+  "clip": "/Game/GDHBundle/SwordShield/SwordShieldAnimV1/Animation/IP/AS_SwordAndShieldAnimV1_Attack7_Stage3_Complete_IP",
+  "notify": 0.9,
+  "release": 0.15,
+  "recovery": 0.6,
+  "blend_in": 0.3,
+  "inertial": true
+ },
+ {
+  "montage": "/Game/TheDream/Combat/Animations/AM_Charged3",
+  "clip": "/Game/GDHBundle/SwordShield/SwordShieldAnimV3/Animation/IP/AS_SwordSwordAnimV3_Attack7_IP",
+  "notify": 0.967,
+  "release": 0.15,
+  "recovery": 0.6,
+  "blend_in": 0.3,
+  "inertial": true
+ }
+]

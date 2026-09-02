@@ -63,6 +63,15 @@ these at runtime.
 Total is the sum of the three phases rather than an authored value, and `regression-check.sh`'s
 `s1-*` scenarios assert it against a real log every run.
 
+**Every string position and tier authors its own attack, as of 2026-09-02**: nine cells on
+`GA_Attack`, each carrying its montage and entry, release length, recovery, damage, stamina
+damage, blockstun, hitstun, knockdown type, parry lockout, hitboxes and lunge, with nothing read
+from another cell. The ladder's two checkpoints, the aim wedge, the base lunge and the chain flag
+stay one value each. **An escalation swaps the tier's own clip in at its entry and blends
+inertially** — `MontageBlendMode::Inertialization` on every tier montage, answered by the
+Inertialization node after `ABP_Combat`'s slot — and each tier montage's `BlendOutTriggerTime` is
+`length − window end − RecoverySeconds`, which makes every phase play at 1.0.
+
 **Space is authored the same way, as of 2026-08-12.** Each tier also authors its damaging volume — reach, arc and a vertical band — as an `FTDAttackHitbox` on its branch, so range is a designed number rather than a property of the clip.
 
 **Displacement too, as of 2026-08-12** — two authored distances in centimetres, not a scale on the clip. A shared **base lunge** from the press to the light's input boundary, then a **per-branch lunge** from the commit checkpoint to the end of the release window. The coil carries neither, which is what keeps the tiers indistinguishable for as long as they must be.

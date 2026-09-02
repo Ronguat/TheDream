@@ -353,6 +353,44 @@ combat log; a finding *about a surface* belongs in this file.
 
 ## Dated findings — newest first
 
+## 2026-09-02 — The anim graph takes a node from the toolset, sockets are trialled through the CDO, and the hand-off is charted in play
+
+**An Inertialization node can be created and spliced into `ABP_Combat`'s top-level AnimGraph from
+the MCP toolset** *(MCP, confirmed 2026-09-02)*: `find_node_types` on
+`ABP_Combat.ABP_Combat:AnimGraph` lists `Animation|Misc.|Inertialization`, `create_node` makes it,
+`break_pins` and `connect_pins` splice it between the slot and the control rig, and
+`compile_blueprint` compiles it. Proven on a Scratch duplicate first and driven in PIE the same
+day. The 2026-09-01 entry's *"whether the node can be added below C++ is untested"* is discharged;
+what stays closed is nested graphs, the outer-walk limit above.
+
+**A live ability instance refuses socket writes on both scripting surfaces** *(Python and MCP,
+2026-09-02)*. `set_editor_property` on the PIE instance answers *"cannot be edited on instances"*
+for an `EditDefaultsOnly` array, and `ObjectTools.set_properties` on the same `refPath` reports the
+property could not be set. **The route is the CDO between PIE sessions**: write the CDO,
+`compile_blueprint`, start PIE, and every pawn carries the trial; leave the packages unsaved and it
+reverts with the editor. `Tools/ValuesSnapshot/ue_seed_cells.py` with its overrides JSON is that
+route; eleven trial sessions ran through it.
+
+**A pawn's anim class swaps at runtime from Python** *(Python, 2026-09-02)*.
+`SkeletalMeshComponent.set_anim_instance_class(cls)` on the PIE pawn takes effect at once, which is
+how a scratch AnimBlueprint carrying the node was A/B tested against the shipping one without
+touching `ABP_Combat`. Restore by loading the shipping asset's `generated_class()`; the component
+exposes no getter for the class it had.
+
+**The hand-off is charted and shot by one script**, `Tools/ClipScan/ue_chart_ab.py`: input injected
+by `UTDInputTools` on a plan, the rendered hand sampled per slate tick under 0.10 dilation with
+every candidate montage's position, stills by `AutomationLibrary.take_high_res_screenshot` inside
+a window, the camera boom shortened for them; `ue_ab_metrics.py` reduces a chart to a roughness
+figure. **Shots stall the tick**, emptying bins and spiking speeds, so roughness comes from runs
+without them. **A run script cannot receive arguments through the remote-execution pipe** *(Python,
+2026-09-02)* — `sys.argv` inside the editor is not the caller's, so every script here reads a JSON
+beside itself. **The editor's Python does not open Git Bash paths**: `/c/Users/...` raises
+`FileNotFoundError`; `C:/Users/...` works.
+
+**Every attack lunges the pawn forward and nothing brings a player pawn home** *(fixture behaviour,
+2026-09-02)*: twelve chart runs walked it off the floor edge at +5000. The chart teleports the pawn
+to its spawn before each run.
+
 ## 2026-09-01 — Montage authoring is fully scriptable; inertialization is one graph node away
 
 **Montages are creatable, notifiable and blend-configurable from Python** *(Python, confirmed

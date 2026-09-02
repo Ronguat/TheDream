@@ -301,6 +301,15 @@ properties, against three before.
 
 **The stun tells: discharged 2026-08-25** by positioning both playheads from stun progress instead of playing them at a rate — see the dated entry. Only a string's first hit used to be told, because the tell is a state entered on a cached bool and a hit landing inside a running stun re-enters nothing.
 
+**Whenever a tier montage, a cell or a hand-off blend changes — *no loop row throws a heavy or
+charged from light 2 or light 3, and nothing in the loop sees a hand-off's look.*** Filed
+2026-09-02. `s1-heavy` and `s1-charged` escalate from position 1 only; the dummy holds uniformly
+across its taps and cannot tap-then-hold, so H2, H3, C2 and C3 have never been asserted on release
+timing or elapsed at all. The route to close it exists and is not built: `UTDInputTools` drives a
+tap-then-hold on a pawn by script, which `Tools/ClipScan/ue_chart_ab.py` already does for the
+chart. The look has no assertion by the 2026-09-01 ruling; the chart's roughness figure is the
+standing instrument for it, run by hand, and a hand-off that regresses silently passes every row.
+
 **Whenever a Release Window notify is moved — *the socket's entry and release do not follow, and
 nothing says so.*** Filed 2026-09-01. `EntrySeconds` is derived as `notify - window`, but it is
 stored rather than computed, so authoring a notify desynchronises it silently. **The failure is a
@@ -1245,6 +1254,7 @@ than a refusal.
 | An ability's direction can be steered when it should be committed | `SetAbilityFacingLocked(true)` for its duration | `bAllowPhysicsRotationDuringAnimRootMotion`. Turning it back off fixes one ability by re-breaking every other, which is how the dodge got a committed direction it never declared. |
 | Control returning after a swing reads abruptly | Where the lock *ends* — it now runs to `EndAbility`, and the idle rate handles the catch-up gently when nothing else is happening | An interp on the rotation rate. It was the obvious fix and turned out to be unnecessary twice over: the two rates already cover both cases, and the failure modes that killed the original fade were artifacts of a snap branch that no longer exists. |
 | An attack is too punishable, or not punishable enough | The branch's `RecoverySeconds`, in absolute seconds — it *is* the punish window | The clip, its length, or any play rate. Recovery stopped being a property of the animation on 2026-08-12; the montage is warped to fit the number, never consulted about it. |
+| A charged's gather reads as a snap, or as a smear that never settles | That montage's **blend-in time** *(2026-09-02)*. It is the inertial blend's duration, the window affords it, and the roughness of the rendered hand falls monotonically across 0.10, 0.20 and 0.30 on all three cells — C1 264 → 115 → 38, C2 185 → 70 → 45, C3 116 → 61 → 43 cm/s per bin — which is why the charged ship at 0.30 and the heavies, whose runway is 0.25 s, stay at 0.10 | The cell's `EntrySeconds` or the window. Those move *what* is blended into, not how the blend closes; and never the heavies' blend-in past their runway, or the cock arrives after the commit. |
 | Recovery does not last what it is authored to | Whether something else set the montage rate after `RELEASE OFF` — the trace prints the derived rate and the blend-out boundary it solved for | A correction factor on `RecoverySeconds`. The boundary is `length − trigger × rate` whether the trigger is authored or defaults to the blend-out's duration *(2026-09-02; before that an authored one was modelled as a fixed position and recovery ended `trigger × (rate − 1)` early)*; `ComputeRecoveryPlayRate` solves for it and any residual error is a different bug. |
 | An attack does not close enough ground | `UTDMeleeAttackAbility::LungeDistanceCm`, the base lunge every tier shares | The clip, and **not** a branch's value if the complaint is about the whole ladder. The base lunge is the only displacement that exists before the tiers can be told apart. |
 | One *tier* does not lunge far enough | That branch's `LungeDistanceCm`, which runs from the commit checkpoint to the end of the release window | The base lunge. Raising that to lengthen one tier lengthens all three, and does it in the one span a defender must not be able to read a tier from. |
@@ -1406,7 +1416,7 @@ reading the file front to back found it.** An index nobody has to read front to 
 
 Generated from the archive rather than maintained by hand, so it goes stale rather than wrong —
 a missing row means the entry is newer than the index, never that the symbol is absent.
-Current through **2026-09-01** — update the date when regenerating, and `docs-check` turns
+Current through **2026-09-02** — update the date when regenerating, and `docs-check` turns
 staleness into a red row by comparing it against the newest entry. The rule for reading it is the standing one,
 that **a search finding nothing proves only that the filter did not match.**
 
@@ -1763,6 +1773,128 @@ long.
 | `ue_chart_ab.py` | 09-02 |
 | `ue_fit_tier_montages.py` | 09-02 |
 | `ue_seed_cells.py` | 09-02 |
+
+## 2026-09-02 — Every position authors its tiers, the hand-off goes inertial, and the blend-out boundary was in play time all along
+
+**The designer's rulings, taken before any of this was built.** Per-position charged clips, not
+one shared one: *"That was a concession, not a preference. If we have the assets and they are an
+improvement, a unique anim for C1, C2, and C3 would be great."* Inertial blending *"until/unless it
+becomes a problem."* And the structural one: *"L1-3, H1-3, and C1-3 should all have their own
+properties, for 9 sets in total. There should be no inheriting"* — with the aim wedge kept as one
+value (*"basically a system mechanic, not a property that gets tuned"*) and the ladder's checkpoints
+kept static (*"intriguing... but that was not planned, so I won't scope bloat now"*). H3 and C3
+seed their hitbox from L3's 360° once and are decoupled after.
+
+### Measured before the plan, and what each measurement overturned
+
+**Inertialization was tested on a Scratch duplicate of `ABP_Combat`, with the node spliced in from
+the MCP toolset and the pawn's anim class swapped at runtime**, against the shipped clips, n=2.
+Rendered-hand roughness over the first 200 ms after the swap, standard crossfade against inertial:
+L2→H2 78–79 against 26–28 cm/s per bin, L3→H3 374–401 against 42, L1→H1 89 against 102 (n=1). The
+crossfade out of light 3 produced a 36 cm one-tick hand pop 60 ms after the swap in three of four
+runs; no inertial run has one. **What inertialization smooths is velocity mismatch, not pose gap**:
+the charged clip with the smallest pose gaps had the largest inertial transient from H1, its hand
+moving 109° off the heavy's at entry.
+
+**An authored `BlendOutTriggerTime` was being modelled as a fixed montage position.** The engine
+compares `remaining ÷ rate` against it, so the boundary is `length − trigger × rate` whether the
+trigger is authored or defaults to the blend-out's duration. Read off yesterday's log: heavy 2's
+three clean recoveries at rate 1.77 landed within 2–10 ms of the rate-scaled model and 34–42 ms
+off the fixed one; heavy 1 at 1.19 could not separate the two. Every "1 ms under" and "29 ms over"
+elapsed miss filed since the sockets went live was this. Fixed in `GetBlendOutStartSeconds`,
+`ComputeRecoveryPlayRate` and the parry's copy; the trap's *"rate-immune"* corrected in place. **A
+model can be right in effect and wrong in mechanism**: the 0.05 trigger fixed light 2 because it
+is smaller than the 0.25 blend-out it replaces, not because it ignores the rate.
+
+**The clip screen had been ranking on the wrong entry.** It used strike − window; the mechanism
+uses notify − window, and the shipped H1's notify sat 13 ms short of its window, so its entry
+clamped to 0 and the blend landed on the clip's rest pose — the *"poor"* the designer saw. Re-ranked
+on notify-based entries, with peaks counted only over the portion that plays and full-combo parents
+of a heavy's own family excluded as coils, only 6 of 74 charged candidates and 12 of 87 heavy
+candidates pass.
+
+**A live ability instance refuses socket writes on both scripting surfaces**, so candidates were
+trialled through the CDO between PIE sessions — eleven sessions, each pawn carrying the trial,
+nothing saved. Stills through each hand-off, slowed ten times with the camera boom shortened,
+were the eye; the chart was the number.
+
+### The nine cells
+
+`FTDAttackCell` carries montage and entry, release start, release length, recovery, damage,
+stamina damage, blockstun, hitstun, knockdown type, parry lockout, hitboxes and lunge;
+`FTDAttackPosition` holds three of them and the position's `CoilEndSeconds`; `FTDAttackBranch`
+keeps the ladder — tag, section, checkpoints, chain flag, wedge. Hit 1's legacy fields and the
+string's overrides are gone, which orphans every Blueprint override of them, so the migration is a
+script that reads the values mirror and writes the cells: lights from what their swing authored,
+tiers from their branch. **That ended a leak nobody had ruled on**: a heavy or charged thrown from
+light 3 took the swing's 0.2225 release, 260 lunge and 360° hitbox instead of the tier's, and H3's
+strike played at rate 0.649 because of it. The ruling keeps the 360° and drops the rest.
+
+Verified after the editor-closed rebuild, before any montage changed: s1-light, s1-heavy and
+s1-charged 5/5 at n=50, the elapsed bands holding on every sample; s2-heavy and s2-charged 7/7 at
+n=23; s4-string 7/7 at n=100 chain gaps; s6-hard 5/5 at n=30. The mirror diff against the
+pre-migration capture is the rename plus the two intended 360° seeds.
+
+### The clips, and what rejected the others
+
+**H1 is `Attack8_Stage3_Complete`** — light 1's own diagonal plane, a real cocked windup with
+0.383 s of clip before the window, the 08-11 review's standing favourite. **C1 is V1 `Attack2`**: a
+one-leg cocked hold into a 1505 cm/s overhead chop, hand gaps of 36, 10 and 55 cm from the three
+heavies, a 1.35 s tail. **C2 is V1 `Attack7_Stage3_Complete`**: a crouched gather into a chop, 75/34
+from H2 against `Attack8`'s 93/135. **C3 is V3 `Attack7`**, the full stepping spinning overhead
+entered at 0.517: worse on hand gap than the straight chop (94 against 49) and chosen anyway,
+because the cell carries the 360° volume and a straight chop that hits all around is the same
+disagreement a spin in a forward wedge is, and because it keeps the third position's identity —
+light, heavy and charged all spin. Rejected on stills: V3 `Attack5` shows a guard before its slash;
+V3 `Attack7_Stage1` as H1 has its back turned by the strike; V1 `Attack10_Stage2` carries a broken
+frame at 1.167 (7011 cm/s for one frame); the V2 `Attack1` and V3 `Attack4` full combos are the
+live heavies' own swings again. **The whole charged tier comes from the V1 pack the reviews never
+covered** — its long singles are the only clips with a cocked hold before an overhead chop.
+
+**Placement**: each window opens one frame past the last speed minimum before the strike, lasts
+the release's 0.150 so the release plays at 1.0, and is the designer's to move; the entry is the
+window minus the tier's runway. Every phase now plays at 1.0: the fit sets `BlendOutTriggerTime =
+length − window end − RecoverySeconds`, which is where the corrected recovery derivation lands.
+
+### The blend-in is the charged's knob, and it wants the whole window
+
+Inertial roughness at the charged swap across blend-in 0.10, 0.20 and 0.30: C1 264 → 115 → 38,
+C2 185 → 70 → 45, C3 116 → 61 → 43 cm/s per bin. Monotone on every cell, so the charged montages
+ship at 0.30; the heavies stay at 0.10, their 0.25 s runway not affording more. **The previous
+session's closing-rate law assumed the blend spans the window; it does not unless authored to**,
+which is why the same pose gap costs a heavy more than a charged only when the blend-in says so.
+
+On the final clips, standard against inertial: H1 117 against 156, H2 79 against 27, H3 417
+against 43, C1 120 against 116, C2 75 against 70, C3 1443 against 62 — the last carrying a 110 cm
+one-tick pop at the charged swap on top of the 36 cm one at the heavy's, the crossfade out of the
+spin failing twice in one exchange. Inertial wins where the outgoing clip is fast, ties where both
+sides are gathers, and costs a little on H1, where the new clip's cock arrives faster than the
+light was moving. Adopted everywhere, per the ruling.
+
+### What the loop asserts, and what it cannot see
+
+The s1 rows count the engine's *"No Inertialization node found"* line off the raw log and pass only
+at zero, made to fail once by injection. Per the 09-01 ruling no assertion names a clip. What the
+loop cannot see is filed as a trap: the hand-off's look, and every tier thrown from L2 or L3, which
+no scenario has ever exercised.
+
+### Verified
+
+On the shipped assets, nine scenarios: s1-light, s1-heavy and s1-charged 5/5 at n=50, elapsed
+holding on every sample; s2-heavy 7/7 at n=16, s2-charged 7/7 at n=23; s4-string 7/7 at n=102;
+s6-hard 5/5 at n=31; s7-death-grade 2/2 over 11 deaths; s5-parry 12/12 at n=56. The first pass of
+s4 and s5 each carried outliers — one chain gap 22 ms short, two gestures 27 and 107 ms late at the
+clip's own rate — during bursts of audio work on the same machine; both re-ran clean, and the
+frame-time trap already says what a lone sample means. The charts on the shipped assets read the
+phase schedule directly: C1's swap held at 1.000, its release opened at 1.005 exactly 0.450 s after
+the swap, recovery ran at 0.999 and the ability ended at 1.552 s against 1.550 authored; C3's swap
+held at 1.000 and its release opened at its 0.967 marker at rate 1.001. Every phase of every tier
+plays at 1.0 within a frame.
+
+**What is owed**: the designer's eye. Every pick here was made on measured hand-offs and slowed
+stills, and the placements, the charged blend-in and the seeded 360° on H3 and C3 are theirs to
+move. `AM_Light2` and the seven Scratch trial montages stay unreferenced; the trial AnimBlueprint
+in Scratch was never saved.
 
 ## 2026-09-01 — The heavies read, and four rounds of tuning had been aimed at the wrong variable
 
@@ -9689,7 +9821,7 @@ long it is held, and block and parry will share a button.
 a brief binds the session that picks that slice up and no other, so it was triggered content
 sitting in the always-read file.
 
-- **Polish** *(style over substance; split from Knockdown 2026-08-18, the designer's call)* — deferred work that changes how something *reads* rather than what it does. **That framing describes where an item comes from, not what fixing it costs** *(the designer, 2026-08-28: "substance over style, perhaps, but ABSOLUTELY Polish")*: items arrive because something was **found by feel**, and the fix is then whatever it turns out to be — **do not use the definition to refuse an item.** One open item is outright mechanical: **a guard break should count as a hit for the attacker's input freedom** *(the designer, 2026-08-24)* — a blocked hit returns before the on-hit waiver, so the attacker stays pinned through full recovery, and a **break** should waive like a connect; the defender side is unchanged. **Carries the bespoke windup pass**, the core of the slice: heavy and charged get their own clips, their windups become **blended transitions** into real anticipation, and **only the coil's rate freeze is deprecated** — its facing clamp is an aim guarantee and survives; see the 2026-09-01 entry, which also carries the windows, corrected there from a stale pair that overlapped itself: **light→heavy 0.150 → 0.350, heavy→charged 0.350 → 0.750**, blend duration shorter than its window. **The mechanism and all three heavy sockets are live as of 2026-09-01**, and the heavies read — the designer's verdict is *"really, really good"* with a slight hitch left, which they classed as polish rather than a bug. **The charged tier is the gate**: its sockets hold a deliberate placeholder, and without a populated branch 2 each heavy paces to the charged's release and coils, so nothing here ships until C1–C3 are real. **H1's clip is chosen but poor** by the designer's own read, and wants replacing. **Inertialization is the open lead on the remaining hitch** — one anim-graph node away, see `Docs/Unreal-Findings.md`. **A heavy clip wants a single hand-speed peak**: two of the three carry a follow-up swing that plays through recovery. **Clip selection inherits a ceiling**: the heavy cannot grow past roughly **450 ms** without the light↔heavy gap outgrowing the parry window's usable margin, leaving about 50 ms of headroom to fit a clip into — the audited relationships are in the 2026-08-25 windups entry. **Sits early deliberately**, right after Knockdown: it must precede Interplay or the feel verdict is taken with both tiers still playing the light's clip. **Clip-fitting values are Polish's; whole-surface greening is not** — that lands at the Tuning Rig. Spec and candidate pool: the 2026-08-18 entries. **Parry presentation** *(inherited 2026-08-19; the lockout tell shipped 2026-08-27)*: Polish inherits the tell's **look**, and the open preview question beside it — whether V3's parry pose reads consistently beside V1's held guard, a pack mix that shipped without being judged. Neither needs a search; both need looking at. **All three stun tells are built** — blockstun, hitstun, parry lockout, each a Locomotion state positioned from stun progress (the 2026-08-24/25 entries; the recoil 2026-08-27) — and Polish inherits their **look, not their construction**; changing any of them trips the *no-instrument-we-built* trap, so check the wiring, not just the spans. **Knockdown's presentation is inherited whole (2026-08-20)**, everything past the tell-what-fired legibility bar: the knockdown/fall/rise clip batch and the get-up options' look; polishing the get-up clip in its authored scene (`AnimSource/GetUpAttack.casc`); and the two rises deliberately blending into idle over their second half — a choice to revisit once idle poses are real. The down-state abruptness complaint **closed 2026-08-28**, once `AM_Knockdown`'s blend-in stopped hiding the authored gather. **The fall and the hitstun re-phasing were signed off prototype-grade 2026-08-28** — that day's entries; regenerate the curves with the `Tools/AnimPipeline/ue_*_curves.py` scripts, never by hand. **What is knowingly left there**: hitstun's residual *"sliding steps"*, which is **structural, not a defect** — the knockback distance varies while the clip's step distance is fixed, so pacing fixes *when* the feet move and never *how far*; removing it needs a constant knockback distance, clip selection (which the windup pass is already stalled on), or stride warping, and the project has none of the three. And the descent's slightly **linear** middle — animation-dominated, raised twice, signed off over twice, recorded rather than chased. If the knockdown look ever reopens outright, the recorded routes are reauthoring in Cascadeur or a `PhysicalAnimationComponent` blend; a full ragdoll stays refused. **The block get-up reads "underwhelming and looks a tad undeliberate"** (the designer) — its input path was fixed 2026-08-28 (that entry, and its trap); the look complaint stands. **The dodge get-up's remaining question is the blend-out's own look**: at the resulting 1.50x it clears the dodge but starts eating the recovery, and the trigger time wants re-measuring at that rate rather than scaling the old figure. **The eight dodges' seam is one shared value while the clips' feet settle up to 100 ms apart** — whether any direction wants its own is a look question nobody has asked; the coverage gap is a dated trap. **Rotation drift under hitstun was fixed 2026-08-28; the guard break and the parry lockout have the same shape and are not ruled on** — both currently drift. **Parry lockout wants a functionality audit** *(the designer, 2026-08-28)*, their reason kept as given: *"It is not intuitive to me how parry lockout is derived, which is an indication that I have failed to effectively author parry lockout."* What the audit inherits: the value resolves through **three levels behind one virtual** — the melee base's fallback, the charged's swing → branch → fallback ladder, and the get-up attack's **computed** remainder, the only one not authored; live values are in the mirror. The lockout also carries the recoil's duration and the tell's span, so a change moves three things at once. **`s5-parry` is red on this today** — its band never covered the ender, and the options are recorded in the trap. **Not a bug hunt**: the mechanic verifies; what is in question is whether the derivation is authorable.
+- **Polish** *(style over substance; split from Knockdown 2026-08-18, the designer's call)* — deferred work that changes how something *reads* rather than what it does. **That framing describes where an item comes from, not what fixing it costs** *(the designer, 2026-08-28: "substance over style, perhaps, but ABSOLUTELY Polish")*: items arrive because something was **found by feel**, and the fix is then whatever it turns out to be — **do not use the definition to refuse an item.** One open item is outright mechanical: **a guard break should count as a hit for the attacker's input freedom** *(the designer, 2026-08-24)* — a blocked hit returns before the on-hit waiver, so the attacker stays pinned through full recovery, and a **break** should waive like a connect; the defender side is unchanged. **Carries the bespoke windup pass**, the core of the slice: heavy and charged get their own clips, their windups become **blended transitions** into real anticipation, and **only the coil's rate freeze is deprecated** — its facing clamp is an aim guarantee and survives; see the 2026-09-01 entry, which also carries the windows, corrected there from a stale pair that overlapped itself: **light→heavy 0.150 → 0.350, heavy→charged 0.350 → 0.750**, blend duration shorter than its window. **All nine cells are live as of 2026-09-02** — the 2026-09-02 entry: every position authors its three tiers, H1 is `Attack8_Stage3_Complete`, the charged tier is three V1 and V3 clips, every hand-off is an inertial blend through the node now in `ABP_Combat`, every phase plays at 1.0, and the recovery arithmetic is corrected. **What is owed is the designer's eye**: the picks were made on measured hand-offs and stills, and the notify placements, the charged blend-in of 0.30 and the seeded 360° on H3 and C3 are theirs to move. **The clip screen ranks on notify-based entries now**, and a heavy clip wants its single strike inside the portion that plays. **Clip selection inherits a ceiling**: the heavy cannot grow past roughly **450 ms** without the light↔heavy gap outgrowing the parry window's usable margin, leaving about 50 ms of headroom to fit a clip into — the audited relationships are in the 2026-08-25 windups entry. **Sits early deliberately**, right after Knockdown: it must precede Interplay or the feel verdict is taken with both tiers still playing the light's clip. **Clip-fitting values are Polish's; whole-surface greening is not** — that lands at the Tuning Rig. Spec and candidate pool: the 2026-08-18 entries. **Parry presentation** *(inherited 2026-08-19; the lockout tell shipped 2026-08-27)*: Polish inherits the tell's **look**, and the open preview question beside it — whether V3's parry pose reads consistently beside V1's held guard, a pack mix that shipped without being judged. Neither needs a search; both need looking at. **All three stun tells are built** — blockstun, hitstun, parry lockout, each a Locomotion state positioned from stun progress (the 2026-08-24/25 entries; the recoil 2026-08-27) — and Polish inherits their **look, not their construction**; changing any of them trips the *no-instrument-we-built* trap, so check the wiring, not just the spans. **Knockdown's presentation is inherited whole (2026-08-20)**, everything past the tell-what-fired legibility bar: the knockdown/fall/rise clip batch and the get-up options' look; polishing the get-up clip in its authored scene (`AnimSource/GetUpAttack.casc`); and the two rises deliberately blending into idle over their second half — a choice to revisit once idle poses are real. The down-state abruptness complaint **closed 2026-08-28**, once `AM_Knockdown`'s blend-in stopped hiding the authored gather. **The fall and the hitstun re-phasing were signed off prototype-grade 2026-08-28** — that day's entries; regenerate the curves with the `Tools/AnimPipeline/ue_*_curves.py` scripts, never by hand. **What is knowingly left there**: hitstun's residual *"sliding steps"*, which is **structural, not a defect** — the knockback distance varies while the clip's step distance is fixed, so pacing fixes *when* the feet move and never *how far*; removing it needs a constant knockback distance, clip selection (which the windup pass is already stalled on), or stride warping, and the project has none of the three. And the descent's slightly **linear** middle — animation-dominated, raised twice, signed off over twice, recorded rather than chased. If the knockdown look ever reopens outright, the recorded routes are reauthoring in Cascadeur or a `PhysicalAnimationComponent` blend; a full ragdoll stays refused. **The block get-up reads "underwhelming and looks a tad undeliberate"** (the designer) — its input path was fixed 2026-08-28 (that entry, and its trap); the look complaint stands. **The dodge get-up's remaining question is the blend-out's own look**: at the resulting 1.50x it clears the dodge but starts eating the recovery, and the trigger time wants re-measuring at that rate rather than scaling the old figure. **The eight dodges' seam is one shared value while the clips' feet settle up to 100 ms apart** — whether any direction wants its own is a look question nobody has asked; the coverage gap is a dated trap. **Rotation drift under hitstun was fixed 2026-08-28; the guard break and the parry lockout have the same shape and are not ruled on** — both currently drift. **Parry lockout wants a functionality audit** *(the designer, 2026-08-28)*, their reason kept as given: *"It is not intuitive to me how parry lockout is derived, which is an indication that I have failed to effectively author parry lockout."* What the audit inherits: the value resolves through **three levels behind one virtual** — the melee base's fallback, the charged's swing → branch → fallback ladder, and the get-up attack's **computed** remainder, the only one not authored; live values are in the mirror. The lockout also carries the recoil's duration and the tell's span, so a change moves three things at once. **`s5-parry` is red on this today** — its band never covered the ender, and the options are recorded in the trap. **Not a bug hunt**: the mechanic verifies; what is in question is whether the derivation is authorable.
 - **Settings menu.** Raised 2026-08-12. Mouse sensitivity is the immediate want, and it should own
   **`TurnRateDegrees`** too — that number stopped being cosmetic the moment attacks began pointing
   wherever it had turned to, so exposing it is a balance decision rather than a comfort one, and a

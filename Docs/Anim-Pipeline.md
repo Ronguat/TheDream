@@ -144,6 +144,16 @@ Authored scenes are tracked under `AnimSource/`.
 `source_animation` through `AssetTools.create_asset`. `ue_make_montage.py` does that, places the
 Release Window, and prints the derived phase rates and the blend-out check.
 
+**A tier montage is fitted, not tuned** *(2026-09-02)*: `ue_fit_tier_montages.py` takes the clip,
+the window's start and the cell's release and recovery from its JSON, and sets everything that
+makes every phase play at 1.0 — one Release Window of the release's own length, `BlendModeIn` and
+`BlendModeOut` inertial, and `BlendOutTriggerTime = length − window end − RecoverySeconds`, which is
+where the ability's recovery derivation lands on rate 1.0. The cell's `EntrySeconds` is the window
+start minus the tier's runway (0.250 heavy, 0.450 charged), written by `ue_seed_cells.py`'s
+overrides from the same numbers; the window start is the designer's to move, and moving it means
+re-running both. A clip shorter than window end + recovery + the 0.25 s fade reports its tail as
+too short and plays recovery slow rather than cutting it.
+
 **Montages are ~90% scriptable** *(2026-08-21)*. `slotAnimTracks` reads and writes whole.
 **The multi-section clause is withdrawn** *(2026-08-24)*: sections read from Python
 (`get_num_sections`, `get_section_name` — `AM_Dodge` has eight) and `ENGINE_API

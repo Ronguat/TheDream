@@ -9,7 +9,9 @@ Editor-Python scripts, run through `Tools/AnimPipeline/run-in-editor.py`.
 | `ue_rank_per_light.py` | **the ranking.** Handover gap per light, against the shipping reference |
 | `ue_chart_string.py` | charts the real skeleton through a real string in PIE, slowed |
 | `ue_handover_profile.py` | velocity profile through each handover, in 25 ms bins |
-| `ue_crossfade_cost.py`, `ue_clip_blend.py`, `ue_pose_distance.py` | superseded; see below |
+| `ue_chart_ab.py` | **the hand-off in play**: drives a tap-then-hold escalation on the PIE pawn, charts the rendered hand per tick with every montage's position, shoots stills on request; args in `ue_chart_ab.json` |
+| `ue_ab_metrics.py` | reduces a chart to the speed step at the swap, the largest one-tick jump and a roughness figure; plain Python |
+| `ue_crossfade_cost.py`, `ue_clip_blend.py`, `ue_pose_distance.py`, `ue_populate_sockets.py` | superseded; see below and the sockets note in `ue_populate_sockets.py` |
 
 **The timeline window is derived, not chosen.** A tier clip is entered partway and replaced at the
 next escalation, so it carries its entry to its strike in exactly that branch's window — 0.250 s
