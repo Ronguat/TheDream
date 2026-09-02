@@ -46,7 +46,7 @@ new work:
 damaging phase; the button edge is *input release*.
 
 **Attack and swing mean the same thing.** A chained light is **three attacks**, not one attack in
-three parts — `FTDStringSwing` and the trace's `swing=N` are that index. A **string** is the chain
+three parts — `FTDAttackPosition` and the trace's `swing=N` are that index. A **string** is the chain
 they form.
 
 ## Technical Preferences
