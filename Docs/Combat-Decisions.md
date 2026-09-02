@@ -1963,6 +1963,23 @@ paired the other dummy's timer-driven dodge with the player's stun — the flagg
 *after* the stun it was attributed to. The guarantee's own evidence passed in that run: 83 refusals
 naming `State.Hitstun`, spans n=18 in band.
 
+### The felt verdict
+
+**The designer, on the shipped build**: *"That feels absolutely phenomenal… I hadn't realized how
+much that series of design flaws was compounding this whole time. Now I can do subsequent light 1s
+and easily pick whatever attack I want."*
+
+**"Compounding" is the finding, not the praise.** The two defects were mutually concealing: the link
+window carried you a position deeper into the string than you meant, so the tier you got was not the
+tier you aimed at; the buffer extension then returned a swing you had stopped wanting, a second
+late, from a position you had lost track of. Either alone reads as mistiming. Together they read as
+the *tiers* being unreliable, which is where the effort went — four rounds of it, by the 09-01
+entry's count, aimed at blends and clips.
+
+**What this retires is the assumption that repeated light 1s from neutral were ever available.** They
+were not, and no instrument said so: every scenario throws its string from a fresh start, and none
+had ever pressed after a swing simply ended. `s8-chain-closed` is that row now.
+
 ### What this does to Netcode, asked after the work was reported
 
 **Filed because the slice should not be made needlessly harder, not because netcode is being weighed
