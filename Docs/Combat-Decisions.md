@@ -1963,6 +1963,25 @@ paired the other dummy's timer-driven dodge with the player's stun — the flagg
 *after* the stun it was attributed to. The guarantee's own evidence passed in that run: 83 refusals
 naming `State.Hitstun`, spans n=18 in band.
 
+### What this does to Netcode, asked after the work was reported
+
+**Filed because the slice should not be made needlessly harder, not because netcode is being weighed
+now** (the designer). `StringIndex` is `UPROPERTY(Replicated)` and `GA_Attack` is `LocalPredicted`,
+so both machines run the ability — but **the swing index is resolved from character state at
+activation rather than carried with it**, and `bStringAdvancePending` is local, set only by the
+machine that ran the chain-out. Chain-out fires from `TickInputBuffer`, whose buffer is local input
+only and says so at the tick site. **A dedicated server would therefore never mark the advance for a
+remote client's pawn, and the replicated index would stomp the prediction back to 0.** Two shapes
+fix it: the predicted activation carries its swing index, or the server derives it from the same
+chain-out.
+
+**What the same change removed is worth more than what it added.** The link window was a 400 ms
+wall-clock deadline, and two machines starting it at different moments disagree about a press
+arriving near its edge — client shows light 2, server runs light 1, which is the worst class of
+mismatch there is. A mark consumed in the tick that sets it has no interval to disagree over.
+**The old code's server-side advance only worked because it opened on *every* natural end** — the
+behaviour this entry removes. It was latency-tolerant by being wrong.
+
 ## 2026-09-02 — Every position authors its tiers, the hand-off goes inertial, and the blend-out boundary was in play time all along
 
 **The designer's rulings, taken before any of this was built.** Per-position charged clips, not
@@ -10072,6 +10091,9 @@ sitting in the always-read file.
 - **Netcode** — the behavioural pass the 2026-08-15 recon mapped: the two `SetTimer` sites and
   i-frame lag compensation (one problem twice), prediction windows, client stamina prediction, the
   loose-tag aim-assist asymmetry, and a shareable direct-connect build.
+  **The string's advance arrives here from 2026-09-02** — the swing index is resolved from character
+  state rather than carried with the activation, which a dedicated server cannot reproduce for a
+  remote pawn. That entry has the mechanism and the two fix shapes.
   **Knockdown's inheritance (2026-08-24) is unusually easy, and worth saying so.** Every span in the
   down state that gates or admits an action is **≥ 500 ms** — lockout 1.0 or 1.5, input window 1.0 or
   0.5, rise 0.5 — so the tightest of them is four times the light's 150 ms release and dwarfs any
