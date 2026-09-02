@@ -300,6 +300,18 @@ properties, against three before.
 
 **The stun tells: discharged 2026-08-25** by positioning both playheads from stun progress instead of playing them at a rate — see the dated entry. Only a string's first hit used to be told, because the tell is a state entered on a cached bool and a hit landing inside a running stun re-enters nothing.
 
+**Whenever a Release Window notify is moved — *the socket's entry and release do not follow, and
+nothing says so.*** Filed 2026-09-01. `EntrySeconds` is derived as `notify - window`, but it is
+stored rather than computed, so authoring a notify desynchronises it silently. **The failure is a
+play-rate distortion, not an error**: the runway becomes `notify - stale entry`, and the hold rate
+is that over the window. Measured across three heavies whose notifies had been re-authored — rates
+of 0.88, 0.57 and 0.49 against an intended 1.000 — and the designer's independent read ranked their
+severity in exactly that order, from *"behaves as expected"* through *"slight hitch"* to *"the
+rewind is still there"*. **A distortion this size reads as a blend fault**, which is what it was
+mistaken for through several rounds of tuning the wrong variable. Re-derive after every notify
+edit. **A notify closer to the clip's start than the window forces a negative entry**, clamped to
+0, which costs runway and leaves the rate under 1.
+
 **Whenever a tier socket's clip is chosen — *recovery is paced against whatever montage is playing,
 and the elapsed bands were derived against the light's.*** Filed 2026-09-01. With both sockets on
 placeholder clips, `s1-charged` returned one sample of **1.549 s against a [1.550, 1.585] floor** —
@@ -1722,6 +1734,60 @@ long.
 | `bUseControllerRotationYaw` | 08-12 |
 | `compositeSections` | 08-15, 08-18, 08-28 |
 | `gEComponents` | 08-10, 08-11 |
+
+## 2026-09-01 — The heavies read, and four rounds of tuning had been aimed at the wrong variable
+
+**The designer, after the fix landed**: *"It went from concerningly unsatisfying to suddenly
+looking really, really good... these are actual, literal Polish shaped issues, rather than bugs."*
+
+### What was actually wrong, and what four rounds of fixes were not
+
+The symptom was *"a very obvious windup, then rewind, then second windup"* on every escalation.
+Four attempts missed it: the entry point moved by apex, by corrected apex, by pose match, and by
+timing — none changed anything, because **the notifies had been re-authored and the sockets still
+held the old entries**. `EntrySeconds` is stored rather than computed, so the runway was
+`notify - stale entry` and the hold rate came out at 0.88, 0.57 and 0.49 against an intended 1.000.
+The clip crawled through its own hand-off. Its own trap is filed.
+
+**The tell was in the designer's ranking, not in the numbers.** They read the three as *behaves as
+expected*, *slight hitch*, *rewind still there* — the same order as 0.88, 0.57, 0.49. Nothing in
+the trace said "wrong rate"; the ordering did.
+
+### Two real findings from the wrong turns
+
+**The blend-in was longer than the window it had to finish inside.** At the shipped 0.25 s, the
+rendered pose sat **45 cm** from the clip at the hand-off and converged only after ~0.30 s — longer
+than the heavy's entire 0.250 window, so the heavy's pose never established before its own strike.
+At **0.10 s** convergence is 0.086 s. Measured by charting the live skeleton against the clip's own
+pose at the same reported position, which is the comparison that exposed it.
+
+**Two of the three clips contain two swings.** `Attack1_Stage5` peaks at 0.200 and 1.000,
+`Attack4_Stage2` at 0.600 and 1.300; `Attack5_Stage2` is single. Strike detection takes the largest
+peak, so both were entered mid-combo by construction, and the follow-up swing plays through the
+0.5 s recovery. **A heavy clip wants a single hand-speed peak** — one number, and it would have
+excluded both before they were proposed.
+
+### Inertialization is the blend this wants, and is one node away
+
+*The designer*: *"Is there no other form of blend we could try... where the trajectory is intuitive
+to a player?"* There is, and a crossfade cannot be it: it interpolates **poses**, dragging the
+skeleton along a straight line between two positions regardless of the velocity it had.
+Inertialization blends **velocities**, decaying the difference into the new clip. `UAnimMontage`
+exposes it per-asset as `BlendModeIn`, and setting it produced
+`No Inertialization node found for request from AnimGraphNode_Slot_0` — so `ABP_Combat` needs the
+node, and the montage flag is a one-line change once it exists. Reverted to Standard meanwhile
+rather than leaving a blend that silently does nothing.
+
+### Verified
+
+`s1-heavy` release timing clean at n=5 with all three sockets live and rating 0.955–1.000. The
+elapsed assertion misses by 29 ms on 1 of 5, the same recovery-pacing trap, now over rather than
+under because the authored notify durations changed the release rate.
+
+**The charged sockets hold a placeholder** — all three pointing at `AM_Heavy2`, deliberately
+identical. They exist only so the pacing walk stops at branch 1; without them each heavy paces to
+the charged's 0.800 release and crawls then sprints, which is a coil by the designer's own
+definition. **The heavies cannot ship until the charged tier is real.**
 
 ## 2026-09-01 — Escalation blends out of all three lights, and the spin is the easy one
 
