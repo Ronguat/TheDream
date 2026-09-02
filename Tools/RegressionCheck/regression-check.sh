@@ -266,6 +266,16 @@ press_to_release() { # ms from each attack press to the following RELEASE BEGIN
 # end-of-run guard. The trace marks cancellation for exactly this.
 elapsed_values() { grep "elapsed=" "$SLICE" | grep -v "(cancelled)" | grep -o "elapsed=[0-9.]*" | cut -d= -f2; }
 
+# Lines the slice discards: engine output from the same PIE session. The slice keeps the combat
+# trace only, so an assertion about an engine-side line counts it off the raw log from the
+# session's start marker.
+raw_session_count() { # raw_session_count <fixed-string>
+	local start
+	start=$(grep -n "LogWorld: Bringing World .* up for play" "$LOGFILE" 2>/dev/null | tail -1 | cut -d: -f1)
+	[ -n "$start" ] || { echo 0; return; }
+	awk -v s="$start" 'NR>=s' "$LOGFILE" | grep -cF -- "$1" || true
+}
+
 count_per_attack() { # count_per_attack <TAG-regex>; count of TAG per COMPLETED attack
 	# Only attacks whose ABILITY END is not "(cancelled)" count. A swing StopPIE truncates
 	# mid-windup has an ACTIVATE and legitimately zero escalations or coils -- it was cut before
@@ -747,6 +757,10 @@ run_s1() { # run_s1 <release_ms> <elapsed_authored> <escalations> <coils>
 		"$(awk -v a="$ela" -v d="$BAND_ELAPSED_MAX" 'BEGIN{printf "%.3f", a+d}')" "s"
 	assert_all_equal "ESCALATE per attack" "count_per_attack '] ESCALATE'" "$esc"
 	assert_all_equal "COIL START per attack" "count_per_attack '] COIL START'" "$coil"
+	# Every tier hand-off is an inertial blend, and an unrouted request is loud: the engine logs one
+	# error per swap whose slot has no Inertialization node downstream. Zero is the only pass.
+	assert_count "no unanswered inertialization request" \
+		"$(raw_session_count 'No Inertialization node found')" 0
 }
 
 run_s2() { # run_s2 <stamina_damage> <blockstun_span|none> <health_damage>

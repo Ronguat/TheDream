@@ -140,6 +140,7 @@ and not the order anyone reads in. Keep it sorted when adding.)*
 | 2026-08-25 — The knockdown fall stops being a snap | `KnockdownFallSeconds` at **0.9** fitting the **whole** clip, and *"fall lands inside lockout"* comparing **`want=`** against `lockout=` | 2026-08-25 — The fall's carry and its clip stop being one number (same day: the clip's last 0.10 s is a settle, so fitting all of it spent the settle as travel. Carry is now 0.8 against a 0.8 portion, and the guard reads `played / rate`, which the carry no longer bounds. The raise itself and its reasoning stand) |
 | 2026-08-25 — The knockdown fall's remaining fault is its time curve | the values it shipped: carry **0.45** with `KnockdownFallClipStartSeconds` at **0.35** | 2026-08-25 — The knockdown fall parks at 0.6 (same day, the designer calling a halt: the offset alone trades the gather for a longer flat tail, so it ships at 0.0 and the carry returns to 0.6. **The entry's findings all stand** — the cushion, the flat-before-landing, the 0.45 s ceiling — only its shipped values moved) |
 | 2026-08-25 — The stun tells are positioned by stun progress | the sequence player is held at **rate zero**, called "load-bearing and not merely tidy" | 2026-08-28 — The recoil ships, and the rate-zero hold had never worked. `SetPlayRate(0)` was refused every frame from the day it shipped; the rate was 1.0 throughout. The mechanism the entry describes is now true for the first time, and the entry is right about why it matters |
+| 2026-09-01 — Escalation blends out of all three lights, and the spin is the easy one | the 1 ms elapsed shortfall under populated sockets is the fixture's, and the elapsed bands would want re-deriving rather than the code fixing | 2026-09-02 — Every position authors its tiers, the hand-off goes inertial, and the blend-out boundary was in play time all along |
 
 ---
 
@@ -310,10 +311,19 @@ severity in exactly that order, from *"behaves as expected"* through *"slight hi
 rewind is still there"*. **A distortion this size reads as a blend fault**, which is what it was
 mistaken for through several rounds of tuning the wrong variable. Re-derive after every notify
 edit. **A notify closer to the clip's start than the window forces a negative entry**, clamped to
-0, which costs runway and leaves the rate under 1.
+0, which costs runway and leaves the rate under 1 — and enters the clip at its rest pose, which is
+what made the first H1 read poorly. **The re-derivation is scripted** *(2026-09-02)*:
+`Tools/AnimPipeline/ue_fit_tier_montages.py` places the window from its JSON and
+`Tools/ValuesSnapshot/ue_seed_cells.py`'s overrides write the cell's entry and release from the same
+numbers; a notify moved by hand in the editor still needs both re-run.
 
-**Whenever a tier socket's clip is chosen — *recovery is paced against whatever montage is playing,
-and the elapsed bands were derived against the light's.*** Filed 2026-09-01. With both sockets on
+**~~Whenever a tier socket's clip is chosen — *recovery is paced against whatever montage is playing,
+and the elapsed bands were derived against the light's.*~~ — DISCHARGED 2026-09-02.** The shortfall
+was the code, not the bands: an authored `BlendOutTriggerTime` was modelled as a fixed montage
+position while the engine scales it by the play rate, so recovery ended `trigger × (rate − 1)` early
+— 34 to 42 ms on heavy 2 at rate 1.77, measured off the log against both models. Fixed in
+`GetBlendOutStartSeconds` and `ComputeRecoveryPlayRate`, the parry's copy alongside; the bands stand.
+The original, for the shape of the wrong expectation: Filed 2026-09-01. With both sockets on
 placeholder clips, `s1-charged` returned one sample of **1.549 s against a [1.550, 1.585] floor** —
 1 ms under, 1 in 7 — while release timing passed at n=7 and the un-socketed control passed 4/4 at
 n=11 on the same build. `GetBlendOutStartSeconds` reads the *active* montage, so recovery now ends
@@ -875,9 +885,11 @@ the montage position the phase needs to reach.
 
 **Two things this cost, both worth copying.** An assistant read `AM_Attack_S2`'s explicit
 `BlendOutTriggerTime = 0.05` as stale residue from the previous clip and reset it to `-1`; it was
-load-bearing for the *new* clip too, for a different reason. **An explicit trigger is rate-immune**
-— that is the whole point of setting one — so it is the fix for a fast-windup clip as much as for a
-wide window. And the symptom reproduced the original exactly: the swing ran **214 ms**, and the
+load-bearing for the *new* clip too, for a different reason. **An explicit trigger is not
+rate-immune** *(corrected 2026-09-02 — the engine compares it in play time, so the boundary is
+`length − trigger × rate` either way; measured on the heavies' recoveries, see that entry)*. It
+fixes a fast-windup clip because it is *smaller* than the 0.25 s blend-out it replaces, which moves
+the boundary later at every rate. And the symptom reproduced the original exactly: the swing ran **214 ms**, and the
 drift warning read `Release Window opened at 0.0000`, which is the second sentinel to recognise
 alongside `pos=-1.0000`.
 
@@ -1205,7 +1217,7 @@ than a refusal.
 | Dodge travels too far or short | `DodgeTargetDistanceCm` — one number, every direction, as of 2026-08-13 | The play rate, and **not `AnimRootMotionTranslationScale`**, which this row named until 2026-08-14 and which now does nothing at all: the dash clips carry `bEnableRootMotion = false`, so there is no animation root motion left to scale. Rate changes *duration*, never *distance* — a faster dash covers the same ground in less time. |
 | Dodge is too safe | A recovery window in **absolute** time, i-frames derived as `DodgeSeconds - RecoverySeconds` | A *fraction* of the dodge. What makes recovery punishable is how it compares to an attack's startup, and a fraction shrinks the punish window below usable whenever the dodge is retuned faster. |
 | An attack is too reactable, or not enough | That tier's **`ReleaseAtSeconds`**. The window is its arrival minus the **light's** — the defender's read is *"no light landed"*, available at 200 ms | `CoilEndSeconds` or where the coil starts. Reactability is still measured from the **tell** rather than the press, but the tell is the light's non-arrival and not the coil — which is why deprecating the coil touches none of this arithmetic. Corrected 2026-08-25; the coil-referenced form overstated every window by 50 ms |
-| A swing's follow-through drags, or its recovery reads sluggish | That branch's or swing's `RecoverySeconds` — it sets the recovery *rate*, the light's running the section furthest from true speed | The clip, and **especially not `BlendOutTriggerTime`**. Recovery only has to reach the blend-out boundary, and with a trigger of `-1` that boundary **moves with the rate** — so touching it silently retimes the punish window instead of the look. Same family as the blend-out trap. |
+| A swing's follow-through drags, or its recovery reads sluggish | The cell's `RecoverySeconds` for *how long*. For *how fast it plays*, the montage's `BlendOutTriggerTime` = `length − window end − RecoverySeconds`, which lands recovery at rate 1.0 *(2026-09-02; `Tools/AnimPipeline/ue_fit_tier_montages.py` sets it)* | The clip's length, or any play rate. `RecoverySeconds` is the punish window and moving it retimes play; the trigger is the clip-side fit and moving it retimes only the look. The boundary moves with the rate whether or not a trigger is authored, so the fit holds at 1.0 and nowhere else. |
 | The snap-to-camera pop reads badly | **Nothing — the snap is gone.** Facing is one smooth rate in both states as of 2026-08-12 | *(This row used to forbid always-smooth on the grounds that it sends dodges sideways. That was wrong: a dodge resolves its direction relative to facing and travels relative to the same facing, so lag cancels. Disproven in play.)* |
 | Attacks do not land where the player aimed | `TurnRateDegrees`, and read `FACING LOCK`'s **`err` beside its `camDelta`** — err alone answers only "is the body aligned with the camera *now*". A large err with a small camDelta is an aim bug; a large err on a still-moving camera is a flick finished after commit, which is user error and settled *(2026-08-18)* | The wedge's `ArcDegrees`. Widening the arc to cover a facing that arrived late hides an aim bug behind a bigger hitbox, and does it in every direction at once. |
 | `TurnRateDegrees` feels too fast or slow | Nothing, without re-deriving it. It is 180° ÷ the light's `HoldUntilSeconds`, the slowest rate that always arrives before the wedge freezes | Lowering it for feel. Below the derived value there are flicks the character cannot finish, and the attack silently points somewhere the player did not aim — which is what 500 was doing to 71% of flick-attacks. |
@@ -1233,7 +1245,7 @@ than a refusal.
 | An ability's direction can be steered when it should be committed | `SetAbilityFacingLocked(true)` for its duration | `bAllowPhysicsRotationDuringAnimRootMotion`. Turning it back off fixes one ability by re-breaking every other, which is how the dodge got a committed direction it never declared. |
 | Control returning after a swing reads abruptly | Where the lock *ends* — it now runs to `EndAbility`, and the idle rate handles the catch-up gently when nothing else is happening | An interp on the rotation rate. It was the obvious fix and turned out to be unnecessary twice over: the two rates already cover both cases, and the failure modes that killed the original fade were artifacts of a snap branch that no longer exists. |
 | An attack is too punishable, or not punishable enough | The branch's `RecoverySeconds`, in absolute seconds — it *is* the punish window | The clip, its length, or any play rate. Recovery stopped being a property of the animation on 2026-08-12; the montage is warped to fit the number, never consulted about it. |
-| Recovery does not last what it is authored to | Whether something else set the montage rate after `RELEASE OFF` — the trace prints the derived rate and the blend-out boundary it solved for | A correction factor on `RecoverySeconds`. The boundary moves with the play rate, so a fudge tuned at one recovery length is wrong at every other; the rate-dependence is solved for in `ComputeRecoveryPlayRate` and any residual error is a different bug. |
+| Recovery does not last what it is authored to | Whether something else set the montage rate after `RELEASE OFF` — the trace prints the derived rate and the blend-out boundary it solved for | A correction factor on `RecoverySeconds`. The boundary is `length − trigger × rate` whether the trigger is authored or defaults to the blend-out's duration *(2026-09-02; before that an authored one was modelled as a fixed position and recovery ended `trigger × (rate − 1)` early)*; `ComputeRecoveryPlayRate` solves for it and any residual error is a different bug. |
 | An attack does not close enough ground | `UTDMeleeAttackAbility::LungeDistanceCm`, the base lunge every tier shares | The clip, and **not** a branch's value if the complaint is about the whole ladder. The base lunge is the only displacement that exists before the tiers can be told apart. |
 | One *tier* does not lunge far enough | That branch's `LungeDistanceCm`, which runs from the commit checkpoint to the end of the release window | The base lunge. Raising that to lengthen one tier lengthens all three, and does it in the one span a defender must not be able to read a tier from. |
 | The lunge jerks or stalls at the commit boundary | The **ratio** between the two distances. Speed is `Distance ÷ Duration`, so the seam is continuous when `D_branch = D_base × (T_branch ÷ T_base)` — today 1.333× | Either distance alone. Each one sets a speed, and it is the mismatch between them that is felt; changing one without the other moves the discontinuity rather than removing it. |
@@ -1372,6 +1384,10 @@ concludes the log is wrong rather than merely old. Add a row whenever a name cha
 | `State.ParryLockout` (the post-dodge gap) | **`State.DodgeRecovery`**, 2026-08-19. The gap shared the whiff's tag until the whiff widened to refuse everything; it kept the old narrow behaviour and took its own tag. |
 | `PostDodgeParryLockoutSeconds` | **`DodgeRecoverySeconds`**, 2026-08-19, with the tag split above. Same 0.15, same derivation, same behaviour. |
 | `ApplyParryLockout()`, `EndParryLockout()`, `bParryLockedOut`, `IsParryLockedOut()` | `ApplyParryRecovery()`, `EndParryRecovery()`, `bInParryRecovery`, `IsInParryRecovery()` — 2026-08-19, and each gained a `*DodgeRecovery*` sibling for the gap. |
+| `FTDStringSwing`, `StringSwings` (hits 2 and 3, hit 1 on the ability's legacy fields) | **`FTDAttackPosition`, `Positions`**, 2026-09-02: three positions, hit 1 at index 0, each carrying one `FTDAttackCell` per branch and its `CoilEndSeconds`. The swing's branch-0 overrides became the light cell's values. |
+| `FTDTierAnimation`, `TierAnimations` (the escalation sockets) | **`FTDAttackCell`'s `Montage`, `EntrySeconds`, `ReleaseStartSeconds`**, 2026-09-02 — every cell carries its own, the light cell entered at 0. |
+| `FTDAttackBranch`'s tunables (`ReleaseSeconds`, `RecoverySeconds`, `Damage`, `StaminaDamage`, `BlockstunSeconds`, `HitstunSeconds`, `KnockdownType`, `ParryLockoutSeconds`, `Hitboxes`, `LungeDistanceCm`, `LungeDurationSeconds`, `LungeStrengthCurve`) | **The same names on `FTDAttackCell`**, 2026-09-02; the branch keeps only the ladder — `AttackTag`, `MontageSection`, `HoldUntilSeconds`, `ReleaseAtSeconds`, `bChainsIntoString`, `AimAssistWedge`. |
+| `UTDChargedAttackAbility::ReleaseStartSeconds`, `::CoilEndSeconds` (hit 1's) | **`Positions[0].Cells[0].ReleaseStartSeconds`** and **`Positions[0].CoilEndSeconds`**, 2026-09-02. |
 
 ---
 
@@ -1402,7 +1418,7 @@ long.
 
 | Symbol | Entries |
 |---|---|
-| `ABP_Combat` | 08-11, 08-12, 08-15 |
+| `ABP_Combat` | 08-11, 08-12, 08-15, 09-02 |
 | `ACharacter::SetAnimRootMotionTranslationScale` | 08-12 |
 | `ACharacter` | 08-12 |
 | `AGameModeBase::ChoosePlayerStart_Implementation` | 08-15 |
@@ -1410,8 +1426,10 @@ long.
 | `AM_Attack_S3` | 08-16, 09-01 |
 | `AM_Attack_S4` | 08-16 |
 | `AM_Attack` | 08-12, 08-24, 08-27, 09-01 |
+| `AM_Charged1`, `AM_Charged2`, `AM_Charged3` | 09-02 |
 | `AM_Dodge` | 08-10, 08-11, 08-12, 08-13, 08-21, 08-28 |
 | `AM_GetUpAttack` | 08-21, 08-22 |
+| `AM_Heavy1`, `AM_Heavy2`, `AM_Heavy3` | 09-01, 09-02 |
 | `AM_Knockdown` | 08-25, 08-28 |
 | `AM_Parry` | 08-24 |
 | `APawn::FaceRotation` | 08-12 |
@@ -1428,7 +1446,7 @@ long.
 | `ATheDreamCharacter` | 08-12, 08-13, 08-24 |
 | `ActivateAbility` | 08-10, 08-12, 08-24 |
 | `ActivationBlockedTags` | 08-10, 08-11, 08-12, 08-19 |
-| `ActiveTierMontage` | 09-01 |
+| `ActiveTierMontage` | 09-01, 09-02 |
 | `ActorsHitThisWindow` | 08-18 |
 | `AddMovementInput` | 08-12, 08-16 |
 | `AimAssistMarginCm` | 08-21 |
@@ -1447,7 +1465,7 @@ long.
 | `BP_PlayerCharacter` | 08-11, 08-12, 08-15 |
 | `BP_TrainingDummy` | 08-11, 08-12 |
 | `BS_SwordShield_Block` | 08-14 |
-| `BlendOutTriggerTime` | 08-12 |
+| `BlendOutTriggerTime` | 08-12, 09-02 |
 | `BlockCommitEndsAt` | 08-15 |
 | `BlockDrainPerSecond` | 08-14 |
 | `BlockInitialStaminaCost` | 08-14 |
@@ -1469,10 +1487,11 @@ long.
 | `ClampVelocity` | 08-14 |
 | `ClearExhaustionState` | 08-11 |
 | `ClearParryLockoutState` | 08-24 |
-| `CoilEndSeconds` | 08-09, 08-12 |
+| `CoilEndSeconds` | 08-09, 08-12, 09-02 |
 | `CoilTurnRateDegrees` | 08-12 |
 | `CommitAttack` | 08-13, 08-18 |
 | `CommitRate` | 08-25 |
+| `ComputeRecoveryPlayRate` | 09-02 |
 | `ComputeWindupPlayRate` | 09-01 |
 | `CostGameplayEffectClass` | 08-10 |
 | `DamageEffectClass` | 08-14 |
@@ -1498,7 +1517,7 @@ long.
 | `EndParryLockout` | 08-21 |
 | `EndParryRecovery` | 08-19 |
 | `EndTask` | 08-14 |
-| `EnterCoil` | 08-14, 09-01 |
+| `EnterCoil` | 08-14, 09-01, 09-02 |
 | `EnterDeath` | 08-11 |
 | `EnterExhaustion` | 08-15 |
 | `EnterHitstun` | 08-18 |
@@ -1520,14 +1539,18 @@ long.
 | `FTDAttackBranch::MontageSection` | 08-18 |
 | `FTDAttackBranch::RecoverySeconds` | 08-12 |
 | `FTDAttackBranch::RootMotionScale` | 08-12 |
+| `FTDAttackBranch` | 09-02 |
+| `FTDAttackCell` | 09-02 |
 | `FTDAttackHitbox` | 08-12, 08-13, 08-14 |
+| `FTDAttackPosition` | 09-02 |
 | `FTDRootMotionSource_FacingForce::IsWithinStandoff` | 08-14 |
 | `FTDRootMotionSource_FacingForce::PrepareRootMotion` | 08-13 |
 | `FTDRootMotionSource_FacingForce` | 08-12, 08-13 |
-| `FTDStringSwing` | 08-16, 09-01 |
-| `FTDTierAnimation` | 09-01 |
+| `FTDStringSwing` | 08-16, 09-01, 09-02 |
+| `FTDTierAnimation` | 09-01, 09-02 |
 | `FacingLockFadeSeconds` | 08-12 |
-| `FindTierAnimation` | 09-01 |
+| `FindCell` | 09-02 |
+| `FindTierAnimation` | 09-01, 09-02 |
 | `FinishVelocityParams` | 08-14 |
 | `ForcedFacingTurnRateDegrees` | 08-20 |
 | `GA_Attack` | 08-09, 08-10, 08-11, 08-12, 08-14, 08-24, 08-25 |
@@ -1540,6 +1563,7 @@ long.
 | `GetActorForwardVector` | 08-12 |
 | `GetAimYawDegrees` | 08-13 |
 | `GetAttackParryLockoutSeconds` | 08-20 |
+| `GetBlendOutStartSeconds` | 09-02 |
 | `GetLastInputVector` | 08-10, 08-16 |
 | `GetParryLockoutTellTime` | 08-27, 08-28 |
 | `GetScriptStruct` | 08-12 |
@@ -1614,16 +1638,17 @@ long.
 | `PhysicalAnimationComponent` | 08-25 |
 | `PhysicsRotation` | 08-12 |
 | `PlayParryMontage` | 08-24 |
+| `Positions` | 09-02 |
 | `PreAttributeBaseChange` | 08-10 |
 | `PreAttributeChange` | 08-10 |
 | `PrepareRootMotion` | 08-12 |
 | `REPNOTIFY_Always` | 08-11 |
 | `RecoveryPlayRate` | 08-12 |
-| `RecoverySeconds` | 08-12, 08-13, 08-16, 08-18 |
+| `RecoverySeconds` | 08-12, 08-13, 08-16, 08-18, 09-02 |
 | `RegenSuppressedUntil` | 08-10 |
 | `ReleaseAtSeconds` | 08-09, 08-11, 08-12, 08-25, 09-01 |
 | `ReleaseSeconds` | 08-09, 08-12, 08-13, 08-18, 08-19 |
-| `ReleaseStartSeconds` | 08-09, 08-10, 08-11, 08-12, 09-01 |
+| `ReleaseStartSeconds` | 08-09, 08-10, 08-11, 08-12, 09-01, 09-02 |
 | `RemoveRootMotionSourceByID` | 08-14 |
 | `ResolveDodgeDirection` | 08-10, 08-12, 08-16 |
 | `ResolveHits` | 08-13, 08-18 |
@@ -1649,7 +1674,7 @@ long.
 | `StandoffCm` | 08-13 |
 | `StartAttackMontage` | 08-13 |
 | `StartLunge` | 08-14, 08-16 |
-| `StartTierMontage` | 09-01 |
+| `StartTierMontage` | 09-01, 09-02 |
 | `State.Blocking.Committed` | 08-14 |
 | `State.DodgeRecovery` | 08-19, 08-25 (retired to 0; machinery dormant) |
 | `State.GuardBroken` | 08-14 |
@@ -1661,14 +1686,14 @@ long.
 | `StopRagdoll` | 08-13 |
 | `StrengthOverTime` | 08-12 |
 | `StringLinkWindowSeconds` | 08-16 |
-| `StringSwings` | 08-16 |
+| `StringSwings` | 08-16, 09-02 |
 | `SwordShield` | 08-10, 08-11 |
 | `TDChargedAttackAbility` | 08-11 |
 | `TDDodgeAbility` | 08-11, 08-13 |
 | `TDPlayerState` | 08-15 |
 | `TargetImmunityTags` | 08-13 |
 | `TheDreamEditor` (module) | 08-24 |
-| `TierAnimations` | 09-01 |
+| `TierAnimations` | 09-01, 09-02 |
 | `TraceRadius` | 08-11, 08-12 |
 | `TurnRateDegrees` | 08-12, 08-13, 08-14, 08-15, 08-18 |
 | `UAbilityTask_PlayMontageAndWait` | 08-12 |
@@ -1734,6 +1759,10 @@ long.
 | `bUseControllerRotationYaw` | 08-12 |
 | `compositeSections` | 08-15, 08-18, 08-28 |
 | `gEComponents` | 08-10, 08-11 |
+| `raw_session_count` | 09-02 |
+| `ue_chart_ab.py` | 09-02 |
+| `ue_fit_tier_montages.py` | 09-02 |
+| `ue_seed_cells.py` | 09-02 |
 
 ## 2026-09-01 — The heavies read, and four rounds of tuning had been aimed at the wrong variable
 

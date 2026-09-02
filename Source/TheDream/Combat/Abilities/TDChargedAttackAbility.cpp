@@ -47,7 +47,7 @@ void UTDChargedAttackAbility::ActivateAbility(const FGameplayAbilitySpecHandle H
 	ActiveTierReleaseStart = 0.0f;
 
 	UWorld* World = GetWorld();
-	if (!World || Branches.Num() == 0)
+	if (!World || Branches.Num() == 0 || Positions.Num() == 0)
 	{
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
 		return;
@@ -56,8 +56,8 @@ void UTDChargedAttackAbility::ActivateAbility(const FGameplayAbilitySpecHandle H
 	ActivationWorldTime = World->GetTimeSeconds();
 
 	// Which swing of the string this is, asked of the character because the string outlives any one
-	// activation. Resolved before anything reads a montage or derives a rate. With no StringSwings
-	// authored this is always 0 and the mechanism is inert by construction.
+	// activation. Resolved before anything reads a montage or derives a rate. With one position
+	// authored this is always 0 and the string is inert by construction.
 	CurrentSwingIndex = 0;
 	if (ATDCombatCharacter* CombatCharacter = Cast<ATDCombatCharacter>(GetAvatarActorFromActorInfo()))
 	{
@@ -168,7 +168,7 @@ void UTDChargedAttackAbility::HandleCheckpoint()
 		// Every escalation swaps, not just the first: light -> heavy and heavy -> charged are two
 		// blends, and the second departs from whatever the first left on the slot. Ahead of the
 		// coil, so EnterCoil sees the montage this branch will actually run on.
-		if (const FTDTierAnimation* Tier = FindTierAnimation(CurrentSwingIndex, NextIndex))
+		if (const FTDAttackCell* Tier = FindTierAnimation(CurrentSwingIndex, NextIndex))
 		{
 			StartTierMontage(*Tier);
 		}
@@ -266,6 +266,7 @@ void UTDChargedAttackAbility::CommitAttack()
 	}
 
 	const FTDAttackBranch& Branch = Branches[SelectedBranchIndex];
+	const FTDAttackCell* Cell = FindCell(CurrentSwingIndex, SelectedBranchIndex);
 
 	// A heavy or charged commit ends the string then and there -- heavy never chains into light. At
 	// the commit rather than the ability's end, so a dodge-cancel of the *following* windup cannot
@@ -305,9 +306,16 @@ void UTDChargedAttackAbility::CommitAttack()
 		}
 	}
 
-	// Hitboxes are per branch, so the task can only start once the branch is known. Starting
+	// Hitboxes are per cell, so the task can only start once the branch is known. Starting
 	// it here is also what guarantees a listener exists before the window opens -- which
-	// is why CoilEndSeconds must stay below ReleaseStartSeconds.
+	// is why CoilEndSeconds must stay below ReleaseStartSeconds. Ungated: an unauthored set is
+	// the silently undamaging swing this family of warnings exists for.
+	if (Cell && Cell->Hitboxes.Num() == 0)
+	{
+		UE_LOG(LogTDCombatTiming, Warning,
+			TEXT("Swing %d branch %d authors no hitboxes; using the ability's own set."),
+			CurrentSwingIndex, SelectedBranchIndex);
+	}
 	StartMeleeTrace(GetAttackHitboxes());
 
 	// Target Lock's rotational half, and the order matters: it must run *before* the freeze below,
@@ -340,7 +348,7 @@ void UTDChargedAttackAbility::CommitAttack()
 	StartLunge(
 		GetSwingLungeDistanceCm(CurrentSwingIndex, SelectedBranchIndex),
 		GetSwingLungeDurationSeconds(CurrentSwingIndex, SelectedBranchIndex),
-		Branch.LungeStrengthCurve,
+		Cell ? Cell->LungeStrengthCurve.Get() : nullptr,
 		LungeStandoffCm);
 
 	// The window's own length is only knowable once the notify fires, so the ability waits
@@ -418,16 +426,10 @@ void UTDChargedAttackAbility::CloseReleaseWindow()
 	// for the rest of the montage, which sent recovery through at 3.28x and -- above about 2.8x --
 	// left less montage-time remaining than the blend-out needed, terminating the montage the
 	// instant the rate was applied. The rate is derived from the authored RecoverySeconds, so what
-	// a designer sets is the punish window itself; a string position beyond the first authors its
-	// own on the swing, heavy and charged keep the branch's wherever they convert.
+	// a designer sets is the punish window itself, per cell.
 	const float RecoveryFrom = GetMontagePosition();
-	float TargetSeconds = Branches.IsValidIndex(SelectedBranchIndex)
-		? Branches[SelectedBranchIndex].RecoverySeconds
-		: 0.0f;
-	if (SelectedBranchIndex == 0 && StringSwings.IsValidIndex(CurrentSwingIndex - 1))
-	{
-		TargetSeconds = StringSwings[CurrentSwingIndex - 1].RecoverySeconds;
-	}
+	const FTDAttackCell* Cell = FindCell(CurrentSwingIndex, SelectedBranchIndex);
+	const float TargetSeconds = Cell ? Cell->RecoverySeconds : 0.0f;
 
 	// Recovery is the span the chain-out may open inside; note it before deriving anything, so a
 	// chain press already waiting in the buffer can leave on the very next buffer tick.
@@ -536,75 +538,43 @@ float UTDChargedAttackAbility::GetElapsedSeconds() const
 	return World ? World->GetTimeSeconds() - ActivationWorldTime : 0.0f;
 }
 
+// Each value is the cell's own; the ability's field is the fallback for an unauthored cell. Zero is
+// a legitimate authored stamina damage or blockstun ("cannot break a guard", "costs only stamina")
+// and zero hitstun means none, so none of these treats zero as unset.
 float UTDChargedAttackAbility::GetAttackDamage() const
 {
-	// A string position beyond the first authors branch 0's values on its swing; heavy and
-	// charged keep the branch's own wherever in the string they convert, because the tier is
-	// what they are and the swing is merely the clip they coiled out of.
-	if (SelectedBranchIndex == 0 && StringSwings.IsValidIndex(CurrentSwingIndex - 1))
-	{
-		return StringSwings[CurrentSwingIndex - 1].Damage;
-	}
-	return Branches.IsValidIndex(SelectedBranchIndex) ? Branches[SelectedBranchIndex].Damage : Damage;
+	const FTDAttackCell* Cell = FindCell(CurrentSwingIndex, SelectedBranchIndex);
+	return Cell ? Cell->Damage : Damage;
 }
 
 float UTDChargedAttackAbility::GetAttackStaminaDamage() const
 {
-	// Falls back to the ability's own value on an invalid index, exactly as damage does. Note the
-	// asymmetry with hitboxes, which fall back on an *empty array* too: a stamina damage of zero is
-	// a legitimate authored value meaning "this can never break a guard", so it is not unset.
-	if (SelectedBranchIndex == 0 && StringSwings.IsValidIndex(CurrentSwingIndex - 1))
-	{
-		return StringSwings[CurrentSwingIndex - 1].StaminaDamage;
-	}
-	return Branches.IsValidIndex(SelectedBranchIndex) ? Branches[SelectedBranchIndex].StaminaDamage : StaminaDamage;
+	const FTDAttackCell* Cell = FindCell(CurrentSwingIndex, SelectedBranchIndex);
+	return Cell ? Cell->StaminaDamage : StaminaDamage;
 }
 
 float UTDChargedAttackAbility::GetAttackBlockstunSeconds() const
 {
-	// Falls back on an invalid index like the two above, and zero is likewise a legitimate authored
-	// value -- "blocking this costs nothing but stamina" -- rather than a signal that it is unset.
-	if (SelectedBranchIndex == 0 && StringSwings.IsValidIndex(CurrentSwingIndex - 1))
-	{
-		return StringSwings[CurrentSwingIndex - 1].BlockstunSeconds;
-	}
-	return Branches.IsValidIndex(SelectedBranchIndex) ? Branches[SelectedBranchIndex].BlockstunSeconds : BlockstunSeconds;
+	const FTDAttackCell* Cell = FindCell(CurrentSwingIndex, SelectedBranchIndex);
+	return Cell ? Cell->BlockstunSeconds : BlockstunSeconds;
 }
 
 float UTDChargedAttackAbility::GetAttackHitstunSeconds() const
 {
-	// Same resolution as the three above: swing value for a mid-string light, branch value for
-	// the tiers, ability fallback on an invalid index. Zero everywhere means no hitstun.
-	if (SelectedBranchIndex == 0 && StringSwings.IsValidIndex(CurrentSwingIndex - 1))
-	{
-		return StringSwings[CurrentSwingIndex - 1].HitstunSeconds;
-	}
-	return Branches.IsValidIndex(SelectedBranchIndex) ? Branches[SelectedBranchIndex].HitstunSeconds : HitstunSeconds;
+	const FTDAttackCell* Cell = FindCell(CurrentSwingIndex, SelectedBranchIndex);
+	return Cell ? Cell->HitstunSeconds : HitstunSeconds;
 }
 
 ETDKnockdownType UTDChargedAttackAbility::GetAttackKnockdownType() const
 {
-	// Same resolution as the stun values above: swing value for a mid-string light, branch value
-	// for the tiers, ability fallback on an invalid index. None everywhere means hitstun instead,
-	// which is what every attack did before knockdown existed.
-	if (SelectedBranchIndex == 0 && StringSwings.IsValidIndex(CurrentSwingIndex - 1))
-	{
-		return StringSwings[CurrentSwingIndex - 1].KnockdownType;
-	}
-	return Branches.IsValidIndex(SelectedBranchIndex) ? Branches[SelectedBranchIndex].KnockdownType : KnockdownType;
+	const FTDAttackCell* Cell = FindCell(CurrentSwingIndex, SelectedBranchIndex);
+	return Cell ? Cell->KnockdownType : KnockdownType;
 }
-
 
 float UTDChargedAttackAbility::GetAttackParryLockoutSeconds() const
 {
-	// Same resolution as the stun values and the type: swing value for a mid-string light, branch
-	// value for the tiers, ability fallback on an invalid index. **Authored at every level** -- no
-	// level of this ladder computes the number.
-	if (SelectedBranchIndex == 0 && StringSwings.IsValidIndex(CurrentSwingIndex - 1))
-	{
-		return StringSwings[CurrentSwingIndex - 1].ParryLockoutSeconds;
-	}
-	return Branches.IsValidIndex(SelectedBranchIndex) ? Branches[SelectedBranchIndex].ParryLockoutSeconds : ParryLockoutSeconds;
+	const FTDAttackCell* Cell = FindCell(CurrentSwingIndex, SelectedBranchIndex);
+	return Cell ? Cell->ParryLockoutSeconds : ParryLockoutSeconds;
 }
 
 float UTDChargedAttackAbility::GetKnockbackSpacingCm(bool bBlocked) const
@@ -637,32 +607,31 @@ float UTDChargedAttackAbility::GetSwingReleaseStartSeconds(int32 SwingIndex) con
 		return ActiveTierReleaseStart;
 	}
 
-	return StringSwings.IsValidIndex(SwingIndex - 1)
-		? StringSwings[SwingIndex - 1].ReleaseStartSeconds
-		: ReleaseStartSeconds;
+	const FTDAttackCell* Light = FindCell(SwingIndex, 0);
+	return Light ? Light->ReleaseStartSeconds : 0.0f;
 }
 
-const FTDTierAnimation* UTDChargedAttackAbility::FindTierAnimation(int32 SwingIndex, int32 BranchIndex) const
+const FTDAttackCell* UTDChargedAttackAbility::FindCell(int32 SwingIndex, int32 BranchIndex) const
+{
+	if (!Positions.IsValidIndex(SwingIndex) || !Positions[SwingIndex].Cells.IsValidIndex(BranchIndex))
+	{
+		return nullptr;
+	}
+	return &Positions[SwingIndex].Cells[BranchIndex];
+}
+
+const FTDAttackCell* UTDChargedAttackAbility::FindTierAnimation(int32 SwingIndex, int32 BranchIndex) const
 {
 	if (BranchIndex <= 0)
 	{
 		return nullptr;
 	}
 
-	const TArray<FTDTierAnimation>& Sockets = StringSwings.IsValidIndex(SwingIndex - 1)
-		? StringSwings[SwingIndex - 1].TierAnimations
-		: TierAnimations;
-
-	const int32 Slot = BranchIndex - 1;
-	if (!Sockets.IsValidIndex(Slot) || !Sockets[Slot].Montage)
-	{
-		return nullptr;
-	}
-
-	return &Sockets[Slot];
+	const FTDAttackCell* Cell = FindCell(SwingIndex, BranchIndex);
+	return (Cell && Cell->Montage) ? Cell : nullptr;
 }
 
-void UTDChargedAttackAbility::StartTierMontage(const FTDTierAnimation& Tier)
+void UTDChargedAttackAbility::StartTierMontage(const FTDAttackCell& Tier)
 {
 	// The outgoing montage is about to be interrupted by the incoming one taking its slot. Its
 	// task must be silenced first: OnInterrupted ends the ability, and this interruption is ours.
@@ -715,65 +684,41 @@ void UTDChargedAttackAbility::StartTierMontage(const FTDTierAnimation& Tier)
 	// the shortfall, and how far below says how short the clip is for the window it must cover.
 	// `paces=` is the branch whose release it was rated for, which differs from the branch that
 	// swapped it in exactly when the next tier has no socket of its own.
-	TD_TIMING_LOG(TEXT("[%.3f] TIER SWAP  branch %d '%s' entry=%.4f release=%.4f rate=%.3f paces=%d"),
-		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f, SelectedBranchIndex,
-		*GetNameSafe(Tier.Montage), Tier.EntrySeconds, Tier.ReleaseStartSeconds, HoldRate,
-		LastBranchOnThisClip);
+	TD_TIMING_LOG(TEXT("[%.3f] TIER SWAP  %s branch %d '%s' entry=%.4f release=%.4f rate=%.3f paces=%d"),
+		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f, *GetNameSafe(GetAvatarActorFromActorInfo()),
+		SelectedBranchIndex, *GetNameSafe(Tier.Montage), Tier.EntrySeconds, Tier.ReleaseStartSeconds,
+		HoldRate, LastBranchOnThisClip);
 }
 
 float UTDChargedAttackAbility::GetSwingCoilEndSeconds(int32 SwingIndex) const
 {
-	return StringSwings.IsValidIndex(SwingIndex - 1)
-		? StringSwings[SwingIndex - 1].CoilEndSeconds
-		: CoilEndSeconds;
+	return Positions.IsValidIndex(SwingIndex) ? Positions[SwingIndex].CoilEndSeconds : 0.0f;
 }
 
 const TArray<FTDAttackHitbox>& UTDChargedAttackAbility::GetSwingHitboxes(int32 SwingIndex, int32 BranchIndex) const
 {
-	// Swing, then branch, then the ability's own set. Each rung falls through on *empty* rather
-	// than on a flag, so authoring nothing is how a swing says "same as the tier" -- and the last
-	// rung exists because a silently undamaging attack is worse than a wrong-sized one.
-	if (StringSwings.IsValidIndex(SwingIndex - 1) && StringSwings[SwingIndex - 1].Hitboxes.Num() > 0)
-	{
-		return StringSwings[SwingIndex - 1].Hitboxes;
-	}
-
-	if (Branches.IsValidIndex(BranchIndex) && Branches[BranchIndex].Hitboxes.Num() > 0)
-	{
-		return Branches[BranchIndex].Hitboxes;
-	}
-
-	return Hitboxes;
+	// The cell's set, or the ability's own when the cell authors none -- a silently undamaging
+	// attack is worse than a wrong-sized one, and CommitAttack warns when this rung is taken.
+	const FTDAttackCell* Cell = FindCell(SwingIndex, BranchIndex);
+	return (Cell && Cell->Hitboxes.Num() > 0) ? Cell->Hitboxes : Hitboxes;
 }
 
 float UTDChargedAttackAbility::GetSwingReleaseSeconds(int32 SwingIndex, int32 BranchIndex) const
 {
-	if (StringSwings.IsValidIndex(SwingIndex - 1) && StringSwings[SwingIndex - 1].ReleaseSeconds > 0.0f)
-	{
-		return StringSwings[SwingIndex - 1].ReleaseSeconds;
-	}
-
-	return Branches.IsValidIndex(BranchIndex) ? Branches[BranchIndex].ReleaseSeconds : 0.0f;
+	const FTDAttackCell* Cell = FindCell(SwingIndex, BranchIndex);
+	return Cell ? Cell->ReleaseSeconds : 0.0f;
 }
 
 float UTDChargedAttackAbility::GetSwingLungeDistanceCm(int32 SwingIndex, int32 BranchIndex) const
 {
-	if (StringSwings.IsValidIndex(SwingIndex - 1) && StringSwings[SwingIndex - 1].LungeDistanceCm > 0.0f)
-	{
-		return StringSwings[SwingIndex - 1].LungeDistanceCm;
-	}
-
-	return Branches.IsValidIndex(BranchIndex) ? Branches[BranchIndex].LungeDistanceCm : 0.0f;
+	const FTDAttackCell* Cell = FindCell(SwingIndex, BranchIndex);
+	return Cell ? Cell->LungeDistanceCm : 0.0f;
 }
 
 float UTDChargedAttackAbility::GetSwingLungeDurationSeconds(int32 SwingIndex, int32 BranchIndex) const
 {
-	if (StringSwings.IsValidIndex(SwingIndex - 1) && StringSwings[SwingIndex - 1].LungeDurationSeconds > 0.0f)
-	{
-		return StringSwings[SwingIndex - 1].LungeDurationSeconds;
-	}
-
-	return Branches.IsValidIndex(BranchIndex) ? Branches[BranchIndex].LungeDurationSeconds : 0.0f;
+	const FTDAttackCell* Cell = FindCell(SwingIndex, BranchIndex);
+	return Cell ? Cell->LungeDurationSeconds : 0.0f;
 }
 
 UAnimMontage* UTDChargedAttackAbility::GetActiveAttackMontage() const
@@ -785,20 +730,21 @@ UAnimMontage* UTDChargedAttackAbility::GetActiveAttackMontage() const
 		return ActiveTierMontage;
 	}
 
-	// A swing whose montage was left unset falls back to the first hit's rather than to nothing --
-	// the same reasoning as the hitbox fallback: a silently unplayable swing is the failure this
-	// project keeps a trap list for, and the warning below is the tell rather than a crash.
-	if (StringSwings.IsValidIndex(CurrentSwingIndex - 1))
+	// The position's light cell plays otherwise. An unauthored one falls back to the ability's own
+	// montage rather than to nothing -- the same reasoning as the hitbox fallback: a silently
+	// unplayable swing is the failure this project keeps a trap list for, and the warning is the
+	// tell rather than a crash.
+	if (const FTDAttackCell* Light = FindCell(CurrentSwingIndex, 0))
 	{
-		if (UAnimMontage* SwingMontage = StringSwings[CurrentSwingIndex - 1].Montage)
+		if (UAnimMontage* LightMontage = Light->Montage)
 		{
-			return SwingMontage;
+			return LightMontage;
 		}
-
-		UE_LOG(LogTDCombatTiming, Warning,
-			TEXT("String swing %d has no montage; falling back to the first hit's. Its timings will be wrong."),
-			CurrentSwingIndex);
 	}
+
+	UE_LOG(LogTDCombatTiming, Warning,
+		TEXT("Swing %d has no light montage; falling back to the ability's. Its timings will be wrong."),
+		CurrentSwingIndex);
 	return AttackMontage;
 }
 
@@ -865,9 +811,6 @@ bool UTDChargedAttackAbility::TryChainOutForBufferedPress()
 
 const TArray<FTDAttackHitbox>& UTDChargedAttackAbility::GetAttackHitboxes() const
 {
-	// An authored-but-empty branch falls back to the ability's own set rather than to nothing. The
-	// alternative is an attack that silently deals no damage -- reachable the moment the old
-	// per-branch TraceRadius was removed, since every existing branch deserialises empty.
 	return GetSwingHitboxes(CurrentSwingIndex, SelectedBranchIndex);
 }
 
@@ -880,10 +823,10 @@ FTDAttackHitbox UTDChargedAttackAbility::BuildAimAssistWedge(int32 BranchIndex) 
 
 	const FTDAttackBranch& Branch = Branches[BranchIndex];
 
-	// The branch's own damage reach, resolved the same way GetAttackHitboxes resolves it -- an
-	// authored-but-empty branch falls back to the ability's set. Taken as the *furthest* of the
-	// branch's volumes, because reach here means "how far this attack can strike", and a bash plus
-	// a sweep is one attack with one maximum.
+	// The cell's own damage reach, resolved the same way GetAttackHitboxes resolves it -- an
+	// unauthored cell falls back to the ability's set. Taken as the *furthest* of the cell's
+	// volumes, because reach here means "how far this attack can strike", and a bash plus a sweep
+	// is one attack with one maximum.
 	const TArray<FTDAttackHitbox>& ResolvedHitboxes = GetSwingHitboxes(CurrentSwingIndex, BranchIndex);
 
 	float FurthestReachCm = 0.0f;

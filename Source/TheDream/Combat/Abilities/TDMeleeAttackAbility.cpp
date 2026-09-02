@@ -699,22 +699,13 @@ float UTDMeleeAttackAbility::GetBlendOutStartSeconds(float PlayRate) const
 	const float Length = ActiveMontage->GetPlayLength();
 	const float TriggerTime = ActiveMontage->BlendOutTriggerTime;
 
-	// A trigger time is an authored montage position, measured back from the end, and it does
-	// not care how fast the montage is playing.
-	if (TriggerTime >= 0.0f)
-	{
-		return Length - TriggerTime;
-	}
-
-	// **Without one, the boundary moves with the play rate**, the whole subtlety here. A negative
-	// trigger means "blend so it finishes as the montage does", and the engine tests that in *time*
-	// rather than position: it blends once the remaining montage would take less than the blend's
-	// duration to play. Halve the rate and the blend starts half as far from the end.
-	//
-	// **Treating this as the fixed position `Length - BlendTime` is right only at rate 1.0**, so the
-	// error hides at rates near it and grows as recovery is authored slower -- a few percent at
-	// 0.94, about half again at 0.50.
-	return Length - ActiveMontage->BlendOut.GetBlendTime() * FMath::Max(PlayRate, TDMinPlayRate);
+	// The engine tests the trigger in play time, not montage position: the blend-out begins once
+	// the remaining montage, divided by the play rate, drops to the trigger -- BlendOutTriggerTime
+	// when one is authored, the blend-out's own duration otherwise. Either way the boundary is
+	// Length - trigger * rate, so it moves with the rate. Halve the rate and the blend starts half
+	// as far from the end.
+	const float Trigger = (TriggerTime >= 0.0f) ? TriggerTime : ActiveMontage->BlendOut.GetBlendTime();
+	return Length - Trigger * FMath::Max(PlayRate, TDMinPlayRate);
 }
 
 float UTDMeleeAttackAbility::ComputeRecoveryPlayRate(float FromPosition, float TargetSeconds) const
@@ -732,27 +723,19 @@ float UTDMeleeAttackAbility::ComputeRecoveryPlayRate(float FromPosition, float T
 		return -1.0f;
 	}
 
+	// The boundary moves with the rate (see GetBlendOutStartSeconds), so solving for the rate R that
+	// makes recovery last exactly TargetSeconds, the blend beginning Trigger*R before the end:
+	//
+	//     (Length - Trigger*R - FromPosition) / R = TargetSeconds
+	//  => Length - FromPosition = R * (TargetSeconds + Trigger)
+	//  => R = (Length - FromPosition) / (TargetSeconds + Trigger)
+	//
+	// The trigger cancels out of the position but not the time. An authored BlendOutTriggerTime is
+	// therefore the clip-side knob that lets a given tail play its recovery at 1.0:
+	// Trigger = Length - windowEnd - RecoverySeconds.
 	const float TriggerTime = ActiveMontage->BlendOutTriggerTime;
-	if (TriggerTime >= 0.0f)
-	{
-		// Fixed boundary: cover the montage up to it in the authored time.
-		const float ToBoundary = (Length - TriggerTime) - FromPosition;
-		return (ToBoundary <= KINDA_SMALL_NUMBER)
-			? -1.0f
-			: FMath::Max(ToBoundary / TargetSeconds, TDMinPlayRate);
-	}
-
-	// Rate-dependent boundary. Solving for the rate R that makes recovery last exactly
-	// TargetSeconds, the blend beginning BlendTime*R before the montage's end:
-	//
-	//     (Length - BlendTime*R - FromPosition) / R = TargetSeconds
-	//  => Length - FromPosition = R * (TargetSeconds + BlendTime)
-	//  => R = (Length - FromPosition) / (TargetSeconds + BlendTime)
-	//
-	// The blend cancels out of the position but not the time, which is why the naive form is wrong
-	// and wrong by more the slower recovery is authored.
-	const float BlendTime = ActiveMontage->BlendOut.GetBlendTime();
-	return FMath::Max(Remaining / (TargetSeconds + BlendTime), TDMinPlayRate);
+	const float Trigger = (TriggerTime >= 0.0f) ? TriggerTime : ActiveMontage->BlendOut.GetBlendTime();
+	return FMath::Max(Remaining / (TargetSeconds + Trigger), TDMinPlayRate);
 }
 
 float UTDMeleeAttackAbility::GetMontagePosition() const

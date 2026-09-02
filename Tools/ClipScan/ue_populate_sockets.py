@@ -1,7 +1,7 @@
-"""Populate the three heavy sockets. Entry derives from each montage's notify: notify - 0.250.
-
-Re-read from the assets rather than hardcoded, so moving a notify and re-running this is all it
-takes to re-derive the entries.
+"""SUPERSEDED: written against the TierAnimations / StringSwings layout, which no longer exists.
+GA_Attack authors nine cells; write them with Tools/ValuesSnapshot/ue_seed_cells.py, whose
+overrides JSON takes a cell's Montage, EntrySeconds and ReleaseStartSeconds. Kept as the record of
+how the heavy sockets were first derived: entry = the montage's notify - 0.250, read off the asset.
 """
 import unreal
 

@@ -8,7 +8,7 @@ Run with the editor open, from the project root:
       Tools/AnimPipeline/run-in-editor.py Tools/ValuesSnapshot/ue_values_snapshot.py
 
 Property names come from parsing Source/TheDream for UPROPERTYs whose Category starts
-with "Combat"; Transient properties are runtime readouts and excluded. FTD* struct
+with "Combat" or "Attack"; Transient properties are runtime readouts and excluded. FTD* struct
 members are expanded from the same headers whatever their category, struct members
 being categorised per struct ("Attack", "Swing", "Hitbox").
 A parsed property no Blueprint CDO answers is read off its C++ class CDO instead, so
@@ -64,7 +64,7 @@ def parse_headers(source_root):
                 if decl and "Transient" not in m.group("spec"):
                     if current.startswith("F"):
                         struct_props.setdefault(current, []).append(decl)
-                    elif cat and cat.group("cat").startswith("Combat"):
+                    elif cat and cat.group("cat").startswith(("Combat", "Attack")):
                         class_props.setdefault(current, []).append(decl)
             i += 1
     return class_props, struct_props
@@ -173,7 +173,7 @@ def run():
     print(f"wrote {len(rows)} rows to {out}")
     for sentinel in [("BP_PlayerCharacter", "KnockdownFallSeconds"), ("BP_PlayerCharacter", "CoilTurnRateDegrees"),
                      ("BP_TrainingDummy", "InputBufferSeconds"), ("GA_Attack", "Branches[2].ReleaseAtSeconds"),
-                     ("GA_Attack", "StringSwings[1].ParryLockoutSeconds")]:
+                     ("GA_Attack", "Positions[2].Cells[0].ParryLockoutSeconds")]:
         hits = [r[2] for r in rows if (r[0], r[1]) == sentinel]
         print(f"sentinel {sentinel[0]}.{sentinel[1]} = {hits[0] if hits else 'ABSENT'}")
 

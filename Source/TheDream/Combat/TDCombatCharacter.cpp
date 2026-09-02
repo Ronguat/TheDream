@@ -1436,7 +1436,8 @@ void ATDCombatCharacter::PlayKnockdownMontage(UAnimMontage* Montage, float Targe
 
 	// **The blend-out boundary moves with the rate, so a fast montage can blend itself out before
 	// the span it was fitted to has elapsed.** Warned rather than corrected: the fix is per clip
-	// (an explicit BlendOutTriggerTime is rate-immune) and the right value is a look decision.
+	// (a BlendOutTriggerTime shorter than the blend-out moves the boundary later at every rate) and
+	// the right value is a look decision.
 	// Ungated, following StartAttackMontage's root-motion warning -- silent phase loss is the
 	// failure this family of warnings exists to prevent. bEnableAutoBlendOut false exempts a clip
 	// outright, which is why the knockdown's ground pose holds.
@@ -1450,7 +1451,7 @@ void ATDCombatCharacter::PlayKnockdownMontage(UAnimMontage* Montage, float Targe
 		{
 			UE_LOG(LogTDCombatTiming, Warning,
 				TEXT("%s montage %s begins blending out at %.0f%% (pos %.3f of %.3f) at rate %.2f -- "
-					 "over half the clip is blend. Set an explicit BlendOutTriggerTime; it is rate-immune."),
+					 "over half the clip is blend. Set a BlendOutTriggerTime shorter than the blend-out."),
 				Label, *Montage->GetName(), 100.0f * BlendStartsAt / Length, BlendStartsAt, Length, Rate);
 		}
 	}

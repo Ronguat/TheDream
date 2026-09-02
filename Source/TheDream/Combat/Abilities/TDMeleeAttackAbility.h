@@ -86,7 +86,7 @@ protected:
 	/**
 	 *  The volumes this attack strikes with, in the attacker's own frame. Authored, never derived
 	 *  from the weapon or the animation -- see FTDAttackHitbox. Used only when the swing supplies no
-	 *  set of its own; UTDChargedAttackAbility authors one per branch.
+	 *  set of its own; UTDChargedAttackAbility authors one per cell.
 	 *
 	 *  **Empty means this attack cannot hit anything.** Legal rather than guarded, which is also why
 	 *  the per-branch lookup falls back here instead of to nothing.

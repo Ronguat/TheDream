@@ -113,24 +113,13 @@ void UTDParryAbility::PlayParryMontage()
 	float RecoveryRate = -1.0f;
 	if (GestureTime > KINDA_SMALL_NUMBER && ParryWhiffRecoverySeconds > 0.0f)
 	{
+		// The engine tests the blend-out trigger in play time, so the boundary sits Trigger*R before
+		// the end whether the trigger is authored or defaults to the blend-out's duration. It cancels
+		// out of the position but not out of the time: R = Remaining / (Target + Trigger).
 		const float TriggerTime = ParryMontage->BlendOutTriggerTime;
-		if (TriggerTime >= 0.0f)
-		{
-			// Explicit trigger: a fixed position, so it is rate-immune and the rate follows directly.
-			// AM_Parry sets one precisely so the clip's recovery tail is not blended away.
-			const float ToBoundary = (Length - TriggerTime) - GestureTime;
-			RecoveryRate = (ToBoundary <= KINDA_SMALL_NUMBER)
-				? TDMinParryPlayRate
-				: FMath::Max(ToBoundary / ParryWhiffRecoverySeconds, TDMinParryPlayRate);
-		}
-		else
-		{
-			// Rate-dependent boundary: the blend begins BlendTime*R before the end, so it cancels
-			// out of the position but not out of the time. R = Remaining / (Target + BlendTime).
-			const float BlendTime = ParryMontage->BlendOut.GetBlendTime();
-			const float Remaining = Length - GestureTime;
-			RecoveryRate = FMath::Max(Remaining / (ParryWhiffRecoverySeconds + BlendTime), TDMinParryPlayRate);
-		}
+		const float Trigger = (TriggerTime >= 0.0f) ? TriggerTime : ParryMontage->BlendOut.GetBlendTime();
+		const float Remaining = Length - GestureTime;
+		RecoveryRate = FMath::Max(Remaining / (ParryWhiffRecoverySeconds + Trigger), TDMinParryPlayRate);
 	}
 
 	// Parked on the character because that is what the notify can reach, and what survives this
