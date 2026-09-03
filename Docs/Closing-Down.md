@@ -37,10 +37,15 @@ audit in miniature; the rest is making sure nothing is left on the floor.
    `git status` rather than against the act of closing. Anything mid-session that *does* need the
    editor closed — a header change, a full rebuild — still announces first; that rule lives in
    `Docs/Working-In-Unreal.md`, where every other reason to close it lives.
-2. **Run the loop, and read what it says rather than its exit code.**
-   `./Tools/RegressionCheck/regression-run.sh --all`, then the real-time canary
-   `--family tier --realtime` and `string-cadence --realtime`. It takes about 32 minutes at the
-   fixed clock for 88 rows *(1918 s, 2026-09-03)*, so background it and do step 4 while it runs.
+2. **Run the loop, and read what it says rather than its exit code.** At closedown, run the
+   rows the session's changes could reach, **selected by mechanism**: a change scoped to one
+   ability's data runs its family plus the rows that share the mechanic; a change to anything
+   shared, the buffer, the clock, the hitbox test, an ability base class, runs `--all`. The full
+   matrix takes about 32 minutes at the fixed clock for 89 rows *(1935 s, 2026-09-03)* and the
+   real-time canary a few minutes more, and **neither is assumed at a closedown or before a push**:
+   the designer schedules them, **at least weekly, with time to correct what they find** *(the
+   designer, 2026-09-03; the machine is shared, and a run holds the editor)*. Background whatever
+   runs and do step 4 meanwhile.
 
    **A red row is a correctness item and blocks the push**, whether or not this session touched
    what it covers. **A CHANGED row is not a failure**: the golden skeleton reports what moved

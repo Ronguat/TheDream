@@ -130,7 +130,7 @@ Two rules the model depends on:
 - Any light in a chain can be held to convert into a heavy.
 - Some heavies can chain into further heavies; never into lights.
 
-Timings land within about a frame, biased late — and **the bias is the tick the window closes on, not the animation**. Windup and recovery hold to a few milliseconds; the release window carried essentially all of it until it stopped ending on its notify (2026-08-25). What remains is the distance from the authored deadline to the next tick, so a slower machine still reports a longer total — but **the damaging span never exceeds its authored length**, the window closing on the last tick strictly before the deadline.
+**An attack ends on the tick its authored total lands on** *(2026-09-03)*: `ReleaseAt + Release + Recovery` from activation, scheduled half a tick early so the boundary tick is the one that ends it, and the montage's own finish no longer decides. Before that the end was the montage's blend-out and landed 0 to 3 f late, which is what frame data being a range rather than a number came from. **The damaging span is the event span**, the release-begin event to the release-end event, and it is the authored `ReleaseSeconds` to the frame: the rate is fitted to the window remaining when the begin event arrives, and the crossing is placed half a tick before the tick meant to carry the end event.
 
 ### Defense
 - **Any defensive action can cancel an attack's startup** — block, dodge or parry, not block alone. The boundary is the attack's commit checkpoint, marked by `State.Attacking.Committed`: cancel before it, never after. Defensive abilities block on that tag rather than on `State.Attacking`.
@@ -223,7 +223,10 @@ Timings land within about a frame, biased late — and **the bias is the tick th
     several are held, `KnockdownGetUpPriority` decides — **guard, dodge, get-up attack, stand** —
     ordered by what an unwanted selection costs across the stamina bar *and* exposure, which is why
     the attack loses to both defensive options despite costing nothing on the bar, and why the
-    neutral stand is last for being the default. Releasing before the window opens abandons it.
+    neutral stand is last for being the default. Releasing before the window opens abandons the
+    *held* path only: the buffer's acceptance applies during the lockout as in every other state, so
+    a press made within `InputBufferSeconds` of the open is carried to it whether or not the button is
+    still down *(ruled 2026-09-03)*.
   - **The get-up attack** is one fixed swing: no hold conversion, no chain, no string membership. **Committed from activation** — the exit was chosen from the floor, and a cancellable startup would make it a free probe — with the standard waiver dropping that commitment on a clean hit. 0.30 windup / 0.35 release / 0.60 recovery, knockback radial like the knockdown's. It is the one offensive action exhaustion leaves you, and **nothing about it may guarantee a follow-up**.
   - **Forced facing turns every cleanly hit victim to face its attacker**, rate-limited by `ForcedFacingTurnRateDegrees`, and it applies to **all** hitstun rather than only to knockdowns.
 

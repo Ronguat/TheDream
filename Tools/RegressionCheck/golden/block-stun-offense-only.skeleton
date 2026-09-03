@@ -37,10 +37,9 @@ r=0 f=22 RELEASE OFF BP_TrainingDummy_C_2
 r=0 f=23 INPUT BP_PlayerCharacter_C_0 
 r=0 f=35 BLOCKSTUN END BP_PlayerCharacter_C_0 
 r=0 f=45 DODGE END BP_PlayerCharacter_C_0 dir=ETDDodgeDirection::Bw
-r=0 f=59 ABILITY END BP_TrainingDummy_C_2 
-r=0 f=59 AIM WEDGE BP_TrainingDummy_C_2 
-r=0 f=59 MONTAGE BP_TrainingDummy_C_2 section=None
-r=0 f=80 HOME RESET BP_TrainingDummy_C_2 
+r=0 f=57 ABILITY END BP_TrainingDummy_C_2 
+r=0 f=57 AIM WEDGE BP_TrainingDummy_C_2 
+r=0 f=78 HOME RESET BP_TrainingDummy_C_2 
 r=0 f=141 DEBUG HEALTH BP_TrainingDummy_C_2 
 r=0 f=141 DEBUG RESET BP_PlayerCharacter_C_0 
 r=0 f=141 DEBUG RESET BP_TrainingDummy_C_1 
@@ -75,19 +74,18 @@ r=1 f=18 BLOCK BP_PlayerCharacter_C_0
 r=1 f=20 INPUT BP_PlayerCharacter_C_0 
 r=1 f=20 PARRY MONTAGE - 
 r=1 f=20 PARRY WINDOW BP_PlayerCharacter_C_0 
+r=1 f=21 RELEASE END BP_TrainingDummy_C_2 
 r=1 f=21 RELEASE OFF BP_TrainingDummy_C_2 
 r=1 f=22 INPUT BP_PlayerCharacter_C_0 
-r=1 f=22 RELEASE END BP_TrainingDummy_C_2 
 r=1 f=34 BLOCKSTUN END BP_PlayerCharacter_C_0 
 r=1 f=37 PARRY GESTURE BP_PlayerCharacter_C_0 
 r=1 f=37 PARRY RATE BP_PlayerCharacter_C_0 
 r=1 f=39 PARRY RECOVERY BP_PlayerCharacter_C_0 
 r=1 f=39 PARRY WHIFF BP_PlayerCharacter_C_0 
-r=1 f=58 ABILITY END BP_TrainingDummy_C_2 
-r=1 f=58 AIM WEDGE BP_TrainingDummy_C_2 
-r=1 f=58 MONTAGE BP_TrainingDummy_C_2 section=None
+r=1 f=57 ABILITY END BP_TrainingDummy_C_2 
+r=1 f=57 AIM WEDGE BP_TrainingDummy_C_2 
 r=1 f=75 PARRY RECOVERY END BP_PlayerCharacter_C_0 
-r=1 f=79 HOME RESET BP_TrainingDummy_C_2 
+r=1 f=78 HOME RESET BP_TrainingDummy_C_2 
 r=1 f=140 DEBUG HEALTH BP_TrainingDummy_C_2 
 r=1 f=140 DEBUG RESET BP_PlayerCharacter_C_0 
 r=1 f=140 DEBUG RESET BP_TrainingDummy_C_1 
@@ -126,12 +124,11 @@ r=2 f=22 RELEASE END BP_TrainingDummy_C_2
 r=2 f=22 RELEASE OFF BP_TrainingDummy_C_2 
 r=2 f=23 BUFFER BP_PlayerCharacter_C_0 
 r=2 f=23 INPUT BP_PlayerCharacter_C_0 
-r=2 f=33 BUFFER BP_PlayerCharacter_C_0 
+r=2 f=34 BUFFER BP_PlayerCharacter_C_0 
 r=2 f=35 BLOCKSTUN END BP_PlayerCharacter_C_0 
-r=2 f=59 ABILITY END BP_TrainingDummy_C_2 
-r=2 f=59 AIM WEDGE BP_TrainingDummy_C_2 
-r=2 f=59 MONTAGE BP_TrainingDummy_C_2 section=None
-r=2 f=80 HOME RESET BP_TrainingDummy_C_2 
+r=2 f=57 ABILITY END BP_TrainingDummy_C_2 
+r=2 f=57 AIM WEDGE BP_TrainingDummy_C_2 
+r=2 f=78 HOME RESET BP_TrainingDummy_C_2 
 r=2 f=141 DEBUG HEALTH BP_TrainingDummy_C_2 
 r=2 f=141 DEBUG RESET BP_PlayerCharacter_C_0 
 r=2 f=141 DEBUG RESET BP_TrainingDummy_C_1 
@@ -170,10 +167,9 @@ r=3 f=22 RELEASE OFF BP_TrainingDummy_C_2
 r=3 f=23 INPUT BP_PlayerCharacter_C_0 
 r=3 f=35 BLOCKSTUN END BP_PlayerCharacter_C_0 
 r=3 f=45 DODGE END BP_PlayerCharacter_C_0 dir=ETDDodgeDirection::Bw
-r=3 f=59 ABILITY END BP_TrainingDummy_C_2 
-r=3 f=59 AIM WEDGE BP_TrainingDummy_C_2 
-r=3 f=59 MONTAGE BP_TrainingDummy_C_2 section=None
-r=3 f=80 HOME RESET BP_TrainingDummy_C_2 
+r=3 f=57 ABILITY END BP_TrainingDummy_C_2 
+r=3 f=57 AIM WEDGE BP_TrainingDummy_C_2 
+r=3 f=78 HOME RESET BP_TrainingDummy_C_2 
 r=3 f=141 DEBUG HEALTH BP_TrainingDummy_C_2 
 r=3 f=141 DEBUG RESET BP_PlayerCharacter_C_0 
 r=3 f=141 DEBUG RESET BP_TrainingDummy_C_1 
@@ -208,19 +204,18 @@ r=4 f=18 BLOCK BP_PlayerCharacter_C_0
 r=4 f=20 INPUT BP_PlayerCharacter_C_0 
 r=4 f=20 PARRY MONTAGE - 
 r=4 f=20 PARRY WINDOW BP_PlayerCharacter_C_0 
+r=4 f=21 RELEASE END BP_TrainingDummy_C_2 
+r=4 f=21 RELEASE OFF BP_TrainingDummy_C_2 
 r=4 f=22 INPUT BP_PlayerCharacter_C_0 
-r=4 f=22 RELEASE END BP_TrainingDummy_C_2 
-r=4 f=22 RELEASE OFF BP_TrainingDummy_C_2 
 r=4 f=34 BLOCKSTUN END BP_PlayerCharacter_C_0 
 r=4 f=37 PARRY GESTURE BP_PlayerCharacter_C_0 
 r=4 f=37 PARRY RATE BP_PlayerCharacter_C_0 
 r=4 f=38 PARRY RECOVERY BP_PlayerCharacter_C_0 
 r=4 f=38 PARRY WHIFF BP_PlayerCharacter_C_0 
-r=4 f=59 ABILITY END BP_TrainingDummy_C_2 
-r=4 f=59 AIM WEDGE BP_TrainingDummy_C_2 
-r=4 f=59 MONTAGE BP_TrainingDummy_C_2 section=None
+r=4 f=57 ABILITY END BP_TrainingDummy_C_2 
+r=4 f=57 AIM WEDGE BP_TrainingDummy_C_2 
 r=4 f=74 PARRY RECOVERY END BP_PlayerCharacter_C_0 
-r=4 f=80 HOME RESET BP_TrainingDummy_C_2 
+r=4 f=78 HOME RESET BP_TrainingDummy_C_2 
 r=4 f=140 DEBUG HEALTH BP_TrainingDummy_C_2 
 r=4 f=140 DEBUG RESET BP_PlayerCharacter_C_0 
 r=4 f=140 DEBUG RESET BP_TrainingDummy_C_1 
@@ -259,12 +254,11 @@ r=5 f=22 RELEASE END BP_TrainingDummy_C_2
 r=5 f=22 RELEASE OFF BP_TrainingDummy_C_2 
 r=5 f=23 BUFFER BP_PlayerCharacter_C_0 
 r=5 f=23 INPUT BP_PlayerCharacter_C_0 
-r=5 f=33 BUFFER BP_PlayerCharacter_C_0 
+r=5 f=34 BUFFER BP_PlayerCharacter_C_0 
 r=5 f=35 BLOCKSTUN END BP_PlayerCharacter_C_0 
-r=5 f=58 ABILITY END BP_TrainingDummy_C_2 
-r=5 f=58 AIM WEDGE BP_TrainingDummy_C_2 
-r=5 f=58 MONTAGE BP_TrainingDummy_C_2 section=None
-r=5 f=79 HOME RESET BP_TrainingDummy_C_2 
+r=5 f=57 ABILITY END BP_TrainingDummy_C_2 
+r=5 f=57 AIM WEDGE BP_TrainingDummy_C_2 
+r=5 f=78 HOME RESET BP_TrainingDummy_C_2 
 r=5 f=141 DEBUG HEALTH BP_TrainingDummy_C_2 
 r=5 f=141 DEBUG RESET BP_PlayerCharacter_C_0 
 r=5 f=141 DEBUG RESET BP_TrainingDummy_C_1 

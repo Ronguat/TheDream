@@ -163,9 +163,12 @@ discharged it and keep anything from it that is still true. Removing a trap sile
 edit here that cannot be reviewed, because nothing is left to review.
 
 **Whenever the matrix is read as covering a mechanic — *what Phase 2 did not reach.*** Filed
-2026-09-03. The full real-time matrix has not run (only the canary families); no probe places the
-target below the attacker's height band; the parry lockout of chained heavy and charged cells (1/1,
-1/2, 2/1, 2/2) is unasserted because no dummy throws them; jump is untested as a get-up option; and
+2026-09-03, narrowed the same day by the designer's rulings. The full real-time matrix runs on the
+designer's weekly schedule rather than at closedowns. The height band below the attacker is
+**discharged by ruling**: symmetric by construction, not worth a probe. The parry lockout of chained
+heavy and charged cells (1/1, 1/2, 2/1, 2/2) needs a second scripted pawn and **goes to Netcode's
+brief**. Jump as a get-up option was **already covered**, `knockdown-getup-held-normal` holding jump
+and asserting the stand; the filing was wrong. What remains filed here: the four chained cells, and
 No row is red for the game as of the rulings entry: the Phase 2 entry's two reds and the airborne
 buffering were fixed the same day. A red in the matrix is a regression until an entry says otherwise.
 
@@ -1967,7 +1970,37 @@ against the authored 492. `reach-aim-wedge` unchanged at 15° named, 35° none.
   buffer (`edge-lockout-end`, 87 f). The knockdown section says a held option fires when the window
   opens and that releasing before it abandons the option; the buffer section says a press within
   `InputBufferSeconds` of the moment it can act counts. The two rules disagree on a tap made within
-  200 ms of the open. The game follows the buffer today. The designer's call.
+  200 ms of the open. The game follows the buffer today. **Ruled 2026-09-03: both, the buffer in every
+  state and the held path added on top for knockdown.** The game is right and the spec's sentence
+  now says which path "releasing abandons". One thing left to measure: the buffer holds one press,
+  last wins, while the held rule ranks guard over dodge over attack; `knockdown-getup-tap-priority`
+  holds block and taps attack inside the last 200 ms and reports which rises: **block, 3 of 3**, the
+  held path's ranking holding over the buffered tap.
+- **Cadence, ruled 2026-09-03.** Rows selected by mechanism at closedown; the full matrix and the
+  real-time canary weekly on the designer's schedule with correction time, never assumed at a
+  closedown or before a push. In `Docs/Closing-Down.md`.
+- **Anti-aliasing, ruled 2026-09-03.** TSR and TAA both ghost under the fixed clock for up to a
+  second; rather than investigate, the project renders with FXAA (`r.AntiAliasingMethod=1` in
+  `Config/DefaultEngine.ini`) until Art. Neither temporal method was liked in general. **What the
+  switch exposed, and a wrong explanation corrected the same hour**: the runner renders every run
+  at the screen percentage in the orchestrator's manifest, **50 since Phase 1**, restoring the
+  original at teardown; TSR's upsample hid it, FXAA does not, so during a run the scene shows at
+  half resolution while the HUD, drawn by Slate at native, stays sharp. Outside a run nothing changed.
+  A first reading blamed the engine's display-resolution default after probing the value mid-run,
+  which read the runner's own setting; that config line was reverted. The designer's preference is
+  to keep shading at 50% during runs, so the knob stands. The fixed-clock ghosting is likewise
+  confined to runs.
+- **The end matches authored, ruled 2026-09-03.** An attack ended when its montage blended out,
+  0 to 3 f after `ReleaseAt + Release + Recovery` depending on where the release-end event fell, so
+  an unchained light ended on any of 57 to 60 f and every acceptance edge measured against "the end"
+  inherited the spread. `UTDMeleeAttackAbility::ScheduleAuthoredEnd` now arms a timer at the release
+  window's close for the authored total, half a tick early so the boundary tick ends it, and the
+  montage's finish is ignored while it is armed; the ladder and the get-up attack both schedule it.
+  The catch accepted: up to three frames of a recovery clip's blend tail are cut, below what anyone
+  sees, and the clip fits the duration by the project's own rule. Measured: 28 of 28 unchained
+  lights end at 0.950 exactly; a stored press fires the tick after the end, so the actionable frame is
+  58 f and a fresh press counts from 46 f, both without a race; a non-integer total lands on its
+  nearest tick, the ender's 70.35 f on 70. `edge-actionable` and `edge-fresh-open` assert those edges.
 - Every `ReleaseStartSeconds` copy matched its notify to the millisecond; the 0.03 s warning has
   never fired for a real drift.
 - Under the fixed clock the viewport ghosts for up to a second; nothing the loop reads is affected
@@ -10589,6 +10622,10 @@ sitting in the always-read file.
   **The string's advance arrives here from 2026-09-02** — the swing index is resolved from character
   state rather than carried with the activation, which a dedicated server cannot reproduce for a
   remote pawn. That entry has the mechanism and the two fix shapes.
+  **From the Regression Audit (2026-09-03):** the parry lockout of the chained heavy and charged
+  cells (1/1, 1/2, 2/1, 2/2) is unasserted because no dummy throws them and the dummy's parry is not
+  phase-locked; the fixture is a second scripted pawn, `create_player` being available and unused,
+  which is this slice's two-player PIE.
   **Knockdown's inheritance (2026-08-24) is unusually easy, and worth saying so.** Every span in the
   down state that gates or admits an action is **≥ 500 ms** — lockout 1.0 or 1.5, input window 1.0 or
   0.5, rise 0.5 — so the tightest of them is four times the light's 150 ms release and dwarfs any

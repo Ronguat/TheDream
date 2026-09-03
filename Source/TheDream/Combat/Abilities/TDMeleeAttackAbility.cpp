@@ -151,6 +151,12 @@ void UTDMeleeAttackAbility::ApplyAimAssist(const FTDAttackHitbox& AssistWedge)
 
 void UTDMeleeAttackAbility::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled)
 {
+	bAuthoredEndArmed = false;
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(AuthoredEndTimerHandle);
+	}
+
 	// The single funnel the header describes: unconditional and idempotent, because every exit
 	// converges here. The coil flag rides along -- a coil cancelled before its commit checkpoint
 	// would otherwise leave the character turning at the coil rate forever.
@@ -659,6 +665,36 @@ void UTDMeleeAttackAbility::HandleMontageCancelled()
 
 void UTDMeleeAttackAbility::HandleMontageFinished()
 {
+	if (bAuthoredEndArmed)
+	{
+		TD_TIMING_LOG(TEXT("[%.3f] MONTAGE    %s finished ahead of the authored end; waiting"),
+			GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f, *GetNameSafe(GetAvatarActorFromActorInfo()));
+		return;
+	}
+	EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, false);
+}
+
+void UTDMeleeAttackAbility::ScheduleAuthoredEnd(float EndWorldTime)
+{
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+	// Half a tick early, so the tick the total lands on is the one that ends it.
+	const float Delay = EndWorldTime - World->GetTimeSeconds() - 0.5f * World->GetDeltaSeconds();
+	bAuthoredEndArmed = true;
+	if (Delay <= 0.0f)
+	{
+		HandleAuthoredEnd();
+		return;
+	}
+	World->GetTimerManager().SetTimer(AuthoredEndTimerHandle, this, &UTDMeleeAttackAbility::HandleAuthoredEnd, Delay, false);
+}
+
+void UTDMeleeAttackAbility::HandleAuthoredEnd()
+{
+	bAuthoredEndArmed = false;
 	EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, false);
 }
 

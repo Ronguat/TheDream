@@ -75,9 +75,8 @@ f=2061 LUNGE STOP BP_PlayerCharacter_C_0
 f=2073 RELEASE END BP_PlayerCharacter_C_0 
 f=2073 RELEASE OFF BP_PlayerCharacter_C_0 
 f=2082 BLOCKSTUN END BP_TrainingDummy_C_1 
-f=2119 ABILITY END BP_PlayerCharacter_C_0 
-f=2119 AIM WEDGE BP_PlayerCharacter_C_0 
-f=2119 MONTAGE BP_PlayerCharacter_C_0 section=None
+f=2117 ABILITY END BP_PlayerCharacter_C_0 
+f=2117 AIM WEDGE BP_PlayerCharacter_C_0 
 f=2642 BLOCK BP_TrainingDummy_C_1 
 f=2642 DEBUG RESET BP_PlayerCharacter_C_0 
 f=2642 DEBUG RESET BP_TrainingDummy_C_1 
@@ -165,9 +164,8 @@ r=0 f=76 LUNGE STOP BP_PlayerCharacter_C_0
 r=0 f=88 RELEASE END BP_PlayerCharacter_C_0 
 r=0 f=88 RELEASE OFF BP_PlayerCharacter_C_0 
 r=0 f=98 BLOCKSTUN END BP_TrainingDummy_C_1 
-r=0 f=134 ABILITY END BP_PlayerCharacter_C_0 
-r=0 f=134 AIM WEDGE BP_PlayerCharacter_C_0 
-r=0 f=134 MONTAGE BP_PlayerCharacter_C_0 section=None
+r=0 f=132 ABILITY END BP_PlayerCharacter_C_0 
+r=0 f=132 AIM WEDGE BP_PlayerCharacter_C_0 
 r=0 f=661 BLOCK BP_TrainingDummy_C_1 
 r=0 f=661 DEBUG RESET BP_PlayerCharacter_C_0 
 r=0 f=661 DEBUG RESET BP_TrainingDummy_C_1 
@@ -254,9 +252,8 @@ r=1 f=76 LUNGE STOP BP_PlayerCharacter_C_0
 r=1 f=88 RELEASE END BP_PlayerCharacter_C_0 
 r=1 f=88 RELEASE OFF BP_PlayerCharacter_C_0 
 r=1 f=97 BLOCKSTUN END BP_TrainingDummy_C_1 
-r=1 f=134 ABILITY END BP_PlayerCharacter_C_0 
-r=1 f=134 AIM WEDGE BP_PlayerCharacter_C_0 
-r=1 f=134 MONTAGE BP_PlayerCharacter_C_0 section=None
+r=1 f=132 ABILITY END BP_PlayerCharacter_C_0 
+r=1 f=132 AIM WEDGE BP_PlayerCharacter_C_0 
 r=1 f=661 BLOCK BP_TrainingDummy_C_1 
 r=1 f=661 DEBUG RESET BP_PlayerCharacter_C_0 
 r=1 f=661 DEBUG RESET BP_TrainingDummy_C_1 
@@ -343,9 +340,8 @@ r=2 f=76 LUNGE STOP BP_PlayerCharacter_C_0
 r=2 f=88 RELEASE END BP_PlayerCharacter_C_0 
 r=2 f=88 RELEASE OFF BP_PlayerCharacter_C_0 
 r=2 f=97 BLOCKSTUN END BP_TrainingDummy_C_1 
-r=2 f=134 ABILITY END BP_PlayerCharacter_C_0 
-r=2 f=134 AIM WEDGE BP_PlayerCharacter_C_0 
-r=2 f=134 MONTAGE BP_PlayerCharacter_C_0 section=None
+r=2 f=132 ABILITY END BP_PlayerCharacter_C_0 
+r=2 f=132 AIM WEDGE BP_PlayerCharacter_C_0 
 r=2 f=661 BLOCK BP_TrainingDummy_C_1 
 r=2 f=661 DEBUG RESET BP_PlayerCharacter_C_0 
 r=2 f=661 DEBUG RESET BP_TrainingDummy_C_1 

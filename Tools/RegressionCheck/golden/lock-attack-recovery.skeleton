@@ -22,9 +22,8 @@ r=0 f=27 RELEASE BP_PlayerCharacter_C_0
 r=0 f=27 TARGET BP_PlayerCharacter_C_0 
 r=0 f=36 RELEASE END BP_PlayerCharacter_C_0 
 r=0 f=36 RELEASE OFF BP_PlayerCharacter_C_0 
-r=0 f=73 ABILITY END BP_PlayerCharacter_C_0 
-r=0 f=73 AIM WEDGE BP_PlayerCharacter_C_0 
-r=0 f=73 MONTAGE BP_PlayerCharacter_C_0 section=None
+r=0 f=71 ABILITY END BP_PlayerCharacter_C_0 
+r=0 f=71 AIM WEDGE BP_PlayerCharacter_C_0 
 r=0 f=116 DEBUG RESET BP_PlayerCharacter_C_0 
 r=0 f=116 DEBUG RESET BP_TrainingDummy_C_1 
 r=0 f=116 DEBUG RESET BP_TrainingDummy_C_2 
@@ -47,11 +46,10 @@ r=1 f=23 TARGET BP_PlayerCharacter_C_0
 r=1 f=26 RELEASE BEGIN BP_PlayerCharacter_C_0 
 r=1 f=26 RELEASE BP_PlayerCharacter_C_0 
 r=1 f=26 TARGET BP_PlayerCharacter_C_0 
-r=1 f=36 RELEASE END BP_PlayerCharacter_C_0 
-r=1 f=36 RELEASE OFF BP_PlayerCharacter_C_0 
-r=1 f=73 ABILITY END BP_PlayerCharacter_C_0 
-r=1 f=73 AIM WEDGE BP_PlayerCharacter_C_0 
-r=1 f=73 MONTAGE BP_PlayerCharacter_C_0 section=None
+r=1 f=35 RELEASE END BP_PlayerCharacter_C_0 
+r=1 f=35 RELEASE OFF BP_PlayerCharacter_C_0 
+r=1 f=71 ABILITY END BP_PlayerCharacter_C_0 
+r=1 f=71 AIM WEDGE BP_PlayerCharacter_C_0 
 r=1 f=114 DEBUG RESET BP_PlayerCharacter_C_0 
 r=1 f=114 DEBUG RESET BP_TrainingDummy_C_1 
 r=1 f=114 DEBUG RESET BP_TrainingDummy_C_2 
@@ -74,11 +72,10 @@ r=2 f=24 TARGET BP_PlayerCharacter_C_0
 r=2 f=27 RELEASE BEGIN BP_PlayerCharacter_C_0 
 r=2 f=27 RELEASE BP_PlayerCharacter_C_0 
 r=2 f=27 TARGET BP_PlayerCharacter_C_0 
+r=2 f=36 RELEASE END BP_PlayerCharacter_C_0 
 r=2 f=36 RELEASE OFF BP_PlayerCharacter_C_0 
-r=2 f=37 RELEASE END BP_PlayerCharacter_C_0 
-r=2 f=73 ABILITY END BP_PlayerCharacter_C_0 
-r=2 f=73 AIM WEDGE BP_PlayerCharacter_C_0 
-r=2 f=73 MONTAGE BP_PlayerCharacter_C_0 section=None
+r=2 f=71 ABILITY END BP_PlayerCharacter_C_0 
+r=2 f=71 AIM WEDGE BP_PlayerCharacter_C_0 
 r=2 f=116 DEBUG RESET BP_PlayerCharacter_C_0 
 r=2 f=116 DEBUG RESET BP_TrainingDummy_C_1 
 r=2 f=116 DEBUG RESET BP_TrainingDummy_C_2 
@@ -101,11 +98,10 @@ r=3 f=24 TARGET BP_PlayerCharacter_C_0
 r=3 f=27 RELEASE BEGIN BP_PlayerCharacter_C_0 
 r=3 f=27 RELEASE BP_PlayerCharacter_C_0 
 r=3 f=27 TARGET BP_PlayerCharacter_C_0 
+r=3 f=36 RELEASE END BP_PlayerCharacter_C_0 
 r=3 f=36 RELEASE OFF BP_PlayerCharacter_C_0 
-r=3 f=37 RELEASE END BP_PlayerCharacter_C_0 
-r=3 f=73 ABILITY END BP_PlayerCharacter_C_0 
-r=3 f=73 AIM WEDGE BP_PlayerCharacter_C_0 
-r=3 f=73 MONTAGE BP_PlayerCharacter_C_0 section=None
+r=3 f=71 ABILITY END BP_PlayerCharacter_C_0 
+r=3 f=71 AIM WEDGE BP_PlayerCharacter_C_0 
 r=3 f=114 DEBUG RESET BP_PlayerCharacter_C_0 
 r=3 f=114 DEBUG RESET BP_TrainingDummy_C_1 
 r=3 f=114 DEBUG RESET BP_TrainingDummy_C_2 

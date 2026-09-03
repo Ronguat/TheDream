@@ -31,10 +31,9 @@ r=0 f=14 LUNGE STOP BP_TrainingDummy_C_2
 r=0 f=22 RELEASE END BP_TrainingDummy_C_2 
 r=0 f=22 RELEASE OFF BP_TrainingDummy_C_2 
 r=0 f=35 BLOCKSTUN END BP_PlayerCharacter_C_0 
-r=0 f=59 ABILITY END BP_TrainingDummy_C_2 
-r=0 f=59 AIM WEDGE BP_TrainingDummy_C_2 
-r=0 f=59 MONTAGE BP_TrainingDummy_C_2 section=None
-r=0 f=80 HOME RESET BP_TrainingDummy_C_2 
+r=0 f=57 ABILITY END BP_TrainingDummy_C_2 
+r=0 f=57 AIM WEDGE BP_TrainingDummy_C_2 
+r=0 f=78 HOME RESET BP_TrainingDummy_C_2 
 r=0 f=116 BLOCK BP_PlayerCharacter_C_0 
 r=0 f=116 DEBUG HEALTH BP_TrainingDummy_C_2 
 r=0 f=116 DEBUG RESET BP_PlayerCharacter_C_0 
@@ -66,13 +65,12 @@ r=1 f=13 BLOCKED BP_TrainingDummy_C_2 by=BP_PlayerCharacter_C_0 staminaDamage=5
 r=1 f=13 BLOCKSTUN BP_PlayerCharacter_C_0 
 r=1 f=13 KNOCKBACK BP_PlayerCharacter_C_0 by=BP_TrainingDummy_C_2
 r=1 f=13 LUNGE STOP BP_TrainingDummy_C_2 
+r=1 f=21 RELEASE END BP_TrainingDummy_C_2 
 r=1 f=21 RELEASE OFF BP_TrainingDummy_C_2 
-r=1 f=22 RELEASE END BP_TrainingDummy_C_2 
 r=1 f=34 BLOCKSTUN END BP_PlayerCharacter_C_0 
-r=1 f=58 ABILITY END BP_TrainingDummy_C_2 
-r=1 f=58 AIM WEDGE BP_TrainingDummy_C_2 
-r=1 f=58 MONTAGE BP_TrainingDummy_C_2 section=None
-r=1 f=79 HOME RESET BP_TrainingDummy_C_2 
+r=1 f=57 ABILITY END BP_TrainingDummy_C_2 
+r=1 f=57 AIM WEDGE BP_TrainingDummy_C_2 
+r=1 f=78 HOME RESET BP_TrainingDummy_C_2 
 r=1 f=115 BLOCK BP_PlayerCharacter_C_0 
 r=1 f=115 DEBUG HEALTH BP_TrainingDummy_C_2 
 r=1 f=115 DEBUG RESET BP_PlayerCharacter_C_0 
@@ -107,10 +105,9 @@ r=2 f=14 LUNGE STOP BP_TrainingDummy_C_2
 r=2 f=22 RELEASE END BP_TrainingDummy_C_2 
 r=2 f=22 RELEASE OFF BP_TrainingDummy_C_2 
 r=2 f=35 BLOCKSTUN END BP_PlayerCharacter_C_0 
-r=2 f=59 ABILITY END BP_TrainingDummy_C_2 
-r=2 f=59 AIM WEDGE BP_TrainingDummy_C_2 
-r=2 f=59 MONTAGE BP_TrainingDummy_C_2 section=None
-r=2 f=80 HOME RESET BP_TrainingDummy_C_2 
+r=2 f=57 ABILITY END BP_TrainingDummy_C_2 
+r=2 f=57 AIM WEDGE BP_TrainingDummy_C_2 
+r=2 f=78 HOME RESET BP_TrainingDummy_C_2 
 r=2 f=116 BLOCK BP_PlayerCharacter_C_0 
 r=2 f=116 DEBUG HEALTH BP_TrainingDummy_C_2 
 r=2 f=116 DEBUG RESET BP_PlayerCharacter_C_0 
@@ -145,10 +142,9 @@ r=3 f=14 LUNGE STOP BP_TrainingDummy_C_2
 r=3 f=22 RELEASE END BP_TrainingDummy_C_2 
 r=3 f=22 RELEASE OFF BP_TrainingDummy_C_2 
 r=3 f=35 BLOCKSTUN END BP_PlayerCharacter_C_0 
-r=3 f=59 ABILITY END BP_TrainingDummy_C_2 
-r=3 f=59 AIM WEDGE BP_TrainingDummy_C_2 
-r=3 f=59 MONTAGE BP_TrainingDummy_C_2 section=None
-r=3 f=80 HOME RESET BP_TrainingDummy_C_2 
+r=3 f=57 ABILITY END BP_TrainingDummy_C_2 
+r=3 f=57 AIM WEDGE BP_TrainingDummy_C_2 
+r=3 f=78 HOME RESET BP_TrainingDummy_C_2 
 r=3 f=116 BLOCK BP_PlayerCharacter_C_0 
 r=3 f=116 DEBUG HEALTH BP_TrainingDummy_C_2 
 r=3 f=116 DEBUG RESET BP_PlayerCharacter_C_0 

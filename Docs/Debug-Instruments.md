@@ -621,7 +621,11 @@ span over 35 ms. `--realtime` is the same runner on the wall clock, kept as the 
 **The viewport lies under the fixed clock** *(observed 2026-09-03)*: temporal anti-aliasing ghosts
 persist for up to a second during fixed-step runs and never on the wall clock. The cause is not
 established; nothing the loop reads is rendered. Judge feel on the real clock, never during a run.
-Two experiments for an idle editor: `r.AntiAliasingMethod 0` during a run, and TAA in place of TSR.
+The project renders with FXAA since 2026-09-03 (`r.AntiAliasingMethod=1`), the designer's call over
+investigating; if the ghosts return on it, the cause was never the temporal history. **A run also
+renders at the screen percentage in the orchestrator's manifest, 50**, restored at teardown, so the
+scene looks soft under FXAA for the length of a run and sharp again after; the HUD, drawn at native,
+does not change.
 
 **Every scenario is bounded by markers** the runner emits — `REGRESSION BEGIN/ROLES/INJECT/TEARDOWN/END`
 — so `regression-check.sh <row> --slice <run>:<id>` reads exactly one scenario out of a shared log,
@@ -730,6 +734,7 @@ settings rather than assertions — as do measurements, which record what a run 
 | `knockdown-getup-held` | `-` | hold 0.22 | silent | - | 132 |
 | `knockdown-getup-held-normal` | `-` | hold 0.1, string_taps 3 | silent | - | 52 |
 | `knockdown-getup-kipup` | `s6-kipup` | hold 0.22, interval 6.0 | auto_attack False, auto_defend_mode OFF, get_up_mode DODGE_GET_UP, periodic_jump False | - | 60 |
+| `knockdown-getup-tap-priority` | `-` | hold 0.22, interval 4.5 | silent | - | 44 |
 | `knockdown-hard` | `s6-hard` | hold 0.22 | silent | - | 60 |
 | `knockdown-hard-no-stand` | `s6-hard-stand` | hold 0.22 | auto_attack False, auto_defend_mode OFF, get_up_mode STAND_GET_UP, periodic_jump False | - | 60 |
 | `knockdown-normal` | `s6-knockdown` | hold 0.1, string_taps 3 | silent | - | 60 |
@@ -746,10 +751,10 @@ settings rather than assertions — as do measurements, which record what a run 
 | `lock-hitstun` | `-` | hold 0.1 | silent | - | 52 |
 | `lock-knockdown` | `-` | hold 0.22, interval 4.5 | silent | - | 52 |
 | `lock-parry` | `-` | silent | silent | - | 32 |
-| `edge-actionable` | `-` | silent | silent | - | 76 |
+| `edge-actionable` | `-` | silent | silent | - | 60 |
 | `edge-chain-close` | `-` | silent | silent | - | 60 |
 | `edge-chain-open` | `-` | silent | silent | - | 60 |
-| `edge-fresh-open` | `-` | silent | silent | - | 76 |
+| `edge-fresh-open` | `-` | silent | silent | - | 60 |
 | `edge-guard-floor` | `-` | silent | silent | - | 44 |
 | `edge-heavy-checkpoint` | `-` | silent | silent | - | 52 |
 | `edge-hitstun-accept` | `-` | hold 0.1 | silent | - | 100 |

@@ -18,6 +18,7 @@ r=0 f=-1 REFUSED BP_TrainingDummy_C_2
 r=0 f=-1 REFUSED BP_TrainingDummy_C_2 
 r=0 f=-1 REFUSED BP_TrainingDummy_C_2 
 r=0 f=-1 REFUSED BP_TrainingDummy_C_2 
+r=0 f=-1 REFUSED BP_TrainingDummy_C_2 
 r=0 f=0 ACTIVATE BP_TrainingDummy_C_2 swing=0
 r=0 f=0 AIM WEDGE BP_TrainingDummy_C_2 
 r=0 f=0 HOME RESET BP_TrainingDummy_C_2 
@@ -52,7 +53,7 @@ r=0 f=30 BUFFER BP_TrainingDummy_C_2
 r=0 f=30 INPUT BP_TrainingDummy_C_2 
 r=0 f=36 BUFFER BP_TrainingDummy_C_2 
 r=0 f=36 INPUT BP_TrainingDummy_C_2 
-r=0 f=42 BUFFER BP_TrainingDummy_C_2 
+r=0 f=43 BUFFER BP_TrainingDummy_C_2 
 r=0 f=59 PARRY LOCKOUT END BP_TrainingDummy_C_2 
 r=0 f=60 ACTIVATE BP_TrainingDummy_C_2 swing=0
 r=0 f=60 AIM WEDGE BP_TrainingDummy_C_2 
@@ -78,9 +79,8 @@ r=0 f=82 RELEASE END BP_TrainingDummy_C_2
 r=0 f=82 RELEASE OFF BP_TrainingDummy_C_2 
 r=0 f=107 HITSTUN END BP_PlayerCharacter_C_0 
 r=0 f=107 MOVE UNLOCK BP_TrainingDummy_C_2 
-r=0 f=119 ABILITY END BP_TrainingDummy_C_2 
-r=0 f=119 AIM WEDGE BP_TrainingDummy_C_2 
-r=0 f=119 MONTAGE BP_TrainingDummy_C_2 section=None
+r=0 f=117 ABILITY END BP_TrainingDummy_C_2 
+r=0 f=117 AIM WEDGE BP_TrainingDummy_C_2 
 r=0 f=127 DEBUG HEALTH BP_TrainingDummy_C_2 
 r=0 f=127 DEBUG RESET BP_PlayerCharacter_C_0 
 r=0 f=127 DEBUG RESET BP_TrainingDummy_C_1 
@@ -88,7 +88,8 @@ r=0 f=127 DEBUG STAMINA BP_TrainingDummy_C_2
 r=0 f=127 HOME RESET BP_TrainingDummy_C_1 
 r=0 f=127 REVIVE BP_PlayerCharacter_C_0 
 r=0 f=127 REVIVE BP_TrainingDummy_C_1 
-r=1 f=-40 HOME RESET BP_TrainingDummy_C_2 
+r=1 f=-42 HOME RESET BP_TrainingDummy_C_2 
+r=1 f=-1 REFUSED BP_TrainingDummy_C_2 
 r=1 f=-1 REFUSED BP_TrainingDummy_C_2 
 r=1 f=-1 REFUSED BP_TrainingDummy_C_2 
 r=1 f=-1 REFUSED BP_TrainingDummy_C_2 
@@ -123,8 +124,8 @@ r=1 f=13 BLOCKED BP_TrainingDummy_C_2 by=BP_PlayerCharacter_C_0 staminaDamage=5
 r=1 f=13 BLOCKSTUN BP_PlayerCharacter_C_0 
 r=1 f=13 KNOCKBACK BP_PlayerCharacter_C_0 by=BP_TrainingDummy_C_2
 r=1 f=13 LUNGE STOP BP_TrainingDummy_C_2 
+r=1 f=21 RELEASE END BP_TrainingDummy_C_2 
 r=1 f=21 RELEASE OFF BP_TrainingDummy_C_2 
-r=1 f=22 RELEASE END BP_TrainingDummy_C_2 
 r=1 f=23 BLOCK BP_PlayerCharacter_C_0 
 r=1 f=23 INPUT BP_PlayerCharacter_C_0 
 r=1 f=30 BUFFER BP_TrainingDummy_C_2 
@@ -168,7 +169,7 @@ r=1 f=60 BUFFER BP_TrainingDummy_C_2
 r=1 f=60 INPUT BP_TrainingDummy_C_2 
 r=1 f=66 BUFFER BP_TrainingDummy_C_2 
 r=1 f=66 INPUT BP_TrainingDummy_C_2 
-r=1 f=72 BUFFER BP_TrainingDummy_C_2 
+r=1 f=73 BUFFER BP_TrainingDummy_C_2 
 r=1 f=90 PARRY LOCKOUT END BP_TrainingDummy_C_2 
 r=1 f=157 DEBUG HEALTH BP_TrainingDummy_C_2 
 r=1 f=157 DEBUG RESET BP_PlayerCharacter_C_0 
@@ -177,6 +178,7 @@ r=1 f=157 DEBUG STAMINA BP_TrainingDummy_C_2
 r=1 f=157 HOME RESET BP_TrainingDummy_C_1 
 r=1 f=157 REVIVE BP_PlayerCharacter_C_0 
 r=1 f=157 REVIVE BP_TrainingDummy_C_1 
+r=2 f=-1 REFUSED BP_TrainingDummy_C_2 
 r=2 f=-1 REFUSED BP_TrainingDummy_C_2 
 r=2 f=-1 REFUSED BP_TrainingDummy_C_2 
 r=2 f=-1 REFUSED BP_TrainingDummy_C_2 
@@ -223,7 +225,7 @@ r=2 f=30 BUFFER BP_TrainingDummy_C_2
 r=2 f=30 INPUT BP_TrainingDummy_C_2 
 r=2 f=36 BUFFER BP_TrainingDummy_C_2 
 r=2 f=36 INPUT BP_TrainingDummy_C_2 
-r=2 f=42 BUFFER BP_TrainingDummy_C_2 
+r=2 f=43 BUFFER BP_TrainingDummy_C_2 
 r=2 f=60 ACTIVATE BP_TrainingDummy_C_2 swing=0
 r=2 f=60 AIM WEDGE BP_TrainingDummy_C_2 
 r=2 f=60 INPUT BP_TrainingDummy_C_2 
@@ -249,9 +251,8 @@ r=2 f=82 RELEASE END BP_TrainingDummy_C_2
 r=2 f=82 RELEASE OFF BP_TrainingDummy_C_2 
 r=2 f=107 HITSTUN END BP_PlayerCharacter_C_0 
 r=2 f=107 MOVE UNLOCK BP_TrainingDummy_C_2 
-r=2 f=119 ABILITY END BP_TrainingDummy_C_2 
-r=2 f=119 AIM WEDGE BP_TrainingDummy_C_2 
-r=2 f=119 MONTAGE BP_TrainingDummy_C_2 section=None
+r=2 f=117 ABILITY END BP_TrainingDummy_C_2 
+r=2 f=117 AIM WEDGE BP_TrainingDummy_C_2 
 r=2 f=127 DEBUG HEALTH BP_TrainingDummy_C_2 
 r=2 f=127 DEBUG RESET BP_PlayerCharacter_C_0 
 r=2 f=127 DEBUG RESET BP_TrainingDummy_C_1 
@@ -259,7 +260,8 @@ r=2 f=127 DEBUG STAMINA BP_TrainingDummy_C_2
 r=2 f=127 HOME RESET BP_TrainingDummy_C_1 
 r=2 f=127 REVIVE BP_PlayerCharacter_C_0 
 r=2 f=127 REVIVE BP_TrainingDummy_C_1 
-r=3 f=-40 HOME RESET BP_TrainingDummy_C_2 
+r=3 f=-42 HOME RESET BP_TrainingDummy_C_2 
+r=3 f=-1 REFUSED BP_TrainingDummy_C_2 
 r=3 f=-1 REFUSED BP_TrainingDummy_C_2 
 r=3 f=-1 REFUSED BP_TrainingDummy_C_2 
 r=3 f=-1 REFUSED BP_TrainingDummy_C_2 
@@ -339,7 +341,7 @@ r=3 f=60 BUFFER BP_TrainingDummy_C_2
 r=3 f=60 INPUT BP_TrainingDummy_C_2 
 r=3 f=66 BUFFER BP_TrainingDummy_C_2 
 r=3 f=66 INPUT BP_TrainingDummy_C_2 
-r=3 f=72 BUFFER BP_TrainingDummy_C_2 
+r=3 f=73 BUFFER BP_TrainingDummy_C_2 
 r=3 f=90 PARRY LOCKOUT END BP_TrainingDummy_C_2 
 r=3 f=157 DEBUG HEALTH BP_TrainingDummy_C_2 
 r=3 f=157 DEBUG RESET BP_PlayerCharacter_C_0 
@@ -348,6 +350,7 @@ r=3 f=157 DEBUG STAMINA BP_TrainingDummy_C_2
 r=3 f=157 HOME RESET BP_TrainingDummy_C_1 
 r=3 f=157 REVIVE BP_PlayerCharacter_C_0 
 r=3 f=157 REVIVE BP_TrainingDummy_C_1 
+r=4 f=-1 REFUSED BP_TrainingDummy_C_2 
 r=4 f=-1 REFUSED BP_TrainingDummy_C_2 
 r=4 f=-1 REFUSED BP_TrainingDummy_C_2 
 r=4 f=-1 REFUSED BP_TrainingDummy_C_2 
@@ -394,7 +397,7 @@ r=4 f=30 BUFFER BP_TrainingDummy_C_2
 r=4 f=30 INPUT BP_TrainingDummy_C_2 
 r=4 f=36 BUFFER BP_TrainingDummy_C_2 
 r=4 f=36 INPUT BP_TrainingDummy_C_2 
-r=4 f=42 BUFFER BP_TrainingDummy_C_2 
+r=4 f=43 BUFFER BP_TrainingDummy_C_2 
 r=4 f=59 PARRY LOCKOUT END BP_TrainingDummy_C_2 
 r=4 f=60 ACTIVATE BP_TrainingDummy_C_2 swing=0
 r=4 f=60 AIM WEDGE BP_TrainingDummy_C_2 
@@ -420,9 +423,8 @@ r=4 f=82 RELEASE END BP_TrainingDummy_C_2
 r=4 f=82 RELEASE OFF BP_TrainingDummy_C_2 
 r=4 f=108 HITSTUN END BP_PlayerCharacter_C_0 
 r=4 f=108 MOVE UNLOCK BP_TrainingDummy_C_2 
-r=4 f=118 ABILITY END BP_TrainingDummy_C_2 
-r=4 f=118 AIM WEDGE BP_TrainingDummy_C_2 
-r=4 f=118 MONTAGE BP_TrainingDummy_C_2 section=None
+r=4 f=117 ABILITY END BP_TrainingDummy_C_2 
+r=4 f=117 AIM WEDGE BP_TrainingDummy_C_2 
 r=4 f=127 DEBUG HEALTH BP_TrainingDummy_C_2 
 r=4 f=127 DEBUG RESET BP_PlayerCharacter_C_0 
 r=4 f=127 DEBUG RESET BP_TrainingDummy_C_1 
@@ -430,7 +432,7 @@ r=4 f=127 DEBUG STAMINA BP_TrainingDummy_C_2
 r=4 f=127 HOME RESET BP_TrainingDummy_C_1 
 r=4 f=127 REVIVE BP_PlayerCharacter_C_0 
 r=4 f=127 REVIVE BP_TrainingDummy_C_1 
-r=5 f=-41 HOME RESET BP_TrainingDummy_C_2 
+r=5 f=-42 HOME RESET BP_TrainingDummy_C_2 
 r=5 f=-1 REFUSED BP_TrainingDummy_C_2 
 r=5 f=-1 REFUSED BP_TrainingDummy_C_2 
 r=5 f=-1 REFUSED BP_TrainingDummy_C_2 

@@ -460,6 +460,10 @@ void UTDChargedAttackAbility::CloseReleaseWindow()
 	RecoveryStartedAt = ActivationWorldTime
 		+ (Branches.IsValidIndex(SelectedBranchIndex) ? Branches[SelectedBranchIndex].ReleaseAtSeconds : 0.0f)
 		+ GetSwingReleaseSeconds(CurrentSwingIndex, SelectedBranchIndex);
+	if (TargetSeconds > 0.0f)
+	{
+		ScheduleAuthoredEnd(RecoveryStartedAt + TargetSeconds);
+	}
 
 	const float RecoveryRate = ComputeRecoveryPlayRate(RecoveryFrom, TargetSeconds);
 	if (RecoveryRate > 0.0f)

@@ -34,10 +34,9 @@ r=0 f=26 INPUT BP_PlayerCharacter_C_0
 r=0 f=28 INPUT BP_PlayerCharacter_C_0 
 r=0 f=33 HITSTUN END BP_PlayerCharacter_C_0 
 r=0 f=33 MOVE UNLOCK BP_TrainingDummy_C_2 
-r=0 f=45 ABILITY END BP_TrainingDummy_C_2 
-r=0 f=45 AIM WEDGE BP_TrainingDummy_C_2 
-r=0 f=45 MONTAGE BP_TrainingDummy_C_2 section=None
-r=0 f=66 HOME RESET BP_TrainingDummy_C_2 
+r=0 f=43 ABILITY END BP_TrainingDummy_C_2 
+r=0 f=43 AIM WEDGE BP_TrainingDummy_C_2 
+r=0 f=64 HOME RESET BP_TrainingDummy_C_2 
 r=0 f=116 DEBUG HEALTH BP_TrainingDummy_C_2 
 r=0 f=116 DEBUG RESET BP_PlayerCharacter_C_0 
 r=0 f=116 DEBUG RESET BP_TrainingDummy_C_1 
@@ -67,16 +66,15 @@ r=1 f=0 KNOCKBACK BP_PlayerCharacter_C_0 by=BP_TrainingDummy_C_2
 r=1 f=0 LUNGE STOP BP_TrainingDummy_C_2 
 r=1 f=0 WAIVER BP_TrainingDummy_C_2 
 r=1 f=1 FACING FORCED BP_PlayerCharacter_C_0 
+r=1 f=8 RELEASE END BP_TrainingDummy_C_2 
 r=1 f=8 RELEASE OFF BP_TrainingDummy_C_2 
-r=1 f=9 RELEASE END BP_TrainingDummy_C_2 
 r=1 f=26 INPUT BP_PlayerCharacter_C_0 
 r=1 f=28 INPUT BP_PlayerCharacter_C_0 
 r=1 f=34 HITSTUN END BP_PlayerCharacter_C_0 
 r=1 f=34 MOVE UNLOCK BP_TrainingDummy_C_2 
-r=1 f=45 ABILITY END BP_TrainingDummy_C_2 
-r=1 f=45 AIM WEDGE BP_TrainingDummy_C_2 
-r=1 f=45 MONTAGE BP_TrainingDummy_C_2 section=None
-r=1 f=66 HOME RESET BP_TrainingDummy_C_2 
+r=1 f=44 ABILITY END BP_TrainingDummy_C_2 
+r=1 f=44 AIM WEDGE BP_TrainingDummy_C_2 
+r=1 f=65 HOME RESET BP_TrainingDummy_C_2 
 r=1 f=116 DEBUG HEALTH BP_TrainingDummy_C_2 
 r=1 f=116 DEBUG RESET BP_PlayerCharacter_C_0 
 r=1 f=116 DEBUG RESET BP_TrainingDummy_C_1 
@@ -112,10 +110,9 @@ r=2 f=26 INPUT BP_PlayerCharacter_C_0
 r=2 f=28 INPUT BP_PlayerCharacter_C_0 
 r=2 f=33 HITSTUN END BP_PlayerCharacter_C_0 
 r=2 f=33 MOVE UNLOCK BP_TrainingDummy_C_2 
-r=2 f=45 ABILITY END BP_TrainingDummy_C_2 
-r=2 f=45 AIM WEDGE BP_TrainingDummy_C_2 
-r=2 f=45 MONTAGE BP_TrainingDummy_C_2 section=None
-r=2 f=66 HOME RESET BP_TrainingDummy_C_2 
+r=2 f=43 ABILITY END BP_TrainingDummy_C_2 
+r=2 f=43 AIM WEDGE BP_TrainingDummy_C_2 
+r=2 f=64 HOME RESET BP_TrainingDummy_C_2 
 r=2 f=116 DEBUG HEALTH BP_TrainingDummy_C_2 
 r=2 f=116 DEBUG RESET BP_PlayerCharacter_C_0 
 r=2 f=116 DEBUG RESET BP_TrainingDummy_C_1 

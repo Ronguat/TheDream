@@ -32,10 +32,9 @@ r=0 f=14 WAIVER BP_TrainingDummy_C_2
 r=0 f=22 RELEASE END BP_TrainingDummy_C_2 
 r=0 f=22 RELEASE OFF BP_TrainingDummy_C_2 
 r=0 f=47 MOVE UNLOCK BP_TrainingDummy_C_2 
-r=0 f=59 ABILITY END BP_TrainingDummy_C_2 
-r=0 f=59 AIM WEDGE BP_TrainingDummy_C_2 
-r=0 f=59 MONTAGE BP_TrainingDummy_C_2 section=None
-r=0 f=80 HOME RESET BP_TrainingDummy_C_2 
+r=0 f=57 ABILITY END BP_TrainingDummy_C_2 
+r=0 f=57 AIM WEDGE BP_TrainingDummy_C_2 
+r=0 f=78 HOME RESET BP_TrainingDummy_C_2 
 r=0 f=180 ACTIVATE BP_TrainingDummy_C_2 swing=0
 r=0 f=180 AIM WEDGE BP_TrainingDummy_C_2 
 r=0 f=180 HOME RESET BP_TrainingDummy_C_2 
@@ -53,12 +52,11 @@ r=0 f=192 RELEASE BP_TrainingDummy_C_2
 r=0 f=192 TARGET BP_TrainingDummy_C_2 
 r=0 f=194 DEATH SETTLE BP_PlayerCharacter_C_0 
 r=0 f=194 REVIVE BP_PlayerCharacter_C_0 
+r=0 f=201 RELEASE END BP_TrainingDummy_C_2 
 r=0 f=201 RELEASE OFF BP_TrainingDummy_C_2 
-r=0 f=202 RELEASE END BP_TrainingDummy_C_2 
-r=0 f=238 ABILITY END BP_TrainingDummy_C_2 
-r=0 f=238 AIM WEDGE BP_TrainingDummy_C_2 
-r=0 f=238 MONTAGE BP_TrainingDummy_C_2 section=None
-r=0 f=259 HOME RESET BP_TrainingDummy_C_2 
+r=0 f=237 ABILITY END BP_TrainingDummy_C_2 
+r=0 f=237 AIM WEDGE BP_TrainingDummy_C_2 
+r=0 f=258 HOME RESET BP_TrainingDummy_C_2 
 r=0 f=331 DEBUG HEALTH BP_TrainingDummy_C_2 
 r=0 f=331 DEBUG RESET BP_PlayerCharacter_C_0 
 r=0 f=331 DEBUG RESET BP_TrainingDummy_C_1 
@@ -92,10 +90,9 @@ r=1 f=14 WAIVER BP_TrainingDummy_C_2
 r=1 f=22 RELEASE END BP_TrainingDummy_C_2 
 r=1 f=22 RELEASE OFF BP_TrainingDummy_C_2 
 r=1 f=47 MOVE UNLOCK BP_TrainingDummy_C_2 
-r=1 f=59 ABILITY END BP_TrainingDummy_C_2 
-r=1 f=59 AIM WEDGE BP_TrainingDummy_C_2 
-r=1 f=59 MONTAGE BP_TrainingDummy_C_2 section=None
-r=1 f=80 HOME RESET BP_TrainingDummy_C_2 
+r=1 f=57 ABILITY END BP_TrainingDummy_C_2 
+r=1 f=57 AIM WEDGE BP_TrainingDummy_C_2 
+r=1 f=78 HOME RESET BP_TrainingDummy_C_2 
 r=1 f=180 ACTIVATE BP_TrainingDummy_C_2 swing=0
 r=1 f=180 AIM WEDGE BP_TrainingDummy_C_2 
 r=1 f=180 HOME RESET BP_TrainingDummy_C_2 
@@ -115,10 +112,9 @@ r=1 f=194 DEATH SETTLE BP_PlayerCharacter_C_0
 r=1 f=194 REVIVE BP_PlayerCharacter_C_0 
 r=1 f=202 RELEASE END BP_TrainingDummy_C_2 
 r=1 f=202 RELEASE OFF BP_TrainingDummy_C_2 
-r=1 f=239 ABILITY END BP_TrainingDummy_C_2 
-r=1 f=239 AIM WEDGE BP_TrainingDummy_C_2 
-r=1 f=239 MONTAGE BP_TrainingDummy_C_2 section=None
-r=1 f=260 HOME RESET BP_TrainingDummy_C_2 
+r=1 f=237 ABILITY END BP_TrainingDummy_C_2 
+r=1 f=237 AIM WEDGE BP_TrainingDummy_C_2 
+r=1 f=258 HOME RESET BP_TrainingDummy_C_2 
 r=1 f=331 DEBUG HEALTH BP_TrainingDummy_C_2 
 r=1 f=331 DEBUG RESET BP_PlayerCharacter_C_0 
 r=1 f=331 DEBUG RESET BP_TrainingDummy_C_1 

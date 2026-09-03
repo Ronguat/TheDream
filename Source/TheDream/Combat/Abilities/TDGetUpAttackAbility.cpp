@@ -216,6 +216,7 @@ void UTDGetUpAttackAbility::CloseReleaseWindow()
 		return;
 	}
 	bReleaseWindowClosed = true;
+	ScheduleAuthoredEnd(ActivationWorldTime + WindupSeconds + ReleaseSeconds + RecoverySeconds);
 
 	const float RecoveryFrom = GetMontagePosition();
 	const float RecoveryRate = ComputeRecoveryPlayRate(RecoveryFrom, RecoverySeconds);

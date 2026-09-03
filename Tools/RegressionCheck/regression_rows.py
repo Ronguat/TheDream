@@ -256,6 +256,25 @@ def knockdown_getup_held_normal(ctx, r, s):
     _getup_held(ctx, r, s)
 
 
+def knockdown_getup_tap_priority(ctx, r, s):
+    """The rise comes at the lockout's end; which held or buffered option took it is reported."""
+    player = ctx.who("player")
+    lockout = float(s["expect"]["lockout"])
+    n, at_open, by = 0, 0, []
+    for seg in ctx.reps:
+        kd_t, _ = first(seg, "KNOCKDOWN", player, "type=")
+        rise_t, rise = first(seg, "KNOCKDOWN RISE", player)
+        if kd_t is None or rise_t is None:
+            continue
+        n += 1
+        if abs((rise_t - kd_t) - lockout) <= FRAME + 1e-3:
+            at_open += 1
+        by.append(sfield(rise, "by"))
+    r.counted(n, "knockdowns that rose", "%d" % n)
+    r.add(n > 0 and at_open == n, "the rise comes at the lockout's end", "%d of %d within 1 f" % (at_open, n))
+    r.add(True, "which option rises with block held and attack tapped: reported", "REPORT %s" % by)
+
+
 def knockdown_getup_exhausted_held(ctx, r, s):
     """Exhaustion refuses the defensive get-ups and leaves the attack; the wait still rises."""
     _getup_held(ctx, r, s)
@@ -470,13 +489,13 @@ def tier_cells(ctx, r, s):
         over = elapsed - total
         if p == 0:
             tot_first += 1
-            if 0.0 <= over <= 0.050 + 1e-6:
+            if -0.009 <= over <= 0.050 + 1e-6:
                 tot_first_ok += 1
             else:
                 detail.append("cell %d/%d total %.3f vs %.3f" % (p, b, elapsed, total))
         else:
             tot_chain += 1
-            if 0.0 <= over <= 0.050 + 1e-6:
+            if -0.009 <= over <= 0.050 + 1e-6:
                 tot_chain_ok += 1
             else:
                 chain_detail.append("cell %d/%d %+.3f" % (p, b, over))
@@ -493,9 +512,9 @@ def tier_cells(ctx, r, s):
     r.add(n > 0 and rel_ok == n, "release opens at the branch's ReleaseAt", "%d of %d within 30 ms" % (rel_ok, n))
     r.add(span_n > 0 and span_ok == span_n, "release lasts the cell's ReleaseSeconds, -0.5 to +1 f",
           "%d of %d%s" % (span_ok, span_n, "; " + "; ".join(sorted(set(span_detail))[:4]) if span_detail else ""))
-    r.add(tot_first > 0 and tot_first_ok == tot_first, "position 1 totals: authored sum, 0 to +3 f",
+    r.add(tot_first > 0 and tot_first_ok == tot_first, "position 1 totals: authored sum, -0.5 to +3 f",
           "%d of %d%s" % (tot_first_ok, tot_first, "; " + "; ".join(detail[:3]) if detail else ""))
-    r.add(tot_chain > 0 and tot_chain_ok == tot_chain, "chained totals: authored sum, 0 to +3 f",
+    r.add(tot_chain > 0 and tot_chain_ok == tot_chain, "chained totals: authored sum, -0.5 to +3 f",
           "%d of %d%s" % (tot_chain_ok, tot_chain, "; " + "; ".join(sorted(set(chain_detail))[:4]) if chain_detail else ""))
     r.add(n > 0 and esc_ok == n, "escalations equal the branch", "%d of %d" % (esc_ok, n))
     r.add(n > 0 and com_ok == n, "commit names the branch", "%d of %d" % (com_ok, n))
@@ -1326,6 +1345,7 @@ ROWS = {
     "knockdown-getup-exhausted-held": knockdown_getup_exhausted_held,
     "knockdown-getup-held": knockdown_getup_held,
     "knockdown-getup-held-normal": knockdown_getup_held_normal,
+    "knockdown-getup-tap-priority": knockdown_getup_tap_priority,
     "edge-light-checkpoint": edge_light_checkpoint,
     "lock-guard-break": lock_guard_break,
     "reach-light": reach_light,

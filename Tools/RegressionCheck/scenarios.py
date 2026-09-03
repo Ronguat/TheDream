@@ -669,10 +669,12 @@ _edge("edge", "edge-chain-close",
       [[(0, "player", "tap", "attack"), (f, "player", "tap", "attack")] for f in (41, 42, 39, 40, 43)],
       "chain", ["chain", "none", None, None, None], ("drop", "STRING", 99))
 
+# Past the close a press is stored and expires unless its 12 f acceptance reaches the 58 f actionable
+# frame: 45 f expires, 46 f fires fresh.
 _edge("edge", "edge-fresh-open",
       [[(0, "player", "tap", "attack"), (f, "player", "tap", "attack")]
-       for f in (44, 50, 45, 46, 47, 48, 49)],
-      "chain", ["none", "fresh", None, None, None, None, None], ("dup", "ACTIVATE", 1))
+       for f in (45, 46, 44, 47, 48)],
+      "chain", ["none", "fresh", None, None, None], ("dup", "ACTIVATE", 1))
 
 _edge("edge", "edge-guard-floor",
       [[(0, "player", "press", "block"), (f, "player", "release", "block")] for f in (14, 16, 15)],
@@ -742,6 +744,14 @@ SCENARIOS["knockdown-getup-held"] = _player_defends(
 
 # Normal knockdown from the string's ender: lockout 60 f. The stand is legal here, and all four
 # held together must still yield the guard.
+# Both get-up paths at once: block held from 30 f, attack tapped at 88 f inside the buffer's reach of
+# the 90 f open. The rise must come at the open; which option rises is reported for the ruling.
+SCENARIOS["knockdown-getup-tap-priority"] = _player_defends(
+    "knockdown", _atk(HEAVY, debug_auto_attack_interval=4.5),
+    plans=[[LOCK_DOWN, (30, "player", "hold", "block", 90), (88, "player", "tap", "attack")]],
+    mutations=[("shift", "KNOCKDOWN RISE", 0.100)], reps=3, tail=90,
+    expect=dict(lockout=1.5))
+
 SCENARIOS["knockdown-getup-held-normal"] = _player_defends(
     "knockdown", _atk(LIGHT, **STRING),
     plans=[[LOCK_DOWN, (30, "player", "hold", "jump", 60)],
@@ -894,11 +904,12 @@ def _edge_defends(sid, attacker, plans, probe, want, mutation, tail=100):
         expect=dict(probe=probe, want=want, labels=["%df" % p[-1][0] for p in plans]))
 
 
-# A stored press fires at the swing's end, 57 to 59 f; a press after the end fires on its own frame.
+# The swing ends on its authored 57 f and a stored press fires the tick after, so 58 f is the first
+# frame a press fires on its own; a press at 57 is held one frame.
 _edge("edge", "edge-actionable",
       [[(0, "player", "tap", "attack"), (f, "player", "tap", "attack")]
-       for f in (54, 62, 56, 57, 58, 59, 60)],
-      "fire", ["held", "now", None, None, None, None, None], ("drop", "ACTIVATE", 99))
+       for f in (57, 58, 54, 55, 56)],
+      "fire", ["held", "now", None, None, None], ("drop", "ACTIVATE", 99))
 
 # Hitstun is 33 f on the light: a press 12 f or less before its end is carried to HITSTUN END, an
 # earlier one expires.

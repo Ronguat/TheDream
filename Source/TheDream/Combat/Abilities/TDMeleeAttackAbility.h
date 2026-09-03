@@ -446,6 +446,16 @@ protected:
 	UFUNCTION()
 	void HandleMontageFinished();
 
+	/** Ends the ability at EndWorldTime, the authored total from activation, on the tick that time
+	 *  lands on; once armed, the montage's own finish no longer ends it. */
+	void ScheduleAuthoredEnd(float EndWorldTime);
+
+	UFUNCTION()
+	void HandleAuthoredEnd();
+
+	FTimerHandle AuthoredEndTimerHandle;
+	bool bAuthoredEndArmed = false;
+
 	UFUNCTION()
 	void HandleMontageInterrupted();
 
