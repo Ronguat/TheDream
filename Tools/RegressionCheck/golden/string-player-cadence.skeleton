@@ -1,0 +1,388 @@
+f=971 DEBUG RESET BP_PlayerCharacter_C_0 
+f=971 DEBUG RESET BP_TrainingDummy_C_1 
+f=971 DEBUG RESET BP_TrainingDummy_C_2 
+f=971 HOME RESET BP_TrainingDummy_C_1 
+f=971 HOME RESET BP_TrainingDummy_C_2 
+f=971 REVIVE BP_PlayerCharacter_C_0 
+f=971 REVIVE BP_TrainingDummy_C_1 
+f=971 REVIVE BP_TrainingDummy_C_2 
+r=0 f=2 ACTIVATE BP_PlayerCharacter_C_0 swing=0
+r=0 f=2 AIM WEDGE BP_PlayerCharacter_C_0 
+r=0 f=2 INPUT BP_PlayerCharacter_C_0 
+r=0 f=2 MONTAGE BP_PlayerCharacter_C_0 
+r=0 f=2 MONTAGE BP_PlayerCharacter_C_0 
+r=0 f=2 MONTAGE BP_PlayerCharacter_C_0 
+r=0 f=4 INPUT BP_PlayerCharacter_C_0 
+r=0 f=11 AIM ASSIST BP_PlayerCharacter_C_0 
+r=0 f=11 AIM WEDGE BP_PlayerCharacter_C_0 
+r=0 f=11 COMMIT BP_PlayerCharacter_C_0 branch=0
+r=0 f=11 TARGET BP_PlayerCharacter_C_0 
+r=0 f=15 RELEASE BEGIN BP_PlayerCharacter_C_0 
+r=0 f=15 RELEASE BP_PlayerCharacter_C_0 
+r=0 f=15 TARGET BP_PlayerCharacter_C_0 
+r=0 f=16 DAMAGED BP_TrainingDummy_C_1 by=BP_PlayerCharacter_C_0 damage=15
+r=0 f=16 HITSTUN BP_TrainingDummy_C_1 
+r=0 f=16 KNOCKBACK BP_TrainingDummy_C_1 by=BP_PlayerCharacter_C_0
+r=0 f=16 LUNGE STOP BP_PlayerCharacter_C_0 
+r=0 f=16 WAIVER BP_PlayerCharacter_C_0 
+r=0 f=17 FACING FORCED BP_TrainingDummy_C_1 
+r=0 f=24 RELEASE END BP_PlayerCharacter_C_0 
+r=0 f=24 RELEASE OFF BP_PlayerCharacter_C_0 
+r=0 f=32 ABILITY END BP_PlayerCharacter_C_0 
+r=0 f=32 ACTIVATE BP_PlayerCharacter_C_0 swing=1
+r=0 f=32 AIM WEDGE BP_PlayerCharacter_C_0 
+r=0 f=32 AIM WEDGE BP_PlayerCharacter_C_0 
+r=0 f=32 BUFFER BP_PlayerCharacter_C_0 
+r=0 f=32 BUFFER BP_PlayerCharacter_C_0 
+r=0 f=32 INPUT BP_PlayerCharacter_C_0 
+r=0 f=32 MONTAGE BP_PlayerCharacter_C_0 
+r=0 f=32 MONTAGE BP_PlayerCharacter_C_0 
+r=0 f=32 MONTAGE BP_PlayerCharacter_C_0 
+r=0 f=32 STRING BP_PlayerCharacter_C_0 swing=0
+r=0 f=32 STRING BP_PlayerCharacter_C_0 swing=0
+r=0 f=34 INPUT BP_PlayerCharacter_C_0 
+r=0 f=42 AIM ASSIST BP_PlayerCharacter_C_0 
+r=0 f=42 AIM WEDGE BP_PlayerCharacter_C_0 
+r=0 f=42 COMMIT BP_PlayerCharacter_C_0 branch=0
+r=0 f=42 TARGET BP_PlayerCharacter_C_0 
+r=0 f=45 RELEASE BEGIN BP_PlayerCharacter_C_0 
+r=0 f=45 RELEASE BP_PlayerCharacter_C_0 
+r=0 f=45 TARGET BP_PlayerCharacter_C_0 
+r=0 f=46 DAMAGED BP_TrainingDummy_C_1 by=BP_PlayerCharacter_C_0 damage=15
+r=0 f=46 KNOCKBACK BP_TrainingDummy_C_1 by=BP_PlayerCharacter_C_0
+r=0 f=46 LUNGE STOP BP_PlayerCharacter_C_0 
+r=0 f=46 WAIVER BP_PlayerCharacter_C_0 
+r=0 f=47 FACING FORCED BP_TrainingDummy_C_1 
+r=0 f=49 MOVE UNLOCK BP_PlayerCharacter_C_0 
+r=0 f=52 RELEASE END BP_PlayerCharacter_C_0 
+r=0 f=52 RELEASE OFF BP_PlayerCharacter_C_0 
+r=0 f=62 ABILITY END BP_PlayerCharacter_C_0 
+r=0 f=62 ACTIVATE BP_PlayerCharacter_C_0 swing=2
+r=0 f=62 AIM WEDGE BP_PlayerCharacter_C_0 
+r=0 f=62 AIM WEDGE BP_PlayerCharacter_C_0 
+r=0 f=62 BUFFER BP_PlayerCharacter_C_0 
+r=0 f=62 BUFFER BP_PlayerCharacter_C_0 
+r=0 f=62 INPUT BP_PlayerCharacter_C_0 
+r=0 f=62 MONTAGE BP_PlayerCharacter_C_0 
+r=0 f=62 MONTAGE BP_PlayerCharacter_C_0 
+r=0 f=62 MONTAGE BP_PlayerCharacter_C_0 
+r=0 f=62 STRING BP_PlayerCharacter_C_0 swing=1
+r=0 f=62 STRING BP_PlayerCharacter_C_0 swing=1
+r=0 f=64 INPUT BP_PlayerCharacter_C_0 
+r=0 f=71 AIM ASSIST BP_PlayerCharacter_C_0 
+r=0 f=71 AIM WEDGE BP_PlayerCharacter_C_0 
+r=0 f=71 COMMIT BP_PlayerCharacter_C_0 branch=0
+r=0 f=71 TARGET BP_PlayerCharacter_C_0 
+r=0 f=75 RELEASE BEGIN BP_PlayerCharacter_C_0 
+r=0 f=75 RELEASE BP_PlayerCharacter_C_0 
+r=0 f=75 TARGET BP_PlayerCharacter_C_0 
+r=0 f=76 DAMAGED BP_TrainingDummy_C_1 by=BP_PlayerCharacter_C_0 damage=15
+r=0 f=76 KNOCKDOWN BP_TrainingDummy_C_1 type=normal
+r=0 f=76 KNOCKDOWN MONTAGE BP_TrainingDummy_C_1 
+r=0 f=76 LUNGE STOP BP_PlayerCharacter_C_0 
+r=0 f=76 WAIVER BP_PlayerCharacter_C_0 
+r=0 f=77 FACING FORCED BP_TrainingDummy_C_1 
+r=0 f=79 HITSTUN END BP_TrainingDummy_C_1 
+r=0 f=87 RELEASE END BP_PlayerCharacter_C_0 
+r=0 f=87 RELEASE OFF BP_PlayerCharacter_C_0 
+r=0 f=109 MOVE UNLOCK BP_PlayerCharacter_C_0 
+r=0 f=133 ABILITY END BP_PlayerCharacter_C_0 
+r=0 f=133 AIM WEDGE BP_PlayerCharacter_C_0 
+r=0 f=133 MONTAGE BP_PlayerCharacter_C_0 section=None
+r=0 f=196 KNOCKDOWN MONTAGE BP_TrainingDummy_C_1 
+r=0 f=196 KNOCKDOWN RISE BP_TrainingDummy_C_1 by=auto
+r=0 f=226 HOME RESET BP_TrainingDummy_C_1 
+r=0 f=226 KNOCKDOWN STAND BP_TrainingDummy_C_1 
+r=0 f=242 DEBUG RESET BP_PlayerCharacter_C_0 
+r=0 f=242 DEBUG RESET BP_TrainingDummy_C_1 
+r=0 f=242 DEBUG RESET BP_TrainingDummy_C_2 
+r=0 f=242 HOME RESET BP_TrainingDummy_C_1 
+r=0 f=242 HOME RESET BP_TrainingDummy_C_2 
+r=0 f=242 REVIVE BP_PlayerCharacter_C_0 
+r=0 f=242 REVIVE BP_TrainingDummy_C_1 
+r=0 f=242 REVIVE BP_TrainingDummy_C_2 
+r=1 f=2 ACTIVATE BP_PlayerCharacter_C_0 swing=0
+r=1 f=2 AIM WEDGE BP_PlayerCharacter_C_0 
+r=1 f=2 INPUT BP_PlayerCharacter_C_0 
+r=1 f=2 MONTAGE BP_PlayerCharacter_C_0 
+r=1 f=2 MONTAGE BP_PlayerCharacter_C_0 
+r=1 f=2 MONTAGE BP_PlayerCharacter_C_0 
+r=1 f=4 INPUT BP_PlayerCharacter_C_0 
+r=1 f=12 AIM ASSIST BP_PlayerCharacter_C_0 
+r=1 f=12 AIM WEDGE BP_PlayerCharacter_C_0 
+r=1 f=12 COMMIT BP_PlayerCharacter_C_0 branch=0
+r=1 f=12 TARGET BP_PlayerCharacter_C_0 
+r=1 f=15 RELEASE BEGIN BP_PlayerCharacter_C_0 
+r=1 f=15 RELEASE BP_PlayerCharacter_C_0 
+r=1 f=15 TARGET BP_PlayerCharacter_C_0 
+r=1 f=16 DAMAGED BP_TrainingDummy_C_1 by=BP_PlayerCharacter_C_0 damage=15
+r=1 f=16 HITSTUN BP_TrainingDummy_C_1 
+r=1 f=16 KNOCKBACK BP_TrainingDummy_C_1 by=BP_PlayerCharacter_C_0
+r=1 f=16 LUNGE STOP BP_PlayerCharacter_C_0 
+r=1 f=16 WAIVER BP_PlayerCharacter_C_0 
+r=1 f=17 FACING FORCED BP_TrainingDummy_C_1 
+r=1 f=24 RELEASE OFF BP_PlayerCharacter_C_0 
+r=1 f=25 RELEASE END BP_PlayerCharacter_C_0 
+r=1 f=32 ABILITY END BP_PlayerCharacter_C_0 
+r=1 f=32 ACTIVATE BP_PlayerCharacter_C_0 swing=1
+r=1 f=32 AIM WEDGE BP_PlayerCharacter_C_0 
+r=1 f=32 AIM WEDGE BP_PlayerCharacter_C_0 
+r=1 f=32 BUFFER BP_PlayerCharacter_C_0 
+r=1 f=32 BUFFER BP_PlayerCharacter_C_0 
+r=1 f=32 INPUT BP_PlayerCharacter_C_0 
+r=1 f=32 MONTAGE BP_PlayerCharacter_C_0 
+r=1 f=32 MONTAGE BP_PlayerCharacter_C_0 
+r=1 f=32 MONTAGE BP_PlayerCharacter_C_0 
+r=1 f=32 STRING BP_PlayerCharacter_C_0 swing=0
+r=1 f=32 STRING BP_PlayerCharacter_C_0 swing=0
+r=1 f=34 INPUT BP_PlayerCharacter_C_0 
+r=1 f=42 AIM ASSIST BP_PlayerCharacter_C_0 
+r=1 f=42 AIM WEDGE BP_PlayerCharacter_C_0 
+r=1 f=42 COMMIT BP_PlayerCharacter_C_0 branch=0
+r=1 f=42 TARGET BP_PlayerCharacter_C_0 
+r=1 f=45 RELEASE BEGIN BP_PlayerCharacter_C_0 
+r=1 f=45 RELEASE BP_PlayerCharacter_C_0 
+r=1 f=45 TARGET BP_PlayerCharacter_C_0 
+r=1 f=46 DAMAGED BP_TrainingDummy_C_1 by=BP_PlayerCharacter_C_0 damage=15
+r=1 f=46 KNOCKBACK BP_TrainingDummy_C_1 by=BP_PlayerCharacter_C_0
+r=1 f=46 LUNGE STOP BP_PlayerCharacter_C_0 
+r=1 f=46 WAIVER BP_PlayerCharacter_C_0 
+r=1 f=47 FACING FORCED BP_TrainingDummy_C_1 
+r=1 f=50 MOVE UNLOCK BP_PlayerCharacter_C_0 
+r=1 f=52 RELEASE END BP_PlayerCharacter_C_0 
+r=1 f=52 RELEASE OFF BP_PlayerCharacter_C_0 
+r=1 f=62 ABILITY END BP_PlayerCharacter_C_0 
+r=1 f=62 ACTIVATE BP_PlayerCharacter_C_0 swing=2
+r=1 f=62 AIM WEDGE BP_PlayerCharacter_C_0 
+r=1 f=62 AIM WEDGE BP_PlayerCharacter_C_0 
+r=1 f=62 BUFFER BP_PlayerCharacter_C_0 
+r=1 f=62 BUFFER BP_PlayerCharacter_C_0 
+r=1 f=62 INPUT BP_PlayerCharacter_C_0 
+r=1 f=62 MONTAGE BP_PlayerCharacter_C_0 
+r=1 f=62 MONTAGE BP_PlayerCharacter_C_0 
+r=1 f=62 MONTAGE BP_PlayerCharacter_C_0 
+r=1 f=62 STRING BP_PlayerCharacter_C_0 swing=1
+r=1 f=62 STRING BP_PlayerCharacter_C_0 swing=1
+r=1 f=64 INPUT BP_PlayerCharacter_C_0 
+r=1 f=72 AIM ASSIST BP_PlayerCharacter_C_0 
+r=1 f=72 AIM WEDGE BP_PlayerCharacter_C_0 
+r=1 f=72 COMMIT BP_PlayerCharacter_C_0 branch=0
+r=1 f=72 TARGET BP_PlayerCharacter_C_0 
+r=1 f=75 RELEASE BEGIN BP_PlayerCharacter_C_0 
+r=1 f=75 RELEASE BP_PlayerCharacter_C_0 
+r=1 f=75 TARGET BP_PlayerCharacter_C_0 
+r=1 f=76 DAMAGED BP_TrainingDummy_C_1 by=BP_PlayerCharacter_C_0 damage=15
+r=1 f=76 KNOCKDOWN BP_TrainingDummy_C_1 type=normal
+r=1 f=76 KNOCKDOWN MONTAGE BP_TrainingDummy_C_1 
+r=1 f=76 LUNGE STOP BP_PlayerCharacter_C_0 
+r=1 f=76 WAIVER BP_PlayerCharacter_C_0 
+r=1 f=77 FACING FORCED BP_TrainingDummy_C_1 
+r=1 f=80 HITSTUN END BP_TrainingDummy_C_1 
+r=1 f=87 RELEASE END BP_PlayerCharacter_C_0 
+r=1 f=87 RELEASE OFF BP_PlayerCharacter_C_0 
+r=1 f=110 MOVE UNLOCK BP_PlayerCharacter_C_0 
+r=1 f=133 ABILITY END BP_PlayerCharacter_C_0 
+r=1 f=133 AIM WEDGE BP_PlayerCharacter_C_0 
+r=1 f=133 MONTAGE BP_PlayerCharacter_C_0 section=None
+r=1 f=196 KNOCKDOWN MONTAGE BP_TrainingDummy_C_1 
+r=1 f=196 KNOCKDOWN RISE BP_TrainingDummy_C_1 by=auto
+r=1 f=226 HOME RESET BP_TrainingDummy_C_1 
+r=1 f=226 KNOCKDOWN STAND BP_TrainingDummy_C_1 
+r=1 f=242 DEBUG RESET BP_PlayerCharacter_C_0 
+r=1 f=242 DEBUG RESET BP_TrainingDummy_C_1 
+r=1 f=242 DEBUG RESET BP_TrainingDummy_C_2 
+r=1 f=242 HOME RESET BP_TrainingDummy_C_1 
+r=1 f=242 HOME RESET BP_TrainingDummy_C_2 
+r=1 f=242 REVIVE BP_PlayerCharacter_C_0 
+r=1 f=242 REVIVE BP_TrainingDummy_C_1 
+r=1 f=242 REVIVE BP_TrainingDummy_C_2 
+r=2 f=2 ACTIVATE BP_PlayerCharacter_C_0 swing=0
+r=2 f=2 AIM WEDGE BP_PlayerCharacter_C_0 
+r=2 f=2 INPUT BP_PlayerCharacter_C_0 
+r=2 f=2 MONTAGE BP_PlayerCharacter_C_0 
+r=2 f=2 MONTAGE BP_PlayerCharacter_C_0 
+r=2 f=2 MONTAGE BP_PlayerCharacter_C_0 
+r=2 f=4 INPUT BP_PlayerCharacter_C_0 
+r=2 f=12 AIM ASSIST BP_PlayerCharacter_C_0 
+r=2 f=12 AIM WEDGE BP_PlayerCharacter_C_0 
+r=2 f=12 COMMIT BP_PlayerCharacter_C_0 branch=0
+r=2 f=12 TARGET BP_PlayerCharacter_C_0 
+r=2 f=15 RELEASE BEGIN BP_PlayerCharacter_C_0 
+r=2 f=15 RELEASE BP_PlayerCharacter_C_0 
+r=2 f=15 TARGET BP_PlayerCharacter_C_0 
+r=2 f=16 DAMAGED BP_TrainingDummy_C_1 by=BP_PlayerCharacter_C_0 damage=15
+r=2 f=16 HITSTUN BP_TrainingDummy_C_1 
+r=2 f=16 KNOCKBACK BP_TrainingDummy_C_1 by=BP_PlayerCharacter_C_0
+r=2 f=16 LUNGE STOP BP_PlayerCharacter_C_0 
+r=2 f=16 WAIVER BP_PlayerCharacter_C_0 
+r=2 f=17 FACING FORCED BP_TrainingDummy_C_1 
+r=2 f=24 RELEASE OFF BP_PlayerCharacter_C_0 
+r=2 f=25 RELEASE END BP_PlayerCharacter_C_0 
+r=2 f=32 ABILITY END BP_PlayerCharacter_C_0 
+r=2 f=32 ACTIVATE BP_PlayerCharacter_C_0 swing=1
+r=2 f=32 AIM WEDGE BP_PlayerCharacter_C_0 
+r=2 f=32 AIM WEDGE BP_PlayerCharacter_C_0 
+r=2 f=32 BUFFER BP_PlayerCharacter_C_0 
+r=2 f=32 BUFFER BP_PlayerCharacter_C_0 
+r=2 f=32 INPUT BP_PlayerCharacter_C_0 
+r=2 f=32 MONTAGE BP_PlayerCharacter_C_0 
+r=2 f=32 MONTAGE BP_PlayerCharacter_C_0 
+r=2 f=32 MONTAGE BP_PlayerCharacter_C_0 
+r=2 f=32 STRING BP_PlayerCharacter_C_0 swing=0
+r=2 f=32 STRING BP_PlayerCharacter_C_0 swing=0
+r=2 f=34 INPUT BP_PlayerCharacter_C_0 
+r=2 f=42 AIM ASSIST BP_PlayerCharacter_C_0 
+r=2 f=42 AIM WEDGE BP_PlayerCharacter_C_0 
+r=2 f=42 COMMIT BP_PlayerCharacter_C_0 branch=0
+r=2 f=42 TARGET BP_PlayerCharacter_C_0 
+r=2 f=45 RELEASE BEGIN BP_PlayerCharacter_C_0 
+r=2 f=45 RELEASE BP_PlayerCharacter_C_0 
+r=2 f=45 TARGET BP_PlayerCharacter_C_0 
+r=2 f=46 DAMAGED BP_TrainingDummy_C_1 by=BP_PlayerCharacter_C_0 damage=15
+r=2 f=46 KNOCKBACK BP_TrainingDummy_C_1 by=BP_PlayerCharacter_C_0
+r=2 f=46 LUNGE STOP BP_PlayerCharacter_C_0 
+r=2 f=46 WAIVER BP_PlayerCharacter_C_0 
+r=2 f=47 FACING FORCED BP_TrainingDummy_C_1 
+r=2 f=49 MOVE UNLOCK BP_PlayerCharacter_C_0 
+r=2 f=52 RELEASE END BP_PlayerCharacter_C_0 
+r=2 f=52 RELEASE OFF BP_PlayerCharacter_C_0 
+r=2 f=62 ABILITY END BP_PlayerCharacter_C_0 
+r=2 f=62 ACTIVATE BP_PlayerCharacter_C_0 swing=2
+r=2 f=62 AIM WEDGE BP_PlayerCharacter_C_0 
+r=2 f=62 AIM WEDGE BP_PlayerCharacter_C_0 
+r=2 f=62 BUFFER BP_PlayerCharacter_C_0 
+r=2 f=62 BUFFER BP_PlayerCharacter_C_0 
+r=2 f=62 INPUT BP_PlayerCharacter_C_0 
+r=2 f=62 MONTAGE BP_PlayerCharacter_C_0 
+r=2 f=62 MONTAGE BP_PlayerCharacter_C_0 
+r=2 f=62 MONTAGE BP_PlayerCharacter_C_0 
+r=2 f=62 STRING BP_PlayerCharacter_C_0 swing=1
+r=2 f=62 STRING BP_PlayerCharacter_C_0 swing=1
+r=2 f=64 INPUT BP_PlayerCharacter_C_0 
+r=2 f=72 AIM ASSIST BP_PlayerCharacter_C_0 
+r=2 f=72 AIM WEDGE BP_PlayerCharacter_C_0 
+r=2 f=72 COMMIT BP_PlayerCharacter_C_0 branch=0
+r=2 f=72 TARGET BP_PlayerCharacter_C_0 
+r=2 f=75 RELEASE BEGIN BP_PlayerCharacter_C_0 
+r=2 f=75 RELEASE BP_PlayerCharacter_C_0 
+r=2 f=75 TARGET BP_PlayerCharacter_C_0 
+r=2 f=76 DAMAGED BP_TrainingDummy_C_1 by=BP_PlayerCharacter_C_0 damage=15
+r=2 f=76 KNOCKDOWN BP_TrainingDummy_C_1 type=normal
+r=2 f=76 KNOCKDOWN MONTAGE BP_TrainingDummy_C_1 
+r=2 f=76 LUNGE STOP BP_PlayerCharacter_C_0 
+r=2 f=76 WAIVER BP_PlayerCharacter_C_0 
+r=2 f=77 FACING FORCED BP_TrainingDummy_C_1 
+r=2 f=79 HITSTUN END BP_TrainingDummy_C_1 
+r=2 f=87 RELEASE END BP_PlayerCharacter_C_0 
+r=2 f=87 RELEASE OFF BP_PlayerCharacter_C_0 
+r=2 f=109 MOVE UNLOCK BP_PlayerCharacter_C_0 
+r=2 f=132 ABILITY END BP_PlayerCharacter_C_0 
+r=2 f=132 AIM WEDGE BP_PlayerCharacter_C_0 
+r=2 f=132 MONTAGE BP_PlayerCharacter_C_0 section=None
+r=2 f=196 KNOCKDOWN MONTAGE BP_TrainingDummy_C_1 
+r=2 f=196 KNOCKDOWN RISE BP_TrainingDummy_C_1 by=auto
+r=2 f=226 HOME RESET BP_TrainingDummy_C_1 
+r=2 f=226 KNOCKDOWN STAND BP_TrainingDummy_C_1 
+r=2 f=242 DEBUG RESET BP_PlayerCharacter_C_0 
+r=2 f=242 DEBUG RESET BP_TrainingDummy_C_1 
+r=2 f=242 DEBUG RESET BP_TrainingDummy_C_2 
+r=2 f=242 HOME RESET BP_TrainingDummy_C_1 
+r=2 f=242 HOME RESET BP_TrainingDummy_C_2 
+r=2 f=242 REVIVE BP_PlayerCharacter_C_0 
+r=2 f=242 REVIVE BP_TrainingDummy_C_1 
+r=2 f=242 REVIVE BP_TrainingDummy_C_2 
+r=3 f=2 ACTIVATE BP_PlayerCharacter_C_0 swing=0
+r=3 f=2 AIM WEDGE BP_PlayerCharacter_C_0 
+r=3 f=2 INPUT BP_PlayerCharacter_C_0 
+r=3 f=2 MONTAGE BP_PlayerCharacter_C_0 
+r=3 f=2 MONTAGE BP_PlayerCharacter_C_0 
+r=3 f=2 MONTAGE BP_PlayerCharacter_C_0 
+r=3 f=4 INPUT BP_PlayerCharacter_C_0 
+r=3 f=11 AIM ASSIST BP_PlayerCharacter_C_0 
+r=3 f=11 AIM WEDGE BP_PlayerCharacter_C_0 
+r=3 f=11 COMMIT BP_PlayerCharacter_C_0 branch=0
+r=3 f=11 TARGET BP_PlayerCharacter_C_0 
+r=3 f=14 RELEASE BEGIN BP_PlayerCharacter_C_0 
+r=3 f=14 RELEASE BP_PlayerCharacter_C_0 
+r=3 f=14 TARGET BP_PlayerCharacter_C_0 
+r=3 f=15 DAMAGED BP_TrainingDummy_C_1 by=BP_PlayerCharacter_C_0 damage=15
+r=3 f=15 HITSTUN BP_TrainingDummy_C_1 
+r=3 f=15 KNOCKBACK BP_TrainingDummy_C_1 by=BP_PlayerCharacter_C_0
+r=3 f=15 LUNGE STOP BP_PlayerCharacter_C_0 
+r=3 f=15 WAIVER BP_PlayerCharacter_C_0 
+r=3 f=16 FACING FORCED BP_TrainingDummy_C_1 
+r=3 f=24 RELEASE END BP_PlayerCharacter_C_0 
+r=3 f=24 RELEASE OFF BP_PlayerCharacter_C_0 
+r=3 f=32 ABILITY END BP_PlayerCharacter_C_0 
+r=3 f=32 ACTIVATE BP_PlayerCharacter_C_0 swing=1
+r=3 f=32 AIM WEDGE BP_PlayerCharacter_C_0 
+r=3 f=32 AIM WEDGE BP_PlayerCharacter_C_0 
+r=3 f=32 BUFFER BP_PlayerCharacter_C_0 
+r=3 f=32 BUFFER BP_PlayerCharacter_C_0 
+r=3 f=32 INPUT BP_PlayerCharacter_C_0 
+r=3 f=32 MONTAGE BP_PlayerCharacter_C_0 
+r=3 f=32 MONTAGE BP_PlayerCharacter_C_0 
+r=3 f=32 MONTAGE BP_PlayerCharacter_C_0 
+r=3 f=32 STRING BP_PlayerCharacter_C_0 swing=0
+r=3 f=32 STRING BP_PlayerCharacter_C_0 swing=0
+r=3 f=34 INPUT BP_PlayerCharacter_C_0 
+r=3 f=41 AIM ASSIST BP_PlayerCharacter_C_0 
+r=3 f=41 AIM WEDGE BP_PlayerCharacter_C_0 
+r=3 f=41 COMMIT BP_PlayerCharacter_C_0 branch=0
+r=3 f=41 TARGET BP_PlayerCharacter_C_0 
+r=3 f=44 RELEASE BEGIN BP_PlayerCharacter_C_0 
+r=3 f=44 RELEASE BP_PlayerCharacter_C_0 
+r=3 f=44 TARGET BP_PlayerCharacter_C_0 
+r=3 f=45 DAMAGED BP_TrainingDummy_C_1 by=BP_PlayerCharacter_C_0 damage=15
+r=3 f=45 KNOCKBACK BP_TrainingDummy_C_1 by=BP_PlayerCharacter_C_0
+r=3 f=45 LUNGE STOP BP_PlayerCharacter_C_0 
+r=3 f=45 WAIVER BP_PlayerCharacter_C_0 
+r=3 f=46 FACING FORCED BP_TrainingDummy_C_1 
+r=3 f=49 MOVE UNLOCK BP_PlayerCharacter_C_0 
+r=3 f=54 RELEASE END BP_PlayerCharacter_C_0 
+r=3 f=54 RELEASE OFF BP_PlayerCharacter_C_0 
+r=3 f=62 ABILITY END BP_PlayerCharacter_C_0 
+r=3 f=62 ACTIVATE BP_PlayerCharacter_C_0 swing=2
+r=3 f=62 AIM WEDGE BP_PlayerCharacter_C_0 
+r=3 f=62 AIM WEDGE BP_PlayerCharacter_C_0 
+r=3 f=62 BUFFER BP_PlayerCharacter_C_0 
+r=3 f=62 BUFFER BP_PlayerCharacter_C_0 
+r=3 f=62 INPUT BP_PlayerCharacter_C_0 
+r=3 f=62 MONTAGE BP_PlayerCharacter_C_0 
+r=3 f=62 MONTAGE BP_PlayerCharacter_C_0 
+r=3 f=62 MONTAGE BP_PlayerCharacter_C_0 
+r=3 f=62 STRING BP_PlayerCharacter_C_0 swing=1
+r=3 f=62 STRING BP_PlayerCharacter_C_0 swing=1
+r=3 f=64 INPUT BP_PlayerCharacter_C_0 
+r=3 f=71 AIM ASSIST BP_PlayerCharacter_C_0 
+r=3 f=71 AIM WEDGE BP_PlayerCharacter_C_0 
+r=3 f=71 COMMIT BP_PlayerCharacter_C_0 branch=0
+r=3 f=71 TARGET BP_PlayerCharacter_C_0 
+r=3 f=75 RELEASE BEGIN BP_PlayerCharacter_C_0 
+r=3 f=75 RELEASE BP_PlayerCharacter_C_0 
+r=3 f=75 TARGET BP_PlayerCharacter_C_0 
+r=3 f=76 DAMAGED BP_TrainingDummy_C_1 by=BP_PlayerCharacter_C_0 damage=15
+r=3 f=76 KNOCKDOWN BP_TrainingDummy_C_1 type=normal
+r=3 f=76 KNOCKDOWN MONTAGE BP_TrainingDummy_C_1 
+r=3 f=76 LUNGE STOP BP_PlayerCharacter_C_0 
+r=3 f=76 WAIVER BP_PlayerCharacter_C_0 
+r=3 f=77 FACING FORCED BP_TrainingDummy_C_1 
+r=3 f=79 HITSTUN END BP_TrainingDummy_C_1 
+r=3 f=87 RELEASE END BP_PlayerCharacter_C_0 
+r=3 f=87 RELEASE OFF BP_PlayerCharacter_C_0 
+r=3 f=110 MOVE UNLOCK BP_PlayerCharacter_C_0 
+r=3 f=133 ABILITY END BP_PlayerCharacter_C_0 
+r=3 f=133 AIM WEDGE BP_PlayerCharacter_C_0 
+r=3 f=133 MONTAGE BP_PlayerCharacter_C_0 section=None
+r=3 f=196 KNOCKDOWN MONTAGE BP_TrainingDummy_C_1 
+r=3 f=196 KNOCKDOWN RISE BP_TrainingDummy_C_1 by=auto
+r=3 f=226 HOME RESET BP_TrainingDummy_C_1 
+r=3 f=226 KNOCKDOWN STAND BP_TrainingDummy_C_1 
+r=3 f=242 DEBUG RESET BP_PlayerCharacter_C_0 
+r=3 f=242 DEBUG RESET BP_TrainingDummy_C_1 
+r=3 f=242 DEBUG RESET BP_TrainingDummy_C_2 
+r=3 f=242 HOME RESET BP_TrainingDummy_C_1 
+r=3 f=242 HOME RESET BP_TrainingDummy_C_2 
+r=3 f=242 REVIVE BP_PlayerCharacter_C_0 
+r=3 f=242 REVIVE BP_TrainingDummy_C_1 
+r=3 f=242 REVIVE BP_TrainingDummy_C_2 

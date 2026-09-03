@@ -645,8 +645,10 @@ settings rather than assertions — as do measurements, which record what a run 
 | `tier-charged` | `s1-charged` | hold 0.85 | silent | - | 30 |
 | `tier-heavy` | `s1-heavy` | hold 0.22 | silent | - | 30 |
 | `tier-light` | `s1-light` | hold 0.1 | silent | - | 30 |
+| `attack-airborne` | `-` | silent | silent | - | 32 |
 | `attack-cancel` | `s5-cancel` | hold 0.1, cancel_attack_into_block True | silent | - | 30 |
 | `attack-waiver` | `s5-waiver` | hold 0.1, dodge_after_hit True | silent | - | 30 |
+| `attack-whiff-commitment` | `-` | silent | silent | - | 32 |
 | `string-blocked` | `s4-block` | hold 0.1, string_taps 3 | auto_attack False, auto_defend_mode HOLD_BLOCK, get_up_mode WAIT, periodic_jump False | - | 60 |
 | `string-cadence` | `s4-string` | hold 0.1, string_taps 3 | silent | - | 60 |
 | `string-finisher-arc` | `s4-360` | facing_mode NEVER, hold 0.1, string_taps 3, suppress_lunge True | silent | - | 90 |
@@ -659,16 +661,28 @@ settings rather than assertions — as do measurements, which record what a run 
 | `input-accept-blockstun` | `-` | hold 0.1 | silent | - | 68 |
 | `input-accept-hitstun` | `-` | hold 0.1 | silent | - | 68 |
 | `input-accept-lockout` | `-` | silent | auto_attack False, auto_defend_mode PERIODIC_PARRY, get_up_mode WAIT, periodic_jump False | - | 90 |
+| `input-block-never-replays` | `-` | hold 0.1 | silent | - | 68 |
 | `input-discard` | `s8-discard` | silent | silent | f0 tap attack; f45 tap attack | 30 |
 | `input-hold-tier` | `s8-hold-tier` | silent | silent | f0 tap attack; f51 hold attack 15 | 30 |
+| `input-last-wins` | `-` | hold 0.1 | silent | - | 44 |
+| `input-parry-never-buffers` | `-` | hold 0.1 | silent | - | 44 |
 | `input-stale` | `s8-stale` | silent | silent | f0 hold attack 24; f30 tap attack | 30 |
 | `block-charged` | `s2-charged` | hold 0.85 | auto_attack False, auto_defend_mode HOLD_BLOCK, get_up_mode WAIT, periodic_jump False | - | 150 |
+| `block-commitment` | `-` | silent | silent | - | 44 |
+| `block-facing` | `-` | hold 0.1 | silent | - | 52 |
 | `block-heavy` | `s2-heavy` | hold 0.22 | auto_attack False, auto_defend_mode HOLD_BLOCK, get_up_mode WAIT, periodic_jump False | - | 150 |
 | `block-light` | `s2-light` | hold 0.1 | auto_attack False, auto_defend_mode HOLD_BLOCK, get_up_mode WAIT, periodic_jump False | - | 150 |
+| `block-stun-offense-only` | `-` | hold 0.1 | silent | - | 68 |
 | `dodge-cycle` | `s3` | hold 0.1 | auto_attack False, auto_defend_mode PERIODIC_DODGE, get_up_mode WAIT, periodic_jump False | - | 120 |
 | `dodge-directions` | `-` | silent | silent | - | 84 |
 | `dodge-iframes` | `-` | hold 0.1 | silent | - | 68 |
 | `parry-catch` | `s5-parry` | hold 0.1, string_taps 3 | silent | - | 90 |
+| `parry-facing` | `-` | hold 0.1 | silent | - | 36 |
+| `parry-grace-catch` | `-` | hold 0.1 | hold 0.1, interval 3.1 | - | 68 |
+| `parry-lockout-charged` | `-` | hold 0.85 | silent | - | 44 |
+| `parry-lockout-heavy` | `-` | hold 0.22 | silent | - | 44 |
+| `parry-lockout-light` | `-` | hold 0.1, string_taps 3 | silent | - | 68 |
+| `parry-refused` | `-` | silent | silent | - | 52 |
 | `parry-reward` | `-` | hold 0.1 | silent | - | 52 |
 | `parry-whiff` | `s5-parry-whiff` | silent | silent | - | 44 |
 | `knockdown-airborne` | `s6-airborne` | hold 0.22 | silent | - | 120 |
@@ -676,6 +690,7 @@ settings rather than assertions — as do measurements, which record what a run 
 | `knockdown-exhausted-block` | `s6-exhausted-block` | hold 0.1, string_taps 3 | auto_attack False, auto_defend_mode PERIODIC_PARRY, get_up_mode BLOCK_GET_UP, parry_interval 13.0, parry_pre_block 12.0, periodic_jump False | - | 120 |
 | `knockdown-exhausted-dodge` | `s6-exhausted` | hold 0.1, string_taps 3 | auto_attack False, auto_defend_mode PERIODIC_PARRY, get_up_mode DODGE_GET_UP, parry_interval 13.0, parry_pre_block 12.0, periodic_jump False | - | 120 |
 | `knockdown-exhausted-kipup` | `s6-exhausted-kipup` | hold 0.22 | auto_attack False, auto_defend_mode PERIODIC_PARRY, get_up_mode DODGE_GET_UP, parry_interval 13.0, parry_pre_block 12.0, periodic_jump False | - | 120 |
+| `knockdown-floor-per-body` | `-` | hold 0.22, interval 4.5 | hold 0.22, interval 4.8 | - | 60 |
 | `knockdown-getup-attack` | `s6-getup` | hold 0.22 | auto_attack False, auto_defend_mode OFF, get_up_mode ATTACK_GET_UP, periodic_jump False | - | 60 |
 | `knockdown-getup-block` | `s6-block` | hold 0.1, interval 6.0, string_taps 3 | auto_attack False, auto_defend_mode OFF, get_up_mode BLOCK_GET_UP, periodic_jump False | - | 60 |
 | `knockdown-getup-dodge` | `s6-dodge` | hold 0.1, interval 6.0, string_taps 3 | auto_attack False, auto_defend_mode OFF, get_up_mode DODGE_GET_UP, periodic_jump False | - | 60 |
@@ -688,10 +703,31 @@ settings rather than assertions — as do measurements, which record what a run 
 | `knockdown-normal` | `s6-knockdown` | hold 0.1, string_taps 3 | silent | - | 60 |
 | `knockdown-regen-exception` | `s6-exhaust-regen` | hold 0.1, string_taps 3 | auto_attack False, auto_defend_mode PERIODIC_PARRY, get_up_mode WAIT, parry_interval 13.0, parry_pre_block 12.0, periodic_jump False | - | 150 |
 | `knockdown-stand` | `s6-stand` | hold 0.1, string_taps 3 | auto_attack False, auto_defend_mode OFF, get_up_mode WAIT, jump_interval 1.3, periodic_jump True | - | 90 |
+| `death-midair` | `-` | hold 0.1 | silent | - | 36 |
 | `death-over-knockdown` | `s7-death-grade` | hold 0.22 | silent | - | 60 |
 | `death-revive` | `s7-death` | hold 0.1, string_taps 3 | silent, auto_revive 3.0 | - | 90 |
+| `lock-attack-recovery` | `-` | silent | silent | - | 36 |
+| `lock-block-speed` | `-` | silent | silent | - | 32 |
+| `lock-blockstun-free` | `-` | hold 0.1 | silent | - | 52 |
+| `lock-exhausted-speed` | `-` | silent | silent | - | 32 |
 | `lock-guard-break` | `-` | hold 0.22 | silent | - | 52 |
+| `lock-hitstun` | `-` | hold 0.1 | silent | - | 52 |
+| `lock-knockdown` | `-` | hold 0.22, interval 4.5 | silent | - | 52 |
+| `lock-parry` | `-` | silent | silent | - | 32 |
+| `edge-actionable` | `-` | silent | silent | - | 76 |
+| `edge-chain-close` | `-` | silent | silent | - | 60 |
+| `edge-chain-open` | `-` | silent | silent | - | 60 |
+| `edge-fresh-open` | `-` | silent | silent | - | 76 |
+| `edge-guard-floor` | `-` | silent | silent | - | 44 |
+| `edge-heavy-checkpoint` | `-` | silent | silent | - | 52 |
+| `edge-hitstun-accept` | `-` | hold 0.1 | silent | - | 100 |
 | `edge-light-checkpoint` | `-` | silent | silent | - | 52 |
+| `edge-lockout-end` | `-` | hold 0.22, interval 4.5 | silent | - | 100 |
+| `edge-parry-close` | `-` | hold 0.1 | silent | - | 100 |
+| `edge-recovery-accept` | `-` | silent | silent | - | 84 |
+| `reach-aim-wedge` | `-` | silent | silent | - | 68 |
+| `reach-arc` | `-` | silent | silent | - | 76 |
+| `reach-height` | `-` | silent | silent | - | 68 |
 | `reach-light` | `-` | silent | silent | - | 36 |
 
 *Generated from `Tools/RegressionCheck/scenarios.py` by `Tools/RegressionCheck/gen-matrix.py`. Edit the fixtures there, never this table.*

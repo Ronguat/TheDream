@@ -263,7 +263,7 @@ def played_matches(text):
 
 def fields(text):
     out = {}
-    for k, v in re.findall(r"([A-Za-z]+)=(-?\d+\.?\d*)", text):
+    for k, v in re.findall(r"([A-Za-z]+)=([-+]?\d+\.?\d*)", text):
         out[k] = float(v)
     return out
 

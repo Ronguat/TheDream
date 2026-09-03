@@ -123,6 +123,13 @@ def at_rest(pawn):
     return not tags_on(pawn) and not states_on(pawn)
 
 
+def still(pawn):
+    """Not being carried: a knockback's root motion outlives the hitstun tag, and a teleport made
+    under it is finished by the carry rather than the teleport."""
+    v = pawn.get_velocity()
+    return abs(v.x) + abs(v.y) < 1.0
+
+
 # --- key resolution ---------------------------------------------------------
 # Actions are named in plans; the keys come from the mapping contexts, so a rebind moves the
 # fixture with the game. IMC_Combat's four, IMC_Default's jump and the WASD quartet.
@@ -475,6 +482,7 @@ class Run(object):
                 if present and not self.lock_seen:
                     # Rebase to the frame the tag appeared on, and read the steps after it against it.
                     self.base = self.rep_frame
+                    self.last_due = self.rep_frame
                     self.mark("LOCK %s rep=%d %s %s frame=%d game=%.3f"
                               % (self.sid, self.rep, stepv[1], stepv[3], self.frame, now))
                     self.step += 1
@@ -543,6 +551,10 @@ class Run(object):
                 unreal.Vector(*loc), unreal.Rotator(0.0, 0.0, yaw), False, True)
             if actor == "player":
                 self.pc.set_control_rotation(unreal.Rotator(0.0, 0.0, yaw))
+        elif op == "fly":
+            who = self.role_or_player(actor)
+            mode = unreal.MovementMode.MOVE_FLYING if stepv[3] else unreal.MovementMode.MOVE_WALKING
+            who.get_editor_property("character_movement").set_movement_mode(mode, 0)
         elif op == "set":
             who = self.role_or_player(actor)
             who.set_editor_property(stepv[3], self.coerce(stepv[3], stepv[4]))
@@ -605,16 +617,27 @@ class Run(object):
             except Exception as exc:
                 self.mark("%s %s%s unreadable (%s)" % (kind, extra, p.get_name(), exc))
 
+    def tick_tape(self):
+        """Sampling through the gate and the settle, so the tape has no gap where the readout and
+        the reset happen."""
+        s = SC.SCENARIOS[self.sid]
+        every = int(s.get("tape_every", 2))
+        if self.tapes and self.tape and self.frame % every == 0:
+            gw = ues.get_game_world()
+            self.sample(self.frame, unreal.GameplayStatics.get_time_seconds(gw))
+        self.frame += 1
+
     def phase_gate(self):
         """Between reps: the game settles, the readout records what it left, then the reset and
         the placements re-establish the starting state."""
+        self.tick_tape()
         self.wait += 1
         self.release_all()
         s = SC.SCENARIOS[self.sid]
         expect = s.get("expect", {})
         attackers = set(self.periodic_attackers())
         quiet = [self.pawn] + [a for r, a in self.pie_roles.items() if r not in attackers]
-        if self.wait * self.dt < SETTLE_TIMEOUT_S and not all(at_rest(p) for p in quiet):
+        if self.wait * self.dt < SETTLE_TIMEOUT_S and not all(at_rest(p) and still(p) for p in quiet):
             return
         gw = ues.get_game_world()
         now = unreal.GameplayStatics.get_time_seconds(gw)
@@ -642,10 +665,11 @@ class Run(object):
         self.goto("run")
 
     def phase_settle(self):
+        self.tick_tape()
         self.wait += 1
         self.release_all()
         pawns = [self.pawn] + list(self.pie_roles.values())
-        if self.wait * self.dt < SETTLE_TIMEOUT_S and not all(at_rest(p) for p in pawns):
+        if self.wait * self.dt < SETTLE_TIMEOUT_S and not all(at_rest(p) and still(p) for p in pawns):
             return
         self.readout("TEARDOWN")
         for p in pawns:

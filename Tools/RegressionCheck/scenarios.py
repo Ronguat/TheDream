@@ -24,6 +24,8 @@ post-tick callback of frame N is consumed by the player's input processing in fr
 "press at frame N" names the frame whose INPUT line carries it.
 """
 
+import math
+
 # --- knobs ------------------------------------------------------------------
 # Every Debug* knob at its CDO value, read from Docs/Combat-Values.tsv (BP_TrainingDummy column,
 # regenerated 2026-09-02). A scenario's knobs are merged over this and the result is written in
@@ -96,7 +98,7 @@ ACTIONS = ("attack", "block", "dodge", "parry", "jump", "move")
 # Plan ops the runner implements. tap/press/hold/release/move/stop_move drive the player's keys;
 # face, teleport, set, set_stamina and set_health take any role; lock_to rebases the plan's frames
 # to the frame its tag appears on the named actor.
-OPS = ("tap", "press", "release", "hold", "move", "stop_move", "face", "teleport", "set",
+OPS = ("tap", "press", "release", "hold", "move", "stop_move", "face", "teleport", "fly", "set",
        "set_stamina", "set_health", "lock_to", "mark")
 
 # Fixture holds must sit strictly between two ladder checkpoints, or the tier they select is a
@@ -373,7 +375,7 @@ def _player_defends(family, attacker, plans, mutations, reps, expect=None, tail=
 
 
 def _player_alone(family, plans, mutations, reps, expect=None, tail=90, duration=None,
-                  target=None, props=None, tape_every=2, defender=None):
+                  target=None, props=None, tape_every=2, defender=None, teardown_allow=()):
     """Both dummies silent; the player throws in open space, or at a parked target when a row
     places one. defender overrides the target's knobs, for a target that guards."""
     ex = dict(reps=reps, gate=True, tail_frames=tail)
@@ -389,7 +391,7 @@ def _player_alone(family, plans, mutations, reps, expect=None, tail=90, duration
         plans=[list(p) for p in plans], plan=[],
         stop=dict(duration=float(duration or (reps * 4.0 + 20.0))),
         expect=ex, mutations=list(mutations), golden=dict(exclude=["drift="]),
-        teardown_allow=[], tape_every=tape_every,
+        teardown_allow=list(teardown_allow), tape_every=tape_every,
     )
 
 
@@ -530,7 +532,8 @@ SCENARIOS["string-player-cadence"] = _player_alone(
     tail=180, target=_TARGET_AHEAD, expect=dict(blocked=False))
 SCENARIOS["string-player-blocked"] = _player_alone(
     "string", plans=[_STRING_TAPS], mutations=[("set", "BLOCKED", "staminaDamage", "99")], reps=4,
-    tail=120, target=_TARGET_AHEAD, defender=_def("HOLD_BLOCK"), expect=dict(blocked=True))
+    tail=120, target=_TARGET_AHEAD, defender=_def("HOLD_BLOCK"), expect=dict(blocked=True),
+    teardown_allow=("Blocking", "StaminaRegenPaused"))
 
 # Eight directions, each held 12 f before the dodge and through it. X right, Y forward, in the
 # camera frame the player's control rotation sets.
@@ -550,6 +553,175 @@ SCENARIOS["dodge-iframes"] = _player_defends(
     "dodge", _atk(LIGHT),
     plans=[[LOCK_ATK, (9, "player", "tap", "dodge")], [LOCK_ATK]],
     mutations=[("drop", "DAMAGED", 99)], reps=6, tail=90)
+
+# --- group C: composition ------------------------------------------------------------------------
+
+# An attack pressed in the air is refused while airborne; what the buffer does with it is reported.
+SCENARIOS["attack-airborne"] = _player_alone(
+    "attack", plans=[[(0, "player", "tap", "jump"), (18, "player", "tap", "attack")]],
+    mutations=[("drop", "REFUSED", 99)], reps=3, tail=90)
+
+# A whiffed light stays committed through its recovery: a dodge pressed at 24 f is refused.
+SCENARIOS["attack-whiff-commitment"] = _player_alone(
+    "attack", plans=[[(0, "player", "tap", "attack"), (24, "player", "tap", "dodge")]],
+    mutations=[("drop", "REFUSED", 99)], reps=3, tail=90)
+
+# The guard is 180 degrees forward in the defender's frame: faced away, the light lands; faced
+# toward, it is blocked.
+_GUARD_UP = [LOCK_ATK, (2, "player", "press", "block"), (30, "player", "release", "block")]
+SCENARIOS["block-facing"] = _player_defends(
+    "block", _atk(LIGHT),
+    plans=[[(0, "player", "face", 90.0)] + _GUARD_UP, [(0, "player", "face", 270.0)] + _GUARD_UP],
+    mutations=[("drop", "DAMAGED", 99)], reps=4, tail=90, expect=dict(away=[True, False]))
+
+# A parry has no facing test: from behind it still catches.
+SCENARIOS["parry-facing"] = _player_defends(
+    "parry", _atk(LIGHT),
+    plans=[[(0, "player", "face", 90.0), LOCK_ATK, (6, "player", "tap", "parry")]],
+    mutations=[("drop", "PARRY SUCCESS", 99)], reps=2, tail=90)
+
+# Refused while blocking, dodging, exhausted and airborne, each with no window opened.
+SCENARIOS["parry-refused"] = _player_alone(
+    "parry",
+    plans=[[(0, "player", "press", "block"), (6, "player", "tap", "parry"), (30, "player", "release", "block")],
+           [(0, "player", "tap", "dodge"), (6, "player", "tap", "parry")],
+           [(0, "player", "set_stamina", 0.0), (3, "player", "tap", "parry")],
+           [(0, "player", "tap", "jump"), (6, "player", "tap", "parry")]],
+    mutations=[("drop", "REFUSED", 99)], reps=8, tail=90)
+
+# Blockstun disables offense and nothing else: a dodge and a parry pressed inside it fire, an
+# attack is refused and buffered.
+_INTO_BLOCKSTUN = [LOCK_ATK, (2, "player", "press", "block"),
+                   (0, "player", "lock_to", "State.Blockstun"), (1, "player", "release", "block")]
+SCENARIOS["block-stun-offense-only"] = _player_defends(
+    "block", _atk(LIGHT),
+    plans=[_INTO_BLOCKSTUN + [(6, "player", "tap", "dodge")],
+           _INTO_BLOCKSTUN + [(6, "player", "tap", "parry")],
+           _INTO_BLOCKSTUN + [(6, "player", "tap", "attack")]],
+    mutations=[("drop", "DODGE", 99)], reps=6, tail=120)
+
+# A release inside the guard's floor is remembered and applied when the floor ends; one after it
+# drops the guard at once. Source: MinimumBlockSeconds, 15 f.
+SCENARIOS["block-commitment"] = _player_alone(
+    "block",
+    plans=[[(0, "player", "press", "block"), (6, "player", "release", "block")],
+           [(0, "player", "press", "block"), (24, "player", "release", "block")]],
+    mutations=[("regex", r"BLOCK      down on (\S+) \(released\)", r"BLOCK      down on \1 (cancelled)")],
+    reps=6, tail=60, expect=dict(down_at=[15, 24]))
+
+# One buffer slot, last press wins: an attack then a dodge inside hitstun's acceptance window.
+SCENARIOS["input-last-wins"] = _player_defends(
+    "input", _atk(LIGHT),
+    plans=[[LOCK_HITSTUN, (24, "player", "tap", "attack"), (27, "player", "tap", "dodge")]],
+    mutations=[("drop", "BUFFER", 99)], reps=3, tail=90)
+
+# A parry never buffers: pressed inside hitstun it is refused and no window opens afterwards.
+SCENARIOS["input-parry-never-buffers"] = _player_defends(
+    "input", _atk(LIGHT),
+    plans=[[LOCK_HITSTUN, (25, "player", "tap", "parry")]],
+    mutations=[("drop", "REFUSED", 99)], reps=3, tail=90)
+
+# Block buffers actions, not states: a tap inside hitstun raises nothing afterwards, a hold does.
+SCENARIOS["input-block-never-replays"] = _player_defends(
+    "input", _atk(LIGHT),
+    plans=[[LOCK_HITSTUN, (25, "player", "tap", "block")],
+           [LOCK_HITSTUN, (25, "player", "hold", "block", 40)]],
+    mutations=[("drop", "BLOCK", 99)], reps=6, tail=90)
+
+# Death in mid-air leaves nothing stranded: the corpse revives and walks.
+SCENARIOS["death-midair"] = _player_defends(
+    "death", _atk(LIGHT),
+    plans=[[LOCK_ATK, (0, "player", "set_health", 15.0), (0, "player", "tap", "jump"),
+            (240, "player", "move", 0.0, 1.0, 40)]],
+    mutations=[("drop", "DEATH", 99)], reps=2, tail=90, tape_every=1,
+    teardown_allow=("Attacking", "StaminaRegenPaused"))
+
+# --- group D: edges -------------------------------------------------------------------------------
+# Two reps per probe. The sides must produce their outcomes every time; the probes on and beside a
+# threshold are reported, since which side they fall on is a ruling and the frame after a timer's
+# deadline is a race. Frames are 1/60.
+
+def _edge(family, sid, plans, probe, want, mutation, reps=None, tail=100):
+    SCENARIOS[sid] = _player_alone(
+        family, plans=plans, mutations=[mutation], reps=reps or 2 * len(plans), tail=tail,
+        expect=dict(probe=probe, want=want, labels=[str(p[-1][0]) + "f" if probe != "commit"
+                                                    else "%df" % p[-1][4] for p in plans]))
+
+
+_edge("edge", "edge-heavy-checkpoint",
+      [[(0, "player", "hold", "attack", h)] for h in (20, 23, 21, 22)],
+      "commit", ["1", "2", None, None], ("set", "COMMIT", "branch", "0"))
+
+# The chain window as the game runs it: open from 30 f after the first press for 12 f, so a second
+# press is carried to the opening from 18 f and accepted at once until 42 f; the frame on each edge
+# is a race and reported. Past the close a press is stored and expires unless the swing's end, at
+# 57 to 59 f, falls inside its 12 f acceptance, which fires it fresh.
+_edge("edge", "edge-chain-open",
+      [[(0, "player", "tap", "attack"), (f, "player", "tap", "attack")] for f in (16, 20, 17, 18, 19)],
+      "chain", ["none", "chain", None, None, None], ("drop", "STRING", 99))
+
+_edge("edge", "edge-chain-close",
+      [[(0, "player", "tap", "attack"), (f, "player", "tap", "attack")] for f in (39, 43, 40, 41, 42)],
+      "chain", ["chain", "none", None, None, None], ("drop", "STRING", 99))
+
+_edge("edge", "edge-fresh-open",
+      [[(0, "player", "tap", "attack"), (f, "player", "tap", "attack")]
+       for f in (44, 50, 45, 46, 47, 48, 49)],
+      "chain", ["none", "fresh", None, None, None, None, None], ("dup", "ACTIVATE", 1))
+
+_edge("edge", "edge-guard-floor",
+      [[(0, "player", "press", "block"), (f, "player", "release", "block")] for f in (14, 16, 15)],
+      "guard", ["15", "16", None], ("regex", r"BLOCK      down on (\S+) \(released\)",
+                                    r"BLOCK      down on \1 (cancelled)"))
+
+# --- group G: the movement locks, off the position tape ------------------------------------------
+# A held move against a control that holds none: the two trajectories must match through the
+# state, and the held one must walk within six frames of the state's end.
+
+_MOVE = (0, "player", "move", 0.0, 1.0, 120)
+
+SCENARIOS["lock-hitstun"] = _player_defends(
+    "lock", _atk(LIGHT), plans=[[LOCK_HITSTUN, _MOVE], [LOCK_HITSTUN]],
+    mutations=[("drop", "HITSTUN", 99)], reps=4, tail=100, tape_every=1,
+    expect=dict(start="HITSTUN", end="HITSTUN END"))
+
+SCENARIOS["lock-knockdown"] = _player_defends(
+    "lock", _atk(HEAVY, debug_auto_attack_interval=4.5),
+    plans=[[LOCK_DOWN, (0, "player", "move", 0.0, 1.0, 160)], [LOCK_DOWN]],
+    mutations=[("drop", "KNOCKDOWN STAND", 99)], reps=4, tail=170, tape_every=1,
+    expect=dict(start="KNOCKDOWN", end="KNOCKDOWN STAND"))
+
+SCENARIOS["lock-attack-recovery"] = _player_alone(
+    "lock", plans=[[(0, "player", "move", 0.0, 1.0, 110), (12, "player", "tap", "attack")],
+                   [(12, "player", "tap", "attack")]],
+    mutations=[("drop", "ABILITY END", 99)], reps=4, tail=100, tape_every=1,
+    expect=dict(start="ACTIVATE", end="ABILITY END"))
+
+# A whiffed parry locks movement across its window and recovery; nothing else moves the pawn, so
+# the held move must show no displacement at all until the recovery ends.
+SCENARIOS["lock-parry"] = _player_alone(
+    "lock", plans=[[(0, "player", "tap", "parry"), (0, "player", "move", 0.0, 1.0, 90)]],
+    mutations=[("drop", "PARRY RECOVERY END", 99)], reps=3, tail=90, tape_every=1,
+    expect=dict(start="PARRY WINDOW", end="PARRY RECOVERY END", still=True))
+
+# Blockstun does not lock movement: the held move must displace beyond the control's by the stun's
+# end, at the guard's walking speed.
+SCENARIOS["lock-blockstun-free"] = _player_defends(
+    "lock", _atk(LIGHT),
+    plans=[_INTO_BLOCKSTUN[:3] + [(0, "player", "move", 0.0, 1.0, 40)], _INTO_BLOCKSTUN[:3]],
+    mutations=[("drop", "BLOCKSTUN END", 99)], reps=4, tail=100, tape_every=1,
+    expect=dict(start="BLOCKSTUN", end="BLOCKSTUN END", free=True))
+
+# Speed caps, read as steady-state travel over frames 30 to 60 of a held move: the guard's
+# BlockingMaxWalkSpeed and the exhausted ExhaustedMaxWalkSpeed, against the mirror.
+SCENARIOS["lock-block-speed"] = _player_alone(
+    "lock", plans=[[(0, "player", "press", "block"), (0, "player", "move", 0.0, 1.0, 90)]],
+    mutations=[("drop", "BLOCK", 99)], reps=3, tail=60, tape_every=1,
+    expect=dict(speed="BlockingMaxWalkSpeed", tag="BLOCK"))
+SCENARIOS["lock-exhausted-speed"] = _player_alone(
+    "lock", plans=[[(0, "player", "set_stamina", 0.0), (0, "player", "move", 0.0, 1.0, 90)]],
+    mutations=[("drop", "EXHAUSTED", 99)], reps=3, tail=60, tape_every=1,
+    expect=dict(speed="ExhaustedMaxWalkSpeed", tag="EXHAUSTED"))
 
 # Hard knockdown: lockout 90 f, window 30 f, auto-rise at 120 f. Each variant holds from 30 f into
 # the lockout until past the rise. Priority is guard, dodge, attack, stand (KnockdownGetUpPriority).
@@ -612,6 +784,147 @@ SCENARIOS["reach-light"] = _player_alone(
     target=((OPEN_DEFENDER[0][0], OPEN_DEFENDER[0][1] - _REACH_IN, 96.0), 90.0),
     props={"debug_suppress_lunge": True},
     expect=dict(hits=[True, False]))
+
+
+# --- group E: two attackers ----------------------------------------------------------------------
+
+def _two_attackers(family, first, second, second_at, plans, mutations, reps, expect=None, tail=60,
+                   tape_every=2):
+    """Both dummies attack with their loops running, never reset between reps, so intervals 0.1 s
+    apart put their swings 6 f further apart each rep. The first stands where the attacker stands;
+    the second where the row puts it."""
+    row = _player_defends(family, first, plans, mutations, reps, expect=expect, tail=tail,
+                          tape_every=tape_every)
+    row["roles"]["defender"] = (PLACED_DEFENDER[0],) + second_at
+    row["knobs"]["defender"] = dict(second)
+    return row
+
+
+# The first light is caught at 6 f; the second attacker's contact lands 6 f later per rep. Grace is
+# 9 f from the catch, so rep 1 is caught by grace and every later rep is hit.
+SCENARIOS["parry-grace-catch"] = _two_attackers(
+    "parry", _atk(LIGHT), _atk(LIGHT, debug_auto_attack_interval=3.1),
+    second_at=((OPEN_DEFENDER[0][0], OPEN_DEFENDER[0][1] + 150.0, 96.0), 270.0),
+    plans=[[LOCK_ATK, (6, "player", "tap", "parry")]],
+    mutations=[("set", "PARRY SUCCESS", "by", "window")], reps=6, tail=90)
+
+# The first heavy knocks the player down and carries it 450 cm to where the second stands 150 cm
+# past; the second's contact lands 0.3 s later per rep, mid-carry in rep 1 and into the down after.
+SCENARIOS["knockdown-floor-per-body"] = _two_attackers(
+    "knockdown", _atk(HEAVY, debug_auto_attack_interval=4.5),
+    _atk(HEAVY, debug_auto_attack_interval=4.8),
+    second_at=((OPEN_ATTACKER[0][0], OPEN_ATTACKER[0][1] + 600.0, 96.0), 270.0),
+    plans=[[LOCK_ATK]], mutations=[("set", "KNOCKDOWN RISE", "by", "attack")], reps=5, tail=30)
+
+
+# --- group F: geometry edges ----------------------------------------------------------------------
+
+def _at_bearing(deg, dist=150.0, dz=0.0):
+    """A target dist from the player's open-ground spot, deg to the right of its facing, turned to
+    face it."""
+    a = math.radians(deg)
+    x0, y0 = OPEN_DEFENDER[0][0], OPEN_DEFENDER[0][1]
+    return ((x0 + dist * math.sin(a), y0 - dist * math.cos(a), 96.0 + dz), 90.0 + deg)
+
+
+def _reach_row(sid, places, hits, labels, props=None, fly=False):
+    plans = []
+    for loc, yaw in places:
+        plan = [(0, "player", "face", OPEN_DEFENDER[1])]
+        if fly:
+            plan.append((0, "defender", "fly", True))
+        plan += [(0, "defender", "teleport", loc, yaw), (6, "player", "tap", "attack")]
+        plans.append(plan)
+    SCENARIOS[sid] = _player_alone(
+        "reach", plans=plans, mutations=[("drop", "DAMAGED", 99)], reps=2 * len(plans), tail=90,
+        target=places[0], props=dict(props or {}), expect=dict(hits=list(hits), labels=list(labels)))
+
+
+# The arc is 60 wide and a body of radius 42 at 150 cm subtends 16 more, so the transition sits near
+# 46 off centre: 28 is inside on either convention, 60 outside on both.
+_ARC_DEG = (28, 60, 32, 40, 44, 48, 52)
+_reach_row("reach-arc", [_at_bearing(d) for d in _ARC_DEG],
+           [True, False, None, None, None, None, None], ["%d deg" % d for d in _ARC_DEG],
+           props={"debug_suppress_lunge": True})
+
+# The band is 70 either side of the attacker; the target flies at the offset, above only, since a
+# capsule teleported into the floor is pushed out of it. 65 is inside on either convention, 170
+# outside on both.
+_HEIGHTS = (65, 170, 75, 100, 130, 150)
+_reach_row("reach-height", [_at_bearing(0, dz=h) for h in _HEIGHTS],
+           [True, False, None, None, None, None], ["+%d cm" % h for h in _HEIGHTS],
+           props={"debug_suppress_lunge": True}, fly=True)
+
+# The aim wedge is 40 wide and, like reach and the arc, measured to the body, so a target at 150 cm
+# is selected out to about 36 off centre: 15 is named and the lunge turned onto it, 45 leaves no
+# candidate, and the bearings between are reported. The hit itself is reported throughout.
+_WEDGE_DEG = (15, 45, 25, 30, 35, 40)
+SCENARIOS["reach-aim-wedge"] = _player_alone(
+    "reach",
+    plans=[[(0, "player", "face", OPEN_DEFENDER[1]), (0, "defender", "teleport") + _at_bearing(d),
+            (6, "player", "tap", "attack")] for d in _WEDGE_DEG],
+    mutations=[("drop", "AIM ASSIST", 99)], reps=2 * len(_WEDGE_DEG), tail=90, target=_at_bearing(15),
+    expect=dict(degrees=list(_WEDGE_DEG)))
+
+
+# --- the remaining edges -------------------------------------------------------------------------
+
+def _edge_defends(sid, attacker, plans, probe, want, mutation, tail=100):
+    SCENARIOS[sid] = _player_defends(
+        "edge", attacker, plans=plans, mutations=[mutation], reps=2 * len(plans), tail=tail,
+        expect=dict(probe=probe, want=want, labels=["%df" % p[-1][0] for p in plans]))
+
+
+# A stored press fires at the swing's end, 57 to 59 f; a press after the end fires on its own frame.
+_edge("edge", "edge-actionable",
+      [[(0, "player", "tap", "attack"), (f, "player", "tap", "attack")]
+       for f in (54, 62, 56, 57, 58, 59, 60)],
+      "fire", ["held", "now", None, None, None, None, None], ("drop", "ACTIVATE", 99))
+
+# Hitstun is 33 f on the light: a press 12 f or less before its end is carried to HITSTUN END, an
+# earlier one expires.
+_edge_defends("edge-hitstun-accept", _atk(LIGHT),
+              [[LOCK_HITSTUN, (f, "player", "tap", "attack")] for f in (18, 24, 20, 21, 22)],
+              "buffer", ["expired", "fired", None, None, None], ("drop", "BUFFER", 99))
+
+# The parry window is 18 f from the press and the light lands 13 f after its activation: pressed at
+# 10 f the window covers the contact, at 16 f it opens after it.
+_edge_defends("edge-parry-close", _atk(LIGHT),
+              [[LOCK_ATK, (f, "player", "tap", "parry")] for f in (10, 16, 12, 13, 14)],
+              "parry", ["caught", "hit", None, None, None], ("drop", "PARRY SUCCESS", 99))
+
+# The hard knockdown's lockout is 90 f: a get-up attack tapped inside it waits for the input window
+# to open, one tapped after the open rises on its own frame.
+_edge_defends("edge-lockout-end", _atk(HEAVY, debug_auto_attack_interval=4.5),
+              [[LOCK_DOWN, (f, "player", "tap", "attack")] for f in (87, 93, 89, 90, 91)],
+              "lockout", ["later", "now", None, None, None], ("drop", "KNOCKDOWN RISE", 99), tail=60)
+
+# The heavy cannot chain, so a press in its recovery is stored and expires at 12 f unless the
+# swing's end at 63 f falls inside that, which fires it fresh.
+_edge("edge", "edge-recovery-accept",
+      [[(0, "player", "hold", "attack", 13), (f, "player", "tap", "attack")]
+       for f in (48, 58, 51, 52, 53, 54, 55, 56)],
+      "buffer", ["expired", "fired", None, None, None, None, None, None], ("drop", "BUFFER", 99))
+
+
+# --- the parry's lockout per cell ------------------------------------------------------------------
+
+# The attacker's lockout after each caught cell: the string's three lights, each caught 6 f before
+# its hitbox opens with the swings before it blocked, then the heavy and the charged.
+_BLOCK_0 = [(2, "player", "press", "block"), (22, "player", "release", "block")]
+_BLOCK_01 = [(2, "player", "press", "block"), (52, "player", "release", "block")]
+SCENARIOS["parry-lockout-light"] = _player_defends(
+    "parry", _atk(LIGHT, **STRING),
+    plans=[[LOCK_ATK, (6, "player", "tap", "parry")],
+           [LOCK_ATK] + _BLOCK_0 + [(36, "player", "tap", "parry")],
+           [LOCK_ATK] + _BLOCK_01 + [(67, "player", "tap", "parry")]],
+    mutations=[("set", "PARRY LOCKOUT", "until", "0.000")], reps=6, tail=120)
+SCENARIOS["parry-lockout-heavy"] = _player_defends(
+    "parry", _atk(HEAVY), plans=[[LOCK_ATK, (20, "player", "tap", "parry")]],
+    mutations=[("set", "PARRY LOCKOUT", "until", "0.000")], reps=3, tail=120)
+SCENARIOS["parry-lockout-charged"] = _player_defends(
+    "parry", _atk(CHARGED), plans=[[LOCK_ATK, (44, "player", "tap", "parry")]],
+    mutations=[("set", "PARRY LOCKOUT", "until", "0.000")], reps=3, tail=150)
 
 
 # --- validation -------------------------------------------------------------

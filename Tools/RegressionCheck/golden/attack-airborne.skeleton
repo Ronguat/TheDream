@@ -1,0 +1,92 @@
+f=333 DEBUG RESET BP_PlayerCharacter_C_0 
+f=333 DEBUG RESET BP_TrainingDummy_C_1 
+f=333 DEBUG RESET BP_TrainingDummy_C_2 
+f=333 HOME RESET BP_TrainingDummy_C_1 
+f=333 HOME RESET BP_TrainingDummy_C_2 
+f=333 REVIVE BP_PlayerCharacter_C_0 
+f=333 REVIVE BP_TrainingDummy_C_1 
+f=333 REVIVE BP_TrainingDummy_C_2 
+r=0 f=-1 REFUSED BP_PlayerCharacter_C_0 
+r=0 f=-1 REFUSED BP_PlayerCharacter_C_0 
+r=0 f=-1 REFUSED BP_PlayerCharacter_C_0 
+r=0 f=-1 REFUSED BP_PlayerCharacter_C_0 
+r=0 f=-1 REFUSED BP_PlayerCharacter_C_0 
+r=0 f=-1 REFUSED BP_PlayerCharacter_C_0 
+r=0 f=-1 REFUSED BP_PlayerCharacter_C_0 
+r=0 f=-1 REFUSED BP_PlayerCharacter_C_0 
+r=0 f=-1 REFUSED BP_PlayerCharacter_C_0 
+r=0 f=-1 REFUSED BP_PlayerCharacter_C_0 
+r=0 f=-1 REFUSED BP_PlayerCharacter_C_0 
+r=0 f=-1 REFUSED BP_PlayerCharacter_C_0 
+r=0 f=-1 REFUSED BP_PlayerCharacter_C_0 
+r=0 f=2 INPUT BP_PlayerCharacter_C_0 
+r=0 f=5 INPUT BP_PlayerCharacter_C_0 
+r=0 f=20 BUFFER BP_PlayerCharacter_C_0 
+r=0 f=20 INPUT BP_PlayerCharacter_C_0 
+r=0 f=22 BUFFER BP_PlayerCharacter_C_0 
+r=0 f=22 INPUT BP_PlayerCharacter_C_0 
+r=0 f=32 BUFFER BP_PlayerCharacter_C_0 
+r=0 f=110 DEBUG RESET BP_PlayerCharacter_C_0 
+r=0 f=110 DEBUG RESET BP_TrainingDummy_C_1 
+r=0 f=110 DEBUG RESET BP_TrainingDummy_C_2 
+r=0 f=110 HOME RESET BP_TrainingDummy_C_1 
+r=0 f=110 HOME RESET BP_TrainingDummy_C_2 
+r=0 f=110 REVIVE BP_PlayerCharacter_C_0 
+r=0 f=110 REVIVE BP_TrainingDummy_C_1 
+r=0 f=110 REVIVE BP_TrainingDummy_C_2 
+r=1 f=-1 REFUSED BP_PlayerCharacter_C_0 
+r=1 f=-1 REFUSED BP_PlayerCharacter_C_0 
+r=1 f=-1 REFUSED BP_PlayerCharacter_C_0 
+r=1 f=-1 REFUSED BP_PlayerCharacter_C_0 
+r=1 f=-1 REFUSED BP_PlayerCharacter_C_0 
+r=1 f=-1 REFUSED BP_PlayerCharacter_C_0 
+r=1 f=-1 REFUSED BP_PlayerCharacter_C_0 
+r=1 f=-1 REFUSED BP_PlayerCharacter_C_0 
+r=1 f=-1 REFUSED BP_PlayerCharacter_C_0 
+r=1 f=-1 REFUSED BP_PlayerCharacter_C_0 
+r=1 f=-1 REFUSED BP_PlayerCharacter_C_0 
+r=1 f=-1 REFUSED BP_PlayerCharacter_C_0 
+r=1 f=-1 REFUSED BP_PlayerCharacter_C_0 
+r=1 f=2 INPUT BP_PlayerCharacter_C_0 
+r=1 f=5 INPUT BP_PlayerCharacter_C_0 
+r=1 f=20 BUFFER BP_PlayerCharacter_C_0 
+r=1 f=20 INPUT BP_PlayerCharacter_C_0 
+r=1 f=22 BUFFER BP_PlayerCharacter_C_0 
+r=1 f=22 INPUT BP_PlayerCharacter_C_0 
+r=1 f=32 BUFFER BP_PlayerCharacter_C_0 
+r=1 f=110 DEBUG RESET BP_PlayerCharacter_C_0 
+r=1 f=110 DEBUG RESET BP_TrainingDummy_C_1 
+r=1 f=110 DEBUG RESET BP_TrainingDummy_C_2 
+r=1 f=110 HOME RESET BP_TrainingDummy_C_1 
+r=1 f=110 HOME RESET BP_TrainingDummy_C_2 
+r=1 f=110 REVIVE BP_PlayerCharacter_C_0 
+r=1 f=110 REVIVE BP_TrainingDummy_C_1 
+r=1 f=110 REVIVE BP_TrainingDummy_C_2 
+r=2 f=-1 REFUSED BP_PlayerCharacter_C_0 
+r=2 f=-1 REFUSED BP_PlayerCharacter_C_0 
+r=2 f=-1 REFUSED BP_PlayerCharacter_C_0 
+r=2 f=-1 REFUSED BP_PlayerCharacter_C_0 
+r=2 f=-1 REFUSED BP_PlayerCharacter_C_0 
+r=2 f=-1 REFUSED BP_PlayerCharacter_C_0 
+r=2 f=-1 REFUSED BP_PlayerCharacter_C_0 
+r=2 f=-1 REFUSED BP_PlayerCharacter_C_0 
+r=2 f=-1 REFUSED BP_PlayerCharacter_C_0 
+r=2 f=-1 REFUSED BP_PlayerCharacter_C_0 
+r=2 f=-1 REFUSED BP_PlayerCharacter_C_0 
+r=2 f=-1 REFUSED BP_PlayerCharacter_C_0 
+r=2 f=-1 REFUSED BP_PlayerCharacter_C_0 
+r=2 f=2 INPUT BP_PlayerCharacter_C_0 
+r=2 f=5 INPUT BP_PlayerCharacter_C_0 
+r=2 f=20 BUFFER BP_PlayerCharacter_C_0 
+r=2 f=20 INPUT BP_PlayerCharacter_C_0 
+r=2 f=22 BUFFER BP_PlayerCharacter_C_0 
+r=2 f=22 INPUT BP_PlayerCharacter_C_0 
+r=2 f=32 BUFFER BP_PlayerCharacter_C_0 
+r=2 f=110 DEBUG RESET BP_PlayerCharacter_C_0 
+r=2 f=110 DEBUG RESET BP_TrainingDummy_C_1 
+r=2 f=110 DEBUG RESET BP_TrainingDummy_C_2 
+r=2 f=110 HOME RESET BP_TrainingDummy_C_1 
+r=2 f=110 HOME RESET BP_TrainingDummy_C_2 
+r=2 f=110 REVIVE BP_PlayerCharacter_C_0 
+r=2 f=110 REVIVE BP_TrainingDummy_C_1 
+r=2 f=110 REVIVE BP_TrainingDummy_C_2 

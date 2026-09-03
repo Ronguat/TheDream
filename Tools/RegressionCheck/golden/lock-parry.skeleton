@@ -1,0 +1,59 @@
+f=291 DEBUG RESET BP_PlayerCharacter_C_0 
+f=291 DEBUG RESET BP_TrainingDummy_C_1 
+f=291 DEBUG RESET BP_TrainingDummy_C_2 
+f=291 HOME RESET BP_TrainingDummy_C_1 
+f=291 HOME RESET BP_TrainingDummy_C_2 
+f=291 REVIVE BP_PlayerCharacter_C_0 
+f=291 REVIVE BP_TrainingDummy_C_1 
+f=291 REVIVE BP_TrainingDummy_C_2 
+r=0 f=2 INPUT BP_PlayerCharacter_C_0 
+r=0 f=2 PARRY MONTAGE - 
+r=0 f=2 PARRY WINDOW BP_PlayerCharacter_C_0 
+r=0 f=4 INPUT BP_PlayerCharacter_C_0 
+r=0 f=19 PARRY GESTURE BP_PlayerCharacter_C_0 
+r=0 f=19 PARRY RATE BP_PlayerCharacter_C_0 
+r=0 f=20 PARRY RECOVERY BP_PlayerCharacter_C_0 
+r=0 f=20 PARRY WHIFF BP_PlayerCharacter_C_0 
+r=0 f=56 PARRY RECOVERY END BP_PlayerCharacter_C_0 
+r=0 f=96 DEBUG RESET BP_PlayerCharacter_C_0 
+r=0 f=96 DEBUG RESET BP_TrainingDummy_C_1 
+r=0 f=96 DEBUG RESET BP_TrainingDummy_C_2 
+r=0 f=96 HOME RESET BP_TrainingDummy_C_1 
+r=0 f=96 HOME RESET BP_TrainingDummy_C_2 
+r=0 f=96 REVIVE BP_PlayerCharacter_C_0 
+r=0 f=96 REVIVE BP_TrainingDummy_C_1 
+r=0 f=96 REVIVE BP_TrainingDummy_C_2 
+r=1 f=2 INPUT BP_PlayerCharacter_C_0 
+r=1 f=2 PARRY MONTAGE - 
+r=1 f=2 PARRY WINDOW BP_PlayerCharacter_C_0 
+r=1 f=4 INPUT BP_PlayerCharacter_C_0 
+r=1 f=19 PARRY GESTURE BP_PlayerCharacter_C_0 
+r=1 f=19 PARRY RATE BP_PlayerCharacter_C_0 
+r=1 f=21 PARRY RECOVERY BP_PlayerCharacter_C_0 
+r=1 f=21 PARRY WHIFF BP_PlayerCharacter_C_0 
+r=1 f=58 PARRY RECOVERY END BP_PlayerCharacter_C_0 
+r=1 f=96 DEBUG RESET BP_PlayerCharacter_C_0 
+r=1 f=96 DEBUG RESET BP_TrainingDummy_C_1 
+r=1 f=96 DEBUG RESET BP_TrainingDummy_C_2 
+r=1 f=96 HOME RESET BP_TrainingDummy_C_1 
+r=1 f=96 HOME RESET BP_TrainingDummy_C_2 
+r=1 f=96 REVIVE BP_PlayerCharacter_C_0 
+r=1 f=96 REVIVE BP_TrainingDummy_C_1 
+r=1 f=96 REVIVE BP_TrainingDummy_C_2 
+r=2 f=2 INPUT BP_PlayerCharacter_C_0 
+r=2 f=2 PARRY MONTAGE - 
+r=2 f=2 PARRY WINDOW BP_PlayerCharacter_C_0 
+r=2 f=4 INPUT BP_PlayerCharacter_C_0 
+r=2 f=19 PARRY GESTURE BP_PlayerCharacter_C_0 
+r=2 f=19 PARRY RATE BP_PlayerCharacter_C_0 
+r=2 f=20 PARRY RECOVERY BP_PlayerCharacter_C_0 
+r=2 f=20 PARRY WHIFF BP_PlayerCharacter_C_0 
+r=2 f=57 PARRY RECOVERY END BP_PlayerCharacter_C_0 
+r=2 f=96 DEBUG RESET BP_PlayerCharacter_C_0 
+r=2 f=96 DEBUG RESET BP_TrainingDummy_C_1 
+r=2 f=96 DEBUG RESET BP_TrainingDummy_C_2 
+r=2 f=96 HOME RESET BP_TrainingDummy_C_1 
+r=2 f=96 HOME RESET BP_TrainingDummy_C_2 
+r=2 f=96 REVIVE BP_PlayerCharacter_C_0 
+r=2 f=96 REVIVE BP_TrainingDummy_C_1 
+r=2 f=96 REVIVE BP_TrainingDummy_C_2 

@@ -34,6 +34,11 @@ Ticked as units land, with the commit hash. *Verified* means the unit ran and it
 - [x] C6 — `7cb097e`. `Debug-Instruments` (the loop, preflight, slicing, the four per-slice
   checks, the generated matrix region), `Working-In-Unreal` (the silent failures only),
   `Unreal-Findings` (the capability and the measurements).
+- [x] Phase 2 complete 2026-09-03: groups A to G and the per-cell parry lockout rows, 50 scripted
+  rows with mutations proven, findings routed to `Docs/Combat-Decisions.md` (the Phase 2 entry and
+  the discharged traps) and the process to `Docs/Debug-Instruments.md`. Owed from §4.7 and still
+  owed: the full real-time matrix; the canary families ran. `--repeat` is answered by the goldens
+  reading SAME across runs within one editor process.
 - [x] Phase 2 exemplars, run `0903-062109`: `input-accept-hitstun` 4/4, `knockdown-getup-held` 4/4,
   `knockdown-getup-held-normal` 3/3, `reach-light` 2/2, all with mutations proven;
   `edge-light-checkpoint` and `lock-guard-break` each surfaced a finding (§0b) and were re-shaped.
@@ -639,7 +644,7 @@ fixture changes.**
 | `parry-facing` | parry has no facing test | parry from behind, phase-locked | `PARRY SUCCESS` every rep | 2 |
 | `parry-refused` | refused while blocking, dodging, exhausted, airborne | hold block then tap parry; tap dodge then parry at +6f; `set_stamina(player, 0)` then parry; jump then parry | a `REFUSED GA_Parry` per press, no `PARRY WINDOW` | 2 each |
 | `attack-owns-movement` | movement input suppressed for the whole ability | hold move during a whiffed light; control without | trajectories equal ± 1 cm through `ABILITY END`, then the held move displaces within 3f | 2 + 1 |
-| `attack-airborne` | airborne attack refused, not buffered | jump, tap attack at +18f | `REFUSED … airborne`, no `ACTIVATE` after landing, no `BUFFER … stored` | 3 |
+| `attack-airborne` | airborne attack refused | jump, tap attack at +18f | `REFUSED … airborne`, no `ACTIVATE` while airborne; the buffer's handling reported, the spec being silent on it | 3 |
 | `lock-guard-break` | the break locks movement and jump; the control (trap) | player holds block; attacker heavies; two blocks break; hold move from the break; control without; tap jump inside the stun | displacement equal to control ± 2 cm through `GUARD END`, then moves within 3f; `REFUSED GA_Jump … guard broken` | 2 + control |
 | `block-stun-offense-only` | disables offense and nothing else | blocked light, guard released; tap dodge at +6f; parry in another rep; attack in a third | `DODGE` fires; `PARRY WINDOW` opens; the attack is refused | 2 each |
 | `block-commitment` | a release inside the floor is remembered | press block, release at +6f; control release at +24f | `BLOCK down (released)` at +15f ± 1f; control at +24f | 3 + 3 |
@@ -656,9 +661,9 @@ consistent; report the outcome at T − 1f, T and T + 1f. Rulings follow the rep
 |---|---|---|---|
 | `edge-light-checkpoint` | 0.150 | hold 8f vs 10f | `COMMIT branch 0` vs `1` |
 | `edge-heavy-checkpoint` | 0.350 | hold 20f vs 22f | `branch 1` vs `2` |
-| `edge-chain-open` | 0.283 | second tap at 16f vs 18f | `expired` vs `chain out` |
-| `edge-chain-close` | 0.683 | tap at 40f vs 42f | `chain out` vs `expired` |
-| `edge-fresh-open` | 0.750 | tap at 44f vs 46f | `expired` vs fires at 57f |
+| `edge-chain-open` | 0.283 | second tap at 16f vs 20f, 17 to 19 reported | `expired` vs `chain out` |
+| `edge-chain-close` | 0.683 | tap at 39f vs 43f, 40 to 42 reported | `chain out` vs `expired` |
+| `edge-fresh-open` | 0.750 | tap at 44f vs 50f, 45 to 49 reported | `expired` vs fires at the swing's end |
 | `edge-actionable` | 0.950 | tap at 56f vs 58f | fires at 57f vs at 58f |
 | `edge-hitstun-accept` | hit + 0.350 | press at 20f vs 22f after the hit | `expired` vs fires at `HITSTUN END` |
 | `edge-parry-close` | 0.300 | parry at hit − 19f vs hit − 17f | `SUCCESS` vs `DAMAGED` |
@@ -692,9 +697,11 @@ Order: A, then B, then D, then G, then C, then E, then F. Exemplars, built first
 `input-accept-hitstun`, `knockdown-getup-held`, `edge-light-checkpoint`, `lock-guard-break`,
 `reach-light`.
 
-**Built 2026-09-03**: the five exemplars plus `knockdown-getup-held-normal`; group A's
-`input-accept-blockstun`, `input-accept-lockout` and `knockdown-getup-exhausted-held` are written in
-`scenarios.py` and `regression_rows.py`. Status per row is the matrix's, not this file's.
+**Built 2026-09-03, all groups**: 88 rows, 50 of them scripted. Status per row is the matrix's, not
+this file's. Two stay red for the game rather than the loop, both filed in `Docs/Combat-Decisions.md`'s
+2026-09-03 Phase 2 entry: `tier-cells` on the chained lights' totals and `edge-lockout-end` on the
+held attack that outlives its release. Where a probe's authored frame in the table below disagrees
+with the fixture, the fixture is the measurement and the table the plan.
 
 ## 6. Phase 3 — docs, traps, closedown
 

@@ -1,0 +1,41 @@
+f=729 DEBUG RESET BP_PlayerCharacter_C_0 
+f=729 DEBUG RESET BP_TrainingDummy_C_1 
+f=729 DEBUG RESET BP_TrainingDummy_C_2 
+f=729 HOME RESET BP_TrainingDummy_C_1 
+f=729 HOME RESET BP_TrainingDummy_C_2 
+f=729 REVIVE BP_PlayerCharacter_C_0 
+f=729 REVIVE BP_TrainingDummy_C_1 
+f=729 REVIVE BP_TrainingDummy_C_2 
+r=0 f=1 DEBUG STAMINA BP_PlayerCharacter_C_0 
+r=0 f=1 EXHAUSTED BP_PlayerCharacter_C_0 
+r=0 f=242 DEBUG RESET BP_PlayerCharacter_C_0 
+r=0 f=242 DEBUG RESET BP_TrainingDummy_C_1 
+r=0 f=242 DEBUG RESET BP_TrainingDummy_C_2 
+r=0 f=242 EXHAUSTION END BP_PlayerCharacter_C_0 
+r=0 f=242 HOME RESET BP_TrainingDummy_C_1 
+r=0 f=242 HOME RESET BP_TrainingDummy_C_2 
+r=0 f=242 REVIVE BP_PlayerCharacter_C_0 
+r=0 f=242 REVIVE BP_TrainingDummy_C_1 
+r=0 f=242 REVIVE BP_TrainingDummy_C_2 
+r=1 f=1 DEBUG STAMINA BP_PlayerCharacter_C_0 
+r=1 f=1 EXHAUSTED BP_PlayerCharacter_C_0 
+r=1 f=242 DEBUG RESET BP_PlayerCharacter_C_0 
+r=1 f=242 DEBUG RESET BP_TrainingDummy_C_1 
+r=1 f=242 DEBUG RESET BP_TrainingDummy_C_2 
+r=1 f=242 EXHAUSTION END BP_PlayerCharacter_C_0 
+r=1 f=242 HOME RESET BP_TrainingDummy_C_1 
+r=1 f=242 HOME RESET BP_TrainingDummy_C_2 
+r=1 f=242 REVIVE BP_PlayerCharacter_C_0 
+r=1 f=242 REVIVE BP_TrainingDummy_C_1 
+r=1 f=242 REVIVE BP_TrainingDummy_C_2 
+r=2 f=1 DEBUG STAMINA BP_PlayerCharacter_C_0 
+r=2 f=1 EXHAUSTED BP_PlayerCharacter_C_0 
+r=2 f=242 DEBUG RESET BP_PlayerCharacter_C_0 
+r=2 f=242 DEBUG RESET BP_TrainingDummy_C_1 
+r=2 f=242 DEBUG RESET BP_TrainingDummy_C_2 
+r=2 f=242 EXHAUSTION END BP_PlayerCharacter_C_0 
+r=2 f=242 HOME RESET BP_TrainingDummy_C_1 
+r=2 f=242 HOME RESET BP_TrainingDummy_C_2 
+r=2 f=242 REVIVE BP_PlayerCharacter_C_0 
+r=2 f=242 REVIVE BP_TrainingDummy_C_1 
+r=2 f=242 REVIVE BP_TrainingDummy_C_2 

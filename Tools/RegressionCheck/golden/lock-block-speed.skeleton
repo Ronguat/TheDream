@@ -1,0 +1,47 @@
+f=285 DEBUG RESET BP_PlayerCharacter_C_0 
+f=285 DEBUG RESET BP_TrainingDummy_C_1 
+f=285 DEBUG RESET BP_TrainingDummy_C_2 
+f=285 HOME RESET BP_TrainingDummy_C_1 
+f=285 HOME RESET BP_TrainingDummy_C_2 
+f=285 REVIVE BP_PlayerCharacter_C_0 
+f=285 REVIVE BP_TrainingDummy_C_1 
+f=285 REVIVE BP_TrainingDummy_C_2 
+r=0 f=2 BLOCK BP_PlayerCharacter_C_0 
+r=0 f=2 BLOCK BP_PlayerCharacter_C_0 
+r=0 f=2 INPUT BP_PlayerCharacter_C_0 
+r=0 f=94 BLOCK BP_PlayerCharacter_C_0 
+r=0 f=94 DEBUG RESET BP_PlayerCharacter_C_0 
+r=0 f=94 DEBUG RESET BP_TrainingDummy_C_1 
+r=0 f=94 DEBUG RESET BP_TrainingDummy_C_2 
+r=0 f=94 HOME RESET BP_TrainingDummy_C_1 
+r=0 f=94 HOME RESET BP_TrainingDummy_C_2 
+r=0 f=94 INPUT BP_PlayerCharacter_C_0 
+r=0 f=94 REVIVE BP_PlayerCharacter_C_0 
+r=0 f=94 REVIVE BP_TrainingDummy_C_1 
+r=0 f=94 REVIVE BP_TrainingDummy_C_2 
+r=1 f=2 BLOCK BP_PlayerCharacter_C_0 
+r=1 f=2 BLOCK BP_PlayerCharacter_C_0 
+r=1 f=2 INPUT BP_PlayerCharacter_C_0 
+r=1 f=94 BLOCK BP_PlayerCharacter_C_0 
+r=1 f=94 DEBUG RESET BP_PlayerCharacter_C_0 
+r=1 f=94 DEBUG RESET BP_TrainingDummy_C_1 
+r=1 f=94 DEBUG RESET BP_TrainingDummy_C_2 
+r=1 f=94 HOME RESET BP_TrainingDummy_C_1 
+r=1 f=94 HOME RESET BP_TrainingDummy_C_2 
+r=1 f=94 INPUT BP_PlayerCharacter_C_0 
+r=1 f=94 REVIVE BP_PlayerCharacter_C_0 
+r=1 f=94 REVIVE BP_TrainingDummy_C_1 
+r=1 f=94 REVIVE BP_TrainingDummy_C_2 
+r=2 f=2 BLOCK BP_PlayerCharacter_C_0 
+r=2 f=2 BLOCK BP_PlayerCharacter_C_0 
+r=2 f=2 INPUT BP_PlayerCharacter_C_0 
+r=2 f=94 BLOCK BP_PlayerCharacter_C_0 
+r=2 f=94 DEBUG RESET BP_PlayerCharacter_C_0 
+r=2 f=94 DEBUG RESET BP_TrainingDummy_C_1 
+r=2 f=94 DEBUG RESET BP_TrainingDummy_C_2 
+r=2 f=94 HOME RESET BP_TrainingDummy_C_1 
+r=2 f=94 HOME RESET BP_TrainingDummy_C_2 
+r=2 f=94 INPUT BP_PlayerCharacter_C_0 
+r=2 f=94 REVIVE BP_PlayerCharacter_C_0 
+r=2 f=94 REVIVE BP_TrainingDummy_C_1 
+r=2 f=94 REVIVE BP_TrainingDummy_C_2 

@@ -1,0 +1,200 @@
+f=1187 DEBUG RESET BP_PlayerCharacter_C_0 
+f=1187 DEBUG RESET BP_TrainingDummy_C_1 
+f=1187 DEBUG RESET BP_TrainingDummy_C_2 
+f=1187 HOME RESET BP_TrainingDummy_C_1 
+f=1187 HOME RESET BP_TrainingDummy_C_2 
+f=1187 REVIVE BP_PlayerCharacter_C_0 
+f=1187 REVIVE BP_TrainingDummy_C_1 
+f=1187 REVIVE BP_TrainingDummy_C_2 
+r=0 f=14 DODGE BP_PlayerCharacter_C_0 dir=ETDDodgeDirection::Fw section=Fw
+r=0 f=14 INPUT BP_PlayerCharacter_C_0 
+r=0 f=16 INPUT BP_PlayerCharacter_C_0 
+r=0 f=38 DODGE END BP_PlayerCharacter_C_0 dir=ETDDodgeDirection::Fw
+r=0 f=74 DEBUG RESET BP_PlayerCharacter_C_0 
+r=0 f=74 DEBUG RESET BP_TrainingDummy_C_1 
+r=0 f=74 DEBUG RESET BP_TrainingDummy_C_2 
+r=0 f=74 HOME RESET BP_TrainingDummy_C_1 
+r=0 f=74 HOME RESET BP_TrainingDummy_C_2 
+r=0 f=74 REVIVE BP_PlayerCharacter_C_0 
+r=0 f=74 REVIVE BP_TrainingDummy_C_1 
+r=0 f=74 REVIVE BP_TrainingDummy_C_2 
+r=1 f=14 DODGE BP_PlayerCharacter_C_0 dir=ETDDodgeDirection::FR section=FR
+r=1 f=14 INPUT BP_PlayerCharacter_C_0 
+r=1 f=16 INPUT BP_PlayerCharacter_C_0 
+r=1 f=38 DODGE END BP_PlayerCharacter_C_0 dir=ETDDodgeDirection::FR
+r=1 f=74 DEBUG RESET BP_PlayerCharacter_C_0 
+r=1 f=74 DEBUG RESET BP_TrainingDummy_C_1 
+r=1 f=74 DEBUG RESET BP_TrainingDummy_C_2 
+r=1 f=74 HOME RESET BP_TrainingDummy_C_1 
+r=1 f=74 HOME RESET BP_TrainingDummy_C_2 
+r=1 f=74 REVIVE BP_PlayerCharacter_C_0 
+r=1 f=74 REVIVE BP_TrainingDummy_C_1 
+r=1 f=74 REVIVE BP_TrainingDummy_C_2 
+r=2 f=14 DODGE BP_PlayerCharacter_C_0 dir=ETDDodgeDirection::R section=R
+r=2 f=14 INPUT BP_PlayerCharacter_C_0 
+r=2 f=16 INPUT BP_PlayerCharacter_C_0 
+r=2 f=38 DODGE END BP_PlayerCharacter_C_0 dir=ETDDodgeDirection::R
+r=2 f=74 DEBUG RESET BP_PlayerCharacter_C_0 
+r=2 f=74 DEBUG RESET BP_TrainingDummy_C_1 
+r=2 f=74 DEBUG RESET BP_TrainingDummy_C_2 
+r=2 f=74 HOME RESET BP_TrainingDummy_C_1 
+r=2 f=74 HOME RESET BP_TrainingDummy_C_2 
+r=2 f=74 REVIVE BP_PlayerCharacter_C_0 
+r=2 f=74 REVIVE BP_TrainingDummy_C_1 
+r=2 f=74 REVIVE BP_TrainingDummy_C_2 
+r=3 f=14 DODGE BP_PlayerCharacter_C_0 dir=ETDDodgeDirection::BR section=BR
+r=3 f=14 INPUT BP_PlayerCharacter_C_0 
+r=3 f=16 INPUT BP_PlayerCharacter_C_0 
+r=3 f=38 DODGE END BP_PlayerCharacter_C_0 dir=ETDDodgeDirection::BR
+r=3 f=74 DEBUG RESET BP_PlayerCharacter_C_0 
+r=3 f=74 DEBUG RESET BP_TrainingDummy_C_1 
+r=3 f=74 DEBUG RESET BP_TrainingDummy_C_2 
+r=3 f=74 HOME RESET BP_TrainingDummy_C_1 
+r=3 f=74 HOME RESET BP_TrainingDummy_C_2 
+r=3 f=74 REVIVE BP_PlayerCharacter_C_0 
+r=3 f=74 REVIVE BP_TrainingDummy_C_1 
+r=3 f=74 REVIVE BP_TrainingDummy_C_2 
+r=4 f=14 DODGE BP_PlayerCharacter_C_0 dir=ETDDodgeDirection::Bw section=Bw
+r=4 f=14 INPUT BP_PlayerCharacter_C_0 
+r=4 f=16 INPUT BP_PlayerCharacter_C_0 
+r=4 f=38 DODGE END BP_PlayerCharacter_C_0 dir=ETDDodgeDirection::Bw
+r=4 f=74 DEBUG RESET BP_PlayerCharacter_C_0 
+r=4 f=74 DEBUG RESET BP_TrainingDummy_C_1 
+r=4 f=74 DEBUG RESET BP_TrainingDummy_C_2 
+r=4 f=74 HOME RESET BP_TrainingDummy_C_1 
+r=4 f=74 HOME RESET BP_TrainingDummy_C_2 
+r=4 f=74 REVIVE BP_PlayerCharacter_C_0 
+r=4 f=74 REVIVE BP_TrainingDummy_C_1 
+r=4 f=74 REVIVE BP_TrainingDummy_C_2 
+r=5 f=14 DODGE BP_PlayerCharacter_C_0 dir=ETDDodgeDirection::BL section=BL
+r=5 f=14 INPUT BP_PlayerCharacter_C_0 
+r=5 f=16 INPUT BP_PlayerCharacter_C_0 
+r=5 f=38 DODGE END BP_PlayerCharacter_C_0 dir=ETDDodgeDirection::BL
+r=5 f=74 DEBUG RESET BP_PlayerCharacter_C_0 
+r=5 f=74 DEBUG RESET BP_TrainingDummy_C_1 
+r=5 f=74 DEBUG RESET BP_TrainingDummy_C_2 
+r=5 f=74 HOME RESET BP_TrainingDummy_C_1 
+r=5 f=74 HOME RESET BP_TrainingDummy_C_2 
+r=5 f=74 REVIVE BP_PlayerCharacter_C_0 
+r=5 f=74 REVIVE BP_TrainingDummy_C_1 
+r=5 f=74 REVIVE BP_TrainingDummy_C_2 
+r=6 f=14 DODGE BP_PlayerCharacter_C_0 dir=ETDDodgeDirection::L section=L
+r=6 f=14 INPUT BP_PlayerCharacter_C_0 
+r=6 f=16 INPUT BP_PlayerCharacter_C_0 
+r=6 f=38 DODGE END BP_PlayerCharacter_C_0 dir=ETDDodgeDirection::L
+r=6 f=74 DEBUG RESET BP_PlayerCharacter_C_0 
+r=6 f=74 DEBUG RESET BP_TrainingDummy_C_1 
+r=6 f=74 DEBUG RESET BP_TrainingDummy_C_2 
+r=6 f=74 HOME RESET BP_TrainingDummy_C_1 
+r=6 f=74 HOME RESET BP_TrainingDummy_C_2 
+r=6 f=74 REVIVE BP_PlayerCharacter_C_0 
+r=6 f=74 REVIVE BP_TrainingDummy_C_1 
+r=6 f=74 REVIVE BP_TrainingDummy_C_2 
+r=7 f=14 DODGE BP_PlayerCharacter_C_0 dir=ETDDodgeDirection::FL section=FL
+r=7 f=14 INPUT BP_PlayerCharacter_C_0 
+r=7 f=16 INPUT BP_PlayerCharacter_C_0 
+r=7 f=38 DODGE END BP_PlayerCharacter_C_0 dir=ETDDodgeDirection::FL
+r=7 f=74 DEBUG RESET BP_PlayerCharacter_C_0 
+r=7 f=74 DEBUG RESET BP_TrainingDummy_C_1 
+r=7 f=74 DEBUG RESET BP_TrainingDummy_C_2 
+r=7 f=74 HOME RESET BP_TrainingDummy_C_1 
+r=7 f=74 HOME RESET BP_TrainingDummy_C_2 
+r=7 f=74 REVIVE BP_PlayerCharacter_C_0 
+r=7 f=74 REVIVE BP_TrainingDummy_C_1 
+r=7 f=74 REVIVE BP_TrainingDummy_C_2 
+r=8 f=14 DODGE BP_PlayerCharacter_C_0 dir=ETDDodgeDirection::Fw section=Fw
+r=8 f=14 INPUT BP_PlayerCharacter_C_0 
+r=8 f=16 INPUT BP_PlayerCharacter_C_0 
+r=8 f=38 DODGE END BP_PlayerCharacter_C_0 dir=ETDDodgeDirection::Fw
+r=8 f=74 DEBUG RESET BP_PlayerCharacter_C_0 
+r=8 f=74 DEBUG RESET BP_TrainingDummy_C_1 
+r=8 f=74 DEBUG RESET BP_TrainingDummy_C_2 
+r=8 f=74 HOME RESET BP_TrainingDummy_C_1 
+r=8 f=74 HOME RESET BP_TrainingDummy_C_2 
+r=8 f=74 REVIVE BP_PlayerCharacter_C_0 
+r=8 f=74 REVIVE BP_TrainingDummy_C_1 
+r=8 f=74 REVIVE BP_TrainingDummy_C_2 
+r=9 f=14 DODGE BP_PlayerCharacter_C_0 dir=ETDDodgeDirection::FR section=FR
+r=9 f=14 INPUT BP_PlayerCharacter_C_0 
+r=9 f=16 INPUT BP_PlayerCharacter_C_0 
+r=9 f=38 DODGE END BP_PlayerCharacter_C_0 dir=ETDDodgeDirection::FR
+r=9 f=74 DEBUG RESET BP_PlayerCharacter_C_0 
+r=9 f=74 DEBUG RESET BP_TrainingDummy_C_1 
+r=9 f=74 DEBUG RESET BP_TrainingDummy_C_2 
+r=9 f=74 HOME RESET BP_TrainingDummy_C_1 
+r=9 f=74 HOME RESET BP_TrainingDummy_C_2 
+r=9 f=74 REVIVE BP_PlayerCharacter_C_0 
+r=9 f=74 REVIVE BP_TrainingDummy_C_1 
+r=9 f=74 REVIVE BP_TrainingDummy_C_2 
+r=10 f=14 DODGE BP_PlayerCharacter_C_0 dir=ETDDodgeDirection::R section=R
+r=10 f=14 INPUT BP_PlayerCharacter_C_0 
+r=10 f=16 INPUT BP_PlayerCharacter_C_0 
+r=10 f=38 DODGE END BP_PlayerCharacter_C_0 dir=ETDDodgeDirection::R
+r=10 f=74 DEBUG RESET BP_PlayerCharacter_C_0 
+r=10 f=74 DEBUG RESET BP_TrainingDummy_C_1 
+r=10 f=74 DEBUG RESET BP_TrainingDummy_C_2 
+r=10 f=74 HOME RESET BP_TrainingDummy_C_1 
+r=10 f=74 HOME RESET BP_TrainingDummy_C_2 
+r=10 f=74 REVIVE BP_PlayerCharacter_C_0 
+r=10 f=74 REVIVE BP_TrainingDummy_C_1 
+r=10 f=74 REVIVE BP_TrainingDummy_C_2 
+r=11 f=14 DODGE BP_PlayerCharacter_C_0 dir=ETDDodgeDirection::BR section=BR
+r=11 f=14 INPUT BP_PlayerCharacter_C_0 
+r=11 f=16 INPUT BP_PlayerCharacter_C_0 
+r=11 f=38 DODGE END BP_PlayerCharacter_C_0 dir=ETDDodgeDirection::BR
+r=11 f=74 DEBUG RESET BP_PlayerCharacter_C_0 
+r=11 f=74 DEBUG RESET BP_TrainingDummy_C_1 
+r=11 f=74 DEBUG RESET BP_TrainingDummy_C_2 
+r=11 f=74 HOME RESET BP_TrainingDummy_C_1 
+r=11 f=74 HOME RESET BP_TrainingDummy_C_2 
+r=11 f=74 REVIVE BP_PlayerCharacter_C_0 
+r=11 f=74 REVIVE BP_TrainingDummy_C_1 
+r=11 f=74 REVIVE BP_TrainingDummy_C_2 
+r=12 f=14 DODGE BP_PlayerCharacter_C_0 dir=ETDDodgeDirection::Bw section=Bw
+r=12 f=14 INPUT BP_PlayerCharacter_C_0 
+r=12 f=16 INPUT BP_PlayerCharacter_C_0 
+r=12 f=38 DODGE END BP_PlayerCharacter_C_0 dir=ETDDodgeDirection::Bw
+r=12 f=74 DEBUG RESET BP_PlayerCharacter_C_0 
+r=12 f=74 DEBUG RESET BP_TrainingDummy_C_1 
+r=12 f=74 DEBUG RESET BP_TrainingDummy_C_2 
+r=12 f=74 HOME RESET BP_TrainingDummy_C_1 
+r=12 f=74 HOME RESET BP_TrainingDummy_C_2 
+r=12 f=74 REVIVE BP_PlayerCharacter_C_0 
+r=12 f=74 REVIVE BP_TrainingDummy_C_1 
+r=12 f=74 REVIVE BP_TrainingDummy_C_2 
+r=13 f=14 DODGE BP_PlayerCharacter_C_0 dir=ETDDodgeDirection::BL section=BL
+r=13 f=14 INPUT BP_PlayerCharacter_C_0 
+r=13 f=16 INPUT BP_PlayerCharacter_C_0 
+r=13 f=38 DODGE END BP_PlayerCharacter_C_0 dir=ETDDodgeDirection::BL
+r=13 f=74 DEBUG RESET BP_PlayerCharacter_C_0 
+r=13 f=74 DEBUG RESET BP_TrainingDummy_C_1 
+r=13 f=74 DEBUG RESET BP_TrainingDummy_C_2 
+r=13 f=74 HOME RESET BP_TrainingDummy_C_1 
+r=13 f=74 HOME RESET BP_TrainingDummy_C_2 
+r=13 f=74 REVIVE BP_PlayerCharacter_C_0 
+r=13 f=74 REVIVE BP_TrainingDummy_C_1 
+r=13 f=74 REVIVE BP_TrainingDummy_C_2 
+r=14 f=14 DODGE BP_PlayerCharacter_C_0 dir=ETDDodgeDirection::L section=L
+r=14 f=14 INPUT BP_PlayerCharacter_C_0 
+r=14 f=16 INPUT BP_PlayerCharacter_C_0 
+r=14 f=38 DODGE END BP_PlayerCharacter_C_0 dir=ETDDodgeDirection::L
+r=14 f=74 DEBUG RESET BP_PlayerCharacter_C_0 
+r=14 f=74 DEBUG RESET BP_TrainingDummy_C_1 
+r=14 f=74 DEBUG RESET BP_TrainingDummy_C_2 
+r=14 f=74 HOME RESET BP_TrainingDummy_C_1 
+r=14 f=74 HOME RESET BP_TrainingDummy_C_2 
+r=14 f=74 REVIVE BP_PlayerCharacter_C_0 
+r=14 f=74 REVIVE BP_TrainingDummy_C_1 
+r=14 f=74 REVIVE BP_TrainingDummy_C_2 
+r=15 f=14 DODGE BP_PlayerCharacter_C_0 dir=ETDDodgeDirection::FL section=FL
+r=15 f=14 INPUT BP_PlayerCharacter_C_0 
+r=15 f=16 INPUT BP_PlayerCharacter_C_0 
+r=15 f=38 DODGE END BP_PlayerCharacter_C_0 dir=ETDDodgeDirection::FL
+r=15 f=74 DEBUG RESET BP_PlayerCharacter_C_0 
+r=15 f=74 DEBUG RESET BP_TrainingDummy_C_1 
+r=15 f=74 DEBUG RESET BP_TrainingDummy_C_2 
+r=15 f=74 HOME RESET BP_TrainingDummy_C_1 
+r=15 f=74 HOME RESET BP_TrainingDummy_C_2 
+r=15 f=74 REVIVE BP_PlayerCharacter_C_0 
+r=15 f=74 REVIVE BP_TrainingDummy_C_1 
+r=15 f=74 REVIVE BP_TrainingDummy_C_2 
