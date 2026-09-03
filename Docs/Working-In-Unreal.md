@@ -240,7 +240,7 @@ and its handle was not** — the same shape as `SkeletalMesh::SetSkeleton` and `
 **`UTDInputTools` in `Source/TheDreamEditor/` closes it**: `InjectAction` for a tap, `StartHold` /
 `StopHold` for a held one. Measured on the real player pawn 2026-08-24 — one injection produced
 `INPUT pressed`, `ACTIVATE swing=0`, `AIM WEDGE reach=550`, `INPUT released` nine ms later and a
-`STRING` link window, which is a light because a one-tick press is a tap; a hold started and stopped
+`STRING` advance mark, which is a light because a one-tick press is a tap; a hold started and stopped
 from two separate script calls measured **607 ms** and escalated the ladder, `AIM WEDGE` reach
 climbing 550 → 650 → 750. **Timed defensive fixtures are scriptable from here on.**
 

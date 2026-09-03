@@ -53,6 +53,10 @@ BP_PlayerCharacter	KnockdownFallClipStartSeconds	0
 BP_PlayerCharacter	KnockdownFallPathOffsetCurve	/Game/TheDream/Combat/Data/C_KnockdownArc.C_KnockdownArc
 BP_PlayerCharacter	KnockdownFallSeconds	0.5
 BP_PlayerCharacter	KnockdownFallTimeMappingCurve	/Game/TheDream/Combat/Data/C_KnockdownCarry.C_KnockdownCarry
+BP_PlayerCharacter	KnockdownGetUpPriority[0]	InputTag.Block
+BP_PlayerCharacter	KnockdownGetUpPriority[1]	InputTag.Dodge
+BP_PlayerCharacter	KnockdownGetUpPriority[2]	InputTag.Attack
+BP_PlayerCharacter	KnockdownGetUpPriority[3]	InputTag.Jump
 BP_PlayerCharacter	KnockdownInputWindowSecondsHard	0.5
 BP_PlayerCharacter	KnockdownInputWindowSecondsNormal	1
 BP_PlayerCharacter	KnockdownLockoutSecondsHard	1.5
@@ -136,6 +140,10 @@ BP_TrainingDummy	KnockdownFallClipStartSeconds	0
 BP_TrainingDummy	KnockdownFallPathOffsetCurve	/Game/TheDream/Combat/Data/C_KnockdownArc.C_KnockdownArc
 BP_TrainingDummy	KnockdownFallSeconds	0.5
 BP_TrainingDummy	KnockdownFallTimeMappingCurve	/Game/TheDream/Combat/Data/C_KnockdownCarry.C_KnockdownCarry
+BP_TrainingDummy	KnockdownGetUpPriority[0]	InputTag.Block
+BP_TrainingDummy	KnockdownGetUpPriority[1]	InputTag.Dodge
+BP_TrainingDummy	KnockdownGetUpPriority[2]	InputTag.Attack
+BP_TrainingDummy	KnockdownGetUpPriority[3]	InputTag.Jump
 BP_TrainingDummy	KnockdownInputWindowSecondsHard	0.5
 BP_TrainingDummy	KnockdownInputWindowSecondsNormal	1
 BP_TrainingDummy	KnockdownLockoutSecondsHard	1.5
