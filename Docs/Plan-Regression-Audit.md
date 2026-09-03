@@ -25,8 +25,13 @@ Ticked as units land, with the commit hash. *Verified* means the unit ran and it
   relationships, dummy parity over 21 properties, and the format lint proven by making it fail.
 - [x] C4 — verified. Eight universal invariants, mutations, the frame ledger, golden skeletons,
   `summary.json` and `history.tsv`; all three mechanisms proven by making each one fire.
-- [ ] C5 — all 38 rows ported under the new names; fixed-step matrix, repeatability pair, real-time matrix, golden baselines accepted; `ue_s8_driver.py` retired
-- [ ] C6 — Phase 1 docs
+- [x] C5 — `8250904` and after. All 38 ported and running; fixed-step matrix green on 35 of 38
+  with two reds standing (§0b) and one blocked on a ruling; golden baselines accepted;
+  `ue_s8_driver.py` retired, its plans and derivation carried into the entries.
+  **Still owed from §4.7: the `--repeat` pair and the real-time matrix.**
+- [x] C6 — `7cb097e`. `Debug-Instruments` (the loop, preflight, slicing, the four per-slice
+  checks, the generated matrix region), `Working-In-Unreal` (the silent failures only),
+  `Unreal-Findings` (the capability and the measurements).
 - [ ] Phase 2 exemplars: `input-accept-hitstun`, `knockdown-getup-held`, `edge-light-checkpoint`, `lock-guard-break`, `reach-light`
 - [ ] Phase 2 rows, in §5 order, one commit per row or family
 - [ ] Phase 3 — traps, entry, generated matrix, closedown procedure, roster, baseline, memory, this file deleted
