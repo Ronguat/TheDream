@@ -1,0 +1,13 @@
+# Trace tags that carry their pawn later in the line rather than first, as the object of the
+# sentence rather than its subject. Read by regression-check.sh --bands-check's format lint.
+#
+# A tag absent from this file must name its pawn immediately after the tag. Adding one is a
+# deliberate edit that shows in the diff, the same shape as Tools/CommentCheck/baseline.txt.
+#
+# These five predate the 2026-09-03 rename. Reordering them would shift the awk field indices in
+# every extractor that reads them, across far more rows than the rename touched.
+BLOCK
+PARRY WINDOW
+STRING
+INPUT
+REFUSED

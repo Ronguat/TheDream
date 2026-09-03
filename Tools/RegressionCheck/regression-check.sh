@@ -9,6 +9,7 @@
 #
 #   ./regression-check.sh <scenario> [logfile] [--slice <run>:<id>]
 #   ./regression-check.sh --self-test        # prove the instrument can fail
+#   ./regression-check.sh --bands-check      # re-derive every band from its source
 #
 # Scenarios: s1-light s1-heavy s1-charged s2-light s2-heavy s2-charged s3
 #            s4-string s4-guarantee s4-block s4-360   (all need StringTaps 3)
@@ -220,11 +221,15 @@ BAND_BLOCK_GUARD_GAP=0.100
 
 # ---------------------------------------------------------------------------
 
-PASSES=0; FAILS=0; ROWS=""
+PASSES=0; FAILS=0; WARNS=0; ROWS=""
 
-row() { # row PASS|FAIL <label> <detail>
+row() { # row PASS|FAIL|WARN <label> <detail>
 	ROWS="${ROWS}$1\t$2\t$3\n"
-	if [ "$1" = "PASS" ]; then PASSES=$((PASSES+1)); else FAILS=$((FAILS+1)); fi
+	case "$1" in
+		PASS) PASSES=$((PASSES+1)) ;;
+		WARN) WARNS=$((WARNS+1)) ;;
+		*)    FAILS=$((FAILS+1)) ;;
+	esac
 }
 
 check() { # check <label> <condition-result 0/1> <detail>
@@ -2010,6 +2015,215 @@ run_s6_exhaust_regen() {
 		"$bad of $n spans off prediction by more than ${BAND_EXHAUST_SPAN_TOL}s; worst ${worst}s"
 }
 
+# --- --bands-check: every band re-derived from its authored source ----------
+# A band is a number in this file mirroring an authored one elsewhere, and nothing enforced the
+# link -- a retune landed in the asset while the band kept asserting the old value. This reads the
+# values snapshot, re-derives each band, and FAILs naming both numbers.
+#
+# The snapshot is regenerated from the live CDOs by Tools/ValuesSnapshot/ue_values_snapshot.py and
+# the assets stay authoritative over it, so a mismatch means "re-derive", never "nudge the band".
+VALUES="Docs/Combat-Values.tsv"
+
+v() { # v <Object> <Property> -- the snapshot's value, empty when absent
+	awk -F'\t' -v o="$1" -v p="$2" '$1==o && $2==p { print $3; exit }' "$VALUES"
+}
+
+near() { # near <a> <b> [tol] -- 0 when equal within tol
+	awk -v a="$1" -v b="$2" -v t="${3:-0.0005}" 'BEGIN { d=a-b; if (d<0) d=-d; exit (d<t)?0:1 }'
+}
+
+band() { # band <BAND_NAME> <expected> <source-text>
+	local name="$1" want="$2" src="$3" have
+	eval "have=\$$name"
+	if [ -z "$want" ]; then
+		row FAIL "$name" "source unreadable: $src"
+	elif near "$have" "$want"; then
+		row PASS "$name" "$have = $src"
+	else
+		row FAIL "$name" "band is $have, $src gives $want"
+	fi
+}
+
+rel() { # rel <label> <awk-condition> <detail>
+	if awk "BEGIN { exit ($2) ? 0 : 1 }"; then row PASS "$1" "$3"; else row FAIL "$1" "$3"; fi
+}
+
+bands_check() {
+	[ -f "$VALUES" ] || { echo "regression-check: no $VALUES" >&2; exit 2; }
+	local A=GA_Attack C=BP_TrainingDummy P=BP_PlayerCharacter
+	local r0 r1 r2 rl0 rl1 rl2 rc0 rc1 rc2 h0 h1 h2 dodge maxst
+
+	r0=$(v $A 'Branches[0].ReleaseAtSeconds');  r1=$(v $A 'Branches[1].ReleaseAtSeconds')
+	r2=$(v $A 'Branches[2].ReleaseAtSeconds')
+	rl0=$(v $A 'Positions[0].Cells[0].ReleaseSeconds'); rl1=$(v $A 'Positions[0].Cells[1].ReleaseSeconds')
+	rl2=$(v $A 'Positions[0].Cells[2].ReleaseSeconds')
+	rc0=$(v $A 'Positions[0].Cells[0].RecoverySeconds'); rc1=$(v $A 'Positions[0].Cells[1].RecoverySeconds')
+	rc2=$(v $A 'Positions[0].Cells[2].RecoverySeconds')
+	h0=$(v $A 'Branches[0].HoldUntilSeconds'); h1=$(v $A 'Branches[1].HoldUntilSeconds')
+	h2=$(v $A 'Branches[2].HoldUntilSeconds')
+	dodge=$(v GA_Dodge DodgeTargetDistanceCm); maxst=$(v $C StartingMaxStamina)
+
+	band BAND_RELEASE_LIGHT   "$(awk -v a="$r0" 'BEGIN{printf "%.0f", a*1000}')" "Branches[0].ReleaseAtSeconds x1000"
+	band BAND_RELEASE_HEAVY   "$(awk -v a="$r1" 'BEGIN{printf "%.0f", a*1000}')" "Branches[1].ReleaseAtSeconds x1000"
+	band BAND_RELEASE_CHARGED "$(awk -v a="$r2" 'BEGIN{printf "%.0f", a*1000}')" "Branches[2].ReleaseAtSeconds x1000"
+	band BAND_ELAPSED_LIGHT   "$(awk -v a="$r0" -v b="$rl0" -v c="$rc0" 'BEGIN{printf "%.3f", a+b+c}')" "light ReleaseAt+Release+Recovery"
+	band BAND_ELAPSED_HEAVY   "$(awk -v a="$r1" -v b="$rl1" -v c="$rc1" 'BEGIN{printf "%.3f", a+b+c}')" "heavy ReleaseAt+Release+Recovery"
+	band BAND_ELAPSED_CHARGED "$(awk -v a="$r2" -v b="$rl2" -v c="$rc2" 'BEGIN{printf "%.3f", a+b+c}')" "charged ReleaseAt+Release+Recovery"
+	band BAND_STAMDMG_LIGHT   "$(v $A 'Positions[0].Cells[0].StaminaDamage')" "Cells[0].StaminaDamage"
+	band BAND_STAMDMG_HEAVY   "$(v $A 'Positions[0].Cells[1].StaminaDamage')" "Cells[1].StaminaDamage"
+	band BAND_STAMDMG_CHARGED "$(v $A 'Positions[0].Cells[2].StaminaDamage')" "Cells[2].StaminaDamage"
+	band BAND_HEALTHDMG_LIGHT   "$(v $A 'Positions[0].Cells[0].Damage')" "Cells[0].Damage"
+	band BAND_HEALTHDMG_HEAVY   "$(v $A 'Positions[0].Cells[1].Damage')" "Cells[1].Damage"
+	band BAND_HEALTHDMG_CHARGED "$(v $A 'Positions[0].Cells[2].Damage')" "Cells[2].Damage"
+	band BAND_BLOCKSTUN_LIGHT "$(v $A 'Positions[0].Cells[0].BlockstunSeconds')" "Cells[0].BlockstunSeconds"
+	band BAND_BLOCKSTUN_HEAVY "$(v $A 'Positions[0].Cells[1].BlockstunSeconds')" "Cells[1].BlockstunSeconds"
+	band BAND_HITSTUN_LIGHT   "$(v $A 'Positions[0].Cells[0].HitstunSeconds')" "Cells[0].HitstunSeconds"
+	band BAND_PARRY_LOCKOUT_LIGHT "$(v $A 'Positions[0].Cells[0].ParryLockoutSeconds')" "Cells[0].ParryLockoutSeconds"
+	band BAND_PARRY_RECOIL_CM "$(v $A ParryRecoilCm)" "GA_Attack.ParryRecoilCm"
+	band BAND_GUARDSTUN       "$(v $C GuardBreakStunSeconds)" "GuardBreakStunSeconds"
+	band BAND_PARRY_WINDOW    "$(v GA_Parry ParryWindowSeconds)" "GA_Parry.ParryWindowSeconds"
+	band BAND_PARRY_RECOVERY  "$(v GA_Parry ParryWhiffRecoverySeconds)" "GA_Parry.ParryWhiffRecoverySeconds"
+	band BAND_PARRY_GRACE     "$(v $C ParryGraceSeconds)" "ParryGraceSeconds"
+	band BAND_PARRY_GAINED_EXACT "$(v $C ParryStaminaReward)" "ParryStaminaReward"
+	band BAND_PARRY_GAINED_MAX   "$(v $C ParryStaminaReward)" "ParryStaminaReward"
+	band BAND_DODGE_MIN       "$(awk -v a="$dodge" 'BEGIN{printf "%.0f", a-5}')" "DodgeTargetDistanceCm-5"
+	band BAND_DODGE_MAX       "$(awk -v a="$dodge" 'BEGIN{printf "%.0f", a+15}')" "DodgeTargetDistanceCm+15"
+	band BAND_DODGE_FIT       "$(v GA_Dodge DodgeClipSeconds)" "GA_Dodge.DodgeClipSeconds"
+	band BAND_KD_RISE_DODGE   "$(v GA_Dodge DodgeSeconds)" "GA_Dodge.DodgeSeconds"
+	band BAND_KD_RISE         "$(v $C KnockdownRiseSeconds)" "KnockdownRiseSeconds"
+	band BAND_KD_LOCKOUT_NORMAL "$(v $C KnockdownLockoutSecondsNormal)" "KnockdownLockoutSecondsNormal"
+	band BAND_KD_LOCKOUT_HARD   "$(v $C KnockdownLockoutSecondsHard)" "KnockdownLockoutSecondsHard"
+	band BAND_KD_ENTRY_TO_RISE  "$(awk -v a="$(v $C KnockdownLockoutSecondsNormal)" -v b="$(v $C KnockdownInputWindowSecondsNormal)" 'BEGIN{printf "%.3f", a+b}')" "normal lockout+inputWindow"
+	band BAND_EXHAUST_PAUSE   "$(v $C StaminaRegenPauseSeconds)" "StaminaRegenPauseSeconds"
+	band BAND_EXHAUST_EXIT    "$maxst" "StartingMaxStamina"
+	band BAND_EXHAUST_BREAK_STUN "$(v $C GuardBreakStunSeconds)" "GuardBreakStunSeconds"
+	band BAND_EXHAUST_REGEN_SECONDS "$(awk -v a="$maxst" -v b="$(v $C ExhaustedStaminaRegenPerSecond)" 'BEGIN{printf "%.3f", a/b}')" "MaxStamina/ExhaustedRegen"
+	band BAND_REVIVE_DELAY    "$(v $C DebugAutoReviveSeconds)" "DebugAutoReviveSeconds (fixture)"
+}
+
+# Relationships: values derived from each other, where nothing in the code enforces the link.
+# Each names its source, so a failure says what to re-derive rather than what to nudge.
+relationships_check() {
+	local A=GA_Attack C=BP_TrainingDummy
+	local h0 r0 r1 r2 rl0 rc0 chain reach standoff hitspacing lunge0 lungeb minreach
+
+	h0=$(v $A 'Branches[0].HoldUntilSeconds')
+	r0=$(v $A 'Branches[0].ReleaseAtSeconds'); r1=$(v $A 'Branches[1].ReleaseAtSeconds')
+	r2=$(v $A 'Branches[2].ReleaseAtSeconds')
+	rl0=$(v $A 'Positions[0].Cells[0].ReleaseSeconds'); rc0=$(v $A 'Positions[0].Cells[0].RecoverySeconds')
+	chain=$(v $A ChainOpenAfterRecoverySeconds)
+	standoff=$(v $A LungeStandoffCm); hitspacing=$(v $A HitSpacingCm)
+	lungeb=$(v $A LungeDistanceCm); lunge0=$(v $A 'Positions[0].Cells[0].LungeDistanceCm')
+	reach=$(v $A 'Positions[0].Cells[0].Hitboxes[0].MaxReachCm')
+
+	rel "turn rate covers the commit" \
+		"$(v $C TurnRateDegrees) == 180 / $h0" \
+		"TurnRateDegrees $(v $C TurnRateDegrees) against 180/$h0 (spec, Facing)"
+	rel "hitstun outlasts the chain gap" \
+		"$(v $A 'Positions[0].Cells[0].HitstunSeconds') > $r0 + $rl0 + $chain" \
+		"hitstun $(v $A 'Positions[0].Cells[0].HitstunSeconds') > $r0+$rl0+$chain (spec, Hitstun)"
+	rel "light blockstun keeps the defender ahead" \
+		"$(v $A 'Positions[0].Cells[0].BlockstunSeconds') > 0.5 + $r0 - $r1" \
+		"blockstun $(v $A 'Positions[0].Cells[0].BlockstunSeconds') > 0.5+$r0-$r1 (the band's comment)"
+	rel "the charged always breaks a full guard" \
+		"$(v $A 'Positions[0].Cells[2].StaminaDamage') >= $(v $C StartingMaxStamina)" \
+		"charged StaminaDamage $(v $A 'Positions[0].Cells[2].StaminaDamage') >= MaxStamina (trap)"
+	rel "the parry window cannot cover two read-classes" \
+		"$(v GA_Parry ParryWindowSeconds) < $r2 - $r1" \
+		"window $(v GA_Parry ParryWindowSeconds) < $r2-$r1 (the parry bands' comments)"
+	rel "a whiffed parry stays locked through the charged" \
+		"$(v GA_Parry ParryWindowSeconds) + $(v GA_Parry ParryWhiffRecoverySeconds) >= $r2" \
+		"window+recovery >= charged ReleaseAt $r2 (the parry bands' comments)"
+	rel "the standoff parks inside the hitbox" \
+		"$standoff < $reach" \
+		"LungeStandoffCm $standoff < MaxReachCm $reach (trap)"
+	rel "the string's connect inequality holds" \
+		"$hitspacing <= $lungeb + $lunge0 + $reach - $standoff" \
+		"HitSpacingCm $hitspacing <= $lungeb+$lunge0+$reach-$standoff (trap)"
+	rel "both knockdown types total the same" \
+		"$(v $C KnockdownLockoutSecondsNormal) + $(v $C KnockdownInputWindowSecondsNormal) == $(v $C KnockdownLockoutSecondsHard) + $(v $C KnockdownInputWindowSecondsHard)" \
+		"normal and hard lockout+window (spec: type-invariant total)"
+
+	# Deliberate design the fixtures lean on rather than an error: a body carried past the ladder's
+	# covered range cannot be reached again without walking back in.
+	if awk "BEGIN { exit ($(v $C KnockdownSpacingCm) > $lungeb + $lunge0 + $reach - $standoff) ? 0 : 1 }"; then
+		row WARN "knockdown spacing is outside the covered range" \
+			"KnockdownSpacingCm $(v $C KnockdownSpacingCm) against $(awk -v a="$lungeb" -v b="$lunge0" -v c="$reach" -v d="$standoff" 'BEGIN{print a+b+c-d}')cm (deliberate)"
+	fi
+}
+
+# Dummy parity: a fixture is only evidence about the player if the two carry the same values.
+parity_check() {
+	local n bad=0 pv dv
+	for n in StartingMaxHealth StartingMaxStamina StaminaRegenPerSecond StaminaRegenPauseSeconds \
+	         ExhaustedStaminaRegenPerSecond ExhaustedMaxWalkSpeed BlockingMaxWalkSpeed \
+	         GuardBreakStunSeconds TurnRateDegrees IdleTurnRateDegrees CoilTurnRateDegrees \
+	         ForcedFacingTurnRateDegrees ParryGraceSeconds ParryStaminaReward \
+	         KnockdownLockoutSecondsNormal KnockdownLockoutSecondsHard \
+	         KnockdownInputWindowSecondsNormal KnockdownInputWindowSecondsHard \
+	         KnockdownRiseSeconds KnockdownSpacingCm KnockdownFallSeconds; do
+		pv=$(v BP_PlayerCharacter "$n"); dv=$(v BP_TrainingDummy "$n")
+		if [ -z "$pv" ] || [ -z "$dv" ]; then
+			row FAIL "parity $n" "missing from the snapshot (player='$pv' dummy='$dv')"; bad=1
+		elif [ "$pv" != "$dv" ]; then
+			row FAIL "parity $n" "player $pv against dummy $dv"; bad=1
+		fi
+	done
+	[ "$bad" -eq 0 ] && row PASS "dummy parity" "21 properties equal on both characters"
+}
+
+# Format lint. Every combat trace line must name a pawn, so a new one that cannot be attributed
+# fails preflight rather than being discovered by a count that credited the wrong character.
+#
+# It reads the call's arguments, not the format string: a string cannot say which %s is a pawn.
+# Pawn-first is the rule; TRACE_EXCEPTIONS lists the tags that predate it and name their pawn as
+# the object instead. A tag absent from that file must put the name first.
+TRACE_EXCEPTIONS="Tools/RegressionCheck/trace-exceptions.txt"
+
+format_lint() {
+	local out
+	out=$(awk -v excl="$TRACE_EXCEPTIONS" '
+		BEGIN {
+			while ((getline line < excl) > 0)
+				if (line !~ /^#/ && line != "") skip[line] = 1
+		}
+		# Gather one logging call, however many lines it spans.
+		/TD_TIMING_LOG\(TEXT\("\[%\.3f\]/ || /UE_LOG\(LogTDCombatTiming, *Log, *TEXT\("\[%\.3f\]/ {
+			buf = $0; n = 0
+			while (buf !~ /\);[ \t]*$/ && n < 30) { if ((getline nxt) <= 0) break; buf = buf " " nxt; n++ }
+			check(buf, FILENAME, FNR)
+		}
+		function check(buf, file, line,   fmt, args, tagpart, tag, rest, i) {
+			if (match(buf, /TEXT\("\[%\.3f\][^"]*"\)/) == 0) return
+			fmt = substr(buf, RSTART + 12, RLENGTH - 14)      # after [%.3f], before ")
+			args = substr(buf, RSTART + RLENGTH)
+			sub(/^ *, */, "", args)
+			# The tag is the run of non-percent text before the first conversion.
+			tagpart = fmt; sub(/%.*$/, "", tagpart); gsub(/^ +| +$/, "", tagpart)
+			tag = tagpart
+			if (args !~ /GetName\(\)|GetNameSafe\(|GetAvatarActorFromActorInfo\(\)/) {
+				printf "%s:%d  %s names no pawn\n", file, line, (tag == "" ? "<untagged>" : tag)
+				return
+			}
+			if (excepted(tag)) return
+			if (fmt !~ /^[^%]*%s/) {
+				printf "%s:%d  %s does not name its pawn first, and is not in the exceptions\n",
+					file, line, tag
+			}
+		}
+		function excepted(tag,   e) {
+			for (e in skip) if (index(tag, e) == 1) return 1
+			return 0
+		}
+	' $(find Source/TheDream -name "*.cpp"))
+	if [ -z "$out" ]; then
+		row PASS "trace format lint" "every LogTDCombatTiming call names a pawn"
+	else
+		row FAIL "trace format lint" "$(echo "$out" | wc -l) offending call(s)"
+		LINT_DETAIL="$out"
+	fi
+}
+
 # --- self-test: the checker must be seen to fail ----------------------------
 self_test() {
 	echo "Self-test: asserting the checker reports FAIL on a band it cannot meet."
@@ -2054,6 +2268,26 @@ EOF
 
 [ $# -ge 1 ] || usage
 [ "$1" = "--self-test" ] && self_test
+if [ "$1" = "--bands-check" ]; then
+	echo
+	echo "  bands-check: every band, relationship and trace format re-derived"
+	echo "  ------------------------------------------------------------------"
+	bands_check
+	relationships_check
+	parity_check
+	LINT_DETAIL=""
+	format_lint
+	printf "%b" "$ROWS" | while IFS="$(printf '\t')" read -r st label detail; do
+		[ -n "$st" ] || continue
+		printf "  %-6s %-34s %s\n" "$st" "$label" "$detail"
+	done
+	echo "  ------------------------------------------------------------------"
+	echo "  $PASSES passed, $FAILS failed, $WARNS warned"
+	[ -z "$LINT_DETAIL" ] || { echo; echo "$LINT_DETAIL" | sed 's/^/  /'; }
+	echo
+	[ "$FAILS" -eq 0 ] || exit 1
+	exit 0
+fi
 
 # --- s7: death, its impulse, and its supersession of knockdown ----------------
 # Every extractor here must exclude DEATH SETTLE, which shares the DEATH prefix and would
