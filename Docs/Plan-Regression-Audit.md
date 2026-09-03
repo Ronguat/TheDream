@@ -23,7 +23,8 @@ Ticked as units land, with the commit hash. *Verified* means the unit ran and it
   `chain-early` 6/6, `input-hold-tier` 2/2 in 41 s of wall.
 - [x] C3 — verified. Orchestrator with preflight and a pid lock, 36 bands re-derived, nine
   relationships, dummy parity over 21 properties, and the format lint proven by making it fail.
-- [ ] C4 — universal invariants, mutations, frames, the frame ledger, golden skeletons, `summary.json`, `history.tsv`
+- [x] C4 — verified. Eight universal invariants, mutations, the frame ledger, golden skeletons,
+  `summary.json` and `history.tsv`; all three mechanisms proven by making each one fire.
 - [ ] C5 — all 38 rows ported under the new names; fixed-step matrix, repeatability pair, real-time matrix, golden baselines accepted; `ue_s8_driver.py` retired
 - [ ] C6 — Phase 1 docs
 - [ ] Phase 2 exemplars: `input-accept-hitstun`, `knockdown-getup-held`, `edge-light-checkpoint`, `lock-guard-break`, `reach-light`
