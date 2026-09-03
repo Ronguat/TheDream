@@ -101,6 +101,18 @@ findings above:
   carries the avatar. Same class as D14's `TARGET`, and D3 governs it, so it was fixed rather than
   filed. It had been mis-attributing every get-up row's activations since the get-up shipped.
 
+### The golden diff's noise floor, measured 2026-09-03
+
+Determinism under the fixed clock is exact almost everywhere: four of five re-run rows reported
+`SAME` on skeletons of 898 to 2531 lines. The exception is worth knowing before anyone reads a
+CHANGED row as a regression. `string-finisher-arc`, 90 s and 2599 lines, differed in **one frame**:
+a `DAMAGED` / `KNOCKDOWN` / `KNOCKDOWN MONTAGE` / `WAIVER` group at f=5474 in one run and f=5475 in
+the next, with every other line identical. A contact landing on a frame boundary rounds either way.
+
+So the floor is **±1 frame on a single event group**, not zero. A tolerance would remove it and is
+not added here: it would also hide a real one-frame move, which on the tightest window in the game
+— the light's 150 ms release, nine frames — is a seventh of the thing being asserted.
+
 ## 1. Decisions taken, so nothing below is re-litigated
 
 The designer, 2026-09-02 and 2026-09-03.
