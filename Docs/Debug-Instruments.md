@@ -230,6 +230,12 @@ not per press** — 69 lines were three presses, and the burst's length is now t
 
 **`KNOCKDOWN <pawn> rose on held <tag>` joined 2026-09-02**, printed when the floor's input window admits a get-up whose button was already down. It sits beside the `KNOCKDOWN RISE ... by=` line, which names the option; a rise with no `rose on held` line came from a press, not a hold.
 
+**The loop's own lines** *(2026-09-03)*: `REGRESSION BEGIN/ROLES/LOCK/INJECT/REP/TEARDOWN/END/DONE`
+bound and annotate a scenario, `INJECT` carrying the runner's frame and the key it pressed or
+released, `REP` and `TEARDOWN` the hygiene readout per pawn; `DEBUG RESET`, `DEBUG HEALTH` and
+`DEBUG STAMINA` are the three fixture writes, printed by the character so a slice shows every value
+the loop set rather than the game.
+
 **`STRING`'s variants changed 2026-09-02**: `link window open ... until <t>` is gone with the window
 it reported, replaced by `advance marked on <pawn> (after swing N)`, which carries **no deadline**
 because there is none — the mark is consumed by the activation in the same tick. `chain out of
@@ -625,7 +631,23 @@ against the accepted one, so a behaviour change is reported whether or not anyth
 **The rep gate and the reset.** A scripted row settles by the game's own clock, the hygiene readout
 records what the game left behind, and only then does `DebugResetForFixture` re-establish the
 baseline. The order is the point: the reset never masks a leak, because the readout has already
-happened, and the universal set fails a reset with no readout before it.
+happened, and the universal set fails a reset with no readout before it. Settling means the tags are
+down **and the pawn has stopped** — a knockback carry outlives its tag, and a teleport made under
+one is finished by the carry.
+
+**Scripted rows** *(2026-09-03)*. A row's `plans` is a list of plans, one per rep in rotation, each a
+list of `(frame, actor, op, ...)` steps. The ops are `tap`, `press`, `release`, `hold`, `move`,
+`stop_move` for the player's keys, resolved from the mapping contexts at load; `face`, `teleport`,
+`fly` and `set` for any pawn; `set_stamina` and `set_health`, used at rep boundaries; `lock_to`,
+which waits for a tag's rising edge on a pawn and counts every later frame from it, so a defence is
+timed against the attacker's `ACTIVATE` rather than against a timer; and `mark`. The player pawn is
+the precisely timed actor; dummies are periodic or inert. A row's assertions live in
+`regression_rows.py`, keyed by id, reading the slice per rep and the tape (position, yaw, health,
+stamina per pawn per frame) where displacement is the observable; the authored values they compare
+against come from `Docs/Combat-Values.tsv`, never typed. Ids are `family-rule[-variant]`; a legacy
+row keeps its `legacy_id` for `regression-check.sh`. **The boundary family (`edge-*`) asserts two
+sides and reports the frames between** — the report is what a ruling reads, and a frame exactly on
+an authored deadline is a coin flip by float, which is a property of the game and not of the loop.
 
 ### Scenario matrix
 

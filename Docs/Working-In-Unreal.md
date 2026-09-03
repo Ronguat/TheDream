@@ -250,6 +250,14 @@ and its handle was not** — the same shape as `SkeletalMesh::SetSkeleton` and `
 from two separate script calls measured **607 ms** and escalated the ladder, `AIM WEDGE` reach
 climbing 550 → 650 → 750. **Timed defensive fixtures are scriptable from here on.**
 
+**The clock, PIE and the log are all scriptable** *(2026-09-03)*: `FApp::SetUseFixedTimeStep` and
+`SetFixedDeltaTime` through `UTDTimeTools` in `TheDreamEditor` (no cvar or Python symbol reaches
+them); `LevelEditorSubsystem.editor_request_begin_play`, `editor_request_end_play` and
+`is_in_play_in_editor` for PIE from Python; `unreal.log_flush` so a live tail of
+`Saved/Logs/TheDream.log` reads the current tick. A character's movement mode is
+`get_editor_property("character_movement").set_movement_mode(...)` and its velocity `get_velocity()`,
+which is how a fixture flies a target and how the runner knows a carry has finished.
+
 **Input also reaches the *shipping* path** *(2026-09-03)*: `UTDInputTools::InputKey` enters where
 the viewport does, running the mapping context and the binding. **The cheaper depth flatters you** —
 `InjectAction` bypasses the mapping, so green there says nothing about whether a key is bound. And

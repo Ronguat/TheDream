@@ -162,19 +162,29 @@ stays here and misdirects the next person, which is worse than never having file
 discharged it and keep anything from it that is still true. Removing a trap silently is the one
 edit here that cannot be reviewed, because nothing is left to review.
 
-**Whenever a green matrix is read as coverage — *the audit rebuilt the loop and added none.***
-Filed 2026-09-03 at the end of Phase 1. The mechanism is new — fixed clock, scripted player,
+**Whenever the matrix is read as covering a mechanic — *what Phase 2 did not reach.*** Filed
+2026-09-03. The full real-time matrix has not run (only the canary families); no probe places the
+target below the attacker's height band; the parry lockout of chained heavy and charged cells (1/1,
+1/2, 2/1, 2/2) is unasserted because no dummy throws them; jump is untested as a get-up option; and
+the two rows red for the game — `tier-cells`' chained totals, `edge-lockout-end`'s held attack —
+stay red until the designer rules, so a matrix with two reds is the expected state, not a regression.
+
+**~~Whenever a green matrix is read as coverage — *the audit rebuilt the loop and added none.*~~ —
+DISCHARGED 2026-09-03**, the same day, by Phase 2's fifty scripted rows: every mechanic the list
+below names has a row. Filed 2026-09-03 at the end of Phase 1. The mechanism is new — fixed clock, scripted player,
 mutations, golden traces, a universal set — and **the 38 rows are the same 38 as before**. Every
-mechanic `Docs/Plan-Regression-Audit.md`'s §5 names is still unasserted: the nine tier cells (H2,
+mechanic the audit plan's §5 named is still unasserted: the nine tier cells (H2,
 H3, C2 and C3 have never been asserted on release timing at all), the eight dodge directions and
 i-frames, held get-up inputs, acceptance in hitstun / blockstun / parry lockout, block and parry
 facing, movement locks, the eleven boundary probes, the two-attacker rows, the geometry edges.
 **The trap is that the loop now looks thorough.** Read §5 before believing it covers a mechanic.
 
-**Two reds stand undiagnosed and block a push as correctness items**: `dodge-cycle`'s three
-`DODGE RECOVERY` lines against a retired gap and a `DodgeRecoverySeconds` of 0, and
-`knockdown-getup-attack`'s 1.300 total on 2 of 8 samples against [1.250, 1.285],
-non-deterministic under a fixed clock. Each stopped its own row; neither was investigated.
+**~~Two reds stand undiagnosed and block a push as correctness items~~ — DISCHARGED 2026-09-03**,
+both instrument-side: `dodge-cycle`'s extra `DODGE RECOVERY` lines were the checker counting the
+`END` variant, and `knockdown-getup-attack`'s 1.300 was the band reading a total that lands 0 to
++3 f over by frame quantisation, now `BAND_ELAPSED_MAX` 0.050. Filed 2026-09-03 at Phase 1's end as
+`dodge-cycle`'s three `DODGE RECOVERY` lines against a retired gap and a `DodgeRecoverySeconds` of
+0, and `knockdown-getup-attack`'s 1.300 total on 2 of 8 samples against [1.250, 1.285].
 
 **Before clearing the master's `compatibleSkeletons` entry — it is the only one left, and it is
 load-bearing.** Filed 2026-08-24 from the skeleton audit, **narrowed the same day when Skeleton
@@ -331,8 +341,9 @@ the *bands* would want re-deriving, and it was the model underneath them that wa
 *below* an authored floor is the direction frame quantisation cannot explain, so rule the code out
 before assuming the band.
 
-**Whenever `s5-parry`'s lockout band is trusted — *it never covered the string ender.*** Filed
-2026-08-28. `BAND_PARRY_LOCKOUT_LIGHT` is [0.725, 0.775], which admits the branches' 0.75 and excludes
+**~~Whenever `s5-parry`'s lockout band is trusted — *it never covered the string ender.*~~ —
+DISCHARGED 2026-09-03** by `parry-lockout-light`, which blocks the first two lights and parries the
+ender: its lockout is announced and ends at the authored 0.9725, 2 of 2. Filed 2026-08-28. `BAND_PARRY_LOCKOUT_LIGHT` is [0.725, 0.775], which admits the branches' 0.75 and excludes
 `string_swings[1]`'s authored **0.9725**. Every earlier run passed because the fixture caught swing 0
 and a string ender was never parried; an isolated fixture reaches it and the assertion reads
 *"outside [0.725,0.775]s: 0.973"*. **Not widened, deliberately** — patching a band to green is what
@@ -616,8 +627,9 @@ damage-over-time or non-attack damage source exists. The trap only ever meant on
 do both. **A search for the graded killing blow by damage value cannot find it**: grading is
 per-cell through `KnockdownType`, and the ender deals the same 15 as any other light.
 
-**Still owed, and now blocked on instrumentation rather than on effort: the guard break's own
-movement assertion.** Sub-slice B promised an `s2-*` asserting zero movement during break stun. It
+**~~Still owed, and now blocked on instrumentation rather than on effort: the guard break's own
+movement assertion.~~ — DISCHARGED 2026-09-03** by `lock-guard-break`: the held move displaces
+0.1 cm through the stun against its control and walks within 6 f of `GUARD END`. Sub-slice B promised an `s2-*` asserting zero movement during break stun. It
 was **not built by Knockdown's ship** — said plainly, because the slice closed around it. `s6-stand`
 covers the *jump* half through lockout refusals, and the *walking* half has no assertion because
 **nothing in the loop measures a defender's displacement during a stun**: `DODGE END`'s `dist=`
@@ -982,8 +994,11 @@ and the same instrument — an eye, or a screenshot. The designer judged it in p
 shipped; **that confirmation does not transfer to the next change.**
 
 
-**Whenever the get-up input path changes — *no scenario can press during the lockout, because the
-fixture is clamped out of it.*** Filed 2026-08-28 with the resume fix. `DebugGetUpDelaySeconds` is
+**~~Whenever the get-up input path changes — *no scenario can press during the lockout, because the
+fixture is clamped out of it.*~~ — DISCHARGED 2026-09-03** by the player pawn pressing: `edge-lockout-end`
+taps 87 f into the lockout and the rise comes `by=attack` at the window's 90 f open, and the
+`knockdown-getup-held*` rows hold from 30 f. The same row found the held-input defect in the Phase 2
+entry. Filed 2026-08-28 with the resume fix. `DebugGetUpDelaySeconds` is
 `ClampMin="0.0"` and the press fires at `KnockdownLockoutEndsAt + delay`, so **every scripted get-up
 presses inside the window and none can press before it** — which is precisely the case that was
 broken: a press refused during the lockout and then never retried. `s6-block` passes on the path that
@@ -1016,7 +1031,8 @@ assertion anywhere reads the apex**: `KNOCKDOWN` prints `z=` at entry only, so a
 silently unwired, zeroed or replaced would leave every scenario green and the body sliding flat. The
 63.9 cm measured on the day came from sampling actor Z across 140 PIE polls, which is not a loop
 check and was not made one. **And the guard that keeps an airborne victim on gravity is confirmed by
-`s6-airborne` at n=1** — the scenario is rare by design, roughly one airborne knockdown per three
+`s6-airborne` at n=1** — *n=4 per run since 2026-09-03, `knockdown-airborne` jumping the frame the
+heavy begins every other rep* — — the scenario is rare by design, roughly one airborne knockdown per three
 minutes, so a regression there would likely surface as a scenario that merely fails to observe
 anything rather than as a red assertion. **Two curves now share one time base by construction**: the
 arc is sampled at the fraction the time-mapping curve returns, so editing the pacing moves the arc's
@@ -1172,8 +1188,9 @@ half of input acceptance has no scenario, and three `s8` rows were last run agai
 build.*** Filed 2026-09-02, **deliberately in place of writing those rows**, because the loop itself
 is next in the roster and adding to it first would be building on the thing about to be audited.
 
-**What is untested.** The acceptance model governs presses during **hitstun, blockstun and parry
-lockout** exactly as it governs attack recovery — one expiry site, changed once, so the defensive
+**~~What is untested.~~ — DISCHARGED 2026-09-03** by `input-accept-hitstun`, `-blockstun`,
+`-lockout`, `edge-hitstun-accept` and the `knockdown-getup-*` rows. The acceptance model governs
+presses during **hitstun, blockstun and parry lockout** exactly as it governs attack recovery — one expiry site, changed once, so the defensive
 half came free and is therefore unexercised. No row asserts that a press early in a stun is
 discarded and one inside the window fires. The designer's read is that hitstun and blockstun are
 short enough for this to be healthy and that **knockdown was the case worth worrying about**; that
@@ -1430,6 +1447,7 @@ concludes the log is wrong rather than merely old. Add a row whenever a name cha
 
 | Entries say | Code now |
 |---|---|
+| **`s1-light` … `s8-*`**, the numbered scenario ids | **`family-rule[-variant]` ids since 2026-09-03** — `tier-light`, `knockdown-getup-held-exhausted`. Each legacy row's `legacy_id` in `scenarios.py` is the bridge, and `regression-check.sh` still answers to the old id. |
 | **"coil"**, as a term for the mechanism | **Retired 2026-09-01**, moved here from `CLAUDE.md`'s vocabulary at the 2026-09-02 closedown, which kept the rule and shed the story. It named **one animation serving two or more tiers**, the slomo being how it stretched to cover them; bespoke tier clips ended the reuse. **`Coil*` symbols stay and are live** — `CoilEndSeconds`, `CoilTurnRateDegrees`, `EnterCoil` and the `COIL START` trace. Entries before that date use "coil" for the shared-clip mechanism, and the vocabulary list still carries the one-line retirement. |
 | **`s[#]` scenario ids** — `s1-light`, `s4-360`, `s6-exhausted`, and the other 35 | **Renamed 2026-09-03** to `family-rule[-variant]`, the family a mechanic: `tier-light`, `string-finisher-arc`, `knockdown-exhausted-dodge`. The mapping is `legacy_id` on every entry in `Tools/RegressionCheck/scenarios.py`, which is the authority; the old ids are still the bash checker's case arms, so both names appear in the tooling on purpose. Entries before that date use the `s[#]` form throughout. `ue_s8_driver.py` retired with them, its plans moving into the `chain-*` and `input-*` entries. |
 | **`StringLinkWindowSeconds`**, the **link window**, and `OpenStringLinkWindow` / `HasStringLinkWindowOpen` / `StringWindowEndsAt` | **Gone as of 2026-09-02.** The window did two jobs and only the first survives: advancing the string, now `bStringAdvancePending` marked by `MarkStringAdvancePending` on the chain-out path alone and consumed by the next activation; and keeping that advance available for 400 ms after the ability ended, which is the part that was retired. The trace line `STRING link window open ... until` is now `STRING advance marked ...` with no deadline. Entries before that date describe a fourth phase that no longer exists. |
@@ -1854,15 +1872,116 @@ long.
 | `compositeSections` | 08-15, 08-18, 08-28 |
 | `gEComponents` | 08-10, 08-11 |
 | `gen-matrix.py` | 09-03 |
+| `golden/` (the accepted skeletons) | 09-03 |
 | `raw_session_count` | 09-02 |
 | `regression-run.sh` | 09-03 |
 | `regression_eval.py` | 09-03 |
+| `regression_rows.py` | 09-03 |
 | `regression_run.py` | 09-03 |
 | `scenarios.py` | 09-03 |
 | `ue_chart_ab.py` | 09-02 |
 | `ue_fit_tier_montages.py` | 09-02 |
 | `ue_regression_runner.py` | 09-03 |
 | `ue_seed_cells.py` | 09-02 |
+
+## 2026-09-03 — Phase 2 lands fifty scripted rows, two of them red for the game, and every edge sits one frame from a race
+
+Phase 2 of the Regression Audit, the same day as Phase 1. The matrix is **88 rows, 50 scripted
+through the player pawn**, every row with a mutation proven; 86 pass. Two are red for the game and
+stand as **defect candidates awaiting the designer's ruling** — the loop's job was to find them, not
+to fix them, and neither was touched.
+
+### The two reds
+
+**Chained lights end a frame early.** `tier-cells` throws all nine cells from the player's own
+presses and reads each total against the mirror. Every position-1 cell and every chained heavy or
+charged lands 0 to +3 f over its authored sum; **position 1 branch 0 ends at 0.933 against 0.950,
+position 2 branch 0 at 1.167 against 1.1725**. The row asserts chained totals separately and stays
+red on them.
+
+**A buffered press that fires on the tick of its own release leaves the input held.**
+`edge-lockout-end` taps the get-up attack 87 f into a hard knockdown. The press is refused through
+the lockout (`knocked down (lockout)`, one line per retry tick), the tap's release lands on the 90 f
+frame the input window opens, the buffer fires (`fired 33ms late, 33ms already held`) and the rise
+is `by=attack`. **At the next knockdown the window opens and the player rises `on held
+InputTag.Attack` with no key down**, before the rep's own press, `DebugResetForFixture` between the
+two notwithstanding. Reproduced in both reps that follow such a tap. The row classifies a rise that
+precedes the press as `stale` and is red on its 93 f side.
+
+### The edges, as the game runs them
+
+Each boundary row asserts two sides and reports the frames between; the frames are from the first
+press unless said otherwise. **The chain window**: a second press at 17 f expires, 18 and 19 f are
+coin flips, 20 f chains; 39 and 40 f chain, **41 f expires, 42 f chains, 43 f expires**; 44 to 46 f
+expire, 47 to 49 f are coin flips, 50 f fires fresh. The opening sits at 0.500 rather than the
+spec's 0.283 + 0.200 because the recovery begins a tick late (`300ms into recovery` reads at 0.667);
+the 42 f chain is a press landing exactly on the swing's 0.700 frame, accepted after 0.683 has
+stopped accepting. **The spec's "0.283 to 0.683" is a number to question, not a number the loop
+fixed.**
+
+**An unchained light's end is not one frame even under the fixed clock**: `elapsed` 0.950 ×2,
+0.967 ×4, 0.983 ×20, 1.000 ×2 over 28 swings; the heavy's 1.067 ×2 and 1.083 ×8 against 1.050
+authored. Every acceptance measured against "the swing's end" inherits it: `edge-actionable` reports
+a stored press held 1 to 6 f between 54 and 59 f and firing on the press from 60 f. **And the
+acceptance deadline is an exact frame multiple**, so a press exactly 12 f before the frame it could
+act on is a coin flip — `edge-recovery-accept` at 54 f fired once and expired once. Same class as
+the light checkpoint's race in Phase 1.
+
+**Hitstun's acceptance** is exactly 12 f before its 33 f end: 20 f expires, 21 to 24 fire at
+`HITSTUN END`, no race seen at 21. **The parry window opens on the press frame inclusive**: pressed
+on the light's contact frame 13 it catches, 14 is hit. **Grace** catches a second light 6 f after
+the catch and opens no second grace; second lights 12 f and further apart land. **Every cell's parry
+lockout** is announced and ends within 0 to +3 f of its `ParryLockoutSeconds`, the ender's 0.9725
+included.
+
+### Geometry is measured to the body, all four ways
+
+Reach was known (Phase 1: 150 + 42). **Arc**: probes at 150 cm hit through 44° and miss from 48°
+against a 60° arc — 30 plus the 16 a radius-42 body subtends. **Height**: hits through +150 and
+misses at +170 against a ±70 band — 70 plus the 88 half-height; probed above only, since a capsule
+teleported into the floor is pushed out of it. **The aim wedge** names a target through 30° and not
+from 35° against a 40° wedge. `reach-arc`, `reach-height` and `reach-aim-wedge` assert the far
+sides and report the rest.
+
+### What else the rows established
+
+Movement under blockstun is free and the pushback is the larger term: walking into it shortened
+the displacement by 15.9 cm over the 0.35 s stun, so `lock-blockstun-free` projects travel on the
+facing. A dodge at 9 f evades the light — no `DAMAGED`, no `LUNGE STOP`, the lunge runs its 200 cm
+— and the control is hit 3 of 3. All eight dodge directions travel 405 cm with exact components. A
+downed player takes nothing from a heavy landing 0.3 to 1.5 s into the down, the second attacker
+committing at 84 to 117 cm. An attack pressed airborne is refused each retry tick, stored, and
+expires at 200 ms; the spec is silent on the buffering, so the row reports it. Dying in the air
+revives and walks. The guard-broken player displaces 0.1 cm through the stun against its control
+and walks within 6 f of `GUARD END`.
+
+### What the instrument got wrong first, kept because each is a trap in its own right
+
+A knockback carry outlives the hitstun tag, so a teleport made under it is finished by the carry —
+the gate and the settle wait for zero velocity as well as for the tags. A rep whose plan ends at its
+lock got no tail. The tape stopped sampling while the runner sat in its gate. A field parser rejected
+`fwd=+405.0`. A dummy attacking every 3.0 s cannot host a 2.5 s knockdown plus a walk-out; the
+knockdown lock rows run it at 4.5 s.
+
+### The plan's decisions, kept here because the plan file is gone
+
+A fixed 1/60 clock with the wall clock as canary. The player pawn is the precisely timed actor and
+the dummies are periodic or inert. Every trace line names its pawn. Reps are exact counts of 3 to 5.
+`scenarios.py` is the fixture authority and the matrix in `Docs/Debug-Instruments.md` is generated
+from it. Every row the plan's §5 named was in scope, geometry edges included; the boundary family
+reports its sides and the designer rules after. No delegation; the editor was the session's. Ids are
+`family-rule[-variant]`. Golden skeletons detect change whether or not a row asserts it. String
+variants are the player's own presses. No new level: placements are data, away from the ramp.
+`DebugResetForFixture`, `DebugSetStamina` and `DebugSetHealth` are used only at rep boundaries and
+only after the hygiene readout. Knobs are frozen for Structure Audit. A parried swing is exempt from
+the release sentinel. `BAND_ELAPSED_MAX` is 0.050, three frames over the authored span.
+
+### Not reached
+
+The full real-time matrix (the canary families ran, and the canary's skeletons mean nothing by
+construction); the height band below the attacker; the parry lockout of chained heavy and charged
+cells, which no dummy can throw; jump as a get-up option (`not a get-up option` answered for
+attack only). Filed as the trap below.
 
 ## 2026-09-03 — The loop gets a clock, the player gets to throw the punches, and the fixtures were the part that was wrong
 

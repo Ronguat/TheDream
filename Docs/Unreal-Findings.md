@@ -389,6 +389,20 @@ empty — so build one with `import_text("LeftMouseButton")`. And `AbilitySystem
 than any `get_owned_gameplay_tags`, so a tag readout queries a known list instead of enumerating.
 `Config/DefaultGameplayTags.ini` plus `TDGameplayTags.cpp`'s native defines are that list.
 
+**Small facts the audit's handoff carried** *(2026-09-03)*: Python property names drop the `b`
+prefix (`debug_auto_attack`, not `b_debug_auto_attack`); `EditorLevelLibrary.get_all_level_actors`
+is deprecated and still works, `EditorActorSubsystem` is the replacement;
+`unreal.EditorPerformanceSettings` is not exposed to Python; the engine's interpreter is
+`C:/Program Files (x86)/UE_5.8/Engine/Binaries/ThirdParty/Python3/Win64/python.exe` and there is no
+other Python on this machine; the raw log's prefix is `[wall clock][frame % 1000]`, a PIE session is
+bounded by `Bringing World` and `BeginTearingDown for /Game/TheDream/Maps/UEDPIE_0_L_CombatTest`, and
+`unreal.log` lines land in `Saved/Logs/TheDream.log` under `LogPython` with the same prefix.
+
+**Movement mode and velocity are reachable on a pawn from Python** *(2026-09-03, Phase 2)*:
+`pawn.get_editor_property("character_movement").set_movement_mode(unreal.MovementMode.MOVE_FLYING, 0)`
+holds a dummy at a height for the geometry probes, and `pawn.get_velocity()` tells a settle that a
+knockback carry has finished where the tag set alone said it had.
+
 **`create_player` is available and unused** *(Python, 2026-09-03)*. It exists on
 `GameplayStatics`; the loop deliberately stays single-world, since the checker assumes one clock.
 

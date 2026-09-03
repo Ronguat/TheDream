@@ -244,11 +244,11 @@ hook cannot tell who wrote a change.
 
 Execution order, the only line that changes when the order does:
 
-> **~~Attack Ladder~~ → ~~Dodge~~ → ~~Sword & Shield~~ → ~~Input Buffer~~ → ~~Death~~ → ~~Dodge Distance~~ → ~~Attack Swap~~ → ~~[hover bug]~~ → ~~[facing pass]~~ → ~~Recovery~~ + ~~Lunge~~ → ~~Target Lock~~ → ~~Block~~ → ~~Light String~~ → ~~Parry~~ → ~~Knockdown~~ → ~~Skeleton Merge~~ → ~~Death-full~~ → **Regression Audit** → Polish → Settings → Art → Netcode → Tuning Rig → Gamemode → Interplay**
+> **~~Attack Ladder~~ → ~~Dodge~~ → ~~Sword & Shield~~ → ~~Input Buffer~~ → ~~Death~~ → ~~Dodge Distance~~ → ~~Attack Swap~~ → ~~[hover bug]~~ → ~~[facing pass]~~ → ~~Recovery~~ + ~~Lunge~~ → ~~Target Lock~~ → ~~Block~~ → ~~Light String~~ → ~~Parry~~ → ~~Knockdown~~ → ~~Skeleton Merge~~ → ~~Death-full~~ → ~~Regression Audit~~ → **Polish** → Settings → Art → Netcode → Tuning Rig → Gamemode → Interplay**
 
-**Pick up at Regression Audit's Phase 2** — the loop was rebuilt 2026-09-03 and **no coverage was
-added**. `Docs/Plan-Regression-Audit.md` is the contract: §0 state, §0b findings and two standing
-reds, §5 the unbuilt rows. Briefs are in `Docs/Combat-Decisions.md`; **the roster is one megaslice**.
+**Pick up at Polish.** Briefs are in `Docs/Combat-Decisions.md`; **the roster is one megaslice**.
+**Two matrix rows are red as defect candidates awaiting a ruling** — `tier-cells`' chained totals,
+`edge-lockout-end`'s held attack, both in the 2026-09-03 Phase 2 entry — the expected state until ruled.
 
 **The verification bar every slice now ships against** *(2026-08-24, the dated entry)*: verified
 functionality, with animations legible enough to tell which mechanic is firing. Visual refinement
