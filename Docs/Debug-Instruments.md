@@ -704,6 +704,7 @@ settings rather than assertions — as do measurements, which record what a run 
 | `block-heavy` | `s2-heavy` | hold 0.22 | auto_attack False, auto_defend_mode HOLD_BLOCK, get_up_mode WAIT, periodic_jump False | - | 150 |
 | `block-light` | `s2-light` | hold 0.1 | auto_attack False, auto_defend_mode HOLD_BLOCK, get_up_mode WAIT, periodic_jump False | - | 150 |
 | `block-stun-offense-only` | `-` | hold 0.1 | silent | - | 68 |
+| `dodge-airborne` | `-` | silent | silent | - | 32 |
 | `dodge-cycle` | `s3` | hold 0.1 | auto_attack False, auto_defend_mode PERIODIC_DODGE, get_up_mode WAIT, periodic_jump False | - | 120 |
 | `dodge-directions` | `-` | silent | silent | - | 84 |
 | `dodge-iframes` | `-` | hold 0.1 | silent | - | 68 |

@@ -128,6 +128,17 @@ float UTDGetUpAttackAbility::GetAttackParryLockoutSeconds() const
 	return FMath::Max(0.0f, WindupSeconds + ReleaseSeconds + RecoverySeconds - Elapsed);
 }
 
+bool UTDGetUpAttackAbility::ShouldBufferFailedInput(const FGameplayAbilityActorInfo* ActorInfo) const
+{
+	const UAbilitySystemComponent* ASC = (ActorInfo && ActorInfo->AbilitySystemComponent.IsValid())
+		? ActorInfo->AbilitySystemComponent.Get() : nullptr;
+	if (!ASC || !ASC->HasMatchingGameplayTag(TDTags::State_KnockedDown))
+	{
+		return false;
+	}
+	return Super::ShouldBufferFailedInput(ActorInfo);
+}
+
 void UTDGetUpAttackAbility::ReleaseCommitmentTag()
 {
 	SetCommitted(false);

@@ -32,6 +32,9 @@ public:
 	virtual const TCHAR* GetKnockdownRiseLabel(const class ATDCombatCharacter* Character) const override { return TEXT("attack"); }
 	virtual bool BringsOwnRiseMontage() const override { return true; }
 
+	/** Buffers a failed press only while the owner is knocked down. */
+	virtual bool ShouldBufferFailedInput(const FGameplayAbilityActorInfo* ActorInfo) const override;
+
 protected:
 	/** Seconds from the press to the release window opening. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Attack|Phases", meta=(ClampMin="0.01"))

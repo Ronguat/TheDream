@@ -671,6 +671,13 @@ def attack_airborne(ctx, r, s):
     r.add(stored == 0, "the airborne press is not buffered", "%d stored" % stored)
 
 
+def dodge_airborne(ctx, r, s):
+    _refused_row(ctx, r, s, "GA_Dodge", "DODGE")
+    player = ctx.who("player")
+    stored = sum(1 for seg in ctx.reps for _ in lines(seg, "BUFFER", player, "InputTag.Dodge: stored"))
+    r.add(stored == 0, "the airborne press is not buffered", "%d stored" % stored)
+
+
 def attack_whiff_commitment(ctx, r, s):
     _refused_row(ctx, r, s, "GA_Dodge", "DODGE")
 
@@ -1296,6 +1303,7 @@ ROWS = {
     "lock-block-speed": lock_block_speed,
     "lock-exhausted-speed": lock_exhausted_speed,
     "attack-airborne": attack_airborne,
+    "dodge-airborne": dodge_airborne,
     "attack-whiff-commitment": attack_whiff_commitment,
     "block-facing": block_facing,
     "parry-facing": parry_facing,

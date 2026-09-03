@@ -166,9 +166,8 @@ edit here that cannot be reviewed, because nothing is left to review.
 2026-09-03. The full real-time matrix has not run (only the canary families); no probe places the
 target below the attacker's height band; the parry lockout of chained heavy and charged cells (1/1,
 1/2, 2/1, 2/2) is unasserted because no dummy throws them; jump is untested as a get-up option; and
-`attack-airborne` is red for the game — the spec says an airborne refusal does not buffer and the
-game stores it — until the designer rules, so a matrix with that one red is the expected state, not
-a regression. The Phase 2 entry's two reds were fixed the same day; see the rulings entry above it.
+No row is red for the game as of the rulings entry: the Phase 2 entry's two reds and the airborne
+buffering were fixed the same day. A red in the matrix is a regression until an entry says otherwise.
 
 **~~Whenever a green matrix is read as coverage — *the audit rebuilt the loop and added none.*~~ —
 DISCHARGED 2026-09-03**, the same day, by Phase 2's fifty scripted rows: every mechanic the list
@@ -1957,9 +1956,18 @@ against the authored 492. `reach-aim-wedge` unchanged at 15° named, 35° none.
 
 - **The spec is not silent on the airborne press.** Its buffer paragraph ends "the airborne-attack
   and airborne-dodge refusals deliberately do not buffer"; the Phase 2 entry's "the spec is silent"
-  was wrong, read off a truncated grep. The game stores an airborne press and expires it at 200 ms.
-  `attack-airborne` asserts the spec's rule again and is **red as a defect candidate awaiting a
-  ruling**: fix the game, or move the spec.
+  was wrong, read off a truncated grep. The game stored an airborne press and expired it at 200 ms.
+  **Ruled and fixed the same day**: the attack's own `ShouldBufferFailedInput` already declined
+  while falling, but `GA_GetUpAttack` sits on the same input, is never blocked while airborne, and
+  its base vote stored the press by proxy. It now buffers a failed press only while its owner is
+  knocked down, the one state its window can act in. `attack-airborne` and a new `dodge-airborne`
+  assert the spec's rule: refused while airborne, nothing stored.
+- **A question that surfaced beside it, not decided here.** A get-up attack *tapped* inside the
+  lockout and released before the window opens still rises at the open, carried there by the
+  buffer (`edge-lockout-end`, 87 f). The knockdown section says a held option fires when the window
+  opens and that releasing before it abandons the option; the buffer section says a press within
+  `InputBufferSeconds` of the moment it can act counts. The two rules disagree on a tap made within
+  200 ms of the open. The game follows the buffer today. The designer's call.
 - Every `ReleaseStartSeconds` copy matched its notify to the millisecond; the 0.03 s warning has
   never fired for a real drift.
 - Under the fixed clock the viewport ghosts for up to a second; nothing the loop reads is affected

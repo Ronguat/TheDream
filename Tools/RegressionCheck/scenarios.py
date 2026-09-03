@@ -561,6 +561,11 @@ SCENARIOS["attack-airborne"] = _player_alone(
     "attack", plans=[[(0, "player", "tap", "jump"), (18, "player", "tap", "attack")]],
     mutations=[("drop", "REFUSED", 99)], reps=3, tail=90)
 
+# A dodge pressed in the air is refused while airborne and, per the spec, not buffered.
+SCENARIOS["dodge-airborne"] = _player_alone(
+    "dodge", plans=[[(0, "player", "tap", "jump"), (18, "player", "tap", "dodge")]],
+    mutations=[("drop", "REFUSED", 99)], reps=3, tail=90)
+
 # A whiffed light stays committed through its recovery: a dodge pressed at 24 f is refused.
 SCENARIOS["attack-whiff-commitment"] = _player_alone(
     "attack", plans=[[(0, "player", "tap", "attack"), (24, "player", "tap", "dodge")]],
@@ -849,7 +854,8 @@ _reach_row("reach-arc", [_at_bearing(d) for d in _ARC_DEG],
 
 # The band is 70 either side of the attacker; the target flies at the offset, above only, since a
 # capsule teleported into the floor is pushed out of it. 65 is inside on either convention, 170
-# outside on both.
+# outside on both. A flying target has no gravity, so a hit carries it sideways and it stays up; the
+# row reads only whether the hit landed.
 _HEIGHTS = (65, 170, 75, 100, 130, 150)
 _reach_row("reach-height", [_at_bearing(0, dz=h) for h in _HEIGHTS],
            [True, False, None, None, None, None], ["+%d cm" % h for h in _HEIGHTS],
