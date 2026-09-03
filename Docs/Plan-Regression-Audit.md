@@ -21,7 +21,8 @@ Ticked as units land, with the commit hash. *Verified* means the unit ran and it
 - [x] C2 — `5abbefa`, verified. `scenarios.py`, the runner, and `--slice <run>:<id>` brought
   forward from C3 because it is what lets one run be checked row by row. `tier-light` 5/5,
   `chain-early` 6/6, `input-hold-tier` 2/2 in 41 s of wall.
-- [ ] C3 — orchestrator, marker slicing, `--bands-check` with the format lint
+- [x] C3 — verified. Orchestrator with preflight and a pid lock, 36 bands re-derived, nine
+  relationships, dummy parity over 21 properties, and the format lint proven by making it fail.
 - [ ] C4 — universal invariants, mutations, frames, the frame ledger, golden skeletons, `summary.json`, `history.tsv`
 - [ ] C5 — all 38 rows ported under the new names; fixed-step matrix, repeatability pair, real-time matrix, golden baselines accepted; `ue_s8_driver.py` retired
 - [ ] C6 — Phase 1 docs
