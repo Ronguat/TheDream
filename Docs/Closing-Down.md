@@ -39,8 +39,8 @@ audit in miniature; the rest is making sure nothing is left on the floor.
    `Docs/Working-In-Unreal.md`, where every other reason to close it lives.
 2. **Run the loop, and read what it says rather than its exit code.**
    `./Tools/RegressionCheck/regression-run.sh --all`, then the real-time canary
-   `--family tier --realtime` and `string-cadence --realtime`. It takes about 26 minutes at the
-   fixed clock, so background it and do step 4 while it runs.
+   `--family tier --realtime` and `string-cadence --realtime`. It takes about 32 minutes at the
+   fixed clock for 88 rows *(1918 s, 2026-09-03)*, so background it and do step 4 while it runs.
 
    **A red row is a correctness item and blocks the push**, whether or not this session touched
    what it covers. **A CHANGED row is not a failure**: the golden skeleton reports what moved

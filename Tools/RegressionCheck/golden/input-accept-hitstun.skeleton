@@ -18,6 +18,19 @@ r=0 f=-4 AIM ASSIST BP_TrainingDummy_C_2
 r=0 f=-4 AIM WEDGE BP_TrainingDummy_C_2 
 r=0 f=-4 COMMIT BP_TrainingDummy_C_2 branch=0
 r=0 f=-4 TARGET BP_TrainingDummy_C_2 
+r=0 f=-1 REFUSED BP_PlayerCharacter_C_0 
+r=0 f=-1 REFUSED BP_PlayerCharacter_C_0 
+r=0 f=-1 REFUSED BP_PlayerCharacter_C_0 
+r=0 f=-1 REFUSED BP_PlayerCharacter_C_0 
+r=0 f=-1 REFUSED BP_PlayerCharacter_C_0 
+r=0 f=-1 REFUSED BP_PlayerCharacter_C_0 
+r=0 f=-1 REFUSED BP_PlayerCharacter_C_0 
+r=0 f=-1 REFUSED BP_PlayerCharacter_C_0 
+r=0 f=-1 REFUSED BP_PlayerCharacter_C_0 
+r=0 f=-1 REFUSED BP_PlayerCharacter_C_0 
+r=0 f=-1 REFUSED BP_PlayerCharacter_C_0 
+r=0 f=-1 REFUSED BP_PlayerCharacter_C_0 
+r=0 f=-1 REFUSED BP_PlayerCharacter_C_0 
 r=0 f=-1 RELEASE BEGIN BP_TrainingDummy_C_2 
 r=0 f=-1 RELEASE BP_TrainingDummy_C_2 
 r=0 f=-1 TARGET BP_TrainingDummy_C_2 
@@ -31,21 +44,8 @@ r=0 f=8 RELEASE END BP_TrainingDummy_C_2
 r=0 f=8 RELEASE OFF BP_TrainingDummy_C_2 
 r=0 f=20 BUFFER BP_PlayerCharacter_C_0 
 r=0 f=20 INPUT BP_PlayerCharacter_C_0 
-r=0 f=20 REFUSED BP_PlayerCharacter_C_0 
-r=0 f=20 REFUSED BP_PlayerCharacter_C_0 
-r=0 f=21 REFUSED BP_PlayerCharacter_C_0 
 r=0 f=22 BUFFER BP_PlayerCharacter_C_0 
 r=0 f=22 INPUT BP_PlayerCharacter_C_0 
-r=0 f=22 REFUSED BP_PlayerCharacter_C_0 
-r=0 f=23 REFUSED BP_PlayerCharacter_C_0 
-r=0 f=24 REFUSED BP_PlayerCharacter_C_0 
-r=0 f=25 REFUSED BP_PlayerCharacter_C_0 
-r=0 f=26 REFUSED BP_PlayerCharacter_C_0 
-r=0 f=27 REFUSED BP_PlayerCharacter_C_0 
-r=0 f=28 REFUSED BP_PlayerCharacter_C_0 
-r=0 f=29 REFUSED BP_PlayerCharacter_C_0 
-r=0 f=30 REFUSED BP_PlayerCharacter_C_0 
-r=0 f=31 REFUSED BP_PlayerCharacter_C_0 
 r=0 f=32 BUFFER BP_PlayerCharacter_C_0 
 r=0 f=33 HITSTUN END BP_PlayerCharacter_C_0 
 r=0 f=33 MOVE UNLOCK BP_TrainingDummy_C_2 
@@ -72,6 +72,17 @@ r=1 f=-4 AIM ASSIST BP_TrainingDummy_C_2
 r=1 f=-4 AIM WEDGE BP_TrainingDummy_C_2 
 r=1 f=-4 COMMIT BP_TrainingDummy_C_2 branch=0
 r=1 f=-4 TARGET BP_TrainingDummy_C_2 
+r=1 f=-1 REFUSED BP_PlayerCharacter_C_0 
+r=1 f=-1 REFUSED BP_PlayerCharacter_C_0 
+r=1 f=-1 REFUSED BP_PlayerCharacter_C_0 
+r=1 f=-1 REFUSED BP_PlayerCharacter_C_0 
+r=1 f=-1 REFUSED BP_PlayerCharacter_C_0 
+r=1 f=-1 REFUSED BP_PlayerCharacter_C_0 
+r=1 f=-1 REFUSED BP_PlayerCharacter_C_0 
+r=1 f=-1 REFUSED BP_PlayerCharacter_C_0 
+r=1 f=-1 REFUSED BP_PlayerCharacter_C_0 
+r=1 f=-1 REFUSED BP_PlayerCharacter_C_0 
+r=1 f=-1 REFUSED BP_PlayerCharacter_C_0 
 r=1 f=-1 RELEASE BEGIN BP_TrainingDummy_C_2 
 r=1 f=-1 RELEASE BP_TrainingDummy_C_2 
 r=1 f=-1 TARGET BP_TrainingDummy_C_2 
@@ -85,19 +96,8 @@ r=1 f=8 RELEASE OFF BP_TrainingDummy_C_2
 r=1 f=9 RELEASE END BP_TrainingDummy_C_2 
 r=1 f=24 BUFFER BP_PlayerCharacter_C_0 
 r=1 f=24 INPUT BP_PlayerCharacter_C_0 
-r=1 f=24 REFUSED BP_PlayerCharacter_C_0 
-r=1 f=24 REFUSED BP_PlayerCharacter_C_0 
-r=1 f=25 REFUSED BP_PlayerCharacter_C_0 
 r=1 f=26 BUFFER BP_PlayerCharacter_C_0 
 r=1 f=26 INPUT BP_PlayerCharacter_C_0 
-r=1 f=26 REFUSED BP_PlayerCharacter_C_0 
-r=1 f=27 REFUSED BP_PlayerCharacter_C_0 
-r=1 f=28 REFUSED BP_PlayerCharacter_C_0 
-r=1 f=29 REFUSED BP_PlayerCharacter_C_0 
-r=1 f=30 REFUSED BP_PlayerCharacter_C_0 
-r=1 f=31 REFUSED BP_PlayerCharacter_C_0 
-r=1 f=32 REFUSED BP_PlayerCharacter_C_0 
-r=1 f=33 REFUSED BP_PlayerCharacter_C_0 
 r=1 f=34 ACTIVATE BP_PlayerCharacter_C_0 swing=0
 r=1 f=34 AIM WEDGE BP_PlayerCharacter_C_0 
 r=1 f=34 BUFFER BP_PlayerCharacter_C_0 
@@ -149,6 +149,19 @@ r=2 f=-4 AIM ASSIST BP_TrainingDummy_C_2
 r=2 f=-4 AIM WEDGE BP_TrainingDummy_C_2 
 r=2 f=-4 COMMIT BP_TrainingDummy_C_2 branch=0
 r=2 f=-4 TARGET BP_TrainingDummy_C_2 
+r=2 f=-1 REFUSED BP_PlayerCharacter_C_0 
+r=2 f=-1 REFUSED BP_PlayerCharacter_C_0 
+r=2 f=-1 REFUSED BP_PlayerCharacter_C_0 
+r=2 f=-1 REFUSED BP_PlayerCharacter_C_0 
+r=2 f=-1 REFUSED BP_PlayerCharacter_C_0 
+r=2 f=-1 REFUSED BP_PlayerCharacter_C_0 
+r=2 f=-1 REFUSED BP_PlayerCharacter_C_0 
+r=2 f=-1 REFUSED BP_PlayerCharacter_C_0 
+r=2 f=-1 REFUSED BP_PlayerCharacter_C_0 
+r=2 f=-1 REFUSED BP_PlayerCharacter_C_0 
+r=2 f=-1 REFUSED BP_PlayerCharacter_C_0 
+r=2 f=-1 REFUSED BP_PlayerCharacter_C_0 
+r=2 f=-1 REFUSED BP_PlayerCharacter_C_0 
 r=2 f=-1 RELEASE BEGIN BP_TrainingDummy_C_2 
 r=2 f=-1 RELEASE BP_TrainingDummy_C_2 
 r=2 f=-1 TARGET BP_TrainingDummy_C_2 
@@ -162,21 +175,8 @@ r=2 f=8 RELEASE END BP_TrainingDummy_C_2
 r=2 f=8 RELEASE OFF BP_TrainingDummy_C_2 
 r=2 f=20 BUFFER BP_PlayerCharacter_C_0 
 r=2 f=20 INPUT BP_PlayerCharacter_C_0 
-r=2 f=20 REFUSED BP_PlayerCharacter_C_0 
-r=2 f=20 REFUSED BP_PlayerCharacter_C_0 
-r=2 f=21 REFUSED BP_PlayerCharacter_C_0 
 r=2 f=22 BUFFER BP_PlayerCharacter_C_0 
 r=2 f=22 INPUT BP_PlayerCharacter_C_0 
-r=2 f=22 REFUSED BP_PlayerCharacter_C_0 
-r=2 f=23 REFUSED BP_PlayerCharacter_C_0 
-r=2 f=24 REFUSED BP_PlayerCharacter_C_0 
-r=2 f=25 REFUSED BP_PlayerCharacter_C_0 
-r=2 f=26 REFUSED BP_PlayerCharacter_C_0 
-r=2 f=27 REFUSED BP_PlayerCharacter_C_0 
-r=2 f=28 REFUSED BP_PlayerCharacter_C_0 
-r=2 f=29 REFUSED BP_PlayerCharacter_C_0 
-r=2 f=30 REFUSED BP_PlayerCharacter_C_0 
-r=2 f=31 REFUSED BP_PlayerCharacter_C_0 
 r=2 f=32 BUFFER BP_PlayerCharacter_C_0 
 r=2 f=33 HITSTUN END BP_PlayerCharacter_C_0 
 r=2 f=33 MOVE UNLOCK BP_TrainingDummy_C_2 
@@ -203,6 +203,16 @@ r=3 f=-4 AIM ASSIST BP_TrainingDummy_C_2
 r=3 f=-4 AIM WEDGE BP_TrainingDummy_C_2 
 r=3 f=-4 COMMIT BP_TrainingDummy_C_2 branch=0
 r=3 f=-4 TARGET BP_TrainingDummy_C_2 
+r=3 f=-1 REFUSED BP_PlayerCharacter_C_0 
+r=3 f=-1 REFUSED BP_PlayerCharacter_C_0 
+r=3 f=-1 REFUSED BP_PlayerCharacter_C_0 
+r=3 f=-1 REFUSED BP_PlayerCharacter_C_0 
+r=3 f=-1 REFUSED BP_PlayerCharacter_C_0 
+r=3 f=-1 REFUSED BP_PlayerCharacter_C_0 
+r=3 f=-1 REFUSED BP_PlayerCharacter_C_0 
+r=3 f=-1 REFUSED BP_PlayerCharacter_C_0 
+r=3 f=-1 REFUSED BP_PlayerCharacter_C_0 
+r=3 f=-1 REFUSED BP_PlayerCharacter_C_0 
 r=3 f=-1 RELEASE BEGIN BP_TrainingDummy_C_2 
 r=3 f=-1 RELEASE BP_TrainingDummy_C_2 
 r=3 f=-1 TARGET BP_TrainingDummy_C_2 
@@ -216,18 +226,8 @@ r=3 f=8 RELEASE END BP_TrainingDummy_C_2
 r=3 f=8 RELEASE OFF BP_TrainingDummy_C_2 
 r=3 f=24 BUFFER BP_PlayerCharacter_C_0 
 r=3 f=24 INPUT BP_PlayerCharacter_C_0 
-r=3 f=24 REFUSED BP_PlayerCharacter_C_0 
-r=3 f=24 REFUSED BP_PlayerCharacter_C_0 
-r=3 f=25 REFUSED BP_PlayerCharacter_C_0 
 r=3 f=26 BUFFER BP_PlayerCharacter_C_0 
 r=3 f=26 INPUT BP_PlayerCharacter_C_0 
-r=3 f=26 REFUSED BP_PlayerCharacter_C_0 
-r=3 f=27 REFUSED BP_PlayerCharacter_C_0 
-r=3 f=28 REFUSED BP_PlayerCharacter_C_0 
-r=3 f=29 REFUSED BP_PlayerCharacter_C_0 
-r=3 f=30 REFUSED BP_PlayerCharacter_C_0 
-r=3 f=31 REFUSED BP_PlayerCharacter_C_0 
-r=3 f=32 REFUSED BP_PlayerCharacter_C_0 
 r=3 f=33 ACTIVATE BP_PlayerCharacter_C_0 swing=0
 r=3 f=33 AIM WEDGE BP_PlayerCharacter_C_0 
 r=3 f=33 BUFFER BP_PlayerCharacter_C_0 
@@ -279,6 +279,19 @@ r=4 f=-4 AIM ASSIST BP_TrainingDummy_C_2
 r=4 f=-4 AIM WEDGE BP_TrainingDummy_C_2 
 r=4 f=-4 COMMIT BP_TrainingDummy_C_2 branch=0
 r=4 f=-4 TARGET BP_TrainingDummy_C_2 
+r=4 f=-1 REFUSED BP_PlayerCharacter_C_0 
+r=4 f=-1 REFUSED BP_PlayerCharacter_C_0 
+r=4 f=-1 REFUSED BP_PlayerCharacter_C_0 
+r=4 f=-1 REFUSED BP_PlayerCharacter_C_0 
+r=4 f=-1 REFUSED BP_PlayerCharacter_C_0 
+r=4 f=-1 REFUSED BP_PlayerCharacter_C_0 
+r=4 f=-1 REFUSED BP_PlayerCharacter_C_0 
+r=4 f=-1 REFUSED BP_PlayerCharacter_C_0 
+r=4 f=-1 REFUSED BP_PlayerCharacter_C_0 
+r=4 f=-1 REFUSED BP_PlayerCharacter_C_0 
+r=4 f=-1 REFUSED BP_PlayerCharacter_C_0 
+r=4 f=-1 REFUSED BP_PlayerCharacter_C_0 
+r=4 f=-1 REFUSED BP_PlayerCharacter_C_0 
 r=4 f=-1 RELEASE BEGIN BP_TrainingDummy_C_2 
 r=4 f=-1 RELEASE BP_TrainingDummy_C_2 
 r=4 f=-1 TARGET BP_TrainingDummy_C_2 
@@ -292,21 +305,8 @@ r=4 f=9 RELEASE END BP_TrainingDummy_C_2
 r=4 f=9 RELEASE OFF BP_TrainingDummy_C_2 
 r=4 f=20 BUFFER BP_PlayerCharacter_C_0 
 r=4 f=20 INPUT BP_PlayerCharacter_C_0 
-r=4 f=20 REFUSED BP_PlayerCharacter_C_0 
-r=4 f=20 REFUSED BP_PlayerCharacter_C_0 
-r=4 f=21 REFUSED BP_PlayerCharacter_C_0 
 r=4 f=22 BUFFER BP_PlayerCharacter_C_0 
 r=4 f=22 INPUT BP_PlayerCharacter_C_0 
-r=4 f=22 REFUSED BP_PlayerCharacter_C_0 
-r=4 f=23 REFUSED BP_PlayerCharacter_C_0 
-r=4 f=24 REFUSED BP_PlayerCharacter_C_0 
-r=4 f=25 REFUSED BP_PlayerCharacter_C_0 
-r=4 f=26 REFUSED BP_PlayerCharacter_C_0 
-r=4 f=27 REFUSED BP_PlayerCharacter_C_0 
-r=4 f=28 REFUSED BP_PlayerCharacter_C_0 
-r=4 f=29 REFUSED BP_PlayerCharacter_C_0 
-r=4 f=30 REFUSED BP_PlayerCharacter_C_0 
-r=4 f=31 REFUSED BP_PlayerCharacter_C_0 
 r=4 f=32 BUFFER BP_PlayerCharacter_C_0 
 r=4 f=33 HITSTUN END BP_PlayerCharacter_C_0 
 r=4 f=33 MOVE UNLOCK BP_TrainingDummy_C_2 
@@ -333,6 +333,17 @@ r=5 f=-4 AIM ASSIST BP_TrainingDummy_C_2
 r=5 f=-4 AIM WEDGE BP_TrainingDummy_C_2 
 r=5 f=-4 COMMIT BP_TrainingDummy_C_2 branch=0
 r=5 f=-4 TARGET BP_TrainingDummy_C_2 
+r=5 f=-1 REFUSED BP_PlayerCharacter_C_0 
+r=5 f=-1 REFUSED BP_PlayerCharacter_C_0 
+r=5 f=-1 REFUSED BP_PlayerCharacter_C_0 
+r=5 f=-1 REFUSED BP_PlayerCharacter_C_0 
+r=5 f=-1 REFUSED BP_PlayerCharacter_C_0 
+r=5 f=-1 REFUSED BP_PlayerCharacter_C_0 
+r=5 f=-1 REFUSED BP_PlayerCharacter_C_0 
+r=5 f=-1 REFUSED BP_PlayerCharacter_C_0 
+r=5 f=-1 REFUSED BP_PlayerCharacter_C_0 
+r=5 f=-1 REFUSED BP_PlayerCharacter_C_0 
+r=5 f=-1 REFUSED BP_PlayerCharacter_C_0 
 r=5 f=-1 RELEASE BEGIN BP_TrainingDummy_C_2 
 r=5 f=-1 RELEASE BP_TrainingDummy_C_2 
 r=5 f=-1 TARGET BP_TrainingDummy_C_2 
@@ -346,19 +357,8 @@ r=5 f=8 RELEASE END BP_TrainingDummy_C_2
 r=5 f=8 RELEASE OFF BP_TrainingDummy_C_2 
 r=5 f=24 BUFFER BP_PlayerCharacter_C_0 
 r=5 f=24 INPUT BP_PlayerCharacter_C_0 
-r=5 f=24 REFUSED BP_PlayerCharacter_C_0 
-r=5 f=24 REFUSED BP_PlayerCharacter_C_0 
-r=5 f=25 REFUSED BP_PlayerCharacter_C_0 
 r=5 f=26 BUFFER BP_PlayerCharacter_C_0 
 r=5 f=26 INPUT BP_PlayerCharacter_C_0 
-r=5 f=26 REFUSED BP_PlayerCharacter_C_0 
-r=5 f=27 REFUSED BP_PlayerCharacter_C_0 
-r=5 f=28 REFUSED BP_PlayerCharacter_C_0 
-r=5 f=29 REFUSED BP_PlayerCharacter_C_0 
-r=5 f=30 REFUSED BP_PlayerCharacter_C_0 
-r=5 f=31 REFUSED BP_PlayerCharacter_C_0 
-r=5 f=32 REFUSED BP_PlayerCharacter_C_0 
-r=5 f=33 REFUSED BP_PlayerCharacter_C_0 
 r=5 f=34 ACTIVATE BP_PlayerCharacter_C_0 swing=0
 r=5 f=34 AIM WEDGE BP_PlayerCharacter_C_0 
 r=5 f=34 BUFFER BP_PlayerCharacter_C_0 

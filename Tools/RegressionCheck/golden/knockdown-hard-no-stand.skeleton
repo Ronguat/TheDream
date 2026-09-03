@@ -1,3 +1,63 @@
+f=-1 REFUSED BP_TrainingDummy_C_1 
+f=-1 REFUSED BP_TrainingDummy_C_1 
+f=-1 REFUSED BP_TrainingDummy_C_1 
+f=-1 REFUSED BP_TrainingDummy_C_1 
+f=-1 REFUSED BP_TrainingDummy_C_1 
+f=-1 REFUSED BP_TrainingDummy_C_1 
+f=-1 REFUSED BP_TrainingDummy_C_1 
+f=-1 REFUSED BP_TrainingDummy_C_1 
+f=-1 REFUSED BP_TrainingDummy_C_1 
+f=-1 REFUSED BP_TrainingDummy_C_1 
+f=-1 REFUSED BP_TrainingDummy_C_1 
+f=-1 REFUSED BP_TrainingDummy_C_1 
+f=-1 REFUSED BP_TrainingDummy_C_1 
+f=-1 REFUSED BP_TrainingDummy_C_1 
+f=-1 REFUSED BP_TrainingDummy_C_1 
+f=-1 REFUSED BP_TrainingDummy_C_1 
+f=-1 REFUSED BP_TrainingDummy_C_1 
+f=-1 REFUSED BP_TrainingDummy_C_1 
+f=-1 REFUSED BP_TrainingDummy_C_1 
+f=-1 REFUSED BP_TrainingDummy_C_1 
+f=-1 REFUSED BP_TrainingDummy_C_1 
+f=-1 REFUSED BP_TrainingDummy_C_1 
+f=-1 REFUSED BP_TrainingDummy_C_1 
+f=-1 REFUSED BP_TrainingDummy_C_1 
+f=-1 REFUSED BP_TrainingDummy_C_1 
+f=-1 REFUSED BP_TrainingDummy_C_1 
+f=-1 REFUSED BP_TrainingDummy_C_1 
+f=-1 REFUSED BP_TrainingDummy_C_1 
+f=-1 REFUSED BP_TrainingDummy_C_1 
+f=-1 REFUSED BP_TrainingDummy_C_1 
+f=-1 REFUSED BP_TrainingDummy_C_1 
+f=-1 REFUSED BP_TrainingDummy_C_1 
+f=-1 REFUSED BP_TrainingDummy_C_1 
+f=-1 REFUSED BP_TrainingDummy_C_1 
+f=-1 REFUSED BP_TrainingDummy_C_1 
+f=-1 REFUSED BP_TrainingDummy_C_1 
+f=-1 REFUSED BP_TrainingDummy_C_1 
+f=-1 REFUSED BP_TrainingDummy_C_1 
+f=-1 REFUSED BP_TrainingDummy_C_1 
+f=-1 REFUSED BP_TrainingDummy_C_1 
+f=-1 REFUSED BP_TrainingDummy_C_1 
+f=-1 REFUSED BP_TrainingDummy_C_1 
+f=-1 REFUSED BP_TrainingDummy_C_1 
+f=-1 REFUSED BP_TrainingDummy_C_1 
+f=-1 REFUSED BP_TrainingDummy_C_1 
+f=-1 REFUSED BP_TrainingDummy_C_1 
+f=-1 REFUSED BP_TrainingDummy_C_1 
+f=-1 REFUSED BP_TrainingDummy_C_1 
+f=-1 REFUSED BP_TrainingDummy_C_1 
+f=-1 REFUSED BP_TrainingDummy_C_1 
+f=-1 REFUSED BP_TrainingDummy_C_1 
+f=-1 REFUSED BP_TrainingDummy_C_1 
+f=-1 REFUSED BP_TrainingDummy_C_1 
+f=-1 REFUSED BP_TrainingDummy_C_1 
+f=-1 REFUSED BP_TrainingDummy_C_1 
+f=-1 REFUSED BP_TrainingDummy_C_1 
+f=-1 REFUSED BP_TrainingDummy_C_1 
+f=-1 REFUSED BP_TrainingDummy_C_1 
+f=-1 REFUSED BP_TrainingDummy_C_1 
+f=-1 REFUSED BP_TrainingDummy_C_1 
 f=181 ACTIVATE BP_TrainingDummy_C_2 swing=0
 f=181 AIM WEDGE BP_TrainingDummy_C_2 
 f=181 HOME RESET BP_TrainingDummy_C_2 
@@ -35,12 +95,7 @@ f=246 MONTAGE BP_TrainingDummy_C_2 section=None
 f=267 HOME RESET BP_TrainingDummy_C_2 
 f=300 DEBUG GETUP BP_TrainingDummy_C_1 
 f=300 INPUT BP_TrainingDummy_C_1 
-f=300 REFUSED BP_TrainingDummy_C_1 
-f=300 REFUSED BP_TrainingDummy_C_1 
-f=301 REFUSED BP_TrainingDummy_C_1 
-f=302 REFUSED BP_TrainingDummy_C_1 
 f=303 INPUT BP_TrainingDummy_C_1 
-f=303 REFUSED BP_TrainingDummy_C_1 
 f=327 KNOCKDOWN MONTAGE BP_TrainingDummy_C_1 
 f=327 KNOCKDOWN RISE BP_TrainingDummy_C_1 by=auto
 f=357 HOME RESET BP_TrainingDummy_C_1 
@@ -82,12 +137,7 @@ f=425 MONTAGE BP_TrainingDummy_C_2 section=None
 f=446 HOME RESET BP_TrainingDummy_C_2 
 f=480 DEBUG GETUP BP_TrainingDummy_C_1 
 f=480 INPUT BP_TrainingDummy_C_1 
-f=480 REFUSED BP_TrainingDummy_C_1 
-f=480 REFUSED BP_TrainingDummy_C_1 
-f=481 REFUSED BP_TrainingDummy_C_1 
-f=482 REFUSED BP_TrainingDummy_C_1 
 f=483 INPUT BP_TrainingDummy_C_1 
-f=483 REFUSED BP_TrainingDummy_C_1 
 f=507 KNOCKDOWN MONTAGE BP_TrainingDummy_C_1 
 f=507 KNOCKDOWN RISE BP_TrainingDummy_C_1 by=auto
 f=537 KNOCKDOWN STAND BP_TrainingDummy_C_1 
@@ -129,12 +179,7 @@ f=606 MONTAGE BP_TrainingDummy_C_2 section=None
 f=627 HOME RESET BP_TrainingDummy_C_2 
 f=660 DEBUG GETUP BP_TrainingDummy_C_1 
 f=660 INPUT BP_TrainingDummy_C_1 
-f=660 REFUSED BP_TrainingDummy_C_1 
-f=660 REFUSED BP_TrainingDummy_C_1 
-f=661 REFUSED BP_TrainingDummy_C_1 
-f=662 REFUSED BP_TrainingDummy_C_1 
 f=663 INPUT BP_TrainingDummy_C_1 
-f=663 REFUSED BP_TrainingDummy_C_1 
 f=687 KNOCKDOWN MONTAGE BP_TrainingDummy_C_1 
 f=687 KNOCKDOWN RISE BP_TrainingDummy_C_1 by=auto
 f=717 KNOCKDOWN STAND BP_TrainingDummy_C_1 
@@ -240,12 +285,7 @@ f=1146 MONTAGE BP_TrainingDummy_C_2 section=None
 f=1167 HOME RESET BP_TrainingDummy_C_2 
 f=1200 DEBUG GETUP BP_TrainingDummy_C_1 
 f=1200 INPUT BP_TrainingDummy_C_1 
-f=1200 REFUSED BP_TrainingDummy_C_1 
-f=1200 REFUSED BP_TrainingDummy_C_1 
-f=1201 REFUSED BP_TrainingDummy_C_1 
-f=1202 REFUSED BP_TrainingDummy_C_1 
 f=1203 INPUT BP_TrainingDummy_C_1 
-f=1203 REFUSED BP_TrainingDummy_C_1 
 f=1227 KNOCKDOWN MONTAGE BP_TrainingDummy_C_1 
 f=1227 KNOCKDOWN RISE BP_TrainingDummy_C_1 by=auto
 f=1257 HOME RESET BP_TrainingDummy_C_1 
@@ -287,12 +327,7 @@ f=1326 MONTAGE BP_TrainingDummy_C_2 section=None
 f=1347 HOME RESET BP_TrainingDummy_C_2 
 f=1380 DEBUG GETUP BP_TrainingDummy_C_1 
 f=1380 INPUT BP_TrainingDummy_C_1 
-f=1380 REFUSED BP_TrainingDummy_C_1 
-f=1380 REFUSED BP_TrainingDummy_C_1 
-f=1381 REFUSED BP_TrainingDummy_C_1 
-f=1382 REFUSED BP_TrainingDummy_C_1 
 f=1383 INPUT BP_TrainingDummy_C_1 
-f=1383 REFUSED BP_TrainingDummy_C_1 
 f=1407 KNOCKDOWN MONTAGE BP_TrainingDummy_C_1 
 f=1407 KNOCKDOWN RISE BP_TrainingDummy_C_1 by=auto
 f=1437 HOME RESET BP_TrainingDummy_C_1 
@@ -334,12 +369,7 @@ f=1506 MONTAGE BP_TrainingDummy_C_2 section=None
 f=1527 HOME RESET BP_TrainingDummy_C_2 
 f=1560 DEBUG GETUP BP_TrainingDummy_C_1 
 f=1560 INPUT BP_TrainingDummy_C_1 
-f=1560 REFUSED BP_TrainingDummy_C_1 
-f=1560 REFUSED BP_TrainingDummy_C_1 
-f=1561 REFUSED BP_TrainingDummy_C_1 
-f=1562 REFUSED BP_TrainingDummy_C_1 
 f=1563 INPUT BP_TrainingDummy_C_1 
-f=1563 REFUSED BP_TrainingDummy_C_1 
 f=1587 KNOCKDOWN MONTAGE BP_TrainingDummy_C_1 
 f=1587 KNOCKDOWN RISE BP_TrainingDummy_C_1 by=auto
 f=1617 HOME RESET BP_TrainingDummy_C_1 
@@ -445,12 +475,7 @@ f=2045 MONTAGE BP_TrainingDummy_C_2 section=None
 f=2066 HOME RESET BP_TrainingDummy_C_2 
 f=2100 DEBUG GETUP BP_TrainingDummy_C_1 
 f=2100 INPUT BP_TrainingDummy_C_1 
-f=2100 REFUSED BP_TrainingDummy_C_1 
-f=2100 REFUSED BP_TrainingDummy_C_1 
-f=2101 REFUSED BP_TrainingDummy_C_1 
-f=2102 REFUSED BP_TrainingDummy_C_1 
 f=2103 INPUT BP_TrainingDummy_C_1 
-f=2103 REFUSED BP_TrainingDummy_C_1 
 f=2127 KNOCKDOWN MONTAGE BP_TrainingDummy_C_1 
 f=2127 KNOCKDOWN RISE BP_TrainingDummy_C_1 by=auto
 f=2157 HOME RESET BP_TrainingDummy_C_1 
@@ -492,12 +517,7 @@ f=2225 MONTAGE BP_TrainingDummy_C_2 section=None
 f=2246 HOME RESET BP_TrainingDummy_C_2 
 f=2280 DEBUG GETUP BP_TrainingDummy_C_1 
 f=2280 INPUT BP_TrainingDummy_C_1 
-f=2280 REFUSED BP_TrainingDummy_C_1 
-f=2280 REFUSED BP_TrainingDummy_C_1 
-f=2281 REFUSED BP_TrainingDummy_C_1 
-f=2282 REFUSED BP_TrainingDummy_C_1 
 f=2283 INPUT BP_TrainingDummy_C_1 
-f=2283 REFUSED BP_TrainingDummy_C_1 
 f=2307 KNOCKDOWN MONTAGE BP_TrainingDummy_C_1 
 f=2307 KNOCKDOWN RISE BP_TrainingDummy_C_1 by=auto
 f=2337 HOME RESET BP_TrainingDummy_C_1 
@@ -539,12 +559,7 @@ f=2405 MONTAGE BP_TrainingDummy_C_2 section=None
 f=2426 HOME RESET BP_TrainingDummy_C_2 
 f=2460 DEBUG GETUP BP_TrainingDummy_C_1 
 f=2460 INPUT BP_TrainingDummy_C_1 
-f=2460 REFUSED BP_TrainingDummy_C_1 
-f=2460 REFUSED BP_TrainingDummy_C_1 
-f=2461 REFUSED BP_TrainingDummy_C_1 
-f=2462 REFUSED BP_TrainingDummy_C_1 
 f=2463 INPUT BP_TrainingDummy_C_1 
-f=2463 REFUSED BP_TrainingDummy_C_1 
 f=2487 KNOCKDOWN MONTAGE BP_TrainingDummy_C_1 
 f=2487 KNOCKDOWN RISE BP_TrainingDummy_C_1 by=auto
 f=2517 HOME RESET BP_TrainingDummy_C_1 
@@ -650,12 +665,7 @@ f=2945 MONTAGE BP_TrainingDummy_C_2 section=None
 f=2966 HOME RESET BP_TrainingDummy_C_2 
 f=3000 DEBUG GETUP BP_TrainingDummy_C_1 
 f=3000 INPUT BP_TrainingDummy_C_1 
-f=3000 REFUSED BP_TrainingDummy_C_1 
-f=3000 REFUSED BP_TrainingDummy_C_1 
-f=3001 REFUSED BP_TrainingDummy_C_1 
-f=3002 REFUSED BP_TrainingDummy_C_1 
 f=3003 INPUT BP_TrainingDummy_C_1 
-f=3003 REFUSED BP_TrainingDummy_C_1 
 f=3027 KNOCKDOWN MONTAGE BP_TrainingDummy_C_1 
 f=3027 KNOCKDOWN RISE BP_TrainingDummy_C_1 by=auto
 f=3057 HOME RESET BP_TrainingDummy_C_1 
@@ -697,12 +707,7 @@ f=3125 MONTAGE BP_TrainingDummy_C_2 section=None
 f=3146 HOME RESET BP_TrainingDummy_C_2 
 f=3180 DEBUG GETUP BP_TrainingDummy_C_1 
 f=3180 INPUT BP_TrainingDummy_C_1 
-f=3180 REFUSED BP_TrainingDummy_C_1 
-f=3180 REFUSED BP_TrainingDummy_C_1 
-f=3181 REFUSED BP_TrainingDummy_C_1 
-f=3182 REFUSED BP_TrainingDummy_C_1 
 f=3183 INPUT BP_TrainingDummy_C_1 
-f=3183 REFUSED BP_TrainingDummy_C_1 
 f=3207 KNOCKDOWN MONTAGE BP_TrainingDummy_C_1 
 f=3207 KNOCKDOWN RISE BP_TrainingDummy_C_1 by=auto
 f=3237 KNOCKDOWN STAND BP_TrainingDummy_C_1 
@@ -744,12 +749,7 @@ f=3305 MONTAGE BP_TrainingDummy_C_2 section=None
 f=3326 HOME RESET BP_TrainingDummy_C_2 
 f=3360 DEBUG GETUP BP_TrainingDummy_C_1 
 f=3360 INPUT BP_TrainingDummy_C_1 
-f=3360 REFUSED BP_TrainingDummy_C_1 
-f=3360 REFUSED BP_TrainingDummy_C_1 
-f=3361 REFUSED BP_TrainingDummy_C_1 
-f=3362 REFUSED BP_TrainingDummy_C_1 
 f=3363 INPUT BP_TrainingDummy_C_1 
-f=3363 REFUSED BP_TrainingDummy_C_1 
 f=3387 KNOCKDOWN MONTAGE BP_TrainingDummy_C_1 
 f=3387 KNOCKDOWN RISE BP_TrainingDummy_C_1 by=auto
 f=3417 KNOCKDOWN STAND BP_TrainingDummy_C_1 

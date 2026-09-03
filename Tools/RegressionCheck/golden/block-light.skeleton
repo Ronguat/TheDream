@@ -1,3 +1,14 @@
+f=-1 REFUSED BP_TrainingDummy_C_1 
+f=-1 REFUSED BP_TrainingDummy_C_1 
+f=-1 REFUSED BP_TrainingDummy_C_1 
+f=-1 REFUSED BP_TrainingDummy_C_1 
+f=-1 REFUSED BP_TrainingDummy_C_1 
+f=-1 REFUSED BP_TrainingDummy_C_1 
+f=-1 REFUSED BP_TrainingDummy_C_1 
+f=-1 REFUSED BP_TrainingDummy_C_1 
+f=-1 REFUSED BP_TrainingDummy_C_1 
+f=-1 REFUSED BP_TrainingDummy_C_1 
+f=-1 REFUSED BP_TrainingDummy_C_1 
 f=181 ACTIVATE BP_TrainingDummy_C_2 swing=0
 f=181 AIM WEDGE BP_TrainingDummy_C_2 
 f=181 HOME RESET BP_TrainingDummy_C_2 
@@ -71,19 +82,13 @@ f=556 EXHAUSTED BP_TrainingDummy_C_1
 f=556 GUARD BREAK BP_TrainingDummy_C_1 
 f=556 KNOCKBACK BP_TrainingDummy_C_1 by=BP_TrainingDummy_C_2
 f=556 LUNGE STOP BP_TrainingDummy_C_2 
-f=557 REFUSED BP_TrainingDummy_C_1 
 f=563 RELEASE END BP_TrainingDummy_C_2 
 f=563 RELEASE OFF BP_TrainingDummy_C_2 
-f=588 REFUSED BP_TrainingDummy_C_1 
 f=600 ABILITY END BP_TrainingDummy_C_2 
 f=600 AIM WEDGE BP_TrainingDummy_C_2 
 f=600 MONTAGE BP_TrainingDummy_C_2 section=None
 f=617 GUARD END BP_TrainingDummy_C_1 
-f=619 REFUSED BP_TrainingDummy_C_1 
 f=621 HOME RESET BP_TrainingDummy_C_2 
-f=650 REFUSED BP_TrainingDummy_C_1 
-f=681 REFUSED BP_TrainingDummy_C_1 
-f=712 REFUSED BP_TrainingDummy_C_1 
 f=721 ACTIVATE BP_TrainingDummy_C_2 swing=0
 f=721 AIM WEDGE BP_TrainingDummy_C_2 
 f=721 HOME RESET BP_TrainingDummy_C_2 
@@ -105,19 +110,14 @@ f=738 KNOCKBACK BP_TrainingDummy_C_1 by=BP_TrainingDummy_C_2
 f=738 LUNGE STOP BP_TrainingDummy_C_2 
 f=738 WAIVER BP_TrainingDummy_C_2 
 f=740 FACING FORCED BP_TrainingDummy_C_1 
-f=743 REFUSED BP_TrainingDummy_C_1 
 f=743 RELEASE END BP_TrainingDummy_C_2 
 f=743 RELEASE OFF BP_TrainingDummy_C_2 
 f=771 HITSTUN END BP_TrainingDummy_C_1 
 f=771 MOVE UNLOCK BP_TrainingDummy_C_2 
-f=774 REFUSED BP_TrainingDummy_C_1 
 f=780 ABILITY END BP_TrainingDummy_C_2 
 f=780 AIM WEDGE BP_TrainingDummy_C_2 
 f=780 MONTAGE BP_TrainingDummy_C_2 section=None
 f=801 HOME RESET BP_TrainingDummy_C_2 
-f=805 REFUSED BP_TrainingDummy_C_1 
-f=836 REFUSED BP_TrainingDummy_C_1 
-f=867 REFUSED BP_TrainingDummy_C_1 
 f=887 BLOCK BP_TrainingDummy_C_1 
 f=887 BLOCK BP_TrainingDummy_C_1 
 f=887 EXHAUSTION END BP_TrainingDummy_C_1 
