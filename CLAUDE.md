@@ -159,6 +159,9 @@ about *what* or *why* emerges mid-run, stop and raise it.
 - **Permission prompts are not the mechanism.** A prompt only asks a HOW question, so it cannot
   gate a WHAT; do not add one to cover a rule.
 
+**"Audit" means the subject is the material, not the foundation.** A thing put under audit is under
+scrutiny, not safe from it: improve *it*, not upon it.
+
 **When something is vague, or two sources disagree, ask. Every single time.** Resolving an ambiguity
 quietly takes a decision that was never yours — including when it looks obvious and turns out right.
 **An implementation disagreeing with its spec is a question to ask, not a discrepancy to fix.** Ask

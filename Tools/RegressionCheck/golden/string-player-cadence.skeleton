@@ -86,8 +86,8 @@ r=0 f=79 HITSTUN END BP_TrainingDummy_C_1
 r=0 f=88 RELEASE END BP_PlayerCharacter_C_0 
 r=0 f=88 RELEASE OFF BP_PlayerCharacter_C_0 
 r=0 f=109 MOVE UNLOCK BP_PlayerCharacter_C_0 
-r=0 f=132 ABILITY END BP_PlayerCharacter_C_0 
-r=0 f=132 AIM WEDGE BP_PlayerCharacter_C_0 
+r=0 f=133 ABILITY END BP_PlayerCharacter_C_0 
+r=0 f=133 AIM WEDGE BP_PlayerCharacter_C_0 
 r=0 f=196 KNOCKDOWN MONTAGE BP_TrainingDummy_C_1 
 r=0 f=196 KNOCKDOWN RISE BP_TrainingDummy_C_1 by=auto
 r=0 f=226 HOME RESET BP_TrainingDummy_C_1 
@@ -180,8 +180,8 @@ r=1 f=80 HITSTUN END BP_TrainingDummy_C_1
 r=1 f=88 RELEASE END BP_PlayerCharacter_C_0 
 r=1 f=88 RELEASE OFF BP_PlayerCharacter_C_0 
 r=1 f=110 MOVE UNLOCK BP_PlayerCharacter_C_0 
-r=1 f=132 ABILITY END BP_PlayerCharacter_C_0 
-r=1 f=132 AIM WEDGE BP_PlayerCharacter_C_0 
+r=1 f=133 ABILITY END BP_PlayerCharacter_C_0 
+r=1 f=133 AIM WEDGE BP_PlayerCharacter_C_0 
 r=1 f=196 KNOCKDOWN MONTAGE BP_TrainingDummy_C_1 
 r=1 f=196 KNOCKDOWN RISE BP_TrainingDummy_C_1 by=auto
 r=1 f=226 HOME RESET BP_TrainingDummy_C_1 
@@ -274,8 +274,8 @@ r=2 f=79 HITSTUN END BP_TrainingDummy_C_1
 r=2 f=88 RELEASE END BP_PlayerCharacter_C_0 
 r=2 f=88 RELEASE OFF BP_PlayerCharacter_C_0 
 r=2 f=109 MOVE UNLOCK BP_PlayerCharacter_C_0 
-r=2 f=132 ABILITY END BP_PlayerCharacter_C_0 
-r=2 f=132 AIM WEDGE BP_PlayerCharacter_C_0 
+r=2 f=133 ABILITY END BP_PlayerCharacter_C_0 
+r=2 f=133 AIM WEDGE BP_PlayerCharacter_C_0 
 r=2 f=196 KNOCKDOWN MONTAGE BP_TrainingDummy_C_1 
 r=2 f=196 KNOCKDOWN RISE BP_TrainingDummy_C_1 by=auto
 r=2 f=226 HOME RESET BP_TrainingDummy_C_1 
@@ -368,8 +368,8 @@ r=3 f=79 HITSTUN END BP_TrainingDummy_C_1
 r=3 f=88 RELEASE END BP_PlayerCharacter_C_0 
 r=3 f=88 RELEASE OFF BP_PlayerCharacter_C_0 
 r=3 f=110 MOVE UNLOCK BP_PlayerCharacter_C_0 
-r=3 f=132 ABILITY END BP_PlayerCharacter_C_0 
-r=3 f=132 AIM WEDGE BP_PlayerCharacter_C_0 
+r=3 f=133 ABILITY END BP_PlayerCharacter_C_0 
+r=3 f=133 AIM WEDGE BP_PlayerCharacter_C_0 
 r=3 f=196 KNOCKDOWN MONTAGE BP_TrainingDummy_C_1 
 r=3 f=196 KNOCKDOWN RISE BP_TrainingDummy_C_1 by=auto
 r=3 f=226 HOME RESET BP_TrainingDummy_C_1 

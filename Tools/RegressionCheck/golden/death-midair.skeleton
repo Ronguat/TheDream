@@ -1,11 +1,11 @@
-f=667 DEBUG RESET BP_PlayerCharacter_C_0 
-f=667 DEBUG RESET BP_TrainingDummy_C_1 
-f=667 DEBUG RESET BP_TrainingDummy_C_2 
-f=667 HOME RESET BP_TrainingDummy_C_1 
-f=667 HOME RESET BP_TrainingDummy_C_2 
-f=667 REVIVE BP_PlayerCharacter_C_0 
-f=667 REVIVE BP_TrainingDummy_C_1 
-f=667 REVIVE BP_TrainingDummy_C_2 
+f=599 DEBUG RESET BP_PlayerCharacter_C_0 
+f=599 DEBUG RESET BP_TrainingDummy_C_1 
+f=599 DEBUG RESET BP_TrainingDummy_C_2 
+f=599 HOME RESET BP_TrainingDummy_C_1 
+f=599 HOME RESET BP_TrainingDummy_C_2 
+f=599 REVIVE BP_PlayerCharacter_C_0 
+f=599 REVIVE BP_TrainingDummy_C_1 
+f=599 REVIVE BP_TrainingDummy_C_2 
 r=0 f=0 ACTIVATE BP_TrainingDummy_C_2 swing=0
 r=0 f=0 AIM WEDGE BP_TrainingDummy_C_2 
 r=0 f=0 DEBUG HEALTH BP_PlayerCharacter_C_0 
@@ -37,13 +37,13 @@ r=0 f=57 AIM WEDGE BP_TrainingDummy_C_2
 r=0 f=78 HOME RESET BP_TrainingDummy_C_2 
 r=0 f=193 DEATH SETTLE BP_PlayerCharacter_C_0 
 r=0 f=193 REVIVE BP_PlayerCharacter_C_0 
-r=0 f=331 DEBUG HEALTH BP_TrainingDummy_C_2 
-r=0 f=331 DEBUG RESET BP_PlayerCharacter_C_0 
-r=0 f=331 DEBUG RESET BP_TrainingDummy_C_1 
-r=0 f=331 DEBUG STAMINA BP_TrainingDummy_C_2 
-r=0 f=331 HOME RESET BP_TrainingDummy_C_1 
-r=0 f=331 REVIVE BP_PlayerCharacter_C_0 
-r=0 f=331 REVIVE BP_TrainingDummy_C_1 
+r=0 f=297 DEBUG HEALTH BP_TrainingDummy_C_2 
+r=0 f=297 DEBUG RESET BP_PlayerCharacter_C_0 
+r=0 f=297 DEBUG RESET BP_TrainingDummy_C_1 
+r=0 f=297 DEBUG STAMINA BP_TrainingDummy_C_2 
+r=0 f=297 HOME RESET BP_TrainingDummy_C_1 
+r=0 f=297 REVIVE BP_PlayerCharacter_C_0 
+r=0 f=297 REVIVE BP_TrainingDummy_C_1 
 r=1 f=0 ACTIVATE BP_TrainingDummy_C_2 swing=0
 r=1 f=0 AIM WEDGE BP_TrainingDummy_C_2 
 r=1 f=0 DEBUG HEALTH BP_PlayerCharacter_C_0 
@@ -75,10 +75,10 @@ r=1 f=57 AIM WEDGE BP_TrainingDummy_C_2
 r=1 f=78 HOME RESET BP_TrainingDummy_C_2 
 r=1 f=193 DEATH SETTLE BP_PlayerCharacter_C_0 
 r=1 f=193 REVIVE BP_PlayerCharacter_C_0 
-r=1 f=331 DEBUG HEALTH BP_TrainingDummy_C_2 
-r=1 f=331 DEBUG RESET BP_PlayerCharacter_C_0 
-r=1 f=331 DEBUG RESET BP_TrainingDummy_C_1 
-r=1 f=331 DEBUG STAMINA BP_TrainingDummy_C_2 
-r=1 f=331 HOME RESET BP_TrainingDummy_C_1 
-r=1 f=331 REVIVE BP_PlayerCharacter_C_0 
-r=1 f=331 REVIVE BP_TrainingDummy_C_1 
+r=1 f=297 DEBUG HEALTH BP_TrainingDummy_C_2 
+r=1 f=297 DEBUG RESET BP_PlayerCharacter_C_0 
+r=1 f=297 DEBUG RESET BP_TrainingDummy_C_1 
+r=1 f=297 DEBUG STAMINA BP_TrainingDummy_C_2 
+r=1 f=297 HOME RESET BP_TrainingDummy_C_1 
+r=1 f=297 REVIVE BP_PlayerCharacter_C_0 
+r=1 f=297 REVIVE BP_TrainingDummy_C_1 

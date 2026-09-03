@@ -1903,6 +1903,42 @@ long.
 | `ue_seed_cells.py` | 09-02 |
 | `wall_tick_for` | 09-03 |
 
+## 2026-09-03 — The tail ends when the game is at rest, and the matrix reads 76 of 76 in 10 minutes
+
+The ledger's next number after the swing package: 767 s of the matrix's 1281 s of game were tails,
+the fixed frame counts a rep waited after its last step, authored per row at 60 to 360 because the
+runner had no other signal for "finished". It has one: the gate already reads every pawn's state
+tags to know when to reset, and those tags span everything an assertion reads, attacking, hitstun,
+the knockdown to its stand, exhaustion to its end, death to the revive, grace, the guard. So a rep
+now ends when every pawn it drives has been at rest and still for 15 f after the last step with
+every hold up, or at the authored count, whichever comes first. The floor covers what no tag marks,
+a buffered press expiring at 12 f and the tape samples the movement rows read after a state ends;
+the cap keeps every row at worst what it was. An attacker whose loop still runs is not waited on.
+Every gated row's golden was re-accepted, the rep being shorter.
+
+**"Audit" means the subject is the material, not the foundation** *(the designer, 2026-09-03)*, in
+`CLAUDE.md` from this package. The regression audit was heard as a brief to build beside the loop,
+and it was a brief to change the loop itself; the sentence is what stops the next audit being heard
+the same way.
+
+### Measured
+
+| | Before | After |
+|---|---|---|
+| Full matrix, fixed clock | 724 s wall, 1281 s of game, 767 s of it tails | **627 s wall, 1085 s of game, 573 s of tails** |
+| Canary | 20 of 21, 370 s | **21 of 21, 348 s** |
+| Assertions passing | 377 | 377 |
+
+### What the first run found
+
+Two holes in the rest check, each a state no tag marks. A row's teardown allowance had let an attacker's swing in flight count as rest, so a rep ended before a heavy landed and the next rep's swing was refused mid-swing; the check now ignores only the regen pause and a fixture-held guard. And a jump is airborne with no tag, so a rep ended mid-air, the reset teleported the player from the air, and the jump's regen pause never cleared, which the next rep's readout caught as an exhaustion that never ended; a pawn in the air is not at rest now. The gate's 90 s is the price of never resetting a pawn mid-state, kept.
+
+### Verified, and what is deliberately not
+
+Verified: the matrix and canary as above, on the same rows and assertions. Not verified: a row
+whose assertion reads a line more than 15 f after its pawn is at rest, which nothing in the roster
+does today and which the first red would name.
+
 ## 2026-09-03 — The loop stops waiting for the dummy, the canary earns a tick, and the checker's comments find their homes
 
 The items left standing after the legacy audit, taken one at a time with the designer and shipped

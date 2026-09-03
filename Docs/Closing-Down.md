@@ -41,8 +41,8 @@ audit in miniature; the rest is making sure nothing is left on the floor.
    rows the session's changes could reach, **selected by mechanism**: a change scoped to one
    ability's data runs its family plus the rows that share the mechanic; a change to anything
    shared, the buffer, the clock, the hitbox test, an ability base class, runs `--all`. The full
-   matrix takes about 12 minutes at the fixed clock for 76 rows *(724 s, 2026-09-03)* and the
-   real-time canary about 6 more *(370 s, 21 rows)*, and **neither is assumed at a closedown or
+   matrix takes about 10 minutes at the fixed clock for 76 rows *(627 s, 2026-09-03)* and the
+   real-time canary about 6 more *(348 s, 21 rows)*, and **neither is assumed at a closedown or
    before a push**:
    the designer schedules them, **at least weekly, with time to correct what they find** *(the
    designer, 2026-09-03; the machine is shared, and a run holds the editor)*. Background whatever

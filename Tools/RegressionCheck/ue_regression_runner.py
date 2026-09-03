@@ -35,6 +35,11 @@ A swing op asks the named dummy for its auto-attack now and stops its loop, so a
 for a timer; a lock_to that follows it locks on the swing the press started. A timer row's attacker
 fires its first swing on the row's first frame and keeps its loop.
 
+A rep's tail ends when every pawn the rep drives has been at rest and still for TAIL_FLOOR frames
+after the last step with every hold up, or at the row's tail_frames, whichever comes first: the
+authored count is the cap, the game's own state tags say when the mechanic has finished. A row
+whose later events come from a dummy's timer sets expect.tail_fixed and keeps the count.
+
 A row stops on its duration, or on an until condition -- (tag, n) or (tag, token, n) -- met when the
 trace since BEGIN carries n lines of that tag, read off the log between ticks; timeout bounds it.
 At settle every dummy loop is switched off and states the row's teardown_allow names are ignored,
@@ -92,6 +97,10 @@ WORLD_TIMEOUT_S = 30.0
 LOCK_TIMEOUT_S = 15.0
 STOP_FILE = os.path.join(REG_DIR, "stop")
 DEFAULT_TAIL_FRAMES = 60
+TAIL_FLOOR = 15
+# States the tail's rest check ignores: the regen pause, which lingers after any spend, and a guard
+# a fixture holds on purpose. A swing in flight is never ignored, whatever teardown tolerates.
+TAIL_IGNORE = ("StaminaRegenPaused", "Blocking")
 UNTIL_TIMEOUT_S = 120.0
 TRACE_RE = re.compile(r"LogTDCombatTiming: \[(\d+\.\d+)\] (.*)$")
 # Knobs that drive a dummy's loops, and the value that stops each.
@@ -161,10 +170,16 @@ def at_rest(pawn, allow=()):
 
 
 def still(pawn):
-    """Not being carried: a knockback's root motion outlives the hitstun tag, and a teleport made
-    under it is finished by the carry rather than the teleport."""
+    """Not being carried and not in the air: a knockback's root motion outlives the hitstun tag, a
+    teleport made under it is finished by the carry rather than the teleport, and a jump has no tag
+    at all, so a reset made mid-air would strand its regen pause."""
     v = pawn.get_velocity()
-    return abs(v.x) + abs(v.y) < 1.0
+    if abs(v.x) + abs(v.y) >= 1.0:
+        return False
+    try:
+        return not pawn.get_editor_property("character_movement").is_falling()
+    except Exception:
+        return True
 
 
 # --- key resolution ---------------------------------------------------------
@@ -269,6 +284,8 @@ class Run(object):
         self.log_partial = ""
         self.last_until_frame = -1
         self.swing_armed = False
+        self.loops_stopped = set()
+        self.rest_since = None
         # The time ledger, per row.
         self.phase_time = {}
         self.lock_t0 = None
@@ -478,6 +495,7 @@ class Run(object):
         self.rep, self.rep_frame, self.base = 0, 0, 0
         self.lock_seen, self.lock_wait, self.last_due = False, 0, 0
         self.run_t0, self.rep_t0, self.period_rep, self.last_sampled = None, None, -1, -1
+        self.loops_stopped, self.rest_since = set(), None
         stop = s.get("stop", {})
         self.until_need, self.until_tag, self.until_token, self.until_count = 0, None, None, 0
         if "until" in stop:
@@ -672,12 +690,31 @@ class Run(object):
             break
         if self.step >= len(plan):
             tail = int(expect.get("tail_frames", DEFAULT_TAIL_FRAMES))
-            if self.rep_frame - self.last_due >= tail and not self.pending:
-                if self.last_due_time is not None:
-                    self.tail_total += now - self.last_due_time
-                self.goto("gate")
-                return True
+            since = self.rep_frame - self.last_due
+            if not self.pending:
+                if self.tail_rested(s):
+                    if self.rest_since is None:
+                        self.rest_since = self.rep_frame
+                else:
+                    self.rest_since = None
+                rested = self.rest_since is not None and self.rep_frame - self.rest_since >= TAIL_FLOOR
+                if since >= tail or (since >= TAIL_FLOOR and rested):
+                    if self.last_due_time is not None:
+                        self.tail_total += now - self.last_due_time
+                    self.goto("gate")
+                    return True
         return False
+
+    def tail_rested(self, s):
+        """Every pawn the rep drives at rest and still, the regen pause and a fixture-held guard
+        aside; an attacker whose loop still runs is not waited on. A row with expect.tail_fixed
+        keeps its authored tail, for a rep whose later events come from a timer."""
+        if s.get("expect", {}).get("tail_fixed"):
+            return False
+        allow = [a for a in s.get("teardown_allow", []) if a in TAIL_IGNORE]
+        running = set(self.periodic_attackers()) - self.loops_stopped
+        quiet = [self.pawn] + [a for r, a in self.pie_roles.items() if r not in running]
+        return all(at_rest(p, ("StaminaRegenPaused",) if p is self.pawn else allow) and still(p) for p in quiet)
 
     def do_op(self, stepv):
         _frame, actor, op = stepv[0], stepv[1], stepv[2]
@@ -733,6 +770,8 @@ class Run(object):
             except Exception:
                 ok = False
             self.swing_armed = ok
+            if ok:
+                self.loops_stopped.add(actor)
             self.mark("INJECT %s frame=%d %s swing %s" % (self.sid, self.frame, actor, "pressed" if ok else "refused"))
         elif op == "set":
             who = self.role_or_player(actor)
@@ -845,7 +884,7 @@ class Run(object):
             return
         self.step, self.rep_frame, self.base = 0, 0, 0
         self.lock_seen, self.lock_wait, self.last_due = False, 0, 0
-        self.rep_t0, self.swing_armed = None, False
+        self.rep_t0, self.swing_armed, self.rest_since = None, False, None
         self.goto("run")
 
     def phase_settle(self):

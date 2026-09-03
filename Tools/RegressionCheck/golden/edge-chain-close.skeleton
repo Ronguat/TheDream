@@ -1,11 +1,11 @@
-f=1433 DEBUG RESET BP_PlayerCharacter_C_0 
-f=1433 DEBUG RESET BP_TrainingDummy_C_1 
-f=1433 DEBUG RESET BP_TrainingDummy_C_2 
-f=1433 HOME RESET BP_TrainingDummy_C_1 
-f=1433 HOME RESET BP_TrainingDummy_C_2 
-f=1433 REVIVE BP_PlayerCharacter_C_0 
-f=1433 REVIVE BP_TrainingDummy_C_1 
-f=1433 REVIVE BP_TrainingDummy_C_2 
+f=993 DEBUG RESET BP_PlayerCharacter_C_0 
+f=993 DEBUG RESET BP_TrainingDummy_C_1 
+f=993 DEBUG RESET BP_TrainingDummy_C_2 
+f=993 HOME RESET BP_TrainingDummy_C_1 
+f=993 HOME RESET BP_TrainingDummy_C_2 
+f=993 REVIVE BP_PlayerCharacter_C_0 
+f=993 REVIVE BP_TrainingDummy_C_1 
+f=993 REVIVE BP_TrainingDummy_C_2 
 r=0 f=2 ACTIVATE BP_PlayerCharacter_C_0 swing=0
 r=0 f=2 AIM WEDGE BP_PlayerCharacter_C_0 
 r=0 f=2 INPUT BP_PlayerCharacter_C_0 
@@ -46,14 +46,14 @@ r=0 f=65 RELEASE END BP_PlayerCharacter_C_0
 r=0 f=65 RELEASE OFF BP_PlayerCharacter_C_0 
 r=0 f=100 ABILITY END BP_PlayerCharacter_C_0 
 r=0 f=100 AIM WEDGE BP_PlayerCharacter_C_0 
-r=0 f=143 DEBUG RESET BP_PlayerCharacter_C_0 
-r=0 f=143 DEBUG RESET BP_TrainingDummy_C_1 
-r=0 f=143 DEBUG RESET BP_TrainingDummy_C_2 
-r=0 f=143 HOME RESET BP_TrainingDummy_C_1 
-r=0 f=143 HOME RESET BP_TrainingDummy_C_2 
-r=0 f=143 REVIVE BP_PlayerCharacter_C_0 
-r=0 f=143 REVIVE BP_TrainingDummy_C_1 
-r=0 f=143 REVIVE BP_TrainingDummy_C_2 
+r=0 f=116 DEBUG RESET BP_PlayerCharacter_C_0 
+r=0 f=116 DEBUG RESET BP_TrainingDummy_C_1 
+r=0 f=116 DEBUG RESET BP_TrainingDummy_C_2 
+r=0 f=116 HOME RESET BP_TrainingDummy_C_1 
+r=0 f=116 HOME RESET BP_TrainingDummy_C_2 
+r=0 f=116 REVIVE BP_PlayerCharacter_C_0 
+r=0 f=116 REVIVE BP_TrainingDummy_C_1 
+r=0 f=116 REVIVE BP_TrainingDummy_C_2 
 r=1 f=2 ACTIVATE BP_PlayerCharacter_C_0 swing=0
 r=1 f=2 AIM WEDGE BP_PlayerCharacter_C_0 
 r=1 f=2 INPUT BP_PlayerCharacter_C_0 
@@ -77,14 +77,14 @@ r=1 f=46 INPUT BP_PlayerCharacter_C_0
 r=1 f=57 BUFFER BP_PlayerCharacter_C_0 
 r=1 f=59 ABILITY END BP_PlayerCharacter_C_0 
 r=1 f=59 AIM WEDGE BP_PlayerCharacter_C_0 
-r=1 f=144 DEBUG RESET BP_PlayerCharacter_C_0 
-r=1 f=144 DEBUG RESET BP_TrainingDummy_C_1 
-r=1 f=144 DEBUG RESET BP_TrainingDummy_C_2 
-r=1 f=144 HOME RESET BP_TrainingDummy_C_1 
-r=1 f=144 HOME RESET BP_TrainingDummy_C_2 
-r=1 f=144 REVIVE BP_PlayerCharacter_C_0 
-r=1 f=144 REVIVE BP_TrainingDummy_C_1 
-r=1 f=144 REVIVE BP_TrainingDummy_C_2 
+r=1 f=75 DEBUG RESET BP_PlayerCharacter_C_0 
+r=1 f=75 DEBUG RESET BP_TrainingDummy_C_1 
+r=1 f=75 DEBUG RESET BP_TrainingDummy_C_2 
+r=1 f=75 HOME RESET BP_TrainingDummy_C_1 
+r=1 f=75 HOME RESET BP_TrainingDummy_C_2 
+r=1 f=75 REVIVE BP_PlayerCharacter_C_0 
+r=1 f=75 REVIVE BP_TrainingDummy_C_1 
+r=1 f=75 REVIVE BP_TrainingDummy_C_2 
 r=2 f=2 ACTIVATE BP_PlayerCharacter_C_0 swing=0
 r=2 f=2 AIM WEDGE BP_PlayerCharacter_C_0 
 r=2 f=2 INPUT BP_PlayerCharacter_C_0 
@@ -114,25 +114,27 @@ r=2 f=41 MONTAGE BP_PlayerCharacter_C_0
 r=2 f=41 STRING BP_PlayerCharacter_C_0 swing=0
 r=2 f=41 STRING BP_PlayerCharacter_C_0 swing=0
 r=2 f=43 INPUT BP_PlayerCharacter_C_0 
-r=2 f=51 AIM ASSIST BP_PlayerCharacter_C_0 
-r=2 f=51 AIM WEDGE BP_PlayerCharacter_C_0 
-r=2 f=51 COMMIT BP_PlayerCharacter_C_0 branch=0
-r=2 f=51 TARGET BP_PlayerCharacter_C_0 
-r=2 f=54 RELEASE BEGIN BP_PlayerCharacter_C_0 
-r=2 f=54 RELEASE BP_PlayerCharacter_C_0 
-r=2 f=54 TARGET BP_PlayerCharacter_C_0 
-r=2 f=63 RELEASE END BP_PlayerCharacter_C_0 
-r=2 f=63 RELEASE OFF BP_PlayerCharacter_C_0 
+r=2 f=50 AIM ASSIST BP_PlayerCharacter_C_0 
+r=2 f=50 AIM WEDGE BP_PlayerCharacter_C_0 
+r=2 f=50 COMMIT BP_PlayerCharacter_C_0 branch=0
+r=2 f=50 TARGET BP_PlayerCharacter_C_0 
+r=2 f=53 RELEASE BEGIN BP_PlayerCharacter_C_0 
+r=2 f=53 RELEASE BP_PlayerCharacter_C_0 
+r=2 f=53 TARGET BP_PlayerCharacter_C_0 
+r=2 f=62 RELEASE END BP_PlayerCharacter_C_0 
+r=2 f=62 RELEASE OFF BP_PlayerCharacter_C_0 
 r=2 f=98 ABILITY END BP_PlayerCharacter_C_0 
 r=2 f=98 AIM WEDGE BP_PlayerCharacter_C_0 
-r=2 f=141 DEBUG RESET BP_PlayerCharacter_C_0 
-r=2 f=141 DEBUG RESET BP_TrainingDummy_C_1 
-r=2 f=141 DEBUG RESET BP_TrainingDummy_C_2 
-r=2 f=141 HOME RESET BP_TrainingDummy_C_1 
-r=2 f=141 HOME RESET BP_TrainingDummy_C_2 
-r=2 f=141 REVIVE BP_PlayerCharacter_C_0 
-r=2 f=141 REVIVE BP_TrainingDummy_C_1 
-r=2 f=141 REVIVE BP_TrainingDummy_C_2 
+r=2 f=98 MONTAGE BP_PlayerCharacter_C_0 
+r=2 f=98 MONTAGE BP_PlayerCharacter_C_0 section=None
+r=2 f=114 DEBUG RESET BP_PlayerCharacter_C_0 
+r=2 f=114 DEBUG RESET BP_TrainingDummy_C_1 
+r=2 f=114 DEBUG RESET BP_TrainingDummy_C_2 
+r=2 f=114 HOME RESET BP_TrainingDummy_C_1 
+r=2 f=114 HOME RESET BP_TrainingDummy_C_2 
+r=2 f=114 REVIVE BP_PlayerCharacter_C_0 
+r=2 f=114 REVIVE BP_TrainingDummy_C_1 
+r=2 f=114 REVIVE BP_TrainingDummy_C_2 
 r=3 f=2 ACTIVATE BP_PlayerCharacter_C_0 swing=0
 r=3 f=2 AIM WEDGE BP_PlayerCharacter_C_0 
 r=3 f=2 INPUT BP_PlayerCharacter_C_0 
@@ -173,14 +175,14 @@ r=3 f=64 RELEASE END BP_PlayerCharacter_C_0
 r=3 f=64 RELEASE OFF BP_PlayerCharacter_C_0 
 r=3 f=99 ABILITY END BP_PlayerCharacter_C_0 
 r=3 f=99 AIM WEDGE BP_PlayerCharacter_C_0 
-r=3 f=142 DEBUG RESET BP_PlayerCharacter_C_0 
-r=3 f=142 DEBUG RESET BP_TrainingDummy_C_1 
-r=3 f=142 DEBUG RESET BP_TrainingDummy_C_2 
-r=3 f=142 HOME RESET BP_TrainingDummy_C_1 
-r=3 f=142 HOME RESET BP_TrainingDummy_C_2 
-r=3 f=142 REVIVE BP_PlayerCharacter_C_0 
-r=3 f=142 REVIVE BP_TrainingDummy_C_1 
-r=3 f=142 REVIVE BP_TrainingDummy_C_2 
+r=3 f=115 DEBUG RESET BP_PlayerCharacter_C_0 
+r=3 f=115 DEBUG RESET BP_TrainingDummy_C_1 
+r=3 f=115 DEBUG RESET BP_TrainingDummy_C_2 
+r=3 f=115 HOME RESET BP_TrainingDummy_C_1 
+r=3 f=115 HOME RESET BP_TrainingDummy_C_2 
+r=3 f=115 REVIVE BP_PlayerCharacter_C_0 
+r=3 f=115 REVIVE BP_TrainingDummy_C_1 
+r=3 f=115 REVIVE BP_TrainingDummy_C_2 
 r=4 f=2 ACTIVATE BP_PlayerCharacter_C_0 swing=0
 r=4 f=2 AIM WEDGE BP_PlayerCharacter_C_0 
 r=4 f=2 INPUT BP_PlayerCharacter_C_0 
@@ -192,11 +194,11 @@ r=4 f=12 AIM ASSIST BP_PlayerCharacter_C_0
 r=4 f=12 AIM WEDGE BP_PlayerCharacter_C_0 
 r=4 f=12 COMMIT BP_PlayerCharacter_C_0 branch=0
 r=4 f=12 TARGET BP_PlayerCharacter_C_0 
-r=4 f=15 RELEASE BEGIN BP_PlayerCharacter_C_0 
-r=4 f=15 RELEASE BP_PlayerCharacter_C_0 
-r=4 f=15 TARGET BP_PlayerCharacter_C_0 
-r=4 f=24 RELEASE END BP_PlayerCharacter_C_0 
-r=4 f=24 RELEASE OFF BP_PlayerCharacter_C_0 
+r=4 f=14 RELEASE BEGIN BP_PlayerCharacter_C_0 
+r=4 f=14 RELEASE BP_PlayerCharacter_C_0 
+r=4 f=14 TARGET BP_PlayerCharacter_C_0 
+r=4 f=23 RELEASE END BP_PlayerCharacter_C_0 
+r=4 f=23 RELEASE OFF BP_PlayerCharacter_C_0 
 r=4 f=45 BUFFER BP_PlayerCharacter_C_0 
 r=4 f=45 INPUT BP_PlayerCharacter_C_0 
 r=4 f=47 BUFFER BP_PlayerCharacter_C_0 
@@ -204,14 +206,14 @@ r=4 f=47 INPUT BP_PlayerCharacter_C_0
 r=4 f=58 BUFFER BP_PlayerCharacter_C_0 
 r=4 f=59 ABILITY END BP_PlayerCharacter_C_0 
 r=4 f=59 AIM WEDGE BP_PlayerCharacter_C_0 
-r=4 f=145 DEBUG RESET BP_PlayerCharacter_C_0 
-r=4 f=145 DEBUG RESET BP_TrainingDummy_C_1 
-r=4 f=145 DEBUG RESET BP_TrainingDummy_C_2 
-r=4 f=145 HOME RESET BP_TrainingDummy_C_1 
-r=4 f=145 HOME RESET BP_TrainingDummy_C_2 
-r=4 f=145 REVIVE BP_PlayerCharacter_C_0 
-r=4 f=145 REVIVE BP_TrainingDummy_C_1 
-r=4 f=145 REVIVE BP_TrainingDummy_C_2 
+r=4 f=75 DEBUG RESET BP_PlayerCharacter_C_0 
+r=4 f=75 DEBUG RESET BP_TrainingDummy_C_1 
+r=4 f=75 DEBUG RESET BP_TrainingDummy_C_2 
+r=4 f=75 HOME RESET BP_TrainingDummy_C_1 
+r=4 f=75 HOME RESET BP_TrainingDummy_C_2 
+r=4 f=75 REVIVE BP_PlayerCharacter_C_0 
+r=4 f=75 REVIVE BP_TrainingDummy_C_1 
+r=4 f=75 REVIVE BP_TrainingDummy_C_2 
 r=5 f=2 ACTIVATE BP_PlayerCharacter_C_0 swing=0
 r=5 f=2 AIM WEDGE BP_PlayerCharacter_C_0 
 r=5 f=2 INPUT BP_PlayerCharacter_C_0 
@@ -219,15 +221,15 @@ r=5 f=2 MONTAGE BP_PlayerCharacter_C_0
 r=5 f=2 MONTAGE BP_PlayerCharacter_C_0 
 r=5 f=2 MONTAGE BP_PlayerCharacter_C_0 
 r=5 f=4 INPUT BP_PlayerCharacter_C_0 
-r=5 f=11 AIM ASSIST BP_PlayerCharacter_C_0 
-r=5 f=11 AIM WEDGE BP_PlayerCharacter_C_0 
-r=5 f=11 COMMIT BP_PlayerCharacter_C_0 branch=0
-r=5 f=11 TARGET BP_PlayerCharacter_C_0 
-r=5 f=14 RELEASE BEGIN BP_PlayerCharacter_C_0 
-r=5 f=14 RELEASE BP_PlayerCharacter_C_0 
-r=5 f=14 TARGET BP_PlayerCharacter_C_0 
-r=5 f=23 RELEASE END BP_PlayerCharacter_C_0 
-r=5 f=23 RELEASE OFF BP_PlayerCharacter_C_0 
+r=5 f=12 AIM ASSIST BP_PlayerCharacter_C_0 
+r=5 f=12 AIM WEDGE BP_PlayerCharacter_C_0 
+r=5 f=12 COMMIT BP_PlayerCharacter_C_0 branch=0
+r=5 f=12 TARGET BP_PlayerCharacter_C_0 
+r=5 f=15 RELEASE BEGIN BP_PlayerCharacter_C_0 
+r=5 f=15 RELEASE BP_PlayerCharacter_C_0 
+r=5 f=15 TARGET BP_PlayerCharacter_C_0 
+r=5 f=24 RELEASE END BP_PlayerCharacter_C_0 
+r=5 f=24 RELEASE OFF BP_PlayerCharacter_C_0 
 r=5 f=43 ABILITY END BP_PlayerCharacter_C_0 
 r=5 f=43 ACTIVATE BP_PlayerCharacter_C_0 swing=1
 r=5 f=43 AIM WEDGE BP_PlayerCharacter_C_0 
@@ -254,14 +256,14 @@ r=5 f=100 ABILITY END BP_PlayerCharacter_C_0
 r=5 f=100 AIM WEDGE BP_PlayerCharacter_C_0 
 r=5 f=100 MONTAGE BP_PlayerCharacter_C_0 
 r=5 f=100 MONTAGE BP_PlayerCharacter_C_0 section=None
-r=5 f=143 DEBUG RESET BP_PlayerCharacter_C_0 
-r=5 f=143 DEBUG RESET BP_TrainingDummy_C_1 
-r=5 f=143 DEBUG RESET BP_TrainingDummy_C_2 
-r=5 f=143 HOME RESET BP_TrainingDummy_C_1 
-r=5 f=143 HOME RESET BP_TrainingDummy_C_2 
-r=5 f=143 REVIVE BP_PlayerCharacter_C_0 
-r=5 f=143 REVIVE BP_TrainingDummy_C_1 
-r=5 f=143 REVIVE BP_TrainingDummy_C_2 
+r=5 f=116 DEBUG RESET BP_PlayerCharacter_C_0 
+r=5 f=116 DEBUG RESET BP_TrainingDummy_C_1 
+r=5 f=116 DEBUG RESET BP_TrainingDummy_C_2 
+r=5 f=116 HOME RESET BP_TrainingDummy_C_1 
+r=5 f=116 HOME RESET BP_TrainingDummy_C_2 
+r=5 f=116 REVIVE BP_PlayerCharacter_C_0 
+r=5 f=116 REVIVE BP_TrainingDummy_C_1 
+r=5 f=116 REVIVE BP_TrainingDummy_C_2 
 r=6 f=2 ACTIVATE BP_PlayerCharacter_C_0 swing=0
 r=6 f=2 AIM WEDGE BP_PlayerCharacter_C_0 
 r=6 f=2 INPUT BP_PlayerCharacter_C_0 
@@ -285,14 +287,14 @@ r=6 f=46 INPUT BP_PlayerCharacter_C_0
 r=6 f=57 BUFFER BP_PlayerCharacter_C_0 
 r=6 f=59 ABILITY END BP_PlayerCharacter_C_0 
 r=6 f=59 AIM WEDGE BP_PlayerCharacter_C_0 
-r=6 f=144 DEBUG RESET BP_PlayerCharacter_C_0 
-r=6 f=144 DEBUG RESET BP_TrainingDummy_C_1 
-r=6 f=144 DEBUG RESET BP_TrainingDummy_C_2 
-r=6 f=144 HOME RESET BP_TrainingDummy_C_1 
-r=6 f=144 HOME RESET BP_TrainingDummy_C_2 
-r=6 f=144 REVIVE BP_PlayerCharacter_C_0 
-r=6 f=144 REVIVE BP_TrainingDummy_C_1 
-r=6 f=144 REVIVE BP_TrainingDummy_C_2 
+r=6 f=75 DEBUG RESET BP_PlayerCharacter_C_0 
+r=6 f=75 DEBUG RESET BP_TrainingDummy_C_1 
+r=6 f=75 DEBUG RESET BP_TrainingDummy_C_2 
+r=6 f=75 HOME RESET BP_TrainingDummy_C_1 
+r=6 f=75 HOME RESET BP_TrainingDummy_C_2 
+r=6 f=75 REVIVE BP_PlayerCharacter_C_0 
+r=6 f=75 REVIVE BP_TrainingDummy_C_1 
+r=6 f=75 REVIVE BP_TrainingDummy_C_2 
 r=7 f=2 ACTIVATE BP_PlayerCharacter_C_0 swing=0
 r=7 f=2 AIM WEDGE BP_PlayerCharacter_C_0 
 r=7 f=2 INPUT BP_PlayerCharacter_C_0 
@@ -322,25 +324,27 @@ r=7 f=41 MONTAGE BP_PlayerCharacter_C_0
 r=7 f=41 STRING BP_PlayerCharacter_C_0 swing=0
 r=7 f=41 STRING BP_PlayerCharacter_C_0 swing=0
 r=7 f=43 INPUT BP_PlayerCharacter_C_0 
-r=7 f=51 AIM ASSIST BP_PlayerCharacter_C_0 
-r=7 f=51 AIM WEDGE BP_PlayerCharacter_C_0 
-r=7 f=51 COMMIT BP_PlayerCharacter_C_0 branch=0
-r=7 f=51 TARGET BP_PlayerCharacter_C_0 
-r=7 f=54 RELEASE BEGIN BP_PlayerCharacter_C_0 
-r=7 f=54 RELEASE BP_PlayerCharacter_C_0 
-r=7 f=54 TARGET BP_PlayerCharacter_C_0 
-r=7 f=63 RELEASE END BP_PlayerCharacter_C_0 
-r=7 f=63 RELEASE OFF BP_PlayerCharacter_C_0 
+r=7 f=50 AIM ASSIST BP_PlayerCharacter_C_0 
+r=7 f=50 AIM WEDGE BP_PlayerCharacter_C_0 
+r=7 f=50 COMMIT BP_PlayerCharacter_C_0 branch=0
+r=7 f=50 TARGET BP_PlayerCharacter_C_0 
+r=7 f=53 RELEASE BEGIN BP_PlayerCharacter_C_0 
+r=7 f=53 RELEASE BP_PlayerCharacter_C_0 
+r=7 f=53 TARGET BP_PlayerCharacter_C_0 
+r=7 f=62 RELEASE END BP_PlayerCharacter_C_0 
+r=7 f=62 RELEASE OFF BP_PlayerCharacter_C_0 
 r=7 f=98 ABILITY END BP_PlayerCharacter_C_0 
 r=7 f=98 AIM WEDGE BP_PlayerCharacter_C_0 
-r=7 f=141 DEBUG RESET BP_PlayerCharacter_C_0 
-r=7 f=141 DEBUG RESET BP_TrainingDummy_C_1 
-r=7 f=141 DEBUG RESET BP_TrainingDummy_C_2 
-r=7 f=141 HOME RESET BP_TrainingDummy_C_1 
-r=7 f=141 HOME RESET BP_TrainingDummy_C_2 
-r=7 f=141 REVIVE BP_PlayerCharacter_C_0 
-r=7 f=141 REVIVE BP_TrainingDummy_C_1 
-r=7 f=141 REVIVE BP_TrainingDummy_C_2 
+r=7 f=98 MONTAGE BP_PlayerCharacter_C_0 
+r=7 f=98 MONTAGE BP_PlayerCharacter_C_0 section=None
+r=7 f=114 DEBUG RESET BP_PlayerCharacter_C_0 
+r=7 f=114 DEBUG RESET BP_TrainingDummy_C_1 
+r=7 f=114 DEBUG RESET BP_TrainingDummy_C_2 
+r=7 f=114 HOME RESET BP_TrainingDummy_C_1 
+r=7 f=114 HOME RESET BP_TrainingDummy_C_2 
+r=7 f=114 REVIVE BP_PlayerCharacter_C_0 
+r=7 f=114 REVIVE BP_TrainingDummy_C_1 
+r=7 f=114 REVIVE BP_TrainingDummy_C_2 
 r=8 f=2 ACTIVATE BP_PlayerCharacter_C_0 swing=0
 r=8 f=2 AIM WEDGE BP_PlayerCharacter_C_0 
 r=8 f=2 INPUT BP_PlayerCharacter_C_0 
@@ -381,14 +385,14 @@ r=8 f=64 RELEASE END BP_PlayerCharacter_C_0
 r=8 f=64 RELEASE OFF BP_PlayerCharacter_C_0 
 r=8 f=99 ABILITY END BP_PlayerCharacter_C_0 
 r=8 f=99 AIM WEDGE BP_PlayerCharacter_C_0 
-r=8 f=142 DEBUG RESET BP_PlayerCharacter_C_0 
-r=8 f=142 DEBUG RESET BP_TrainingDummy_C_1 
-r=8 f=142 DEBUG RESET BP_TrainingDummy_C_2 
-r=8 f=142 HOME RESET BP_TrainingDummy_C_1 
-r=8 f=142 HOME RESET BP_TrainingDummy_C_2 
-r=8 f=142 REVIVE BP_PlayerCharacter_C_0 
-r=8 f=142 REVIVE BP_TrainingDummy_C_1 
-r=8 f=142 REVIVE BP_TrainingDummy_C_2 
+r=8 f=115 DEBUG RESET BP_PlayerCharacter_C_0 
+r=8 f=115 DEBUG RESET BP_TrainingDummy_C_1 
+r=8 f=115 DEBUG RESET BP_TrainingDummy_C_2 
+r=8 f=115 HOME RESET BP_TrainingDummy_C_1 
+r=8 f=115 HOME RESET BP_TrainingDummy_C_2 
+r=8 f=115 REVIVE BP_PlayerCharacter_C_0 
+r=8 f=115 REVIVE BP_TrainingDummy_C_1 
+r=8 f=115 REVIVE BP_TrainingDummy_C_2 
 r=9 f=2 ACTIVATE BP_PlayerCharacter_C_0 swing=0
 r=9 f=2 AIM WEDGE BP_PlayerCharacter_C_0 
 r=9 f=2 INPUT BP_PlayerCharacter_C_0 
@@ -396,15 +400,15 @@ r=9 f=2 MONTAGE BP_PlayerCharacter_C_0
 r=9 f=2 MONTAGE BP_PlayerCharacter_C_0 
 r=9 f=2 MONTAGE BP_PlayerCharacter_C_0 
 r=9 f=4 INPUT BP_PlayerCharacter_C_0 
-r=9 f=11 AIM ASSIST BP_PlayerCharacter_C_0 
-r=9 f=11 AIM WEDGE BP_PlayerCharacter_C_0 
-r=9 f=11 COMMIT BP_PlayerCharacter_C_0 branch=0
-r=9 f=11 TARGET BP_PlayerCharacter_C_0 
-r=9 f=14 RELEASE BEGIN BP_PlayerCharacter_C_0 
-r=9 f=14 RELEASE BP_PlayerCharacter_C_0 
-r=9 f=14 TARGET BP_PlayerCharacter_C_0 
-r=9 f=23 RELEASE END BP_PlayerCharacter_C_0 
-r=9 f=23 RELEASE OFF BP_PlayerCharacter_C_0 
+r=9 f=12 AIM ASSIST BP_PlayerCharacter_C_0 
+r=9 f=12 AIM WEDGE BP_PlayerCharacter_C_0 
+r=9 f=12 COMMIT BP_PlayerCharacter_C_0 branch=0
+r=9 f=12 TARGET BP_PlayerCharacter_C_0 
+r=9 f=15 RELEASE BEGIN BP_PlayerCharacter_C_0 
+r=9 f=15 RELEASE BP_PlayerCharacter_C_0 
+r=9 f=15 TARGET BP_PlayerCharacter_C_0 
+r=9 f=24 RELEASE END BP_PlayerCharacter_C_0 
+r=9 f=24 RELEASE OFF BP_PlayerCharacter_C_0 
 r=9 f=45 BUFFER BP_PlayerCharacter_C_0 
 r=9 f=45 INPUT BP_PlayerCharacter_C_0 
 r=9 f=47 BUFFER BP_PlayerCharacter_C_0 
@@ -412,11 +416,11 @@ r=9 f=47 INPUT BP_PlayerCharacter_C_0
 r=9 f=58 BUFFER BP_PlayerCharacter_C_0 
 r=9 f=59 ABILITY END BP_PlayerCharacter_C_0 
 r=9 f=59 AIM WEDGE BP_PlayerCharacter_C_0 
-r=9 f=145 DEBUG RESET BP_PlayerCharacter_C_0 
-r=9 f=145 DEBUG RESET BP_TrainingDummy_C_1 
-r=9 f=145 DEBUG RESET BP_TrainingDummy_C_2 
-r=9 f=145 HOME RESET BP_TrainingDummy_C_1 
-r=9 f=145 HOME RESET BP_TrainingDummy_C_2 
-r=9 f=145 REVIVE BP_PlayerCharacter_C_0 
-r=9 f=145 REVIVE BP_TrainingDummy_C_1 
-r=9 f=145 REVIVE BP_TrainingDummy_C_2 
+r=9 f=75 DEBUG RESET BP_PlayerCharacter_C_0 
+r=9 f=75 DEBUG RESET BP_TrainingDummy_C_1 
+r=9 f=75 DEBUG RESET BP_TrainingDummy_C_2 
+r=9 f=75 HOME RESET BP_TrainingDummy_C_1 
+r=9 f=75 HOME RESET BP_TrainingDummy_C_2 
+r=9 f=75 REVIVE BP_PlayerCharacter_C_0 
+r=9 f=75 REVIVE BP_TrainingDummy_C_1 
+r=9 f=75 REVIVE BP_TrainingDummy_C_2 

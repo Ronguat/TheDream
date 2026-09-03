@@ -1,11 +1,11 @@
-f=429 DEBUG RESET BP_PlayerCharacter_C_0 
-f=429 DEBUG RESET BP_TrainingDummy_C_1 
-f=429 DEBUG RESET BP_TrainingDummy_C_2 
-f=429 HOME RESET BP_TrainingDummy_C_1 
-f=429 HOME RESET BP_TrainingDummy_C_2 
-f=429 REVIVE BP_PlayerCharacter_C_0 
-f=429 REVIVE BP_TrainingDummy_C_1 
-f=429 REVIVE BP_TrainingDummy_C_2 
+f=252 DEBUG RESET BP_PlayerCharacter_C_0 
+f=252 DEBUG RESET BP_TrainingDummy_C_1 
+f=252 DEBUG RESET BP_TrainingDummy_C_2 
+f=252 HOME RESET BP_TrainingDummy_C_1 
+f=252 HOME RESET BP_TrainingDummy_C_2 
+f=252 REVIVE BP_PlayerCharacter_C_0 
+f=252 REVIVE BP_TrainingDummy_C_1 
+f=252 REVIVE BP_TrainingDummy_C_2 
 r=0 f=0 ACTIVATE BP_TrainingDummy_C_2 swing=0
 r=0 f=0 AIM WEDGE BP_TrainingDummy_C_2 
 r=0 f=0 HOME RESET BP_TrainingDummy_C_2 
@@ -45,13 +45,13 @@ r=0 f=38 PARRY GESTURE BP_PlayerCharacter_C_0
 r=0 f=38 PARRY RATE BP_PlayerCharacter_C_0 
 r=0 f=47 HOME RESET BP_TrainingDummy_C_2 
 r=0 f=65 PARRY LOCKOUT END BP_TrainingDummy_C_2 
-r=0 f=141 DEBUG HEALTH BP_TrainingDummy_C_2 
-r=0 f=141 DEBUG RESET BP_PlayerCharacter_C_0 
-r=0 f=141 DEBUG RESET BP_TrainingDummy_C_1 
-r=0 f=141 DEBUG STAMINA BP_TrainingDummy_C_2 
-r=0 f=141 HOME RESET BP_TrainingDummy_C_1 
-r=0 f=141 REVIVE BP_PlayerCharacter_C_0 
-r=0 f=141 REVIVE BP_TrainingDummy_C_1 
+r=0 f=82 DEBUG HEALTH BP_TrainingDummy_C_2 
+r=0 f=82 DEBUG RESET BP_PlayerCharacter_C_0 
+r=0 f=82 DEBUG RESET BP_TrainingDummy_C_1 
+r=0 f=82 DEBUG STAMINA BP_TrainingDummy_C_2 
+r=0 f=82 HOME RESET BP_TrainingDummy_C_1 
+r=0 f=82 REVIVE BP_PlayerCharacter_C_0 
+r=0 f=82 REVIVE BP_TrainingDummy_C_1 
 r=1 f=0 ACTIVATE BP_TrainingDummy_C_2 swing=0
 r=1 f=0 AIM WEDGE BP_TrainingDummy_C_2 
 r=1 f=0 HOME RESET BP_TrainingDummy_C_2 
@@ -75,29 +75,29 @@ r=1 f=21 PARRY MONTAGE -
 r=1 f=21 PARRY WINDOW BP_PlayerCharacter_C_0 
 r=1 f=21 TARGET BP_TrainingDummy_C_2 
 r=1 f=23 INPUT BP_PlayerCharacter_C_0 
-r=1 f=24 RELEASE BEGIN BP_TrainingDummy_C_2 
-r=1 f=24 RELEASE BP_TrainingDummy_C_2 
-r=1 f=24 TARGET BP_TrainingDummy_C_2 
-r=1 f=25 ABILITY END BP_TrainingDummy_C_2 
-r=1 f=25 AIM WEDGE BP_TrainingDummy_C_2 
-r=1 f=25 LUNGE STOP BP_TrainingDummy_C_2 
-r=1 f=25 PARRY GRACE BP_PlayerCharacter_C_0 
-r=1 f=25 PARRY LOCKOUT BP_TrainingDummy_C_2 
-r=1 f=25 PARRY RECOIL BP_TrainingDummy_C_2 by=BP_PlayerCharacter_C_0
-r=1 f=25 PARRY SUCCESS BP_PlayerCharacter_C_0 by=window gained=0.0
-r=1 f=26 RELEASE END BP_TrainingDummy_C_2 
-r=1 f=35 PARRY GRACE END BP_PlayerCharacter_C_0 
+r=1 f=25 RELEASE BEGIN BP_TrainingDummy_C_2 
+r=1 f=25 RELEASE BP_TrainingDummy_C_2 
+r=1 f=25 TARGET BP_TrainingDummy_C_2 
+r=1 f=26 ABILITY END BP_TrainingDummy_C_2 
+r=1 f=26 AIM WEDGE BP_TrainingDummy_C_2 
+r=1 f=26 LUNGE STOP BP_TrainingDummy_C_2 
+r=1 f=26 PARRY GRACE BP_PlayerCharacter_C_0 
+r=1 f=26 PARRY LOCKOUT BP_TrainingDummy_C_2 
+r=1 f=26 PARRY RECOIL BP_TrainingDummy_C_2 by=BP_PlayerCharacter_C_0
+r=1 f=26 PARRY SUCCESS BP_PlayerCharacter_C_0 by=window gained=0.0
+r=1 f=27 RELEASE END BP_TrainingDummy_C_2 
+r=1 f=36 PARRY GRACE END BP_PlayerCharacter_C_0 
 r=1 f=38 PARRY GESTURE BP_PlayerCharacter_C_0 
 r=1 f=38 PARRY RATE BP_PlayerCharacter_C_0 
-r=1 f=46 HOME RESET BP_TrainingDummy_C_2 
-r=1 f=64 PARRY LOCKOUT END BP_TrainingDummy_C_2 
-r=1 f=141 DEBUG HEALTH BP_TrainingDummy_C_2 
-r=1 f=141 DEBUG RESET BP_PlayerCharacter_C_0 
-r=1 f=141 DEBUG RESET BP_TrainingDummy_C_1 
-r=1 f=141 DEBUG STAMINA BP_TrainingDummy_C_2 
-r=1 f=141 HOME RESET BP_TrainingDummy_C_1 
-r=1 f=141 REVIVE BP_PlayerCharacter_C_0 
-r=1 f=141 REVIVE BP_TrainingDummy_C_1 
+r=1 f=47 HOME RESET BP_TrainingDummy_C_2 
+r=1 f=65 PARRY LOCKOUT END BP_TrainingDummy_C_2 
+r=1 f=82 DEBUG HEALTH BP_TrainingDummy_C_2 
+r=1 f=82 DEBUG RESET BP_PlayerCharacter_C_0 
+r=1 f=82 DEBUG RESET BP_TrainingDummy_C_1 
+r=1 f=82 DEBUG STAMINA BP_TrainingDummy_C_2 
+r=1 f=82 HOME RESET BP_TrainingDummy_C_1 
+r=1 f=82 REVIVE BP_PlayerCharacter_C_0 
+r=1 f=82 REVIVE BP_TrainingDummy_C_1 
 r=2 f=0 ACTIVATE BP_TrainingDummy_C_2 swing=0
 r=2 f=0 AIM WEDGE BP_TrainingDummy_C_2 
 r=2 f=0 HOME RESET BP_TrainingDummy_C_2 
@@ -137,10 +137,10 @@ r=2 f=38 PARRY GESTURE BP_PlayerCharacter_C_0
 r=2 f=38 PARRY RATE BP_PlayerCharacter_C_0 
 r=2 f=47 HOME RESET BP_TrainingDummy_C_2 
 r=2 f=65 PARRY LOCKOUT END BP_TrainingDummy_C_2 
-r=2 f=141 DEBUG HEALTH BP_TrainingDummy_C_2 
-r=2 f=141 DEBUG RESET BP_PlayerCharacter_C_0 
-r=2 f=141 DEBUG RESET BP_TrainingDummy_C_1 
-r=2 f=141 DEBUG STAMINA BP_TrainingDummy_C_2 
-r=2 f=141 HOME RESET BP_TrainingDummy_C_1 
-r=2 f=141 REVIVE BP_PlayerCharacter_C_0 
-r=2 f=141 REVIVE BP_TrainingDummy_C_1 
+r=2 f=82 DEBUG HEALTH BP_TrainingDummy_C_2 
+r=2 f=82 DEBUG RESET BP_PlayerCharacter_C_0 
+r=2 f=82 DEBUG RESET BP_TrainingDummy_C_1 
+r=2 f=82 DEBUG STAMINA BP_TrainingDummy_C_2 
+r=2 f=82 HOME RESET BP_TrainingDummy_C_1 
+r=2 f=82 REVIVE BP_PlayerCharacter_C_0 
+r=2 f=82 REVIVE BP_TrainingDummy_C_1 

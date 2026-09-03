@@ -804,7 +804,9 @@ def _two_attackers(family, first, second, second_at, plans, mutations, reps, exp
     """Both dummies attack with their loops running, never reset between reps, so intervals 0.1 s
     apart put their swings 6 f further apart each rep. The first stands where the attacker stands;
     the second where the row puts it."""
-    row = _player_defends(family, first, plans, mutations, reps, expect=expect, tail=tail,
+    ex = dict(expect or {})
+    ex["tail_fixed"] = True
+    row = _player_defends(family, first, plans, mutations, reps, expect=ex, tail=tail,
                           tape_every=tape_every, covers=covers, swing=False)
     row["roles"]["defender"] = (PLACED_DEFENDER[0],) + second_at
     row["knobs"]["defender"] = dict(second)

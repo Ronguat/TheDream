@@ -655,6 +655,12 @@ does not change.
 against the attacker's swing and released before that tier's hit lands, and an attacker that floors
 on an interval shorter than the knockdown it causes, both read from the mirror.
 
+**A rep's tail ends when the game is at rest** *(2026-09-03)*: after a plan's last step the runner
+waits until every pawn the rep drives has been at rest and still for 15 f with every hold up, or
+until the row's `tail_frames`, whichever comes first. The authored count is the cap; the state tags
+the gate already reads say when the mechanic has finished. An attacker whose loop still runs, the
+two-attacker rows, is not waited on.
+
 **A row stops on its samples, not on a clock** *(2026-09-03)*. A timer-fixture row names
 `until=(tag, n)` — eight `ABILITY END`s, four `KNOCKDOWN STAND`s — and the runner counts the trace
 between ticks and stops on the n-th, bounded by `timeout`; a scripted row stops when its reps are
