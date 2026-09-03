@@ -45,7 +45,10 @@ audit in miniature; the rest is making sure nothing is left on the floor.
    real-time canary a few minutes more, and **neither is assumed at a closedown or before a push**:
    the designer schedules them, **at least weekly, with time to correct what they find** *(the
    designer, 2026-09-03; the machine is shared, and a run holds the editor)*. Background whatever
-   runs and do step 4 meanwhile.
+   runs and do step 4 meanwhile. **A run can be stopped and picked up later**: `regression-run.sh
+   --stop` ends it after the row in progress, restoring the clock and the screen percentage, and
+   `--resume <run>` runs the rows that have no slice yet into the same run and summary. A resume
+   refuses across a rebuild, since a run's rows must share one binary.
 
    **A red row is a correctness item and blocks the push**, whether or not this session touched
    what it covers. **A CHANGED row is not a failure**: the golden skeleton reports what moved

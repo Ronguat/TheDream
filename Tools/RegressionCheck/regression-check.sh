@@ -41,13 +41,11 @@ BAND_RELEASE_TOL=30
 # + Recovery for its tier: light 0.20 + 0.15 + 0.60, heavy 0.40 + 0.15 + 0.50. **Re-derive from the
 # CDO rather than nudging** -- a band moved to make a run green no longer asserts anything.
 BAND_ELAPSED_LIGHT=0.950; BAND_ELAPSED_HEAVY=1.050; BAND_ELAPSED_CHARGED=1.550
-# Frame quantisation, and it accumulates: three hand-offs each round up to the next tick -- the
-# Release Window notify firing past its trigger, the release deadline closing on the first tick at
-# or past it, and the montage blend-out trigger -- so the total runs 0 to +3 frames over the
-# authored sum. At a fixed 1/60 that is 0.000 to 0.050 and every value between appears across the
-# matrix; the floor is reachable when all three land exactly. The sub-frame phase of each hand-off
-# is what varies, so the same fixture reads +2 on one row and +3 on another.
-BAND_ELAPSED_MIN=0.000;   BAND_ELAPSED_MAX=0.050
+# The ability ends on the tick its authored total lands on, scheduled a millisecond early so that
+# tick is deterministic. A whole-frame total lands on its tick exactly; a fractional one on the
+# nearest tick, half a frame either way; on the wall clock the end lands on the first tick at or
+# after the total, up to a frame late.
+BAND_ELAPSED_MIN=-0.009;  BAND_ELAPSED_MAX=0.020
 
 # S1 -- exact per-attack counts. The light never coils; charged escalates twice.
 BAND_ESCALATE_LIGHT=0; BAND_ESCALATE_HEAVY=1; BAND_ESCALATE_CHARGED=2

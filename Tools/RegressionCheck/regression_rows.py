@@ -257,9 +257,10 @@ def knockdown_getup_held_normal(ctx, r, s):
 
 
 def knockdown_getup_tap_priority(ctx, r, s):
-    """The rise comes at the lockout's end; which held or buffered option took it is reported."""
+    """The rise comes at the lockout's end and the held option takes it over the buffered tap."""
     player = ctx.who("player")
     lockout = float(s["expect"]["lockout"])
+    want = s["expect"]["by"]
     n, at_open, by = 0, 0, []
     for seg in ctx.reps:
         kd_t, _ = first(seg, "KNOCKDOWN", player, "type=")
@@ -272,7 +273,8 @@ def knockdown_getup_tap_priority(ctx, r, s):
         by.append(sfield(rise, "by"))
     r.counted(n, "knockdowns that rose", "%d" % n)
     r.add(n > 0 and at_open == n, "the rise comes at the lockout's end", "%d of %d within 1 f" % (at_open, n))
-    r.add(True, "which option rises with block held and attack tapped: reported", "REPORT %s" % by)
+    r.add(n > 0 and all(b == want for b in by), "the held %s outranks the buffered tap at the open" % want,
+          "saw %s" % by)
 
 
 def knockdown_getup_exhausted_held(ctx, r, s):

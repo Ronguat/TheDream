@@ -29,6 +29,7 @@ run continues with the next scenario.
 import importlib
 import json
 import os
+import time
 import sys
 import traceback
 import types
@@ -71,6 +72,7 @@ STATE_GETTERS = [
 SETTLE_TIMEOUT_S = 8.0
 WORLD_TIMEOUT_S = 30.0
 LOCK_TIMEOUT_S = 15.0
+STOP_FILE = os.path.join(REG_DIR, "stop")
 DEFAULT_TAIL_FRAMES = 60
 
 les = unreal.get_editor_subsystem(unreal.LevelEditorSubsystem)
@@ -196,6 +198,8 @@ class Run(object):
         self.sid = None
         self.phase = "next"
         self.wait = 0
+        self.phase_wall_t0 = time.time()
+        self.phase_game_t0 = None
         self.frame = 0
         self.step = 0
         self.holds = []            # keys currently down
@@ -236,7 +240,7 @@ class Run(object):
     def actor_names(self):
         return set(a.get_name() for a in eas.get_all_level_actors())
 
-    def finish(self):
+    def finish(self, stopped=False):
         self.release_all()
         if self.handle is not None:
             unreal.unregister_slate_post_tick_callback(self.handle)
@@ -249,7 +253,7 @@ class Run(object):
                     None, "r.ScreenPercentage %d" % self.orig_screen_pct)
         except Exception:
             pass
-        self.mark("DONE run=%s" % self.run_id)
+        self.mark("DONE run=%s%s" % (self.run_id, " status=stopped" if stopped else ""))
 
     def release_all(self):
         for k in list(self.holds):
@@ -285,6 +289,17 @@ class Run(object):
 
     def goto(self, phase):
         self.phase, self.wait = phase, 0
+        # Phase budgets count in seconds of the clock they wait on: wall time before a game world
+        # exists, game time once it does, since a tick is a sixtieth only under the fixed step.
+        self.phase_wall_t0 = time.time()
+        gw = ues.get_game_world()
+        self.phase_game_t0 = unreal.GameplayStatics.get_time_seconds(gw) if gw else None
+
+    def settled_for(self):
+        gw = ues.get_game_world()
+        if not gw or self.phase_game_t0 is None:
+            return time.time() - self.phase_wall_t0
+        return unreal.GameplayStatics.get_time_seconds(gw) - self.phase_game_t0
 
     def phase_aborting(self):
         self.wait += 1
@@ -298,6 +313,10 @@ class Run(object):
         self.idx += 1
         if self.idx >= len(self.ids):
             self.finish()
+            return
+        if os.path.exists(STOP_FILE):
+            # Asked to stop between rows: the row just run is complete, the rest are not started.
+            self.finish(stopped=True)
             return
         self.sid = self.ids[self.idx]
         self.goto("stopping")
@@ -348,7 +367,7 @@ class Run(object):
 
     def phase_wait_world(self):
         self.wait += 1
-        if self.wait * self.dt > WORLD_TIMEOUT_S and not les.is_in_play_in_editor():
+        if time.time() - self.phase_wall_t0 > WORLD_TIMEOUT_S and not les.is_in_play_in_editor():
             raise RuntimeError("PIE did not start")
         if not les.is_in_play_in_editor():
             return
@@ -356,7 +375,7 @@ class Run(object):
         pc = unreal.GameplayStatics.get_player_controller(gw, 0) if gw else None
         pawn = pc.get_controlled_pawn() if pc else None
         if pawn is None:
-            if self.wait * self.dt > WORLD_TIMEOUT_S:
+            if time.time() - self.phase_wall_t0 > WORLD_TIMEOUT_S:
                 raise RuntimeError("no player pawn after %.0fs" % WORLD_TIMEOUT_S)
             return
         self.pc, self.pawn = pc, pawn
@@ -637,7 +656,7 @@ class Run(object):
         expect = s.get("expect", {})
         attackers = set(self.periodic_attackers())
         quiet = [self.pawn] + [a for r, a in self.pie_roles.items() if r not in attackers]
-        if self.wait * self.dt < SETTLE_TIMEOUT_S and not all(at_rest(p) and still(p) for p in quiet):
+        if self.settled_for() < SETTLE_TIMEOUT_S and not all(at_rest(p) and still(p) for p in quiet):
             return
         gw = ues.get_game_world()
         now = unreal.GameplayStatics.get_time_seconds(gw)
@@ -669,7 +688,7 @@ class Run(object):
         self.wait += 1
         self.release_all()
         pawns = [self.pawn] + list(self.pie_roles.values())
-        if self.wait * self.dt < SETTLE_TIMEOUT_S and not all(at_rest(p) and still(p) for p in pawns):
+        if self.settled_for() < SETTLE_TIMEOUT_S and not all(at_rest(p) and still(p) for p in pawns):
             return
         self.readout("TEARDOWN")
         for p in pawns:

@@ -745,12 +745,12 @@ SCENARIOS["knockdown-getup-held"] = _player_defends(
 # Normal knockdown from the string's ender: lockout 60 f. The stand is legal here, and all four
 # held together must still yield the guard.
 # Both get-up paths at once: block held from 30 f, attack tapped at 88 f inside the buffer's reach of
-# the 90 f open. The rise must come at the open; which option rises is reported for the ruling.
+# the 90 f open. The rise comes at the open and the held option takes it.
 SCENARIOS["knockdown-getup-tap-priority"] = _player_defends(
     "knockdown", _atk(HEAVY, debug_auto_attack_interval=4.5),
     plans=[[LOCK_DOWN, (30, "player", "hold", "block", 90), (88, "player", "tap", "attack")]],
-    mutations=[("shift", "KNOCKDOWN RISE", 0.100)], reps=3, tail=90,
-    expect=dict(lockout=1.5))
+    mutations=[("set", "KNOCKDOWN RISE", "by", "attack")], reps=3, tail=90,
+    expect=dict(lockout=1.5, by="block"))
 
 SCENARIOS["knockdown-getup-held-normal"] = _player_defends(
     "knockdown", _atk(LIGHT, **STRING),

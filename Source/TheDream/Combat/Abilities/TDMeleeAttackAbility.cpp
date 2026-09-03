@@ -681,8 +681,9 @@ void UTDMeleeAttackAbility::ScheduleAuthoredEnd(float EndWorldTime)
 	{
 		return;
 	}
-	// Half a tick early, so the tick the total lands on is the one that ends it.
-	const float Delay = EndWorldTime - World->GetTimeSeconds() - 0.5f * World->GetDeltaSeconds();
+	// A millisecond early, so the tick the total lands on is the one that ends it on any clock:
+	// wide against float on a fixed step, narrow against the frame on a variable one.
+	const float Delay = EndWorldTime - World->GetTimeSeconds() - FMath::Min(0.001f, 0.5f * World->GetDeltaSeconds());
 	bAuthoredEndArmed = true;
 	if (Delay <= 0.0f)
 	{

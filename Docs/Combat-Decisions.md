@@ -163,8 +163,8 @@ discharged it and keep anything from it that is still true. Removing a trap sile
 edit here that cannot be reviewed, because nothing is left to review.
 
 **Whenever the matrix is read as covering a mechanic — *what Phase 2 did not reach.*** Filed
-2026-09-03, narrowed the same day by the designer's rulings. The full real-time matrix runs on the
-designer's weekly schedule rather than at closedowns. The height band below the attacker is
+2026-09-03, narrowed the same day by the designer's rulings. The full real-time matrix ran the same
+day (rulings entry) and runs on the designer's weekly schedule rather than at closedowns. The height band below the attacker is
 **discharged by ruling**: symmetric by construction, not worth a probe. The parry lockout of chained
 heavy and charged cells (1/1, 1/2, 2/1, 2/2) needs a second scripted pawn and **goes to Netcode's
 brief**. Jump as a get-up option was **already covered**, `knockdown-getup-held-normal` holding jump
@@ -1975,7 +1975,9 @@ against the authored 492. `reach-aim-wedge` unchanged at 15° named, 35° none.
   now says which path "releasing abandons". One thing left to measure: the buffer holds one press,
   last wins, while the held rule ranks guard over dodge over attack; `knockdown-getup-tap-priority`
   holds block and taps attack inside the last 200 ms and reports which rises: **block, 3 of 3**, the
-  held path's ranking holding over the buffered tap.
+  held path's ranking holding over the buffered tap. **Ruled 2026-09-03: that is the design** — the
+  held option wins at the open, the buffered tap only when nothing held claims it; the row asserts
+  block, and the spec's knockdown section carries the sentence.
 - **Cadence, ruled 2026-09-03.** Rows selected by mechanism at closedown; the full matrix and the
   real-time canary weekly on the designer's schedule with correction time, never assumed at a
   closedown or before a push. In `Docs/Closing-Down.md`.
@@ -1994,13 +1996,34 @@ against the authored 492. `reach-aim-wedge` unchanged at 15° named, 35° none.
   0 to 3 f after `ReleaseAt + Release + Recovery` depending on where the release-end event fell, so
   an unchained light ended on any of 57 to 60 f and every acceptance edge measured against "the end"
   inherited the spread. `UTDMeleeAttackAbility::ScheduleAuthoredEnd` now arms a timer at the release
-  window's close for the authored total, half a tick early so the boundary tick ends it, and the
-  montage's finish is ignored while it is armed; the ladder and the get-up attack both schedule it.
+  window's close for the authored total, a millisecond early so the boundary tick ends it, and the
+  montage's finish is ignored while it is armed. The first cut biased by half a tick, which on the
+  wall clock is half a frame early and read as totals 1 to 4 ms under their bands in the real-time
+  matrix; a millisecond is wide against float on a fixed step and narrow against a frame on a
+  variable one. The elapsed band is re-derived to that rule, −0.5 to +1 f, from the 0 to +3 f the
+  montage's blend-out had needed;
+- **The real-time matrix ran, 2026-09-03**, the first full one: 34 legacy rows on the wall clock,
+  57 frame-authored rows skipped. It read 19 green, and every red was the instrument meeting a second
+  clock: the half-tick end bias above; six legacy rows that drive the dummy by frames, `chain-*` and
+  `input-*`, now skipped on the wall clock with the scripted ones; and the runner's settle budget
+  counted in ticks at a nominal sixtieth, which at a high frame rate gave a dead dummy less than its
+  3 s revive before the readout — the phase budgets now count seconds of the clock they wait on. The
+  marked rows re-read **9 of 11 green** on the wall clock; what remains is a defender still exhausted
+  and guard-broken at teardown under an attacker that never stops swinging, phase luck on either
+  clock, and one out-of-order timestamp in one slice, noted and not chased.
+- **Stop and resume, 2026-09-03.** `regression-run.sh --stop` writes a sentinel the runner reads
+  between rows; the row in progress completes, the clock and the screen percentage are restored, PIE
+  ends, exit code 3. `--resume <run>` runs the rows of that run with no slice yet into the same
+  directory and merges the summary; the manifest carries the editor module's timestamp and a resume
+  refuses across a rebuild. Verified on a three-row run stopped during its second row and resumed
+  for its third: one summary, three rows, both sittings' wall. the ladder and the get-up attack both schedule it.
   The catch accepted: up to three frames of a recovery clip's blend tail are cut, below what anyone
   sees, and the clip fits the duration by the project's own rule. Measured: 28 of 28 unchained
   lights end at 0.950 exactly; a stored press fires the tick after the end, so the actionable frame is
   58 f and a fresh press counts from 46 f, both without a race; a non-integer total lands on its
-  nearest tick, the ender's 70.35 f on 70. `edge-actionable` and `edge-fresh-open` assert those edges.
+  nearest tick, the ender's 70.35 f on 70. `edge-actionable` and `edge-fresh-open` assert those edges. **Ruled 2026-09-03, "beautiful and how
+  it should be"**: the frame after the end frame is the first actionable frame, a press on the end
+  frame itself buffered to it; in the spec as a rule.
 - Every `ReleaseStartSeconds` copy matched its notify to the millisecond; the 0.03 s warning has
   never fired for a real drift.
 - Under the fixed clock the viewport ghosts for up to a second; nothing the loop reads is affected

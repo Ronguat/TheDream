@@ -607,7 +607,16 @@ evaluator underneath it, run by hand against a slice.
 ./Tools/RegressionCheck/regression-run.sh --all
 ./Tools/RegressionCheck/regression-run.sh --family knockdown --realtime
 ./Tools/RegressionCheck/regression-run.sh --all --dry-run     # preflight only, no PIE
+./Tools/RegressionCheck/regression-run.sh --stop              # end the run after its current row
+./Tools/RegressionCheck/regression-run.sh --resume 0903-115006  # the rows of that run still unrun
 ```
+
+**A run is resumable because every row is independent** *(2026-09-03)*: `--stop` writes a sentinel
+the runner reads between rows, so the row in progress completes, the clock and the screen percentage
+are restored and PIE ends; `--resume <run>` runs the rows of that run with no slice yet, into the same
+directory, and its summary carries every sitting. The manifest records the editor module's
+timestamp and a resume refuses across a rebuild: a run's rows must share one binary or the run means
+nothing as a whole. Exit code 3 is a stopped run.
 
 **Preflight is the half that makes a green mean something**: the editor answers and is not in PIE,
 `PlayNumberOfClients` is 1, `TD.DebugCombatTiming` is 1, open asset editors are named, `--self-test`

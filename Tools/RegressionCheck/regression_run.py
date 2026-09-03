@@ -27,6 +27,17 @@ RUNNER = os.path.join(HERE, "ue_regression_runner.py")
 CHECKER = os.path.join(HERE, "regression-check.sh")
 LOG = os.path.join(ROOT, "Saved", "Logs", "TheDream.log")
 REG = os.path.join(ROOT, "Saved", "Regression")
+STOP_FILE = os.path.join(REG, "stop")
+DLL = os.path.join(ROOT, "Binaries", "Win64", "UnrealEditor-TheDream.dll")
+
+
+def binary_stamp():
+    """The editor module's modification time, the mark a resume must match."""
+    try:
+        return int(os.path.getmtime(DLL))
+    except OSError:
+        return 0
+
 LOCK = os.path.join(REG, ".lock")
 
 
@@ -275,7 +286,39 @@ def main():
     ap.add_argument("--strict-golden", action="store_true")
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--run", default=None)
+    ap.add_argument("--stop", action="store_true",
+                    help="ask the run in progress to finish its current row and end")
+    ap.add_argument("--resume", default=None, metavar="RUN",
+                    help="run the rows of RUN that have no slice yet, on the same binary")
     a = ap.parse_args()
+
+    if a.stop:
+        os.makedirs(REG, exist_ok=True)
+        with open(STOP_FILE, "w") as fh:
+            fh.write(time.strftime("%Y-%m-%d %H:%M:%S"))
+        print("  stop requested; the run ends after its current row")
+        return 0
+
+    if a.resume:
+        run_dir = os.path.join(REG, a.resume)
+        try:
+            with open(os.path.join(run_dir, "run.json")) as fh:
+                saved = json.load(fh)
+        except (OSError, ValueError):
+            print("no resumable run at %s" % run_dir)
+            return 2
+        if saved.get("binary") != binary_stamp():
+            print("  %s ran on a different binary; its rows are stale, start a new run" % a.resume)
+            return 2
+        a.realtime = not saved.get("fixed_step", True)
+        ids = [i for i in saved["scenarios"]
+               if not os.path.exists(os.path.join(run_dir, i + ".slice.log"))]
+        if not ids:
+            print("  %s has a slice for every row; nothing to resume" % a.resume)
+            return 0
+        print("  resuming %s: %d of %d row(s) remain" % (a.resume, len(ids), len(saved["scenarios"])))
+        a.run = a.resume
+        a.ids, a.all, a.family = ids, False, None
 
     if a.all:
         ids = sorted(SC.SCENARIOS)
@@ -291,7 +334,7 @@ def main():
         print("unknown scenario(s): %s" % ", ".join(unknown))
         return 2
     if a.realtime:
-        framed = [i for i in ids if SC.SCENARIOS[i].get("plans")]
+        framed = [i for i in ids if SC.SCENARIOS[i].get("plans") or SC.SCENARIOS[i].get("plan")]
         if framed:
             print("  real-time skips %d frame-authored row(s): %s" % (len(framed), ", ".join(framed)))
             ids = [i for i in ids if i not in framed]
@@ -331,10 +374,21 @@ def main():
 
 def drive(run_id, ids, a):
     os.makedirs(REG, exist_ok=True)
+    if os.path.exists(STOP_FILE):
+        os.remove(STOP_FILE)
     cfg = dict(run=run_id, scenarios=ids, fixed_step=not a.realtime, dt=1.0 / 60.0,
-               tapes=True, screen_percentage=50)
+               tapes=True, screen_percentage=50, binary=binary_stamp())
     with open(os.path.join(REG, "run.json"), "w") as fh:
         json.dump(cfg, fh)
+    # The run's own copy keeps every row the run was asked for, so a resume knows what is left.
+    run_dir = os.path.join(REG, run_id)
+    os.makedirs(run_dir, exist_ok=True)
+    earlier = []
+    if os.path.exists(os.path.join(run_dir, "run.json")):
+        with open(os.path.join(run_dir, "run.json")) as fh:
+            earlier = json.load(fh).get("scenarios", [])
+    with open(os.path.join(run_dir, "run.json"), "w") as fh:
+        json.dump(dict(cfg, scenarios=sorted(set(earlier) | set(ids))), fh)
 
     offset = os.path.getsize(LOG)
     r = sh([PY, RUN_IN_EDITOR, RUNNER], timeout=120)
@@ -354,11 +408,15 @@ def drive(run_id, ids, a):
     pending = list(ids)
     deadline = started_at + sum(budget.values()) + 120.0
     buf = ""
-    while pending and time.time() < deadline:
+    stopped = False
+    while pending and time.time() < deadline and not stopped:
         time.sleep(2.0)
         chunk, offset = tail_new(LOG, offset)
         buf += chunk
         for line in buf.splitlines():
+            if "REGRESSION DONE " in line and "status=stopped" in line:
+                stopped = True
+                continue
             if "REGRESSION END " not in line:
                 continue
             sid = line.split("REGRESSION END ", 1)[1].split()[0]
@@ -383,22 +441,45 @@ def drive(run_id, ids, a):
                   % (sid, status, ev["detail"][:22], ev["universal"][:8],
                      ev["golden"][:26], ev["mutations"][:18]))
         buf = ""
-    for sid in pending:
-        results.append(dict(run=run_id, stamp=time.strftime("%Y-%m-%d %H:%M:%S"),
-                            id=sid, status="timeout", game="-", frames="-", rc=1,
-                            detail="no END marker within %.0fs" % budget[sid],
-                            universal="-", golden="-", mutations="-"))
-        print("    %-22s TIMEOUT" % sid)
+    if stopped:
+        if os.path.exists(STOP_FILE):
+            os.remove(STOP_FILE)
+        print("    stopped after the current row; %d row(s) not run" % len(pending))
+        print("    resume with: regression-run.sh --resume %s" % run_id)
+    else:
+        for sid in pending:
+            results.append(dict(run=run_id, stamp=time.strftime("%Y-%m-%d %H:%M:%S"),
+                                id=sid, status="timeout", game="-", frames="-", rc=1,
+                                detail="no END marker within %.0fs" % budget[sid],
+                                universal="-", golden="-", mutations="-"))
+            print("    %-22s TIMEOUT" % sid)
 
     append_history(run_id, results)
     report(run_id, results, time.time() - started_at)
+    if stopped:
+        return 3
     return 1 if any(r["status"] != "ok" or r["rc"] not in (0, None) for r in results) else 0
 
 
 def report(run_id, results, wall):
+    """The summary carries every row the run has produced across its sittings: rows from an earlier
+    sitting stay unless this one ran them again."""
     out_dir = os.path.join(REG, run_id)
     os.makedirs(out_dir, exist_ok=True)
-    with open(os.path.join(out_dir, "summary.json"), "w") as fh:
+    path = os.path.join(out_dir, "summary.json")
+    earlier, earlier_wall = [], 0.0
+    if os.path.exists(path):
+        try:
+            with open(path) as fh:
+                prev = json.load(fh)
+            now_ids = set(r["id"] for r in results)
+            earlier = [r for r in prev.get("scenarios", []) if r["id"] not in now_ids]
+            earlier_wall = float(prev.get("wall_seconds", 0.0))
+        except (OSError, ValueError, KeyError):
+            earlier, earlier_wall = [], 0.0
+    results = earlier + results
+    wall += earlier_wall
+    with open(path, "w") as fh:
         json.dump(dict(run=run_id, wall_seconds=round(wall, 1), scenarios=results), fh, indent=1)
     ok = sum(1 for r in results if r["status"] == "ok" and r["rc"] in (0, None))
     print()
