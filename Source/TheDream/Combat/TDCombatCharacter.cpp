@@ -2259,10 +2259,6 @@ void ATDCombatCharacter::EnterDeath(AActor* Killer)
 	// in a situation that no longer exists. Local input state, so it is meaningless on any
 	// machine that is not the one that pressed the button.
 	BufferedInput.Clear();
-	if (UWorld* World = GetWorld())
-	{
-		World->GetTimerManager().ClearTimer(BufferedReleaseTimerHandle);
-	}
 
 	if (DebugAutoReviveSeconds > 0.0f)
 	{
@@ -3200,9 +3196,6 @@ void ATDCombatCharacter::HandleDebugAutoAttackEnded(const FAbilityEndedData& End
 		return;
 	}
 
-	// A successor now activates in the same tick the chained-out swing ends in, so there is no
-	// window to wait out before the ordinary delay: either the string continued, in which case the
-	// press cleared this timer, or it closed and the reset runs.
 	const float ResetDelay = DebugAutoAttackResetDelaySeconds;
 
 	if (ResetDelay <= 0.0f)
@@ -3214,9 +3207,39 @@ void ATDCombatCharacter::HandleDebugAutoAttackEnded(const FAbilityEndedData& End
 	GetWorldTimerManager().SetTimer(
 		DebugAutoAttackResetTimerHandle,
 		this,
-		&ATDCombatCharacter::ReturnToDebugAutoAttackHome,
+		&ATDCombatCharacter::TryReturnToDebugAutoAttackHome,
 		ResetDelay,
 		false);
+}
+
+void ATDCombatCharacter::TryReturnToDebugAutoAttackHome()
+{
+	// **Checked here rather than where the timer was set.** A chained swing ends and its successor
+	// activates in the same tick, but the end handler runs in the gap *between* them -- so at
+	// schedule time nothing is active and the guard would pass, landing the teleport inside the
+	// successor's release window. By the time this fires, the successor is running and visible.
+	//
+	// Re-armed rather than dropped, so the reset still happens once the string finishes: the
+	// running swing's own end also re-schedules, and whichever lands first wins harmlessly.
+	if (AbilitySystem)
+	{
+		for (const FGameplayAbilitySpec& Spec : AbilitySystem->GetActivatableAbilities())
+		{
+			const UTDGameplayAbility* Ability = Cast<UTDGameplayAbility>(Spec.Ability);
+			if (Spec.IsActive() && Ability && Ability->InputTag == DebugAutoAttackInputTag)
+			{
+				GetWorldTimerManager().SetTimer(
+					DebugAutoAttackResetTimerHandle,
+					this,
+					&ATDCombatCharacter::TryReturnToDebugAutoAttackHome,
+					FMath::Max(0.05f, DebugAutoAttackResetDelaySeconds),
+					false);
+				return;
+			}
+		}
+	}
+
+	ReturnToDebugAutoAttackHome();
 }
 
 void ATDCombatCharacter::DebugAutoAttackPress()
@@ -3519,14 +3542,6 @@ void ATDCombatCharacter::OnAbilityInputPressed(FGameplayTag InputTag)
 	// the same instant, from the same frame's facing.
 	CaptureMoveDirectionForPress();
 
-	// A live edge always beats a recorded one. Without this, a replay still scheduled from an
-	// earlier buffered press would land on whatever ability is running by the time it fires --
-	// releasing a hold the player is in the middle of.
-	if (UWorld* World = GetWorld())
-	{
-		World->GetTimerManager().ClearTimer(BufferedReleaseTimerHandle);
-	}
-
 	// Any new press supersedes a buffered one, whether or not this press succeeds and whatever
 	// it was. Pressing something else says you have stopped waiting on the last thing -- and
 	// without this a dodge buffered into a lockout could still surface after an attack the
@@ -3590,12 +3605,6 @@ void ATDCombatCharacter::OnAbilityInputReleased(FGameplayTag InputTag)
 		*InputTag.ToString(),
 		*GetName());
 
-	// Same reason as the press: a real release makes any pending replay redundant at best.
-	if (UWorld* World = GetWorld())
-	{
-		World->GetTimerManager().ClearTimer(BufferedReleaseTimerHandle);
-	}
-
 	ReleaseAbilitiesForInput(InputTag);
 
 	// Recorded rather than acted on. The buffer needs this edge because the attack ladder
@@ -3617,46 +3626,9 @@ void ATDCombatCharacter::OnAbilityInputReleased(FGameplayTag InputTag)
 	const float Now = World->GetTimeSeconds();
 	BufferedInput.bReleased = true;
 	BufferedInput.HoldSeconds = FMath::Max(0.0f, Now - BufferedInput.PressWorldTime);
-	BufferedInput.ExpiryWorldTime = Now + InputBufferSeconds;
 
 	TD_TIMING_LOG(TEXT("[%.3f] BUFFER     %s: released after %.0fms held"),
 		Now, *InputTag.ToString(), BufferedInput.HoldSeconds * 1000.0f);
-}
-
-void ATDCombatCharacter::ReplayBufferedRelease(FGameplayTag InputTag)
-{
-	ReleaseAbilitiesForInput(InputTag);
-
-	TD_TIMING_LOG(TEXT("[%.3f] BUFFER     %s: replayed release"),
-		GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f, *InputTag.ToString());
-}
-
-bool ATDCombatCharacter::ShouldExtendBufferedPress(const FGameplayTag& InputTag) const
-{
-	if (!AbilitySystem)
-	{
-		return false;
-	}
-
-	TArray<FGameplayAbilitySpecHandle> Handles;
-	GatherAbilitiesForInput(InputTag, Handles);
-
-	for (const FGameplayAbilitySpecHandle& Handle : Handles)
-	{
-		const FGameplayAbilitySpec* Spec = AbilitySystem->FindAbilitySpecFromHandle(Handle);
-		const UTDGameplayAbility* Ability = Spec ? Cast<UTDGameplayAbility>(Spec->Ability) : nullptr;
-		if (!Ability || !Ability->ShouldExtendBufferWhileActive())
-		{
-			continue;
-		}
-
-		if (Spec->IsActive())
-		{
-			return true;
-		}
-	}
-
-	return false;
 }
 
 bool ATDCombatCharacter::TryChainOutActiveAbility(const FGameplayTag& InputTag)
@@ -3733,23 +3705,10 @@ void ATDCombatCharacter::TickInputBuffer()
 
 	const float Now = World->GetTimeSeconds();
 
-	// A button still down is not a stale input, so it never expires -- the same
-	// push-the-deadline-forward idiom the regen pause uses. This is what makes a buffered
-	// heavy reachable at all: its 200 ms boundary is past any window this size, so every
-	// tier above light necessarily comes from a hold that outlives the window.
-	if (!BufferedInput.bReleased)
-	{
-		BufferedInput.ExpiryWorldTime = FMath::Max(BufferedInput.ExpiryWorldTime, Now + InputBufferSeconds);
-	}
-
-	// The extension is the *ability's* choice and no attack opts in: a released press expires at
-	// InputBufferSeconds whatever is running. The buffer still reaches the chain-open span, whose
-	// opening sits exactly InputBufferSeconds past the press that would need carrying there.
-	else if (ShouldExtendBufferedPress(BufferedInput.InputTag))
-	{
-		BufferedInput.ExpiryWorldTime = FMath::Max(BufferedInput.ExpiryWorldTime, Now + InputBufferSeconds);
-	}
-
+	// **Acceptance, not staleness.** The deadline is InputBufferSeconds past the *press* and never
+	// moves: neither holding the button nor releasing it buys reach. A press outside that span is
+	// not a decayed request, it is one made when presses are not accepted -- the same shape as
+	// pressing during a knockdown's lockout rather than its input window.
 	if (Now >= BufferedInput.ExpiryWorldTime)
 	{
 		TD_TIMING_LOG(TEXT("[%.3f] BUFFER     %s: expired, %.0fms after press"),
@@ -3775,48 +3734,36 @@ void ATDCombatCharacter::TickInputBuffer()
 	// refused -- a blocking tag, a live instance, an ability ending, the airborne check --
 	// would otherwise have to be enumerated and hooked, and missing one fails silently.
 	// Polling cannot be incomplete, and there is at most one buffered input to retry.
+	// Published before activating, because the ability reads it during ActivateAbility: how long
+	// the button has been down for this press, which its ladder resumes counting from. A press
+	// still held carries the time since it went down; one already released carries what it held
+	// for. Either way the tier is decided by the whole hold, not the part after activation.
+	PendingActivationHoldSeconds = BufferedInput.bReleased
+		? BufferedInput.HoldSeconds
+		: FMath::Max(0.0f, Now - BufferedInput.PressWorldTime);
+
+	// **The hold's end travels with its length.** A press released before anything could answer it
+	// has spent its release edge already, and no second one is coming -- an ability that started
+	// believing the button was down would hold that belief forever and climb every rung of its
+	// ladder on a press the player finished in 58 ms.
+	bPendingActivationInputHeld = !BufferedInput.bReleased;
+
 	if (!TryActivateAbilitiesForInput(BufferedInput.InputTag, /*bForwardToActive=*/false))
 	{
+		PendingActivationHoldSeconds = 0.0f;
+		bPendingActivationInputHeld = true;
 		return;
 	}
 
-	const FGameplayTag FiredTag = BufferedInput.InputTag;
-	const bool bWasReleased = BufferedInput.bReleased;
-	const float HoldSeconds = BufferedInput.HoldSeconds;
-	const float LateBySeconds = Now - BufferedInput.PressWorldTime;
+	TD_TIMING_LOG(TEXT("[%.3f] BUFFER     %s: fired %.0fms late, %.0fms already held%s"),
+		Now, *BufferedInput.InputTag.ToString(),
+		(Now - BufferedInput.PressWorldTime) * 1000.0f,
+		PendingActivationHoldSeconds * 1000.0f,
+		BufferedInput.bReleased ? TEXT("") : TEXT(", still held"));
 
+	PendingActivationHoldSeconds = 0.0f;
+	bPendingActivationInputHeld = true;
 	BufferedInput.Clear();
-
-	if (!bWasReleased)
-	{
-		// Still held, so the live release edge arrives on its own and the hold is measured
-		// from activation. The time held before then is deliberately not credited: the windup
-		// is preset, and crediting it would land the attack sooner than its tier is authored
-		// to take.
-		TD_TIMING_LOG(TEXT("[%.3f] BUFFER     %s: fired %.0fms late, still held"),
-			Now, *FiredTag.ToString(), LateBySeconds * 1000.0f);
-		return;
-	}
-
-	// The button came up before anything could answer it, so replay that edge at the offset it
-	// really had. Releasing at once instead would flatten every buffered hold to the shortest
-	// branch -- a 236ms hold, a heavy by every rule the ladder has, came out a light before
-	// this existed. The windup still runs its full preset length from activation; only the
-	// *tier* is carried across, never the time already spent holding.
-	TD_TIMING_LOG(TEXT("[%.3f] BUFFER     %s: fired %.0fms late, replaying release at +%.0fms"),
-		Now, *FiredTag.ToString(), LateBySeconds * 1000.0f, HoldSeconds * 1000.0f);
-
-	if (HoldSeconds <= KINDA_SMALL_NUMBER)
-	{
-		ReplayBufferedRelease(FiredTag);
-		return;
-	}
-
-	World->GetTimerManager().SetTimer(
-		BufferedReleaseTimerHandle,
-		FTimerDelegate::CreateWeakLambda(this, [this, FiredTag]() { ReplayBufferedRelease(FiredTag); }),
-		HoldSeconds,
-		false);
 }
 
 float ATDCombatCharacter::GetHealth() const

@@ -49,17 +49,6 @@ public:
 	virtual bool ShouldBufferFailedInput(const FGameplayAbilityActorInfo* ActorInfo) const;
 
 	/**
-	 *  Whether a buffered press for this input survives while an instance is already running.
-	 *
-	 *  True means "a press made while I run is a request to follow me", bounded by the swing. It is
-	 *  per ability rather than per branch, so returning true also holds a press through a swing that
-	 *  cannot be chained out of, where it fires only once that swing has ended.
-	 *
-	 *  Nothing overrides this. A press expires at InputBufferSeconds whatever is running.
-	 */
-	virtual bool ShouldExtendBufferWhileActive() const { return false; }
-
-	/**
 	 *  Offer a running ability the chance to end itself in favour of the buffered press. The buffer
 	 *  tick calls this on the active instance answering the same input; an attack in its chain-open
 	 *  span ends early through the ordinary EndAbility funnel, letting the same tick's retry

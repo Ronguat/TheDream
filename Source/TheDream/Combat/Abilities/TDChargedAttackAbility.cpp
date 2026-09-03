@@ -43,6 +43,17 @@ void UTDChargedAttackAbility::ActivateAbility(const FGameplayAbilitySpecHandle H
 	// end mark a string advance, which is the post-recovery continuation this replaced.
 	bEndingViaChainOut = false;
 	RecoveryStartedAt = 0.0f;
+	// The hold this press already spent waiting for the buffer. The ladder resumes counting from
+	// it, so a button held across the activation boundary reaches the same tier it would have
+	// reached had the swing started when the press did.
+	PriorHoldSeconds = 0.0f;
+	if (const ATDCombatCharacter* Presser = Cast<ATDCombatCharacter>(GetAvatarActorFromActorInfo()))
+	{
+		PriorHoldSeconds = FMath::Max(0.0f, Presser->GetPendingActivationHoldSeconds());
+		// A buffered press whose release already passed starts released: its edge will not arrive
+		// twice, and bInputHeld set optimistically would never be cleared.
+		bInputHeld = Presser->IsPendingActivationInputHeld();
+	}
 	AppliedAttackTag = FGameplayTag();
 	// Same InstancedPerActor hazard: a tier montage left set would make the next swing read its
 	// positions off the previous swing's clip, and every one of them would be wrong.
@@ -137,8 +148,10 @@ void UTDChargedAttackAbility::ScheduleCheckpoint(float DelaySeconds)
 	}
 
 	// Measured against activation rather than chained, so a late timer cannot push every
-	// subsequent checkpoint further out.
-	const float Remaining = DelaySeconds - GetElapsedSeconds();
+	// subsequent checkpoint further out. PriorHoldSeconds shifts the whole ladder earlier by the
+	// time this press was already held before activating: a checkpoint the hold has passed already
+	// falls due immediately, which is how a buffered hold keeps the tier it earned.
+	const float Remaining = (DelaySeconds - PriorHoldSeconds) - GetElapsedSeconds();
 	if (Remaining <= 0.0f)
 	{
 		HandleCheckpoint();
@@ -164,7 +177,14 @@ void UTDChargedAttackAbility::HandleCheckpoint()
 	// Still holding escalates to the next branch. The deepest branch has nothing to
 	// escalate to, so holding forever commits it anyway -- an attack that could be held
 	// indefinitely would be free of risk.
-	if (bInputHeld && Branches.IsValidIndex(NextIndex))
+	//
+	// A press released *before* this activation escalates too, when the hold it already spent
+	// covers this branch's threshold. Without that, a buffered hold long enough for a heavy would
+	// arrive with the button up and flatten to the shortest branch.
+	const bool bHoldCoversThisBranch = Branches.IsValidIndex(SelectedBranchIndex)
+		&& PriorHoldSeconds >= Branches[SelectedBranchIndex].HoldUntilSeconds;
+
+	if ((bInputHeld || bHoldCoversThisBranch) && Branches.IsValidIndex(NextIndex))
 	{
 		SelectedBranchIndex = NextIndex;
 

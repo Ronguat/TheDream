@@ -245,10 +245,12 @@ hook cannot tell who wrote a change.
 
 Execution order, the only line that changes when the order does:
 
-> **~~Attack Ladder~~ → ~~Dodge~~ → ~~Sword & Shield~~ → ~~Input Buffer~~ → ~~Death~~ → ~~Dodge Distance~~ → ~~Attack Swap~~ → ~~[hover bug]~~ → ~~[facing pass]~~ → ~~Recovery~~ + ~~Lunge~~ → ~~Target Lock~~ → ~~Block~~ → ~~Light String~~ → ~~Parry~~ → ~~Knockdown~~ → ~~Skeleton Merge~~ → ~~Death-full~~ → Polish → Settings → Art → Netcode → Tuning Rig → Gamemode → Interplay**
+> **~~Attack Ladder~~ → ~~Dodge~~ → ~~Sword & Shield~~ → ~~Input Buffer~~ → ~~Death~~ → ~~Dodge Distance~~ → ~~Attack Swap~~ → ~~[hover bug]~~ → ~~[facing pass]~~ → ~~Recovery~~ + ~~Lunge~~ → ~~Target Lock~~ → ~~Block~~ → ~~Light String~~ → ~~Parry~~ → ~~Knockdown~~ → ~~Skeleton Merge~~ → ~~Death-full~~ → **Regression Audit** → Polish → Settings → Art → Netcode → Tuning Rig → Gamemode → Interplay**
 
-**Pick up at Polish** — briefs are in `Docs/Combat-Decisions.md`. **The remaining roster is one
-megaslice**, not separable slices.
+**Pick up at Regression Audit**, which temporarily outranks everything *(the designer, 2026-09-02)*:
+**every scenario predates the discovery that player input is scriptable**, so all of them drive the
+dummy's fixture knobs. **Polish resumes after it**; briefs are in `Docs/Combat-Decisions.md`. **The
+remaining roster is one megaslice**, not separable slices.
 
 **The verification bar every slice now ships against** *(2026-08-24, the dated entry)*: verified
 functionality, with animations legible enough to tell which mechanic is firing. Visual refinement

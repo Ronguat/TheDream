@@ -221,6 +221,14 @@ enumerated from the source 2026-08-14 rather than remembered — `ACTIVATE`, `CO
 `KNOCKBACK` joined 2026-08-16**, and all three went live when sitting 2 authored the values that
 arm them — they are no longer silent. **`ROTATE` joined 2026-08-18** and fires only while `bDebugAutoAttackRotateTargets` is set;
 **`LUNGE SKIP`** the same day, only under `bDebugSuppressLunge`.
+**Two traps in scoring an `s8` run, both paid for 2026-09-02.** `bDebugAutoAttack` is read **once at
+BeginPlay** to register the attack loop, so silencing a dummy from inside a running PIE does nothing
+and the log carries a second attacker — **silence it before StartPIE, like every other fixture knob.**
+And `COMMIT` and the chain-out lines carry **no pawn name**: attribute a commit to the pawn on the
+`AIM WEDGE` line sharing its timestamp, or counts credit whoever is in the log. A `REFUSED` burst is
+also **one line per retry tick, not per press** — 69 lines were three presses, and the burst's length
+is now the acceptance window.
+
 **`STRING`'s variants changed 2026-09-02**: `link window open ... until <t>` is gone with the window
 it reported, replaced by `advance marked on <pawn> (after swing N)`, which carries **no deadline**
 because there is none — the mark is consumed by the activation in the same tick. `chain out of
@@ -612,6 +620,8 @@ settings rather than assertions — as do measurements, which record what a run 
 | `s8-chain-early` | **scripted, not the dummy** — `Tools/RegressionCheck/ue_s8_driver.py` with `{"scen":"chain-early"}`; the dummies are silenced for the run and restored after | n/a | a press in the buffered slice (tap at 0.35) chains: at least one chain-out, **exactly one `STRING advance marked` per chain-out**, and one swing 0 per first-press. The advance count is the assertion that matters — a mark standing with no successor is the stale-window failure the link window had |
 | `s8-chain-late` | as above, `{"scen":"chain-late"}` — tap at 0.60, inside the open span | n/a | same four assertions; the press fires on arrival rather than waiting for the opening |
 | `s8-chain-closed` | as above, `{"scen":"chain-closed"}` — tap at 0.80, past the span's close | n/a | **zero chain-outs, zero advances marked, and every activation swing 0.** This is the row that would go red if the chain span lost its closing |
+| `s8-discard` | as above, `{"scen":"discard"}` — tap at 0.70, 250 ms before actionable | n/a | **nothing comes out**: activations equal buffer expiries, no chain-out. The acceptance window's other edge, and the row that would go red if a discarded press started firing again |
+| `s8-hold-tier` | as above, `{"scen":"hold-tier"}` — tap 0.00, hold 0.80–1.05 | n/a | the held press commits **heavy**, not light: lights must not outnumber heavies. Before the ladder counted accumulated hold, 9 of 12 such presses committed light against 227–345 ms holds |
 | `s8-stale` | as above, `{"scen":"stale"}` — hold 0.00–0.40 for a heavy, then tap at 0.50 | n/a | the held swing activates; **zero chain-outs** (a heavy cannot be chained out of); at least one `BUFFER expired`; and **activations equal expiries**, so no attack fires after the swing that swallowed the press. Before the buffer extension was dropped this produced a stray light 1 up to 1.55 s late |
 | `s6-exhausted` (`-kipup`, `-block`, `-attack`) | 0.1 taps 3; **0.22 taps 1** for `-kipup` | **`PeriodicParry`, `DebugParryPreBlockSeconds` 12.0, `DebugParryIntervalSeconds` 13.0** — `s5-parry-reward`'s pre-block trick used for its side effect, plus the matching `DebugGetUpMode` | of the presses landing **while `State.Exhausted` is up** (**n=0 fails**), the three defensive options produce **zero** rises and the get-up attack produces one every time. **The refusal is asserted as the absent rise, not as a `REFUSED` line** — see the note below |
 

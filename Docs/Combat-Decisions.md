@@ -174,15 +174,7 @@ The tell is unchanged, and there is now an instrument for it: `Montage_Play`'s r
 ungated warning naming the skeleton as the likely cause. **Pruning the 1023 unused vendor clips is
 what would remove the entry**; nothing else does.
 
-**Sockets: discharged 2026-08-24 by the merge.** `Unarmed`, `GreatSword` and `Dagger` had
-*unmeasured* socket sets, and `merge_skeletons` took the union without needing them enumerated
-first. The master carries **12**: SwordShield's `Sword`/`Shield`/`Sheath`, Epic's
-`HandGrip_L`/`HandGrip_R`, the three shared foot and muzzle sockets, and **`Dagger_l`, `Dagger_r`,
-`GreatSword`, `Sheath_l`** from the three that could not be read. **Nothing collided**, so `Sword`
-and `Shield` keep SwordShield's grip rotation and shield scale, which is what the props hang on.
-**The recorded reason they were unmeasurable was wrong** and the corrected one is in
-`Docs/Animation-Library.md`: a mesh *was* bound to all four, but `get_all_socket_names()` resolves
-through the **mesh's** skeleton, so every one of them answered with SwordShield's six.
+**Sockets: discharged 2026-08-24 by the merge**, and evicted to that day's entry with the master's twelve enumerated there. **The correction outlives it**: the recorded reason those sets were unmeasurable was wrong — a mesh *was* bound, but `get_all_socket_names()` resolves through the **mesh's** skeleton, so every one answered with SwordShield's six. Corrected in `Docs/Animation-Library.md`.
 
 **Each trap is trigger, live claim, and status.** The arguments and the evidence live in the dated
 entries; the hunts that produced them live in git. *(Compressed 2026-08-14 from 534 lines, which
@@ -193,13 +185,7 @@ already lives.)*
 
 ---
 
-**Death's coverage trap: discharged 2026-08-24.** `s7-death` and `s7-death-grade` cover death,
-revive, the corpse's inviolability and death's supersession of knockdown; the impulse is covered by
-a `DEATH SETTLE` trace read at ragdoll teardown, asserted at **300–560 cm** against a measured
-396–449. **The magnitude alone would not have caught the failure that matters** — `bVelChange` does
-not change the number, it changes what the number means — which is why the observable is the settle
-distance and not the input. The flinch came off as covered by precedent: the loop asserts the
-mechanic, never the animation state, and `s4-string` already asserts hitstun's spans.
+**Death's coverage trap: discharged 2026-08-24**, and evicted to that day's entry. **The lesson outlives it**: `bVelChange` does not change the impulse number, it changes what the number *means*, so the observable had to be the settle distance rather than the input — a magnitude alone would not have caught the failure that matters.
 
 **The flinch state is covered by precedent rather than owed.** The loop has never asserted an
 *animation state* for anything, blockstun included — it asserts the mechanic that drives one, and
@@ -246,17 +232,7 @@ Two withdrawn readings, recorded so nobody re-derives them: the *overshoot* this
 before 2026-08-13 cannot occur now, and the *"branch lunge clamped 200 → 0 every time"* reading
 that replaced it was an instrument fault, not a finding. Both are in the dated entries.
 
-**~~Before tuning `ParryStaminaReward` — the +25 has never been observed landing~~ — DISCHARGED
-2026-08-18**, same day, by the designer pointing out that the parrier can simply be made to spend
-first. Filed as a deferral sub-slice D did not expect to owe; closed within the hour.
-
-The obstacle was real: **a parry costs no stamina**, so an unattended parrier never spends, its bar
-never leaves 100, and the attribute set's clamp eats the entire reward — every sample in the first
-shipped run read `gained=0.0`. What was wrong was the conclusion drawn from it, that no fixture
-*could* drain a parrier. **Blocking spends and authors no displacement**, so a guard held before
-each attempt drains the bar without moving the parrier out of the exchange the parry has to be
-resolved in. That is `DebugParryPreBlockSeconds`, and `s5-parry-reward` now asserts `gained` is
-exactly 25 — measured n=6, all exact.
+**~~Before tuning `ParryStaminaReward` — the +25 has never been observed landing~~ — DISCHARGED 2026-08-18**, same day, by the designer pointing out that the parrier can simply be made to spend first. **Evicted to that day's entry**, which carries the arithmetic and the fixture. The obstacle was real — a parry costs no stamina, so an unattended parrier's bar never leaves 100 and the clamp eats the reward — but the conclusion drawn from it, that no fixture *could* drain a parrier, was wrong.
 
 **The general lesson, which is why this stays after discharging: "no fixture can produce X" is a
 claim about imagination, not about the fixture set.** The knobs were all present; nobody had
@@ -297,7 +273,7 @@ naming it precisely. The exhaustive version is a whole-instance diff against the
 through `ProgrammaticToolset`; the re-placed attacker returns **zero** value overrides across 164
 properties, against three before.
 
-**Blockstun's clip: discharged 2026-08-25.** `AS_SwordAndShieldAnimV1_Defense_Hit_Fw_RM` carried `bEnableRootMotion = false` with `bForceRootLock = false` — the pair `Docs/Animation-Library.md` names as worse than neither — and read as authored because blockstun expires between light hits, so the state re-entered and the drift reset. It now reads `bForceRootLock = true`, **saved to disk**. *Two corrections worth keeping: an earlier filing named the V3 `Block1_Hit_RM` / `Block2_Hit_RM` clips, which carry the same bad pair but are not what the state plays — clip identity is read off the sequence player, never guessed from a name. And the claim that it **could not be saved from any scripting surface was wrong**; the working route is in `Docs/Working-In-Unreal.md`, and C++ was never needed.*
+**Blockstun's clip: discharged 2026-08-25**, and evicted to that day's entry. **The two corrections outlive it**: an earlier filing named clips that carry the same bad root-motion pair but are *not* what the state plays — **clip identity is read off the sequence player, never guessed from a name** — and the claim that it could not be saved from any scripting surface was wrong, the route being in `Docs/Working-In-Unreal.md` with C++ never needed.
 
 **The stun tells: discharged 2026-08-25** by positioning both playheads from stun progress instead of playing them at a rate — see the dated entry. Only a string's first hit used to be told, because the tell is a state entered on a cached bool and a hit landing inside a running stun re-enters nothing.
 
@@ -329,18 +305,11 @@ numbers; a notify moved by hand in the editor still needs both re-run.
 **~~Whenever a tier socket's clip is chosen — *recovery is paced against whatever montage is playing,
 and the elapsed bands were derived against the light's.*~~ — DISCHARGED 2026-09-02.** The shortfall
 was the code, not the bands: an authored `BlendOutTriggerTime` was modelled as a fixed montage
-position while the engine scales it by the play rate, so recovery ended `trigger × (rate − 1)` early
-— 34 to 42 ms on heavy 2 at rate 1.77, measured off the log against both models. Fixed in
-`GetBlendOutStartSeconds` and `ComputeRecoveryPlayRate`, the parry's copy alongside; the bands stand.
-The original, for the shape of the wrong expectation: Filed 2026-09-01. With both sockets on
-placeholder clips, `s1-charged` returned one sample of **1.549 s against a [1.550, 1.585] floor** —
-1 ms under, 1 in 7 — while release timing passed at n=7 and the un-socketed control passed 4/4 at
-n=11 on the same build. `GetBlendOutStartSeconds` reads the *active* montage, so recovery now ends
-against the tier clip's blend-out rather than `AM_Attack`'s. **Deliberately not chased**: the probe
-clips were arbitrary, so against them this measures the fixture rather than the system. Re-check
-once real clips are fitted, and **expect the elapsed bands to want re-deriving rather than the code
-to want fixing** — though a shortfall *below* an authored floor is the direction frame quantisation
-does not explain, so rule that out before assuming the bands.
+position while the engine scales it by the play rate. **Evicted to that day's entry**, which carries
+the measurement and the corrected model. **The lesson that outlives it**: the expectation was that
+the *bands* would want re-deriving, and it was the model underneath them that was wrong — a shortfall
+*below* an authored floor is the direction frame quantisation cannot explain, so rule the code out
+before assuming the band.
 
 **Whenever `s5-parry`'s lockout band is trusted — *it never covered the string ender.*** Filed
 2026-08-28. `BAND_PARRY_LOCKOUT_LIGHT` is [0.725, 0.775], which admits the branches' 0.75 and excludes
@@ -1178,6 +1147,34 @@ properties, which does not meet this project's own rule. Neither is a teardown:
 calls it. Still owed — replicate the *decision* (this attack is in its lock phase) and let each
 machine run its own fade, rather than putting a per-frame float on the wire.
 
+**Whenever the acceptance window, a lockout's duration or a get-up option changes — *the defensive
+half of input acceptance has no scenario, and three `s8` rows were last run against a superseded
+build.*** Filed 2026-09-02, **deliberately in place of writing those rows**, because the loop itself
+is next in the roster and adding to it first would be building on the thing about to be audited.
+
+**What is untested.** The acceptance model governs presses during **hitstun, blockstun and parry
+lockout** exactly as it governs attack recovery — one expiry site, changed once, so the defensive
+half came free and is therefore unexercised. No row asserts that a press early in a stun is
+discarded and one inside the window fires. The designer's read is that hitstun and blockstun are
+short enough for this to be healthy and that **knockdown was the case worth worrying about**; that
+one is answered by the get-up change, which is decided and unbuilt.
+
+**What is stale.** `s8-chain-late`, `s8-stale` and `s8-discard` last ran before the release-edge fix
+and before the tier assertions existed. `s8-chain-early` and `s8-chain-closed` were re-run after and
+are current. **A row that passed against a build with a known defect is not evidence** — the tier
+gap is the proof, since all six passed while a 58 ms tap committed charged.
+
+**What play covered instead, and what that is worth.** A 54-commit audit of the designer's own
+session found no tier mismatch beyond the sub-frame boundary, no stray attacks and no orphaned
+string advances. **It is weaker than it looks**: the audit read the same session the designer
+felt, so it inherits whatever that sitting happened not to try, and the two observations are not
+independent. It had 6 parries and almost nothing in hitstun — the exact surface this trap names.
+
+**The standing risk is not that any of this is broken.** It is that the next change here will be
+judged against a loop with a known hole in the half nobody exercised, and a green run will read as
+coverage. Re-run the three before trusting them; write the defensive rows when the audit says what
+shape they should take.
+
 **Before Interplay rules on defensive options — *a whiffed light cannot be defended out of, but
 chaining into a new one and cancelling that can, and the second route is hidden.*** Filed
 2026-09-02 by the designer, from the description rather than from play; **not a defect, and
@@ -1647,7 +1644,7 @@ long.
 | `IdleTurnRateDegrees` | 08-12 |
 | `InitCapsuleSize` | 08-12 |
 | `InitialiseAbilitySystem` | 08-11, 08-15 |
-| `InputBufferSeconds` | 08-11, 08-12, 08-15, 08-16 |
+| `InputBufferSeconds` | 08-11, 08-12, 08-15, 08-16, 09-02 |
 | `IsBlocking` | 08-14 |
 | `IsChainOutOpen` | 08-16, 09-02 |
 | `IsFacingLocked` | 08-12 |
@@ -1699,6 +1696,7 @@ long.
 | `ParryRecoilCm` | 08-28 |
 | `ParryWhiffRecoverySeconds` | 08-19 |
 | `ParryWindowSeconds` | 08-19, 08-25 |
+| `PendingActivationHoldSeconds` | 09-02 |
 | `PeriodicDodge` | 08-15 |
 | `PhysicalAnimationComponent` | 08-25 |
 | `PhysicsRotation` | 08-12 |
@@ -1707,6 +1705,7 @@ long.
 | `PreAttributeBaseChange` | 08-10 |
 | `PreAttributeChange` | 08-10 |
 | `PrepareRootMotion` | 08-12 |
+| `PriorHoldSeconds` | 09-02 |
 | `REPNOTIFY_Always` | 08-11 |
 | `RecoveryPlayRate` | 08-12 |
 | `RecoverySeconds` | 08-12, 08-13, 08-16, 08-18, 09-02 |
@@ -1731,7 +1730,7 @@ long.
 | `SetTimer` | 08-11 |
 | `ShieldMesh` | 08-11 |
 | `ShouldBufferFailedInput` | 08-11, 08-14 |
-| `ShouldExtendBufferWhileActive` | 08-16, 09-02 — no ability overrides it as of 09-02 |
+| `ShouldExtendBufferWhileActive` | 08-16, 09-02 — removed 09-02 |
 | `SilenceMontageTask` | 09-01 |
 | `StaminaDamage` | 08-14, 08-18 |
 | `StaminaRegenPauseSeconds` | 08-10, 08-14 |
@@ -1828,6 +1827,123 @@ long.
 | `ue_chart_ab.py` | 09-02 |
 | `ue_fit_tier_montages.py` | 09-02 |
 | `ue_seed_cells.py` | 09-02 |
+
+## 2026-09-02 — Input buffering becomes an acceptance window, and two of the three defects were found in play rather than by the loop
+
+The same day's second wave, taken from the same excursion. The designer's framing for why an
+input-shaped question kept arriving during a visual slice, kept as given: *"Polishing features is
+precisely when it would make intuitive sense that Interplay-shaped problems make themselves known
+and, in some cases, even hinder Polish somewhat."*
+
+### The model: acceptance, not staleness
+
+**A press is accepted if it was made within `InputBufferSeconds` of the moment it can act, and
+discarded otherwise.** The deadline is measured from the **press** and never moves. That replaces
+two rules, both deleted:
+
+- **A held button never expired**, so the buffer's reach was `hold + 0.200` — the same number meant
+  different things depending on how long a finger stayed down.
+- **A released press restarted the clock** at the release edge.
+
+**The reframe is the designer's and it is what makes the deletion safe.** Under an *expiry* model,
+discarding a held input is incoherent — the player is still asking. Under an *acceptance* model
+nothing goes stale: a press outside the window was made when presses are not accepted, the same
+shape as pressing during a knockdown's lockout rather than its input window. The project already
+had that shape in two places, and this is the third.
+
+**`N` stays at 0.200 and is the only knob**, per the designer: *"I'd rather adjust the Input Buffer
+window itself as a tuning mechanism than rely on these other orbiting, unauthored mechanisms to
+fill gaps we've never actually agreed need filling."* The separate `B` knob proposed earlier
+collapsed into it and was never built.
+
+**A dead band falls out and was predicted before it was measured**: `0.267 − N`, so 67 ms at
+0.200, sitting between the chain window's close and the point a press can survive to the swing's
+end. It is fixed now rather than papered over by hold length. The designer predicted it from the
+arithmetic, which is what surfaced that the two "measured from press" proposals in play were
+different dials.
+
+### The ladder counts the hold, not the part after activation
+
+`ReplayBufferedRelease` and its timer existed because the ladder measured from **activation**, so a
+buffered tap arrived with the button already up and flattened to the shortest branch. Moving the
+origin to **accumulated button-down time** makes the special case unnecessary, and it is deleted.
+`PriorHoldSeconds` shifts every checkpoint earlier by what the press already spent.
+
+**Measured before the change, on the designer's own play**: 12 presses held across an activation
+boundary, **9 committed Light against total holds of 227–345 ms**. The three that came out Heavy had
+pre-activation holds of 0, 17 and 0 ms — no buffering intervened — and are the control, at
+comparable totals of 267–327 ms. A dummy holding 226 ms straight through committed Heavy in the
+same session.
+
+### Two defects, both mine, both invisible to six green scenarios
+
+**A 58 ms click committed a charged.** The seeding carried *how long* the hold was and not *that it
+had ended*, so an ability activating from an already-released press set `bInputHeld` optimistically
+and no release edge was ever coming. The ladder climbed every rung. Found by the designer clicking
+in PIE; traced from the log in one pass.
+
+**The attacker teleported 927 cm inside light 3's release window.** Retiring the link window removed
+the home reset's deferral, and the first fix checked for a running attack at *schedule* time — but a
+chained swing's end handler runs in the gap **before** its successor activates, so nothing was
+running to defer against. The check had to move to when the timer fires. It was contaminating
+`s4-string`'s chain latency: 226 ms while it was happening, 177 ms once fixed, against a 175 ceiling.
+
+**The shape both share is worth more than either**: *a check placed where the thing it checks is not
+true yet.* One read a flag before the release edge that would clear it; the other read state before
+the tick that would create it.
+
+**And the coverage gap that let the first through**: every `s8` row asserted the **swing index** and
+none asserted the **tier**, so a tap committing charged passed all six. `no tap escalated to heavy`
+and `no tap escalated to charged` now sit on the chain rows, proven able to fail against the build
+that had the defect.
+
+### The get-up options: decided, not built
+
+Held inputs reaching a get-up is **knockdown-specific and stays that way**. `bResumeWhileInputHeld`
+is documented for held *states* and the general form *"turns a held attack button into auto-repeat"*
+— an objection raised, dropped, and reinstated when the designer asked why it had gone quiet. So the
+extension belongs in the knockdown's own input window, which already knows which abilities are
+get-up options, and **not** in the resume flag.
+
+**All four route through one decision point** with block's resume suppressed while down, because two
+mechanisms arriving in the same frame is an implicit priority decided by tick order.
+
+**Priority, ordered by what an unwanted selection costs across both ledgers:**
+
+| | Stamina | Exposure |
+|---|---:|---|
+| Guarded rise | 15 | releasable at once |
+| Dodge | 50 | committed trajectory, but i-frames — ends safe |
+| Get-up attack | 0 | committed swing, punishable, guarantees no follow-up |
+| Jump / stand | 0 | the default, and a default must lose to a deliberate choice |
+
+**The attack is free on the bar and still the worst mistake**, which is why the axis is not stamina:
+recorded so a later reader does not notice the zero and conclude the order is wrong. Exhaustion
+already resolves the case that matters most without consulting priority at all — the three defensive
+options produce no rise while `State.Exhausted` is up and the get-up attack produces one every time.
+Parry is not a get-up option and holding it does nothing, which is silent but deliberate.
+
+### Verified, and what is deliberately not
+
+Six `s8` rows on a quiet fixture: `chain-early` and `chain-closed` 6/6 including the new tier
+assertions, `hold-tier` 8 light against 8 heavy, `discard` 3/3, `chain-late` and `stale` 4/4.
+`s4-string` 7/7 on swings and **chain gap n=86 all within [0.455, 0.545] s** — the cadence is
+untouched by any of this — with one latency sample at 177 against a 175 ceiling, 1 of 86 and
+attributable to the fixture's tap timer. **The band was not moved.**
+
+**An audit of the designer's own play**, 54 commits: every tier matched its hold except nine at
+**151–158 ms against a 150 ms checkpoint**, all falling the same way. Sub-frame, systematic, and
+pre-existing — a live press's checkpoint is untouched by this work. It biases toward the safer tier.
+**Three of 53 buffered presses were discarded** by the new rule, which is the measured answer to
+whether the acceptance window eats input in practice.
+
+**Deferred by the designer, and the reason outranks the work**: the defensive half has no scenario,
+and `chain-late`, `stale` and `discard` were last run before the release-edge fix. Rather than write
+those rows now, **the whole regression loop gets an audit as the next roster item** — *"all our
+existing regression tests were built before player input was known to be accessible."* Today paid
+for that three times over: a fixture tap interval silently calibrated against the buffer extension,
+a dummy polluting three runs because its flag is read once at BeginPlay, and assertions attributing
+one pawn's commits to another. Filed as a trap above.
 
 ## 2026-09-02 — The link window is retired, the chain window gets a close, and the buffer stops outliving the swing
 
@@ -10060,7 +10176,22 @@ long it is held, and block and parry will share a button.
 a brief binds the session that picks that slice up and no other, so it was triggered content
 sitting in the always-read file.
 
-- **Polish** *(style over substance; split from Knockdown 2026-08-18, the designer's call)* — deferred work that changes how something *reads* rather than what it does. **That framing describes where an item comes from, not what fixing it costs** *(the designer, 2026-08-28: "substance over style, perhaps, but ABSOLUTELY Polish")*: items arrive because something was **found by feel**, and the fix is then whatever it turns out to be — **do not use the definition to refuse an item.** One open item is outright mechanical: **a guard break should count as a hit for the attacker's input freedom** *(the designer, 2026-08-24)* — a blocked hit returns before the on-hit waiver, so the attacker stays pinned through full recovery, and a **break** should waive like a connect; the defender side is unchanged. **Carries the bespoke windup pass**, the core of the slice: heavy and charged get their own clips, their windups become **blended transitions** into real anticipation, and **only the coil's rate freeze is deprecated** — its facing clamp is an aim guarantee and survives; see the 2026-09-01 entry, which also carries the windows, corrected there from a stale pair that overlapped itself: **light→heavy 0.150 → 0.350, heavy→charged 0.350 → 0.750**, blend duration shorter than its window. **All nine cells are live as of 2026-09-02** — the 2026-09-02 entry: every position authors its three tiers, H1 is `Attack8_Stage3_Complete`, the charged tier is three V1 and V3 clips, every hand-off is an inertial blend through the node now in `ABP_Combat`, every phase plays at 1.0, and the recovery arithmetic is corrected. **The designer's verdict on the picks (2026-09-02): H2 and H3 look great; H1, C1, C2 and C3 need more polish attention** — those four are the next pass's material, chosen so far on measured hand-offs and stills only, with the notify placements, the charged blend-in of 0.30 and the seeded 360° on H3 and C3 theirs to move. **Step one when this resumes, ahead of everything else** *(the designer, 2026-09-02)*: **they sign off on the release notifies for all six heavies and chargeds.** Every other value in the pass is fitted around those placements, so re-picking a clip or a rate before they are settled re-does the work. The ranking, the rejected clips and the instruments are in that entry; `Tools/ClipScan/ue_chart_ab.py` measures a candidate in play and the CDO-trial route in `Docs/Unreal-Findings.md` puts one there without saving anything. **The clip screen ranks on notify-based entries now**, and a heavy clip wants its single strike inside the portion that plays. **Clip selection inherits a ceiling**: the heavy cannot grow past roughly **450 ms** without the light↔heavy gap outgrowing the parry window's usable margin, leaving about 50 ms of headroom to fit a clip into — the audited relationships are in the 2026-08-25 windups entry. **Sits early deliberately**, right after Knockdown: it must precede Interplay. **Clip-fitting values are Polish's; whole-surface greening is not** — that lands at the Tuning Rig. Spec and candidate pool: the 2026-08-18 entries. **Parry presentation** *(inherited 2026-08-19; the lockout tell shipped 2026-08-27)*: Polish inherits the tell's **look**, and the open preview question beside it — whether V3's parry pose reads consistently beside V1's held guard, a pack mix that shipped without being judged. Neither needs a search; both need looking at. **All three stun tells are built** *(the 2026-08-24/25 entries; the recoil 08-27)* and Polish inherits their **look, not their construction**; changing any of them trips the *no-instrument-we-built* trap, so check the wiring, not just the spans. **Knockdown's presentation is inherited whole (2026-08-20)**, everything past the tell-what-fired legibility bar: the knockdown/fall/rise clip batch and the get-up options' look; polishing the get-up clip in its authored scene (`AnimSource/GetUpAttack.casc`); and the two rises deliberately blending into idle over their second half — a choice to revisit once idle poses are real. **Regenerate the fall and hitstun curves with the `Tools/AnimPipeline/ue_*_curves.py` scripts, never by hand.** **What is knowingly left there**: hitstun's residual *"sliding steps"*, which is **structural, not a defect** — the knockback distance varies while the clip's step distance is fixed, so pacing fixes *when* the feet move and never *how far*; removing it needs a constant knockback distance, clip selection (which the windup pass is already stalled on), or stride warping, and the project has none of the three. And the descent's slightly **linear** middle — animation-dominated, raised twice, signed off over twice, recorded rather than chased. If the knockdown look ever reopens outright, the recorded routes are reauthoring in Cascadeur or a `PhysicalAnimationComponent` blend; a full ragdoll stays refused. **The block get-up reads "underwhelming and looks a tad undeliberate"** (the designer) — its input path was fixed 2026-08-28 (that entry, and its trap); the look complaint stands. **The dodge get-up's remaining question is the blend-out's own look**: at the resulting 1.50x it clears the dodge but starts eating the recovery, and the trigger time wants re-measuring at that rate rather than scaling the old figure. **The eight dodges' seam is one shared value while the clips' feet settle up to 100 ms apart** — whether any direction wants its own is a look question nobody has asked; the coverage gap is a dated trap. **Rotation drift under hitstun was fixed 2026-08-28; the guard break and the parry lockout have the same shape and are not ruled on** — both currently drift. **Parry lockout wants a functionality audit** *(the designer, 2026-08-28)*, their reason kept as given: *"It is not intuitive to me how parry lockout is derived, which is an indication that I have failed to effectively author parry lockout."* What the audit inherits: the value resolves through **three levels behind one virtual** — the melee base's fallback, the charged's swing → branch → fallback ladder, and the get-up attack's **computed** remainder, the only one not authored; live values are in the mirror. The lockout also carries the recoil's duration and the tell's span, so a change moves three things at once. **`s5-parry` is red on this today** — its band never covered the ender, and the options are recorded in the trap. **Not a bug hunt**: the mechanic verifies; what is in question is whether the derivation is authorable.
+- **Polish** *(style over substance; split from Knockdown 2026-08-18, the designer's call)* — deferred work that changes how something *reads* rather than what it does. **That framing describes where an item comes from, not what fixing it costs** *(the designer, 2026-08-28: "substance over style, perhaps, but ABSOLUTELY Polish")*: items arrive because something was **found by feel**, and the fix is then whatever it turns out to be — **do not use the definition to refuse an item.** One open item is outright mechanical: **a guard break should count as a hit for the attacker's input freedom** *(the designer, 2026-08-24)* — a blocked hit returns before the on-hit waiver, so the attacker stays pinned through full recovery, and a **break** should waive like a connect; the defender side is unchanged. **Carries the bespoke windup pass**, the core of the slice: heavy and charged get their own clips and their windups become **blended transitions** into real anticipation. **Only the coil's rate freeze is deprecated** — its facing clamp is an aim guarantee and survives. The escalation windows and the blend rule are in the 2026-09-01 entry. **All nine cells are live as of 2026-09-02** — that entry has the clips, the inertial hand-offs and the corrected recovery arithmetic. **The designer's verdict on the picks (2026-09-02): H2 and H3 look great; H1, C1, C2 and C3 need more polish attention** — those four are the next pass's material, chosen so far on measured hand-offs and stills only, with the notify placements, the charged blend-in of 0.30 and the seeded 360° on H3 and C3 theirs to move. **Step one when this resumes, ahead of everything else** *(the designer, 2026-09-02)*: **they sign off on the release notifies for all six heavies and chargeds.** Every other value in the pass is fitted around those placements, so re-picking a clip or a rate before they are settled re-does the work. The ranking, the rejected clips and the instruments are in that entry; `Tools/ClipScan/ue_chart_ab.py` measures a candidate in play and the CDO-trial route in `Docs/Unreal-Findings.md` puts one there without saving anything. **The clip screen ranks on notify-based entries now**, and a heavy clip wants its single strike inside the portion that plays. **Clip selection inherits a ceiling**: the heavy cannot grow past roughly **450 ms** without the light↔heavy gap outgrowing the parry window's usable margin, leaving about 50 ms of headroom to fit a clip into — the audited relationships are in the 2026-08-25 windups entry. **Sits early deliberately**, right after Knockdown: it must precede Interplay. **Clip-fitting values are Polish's; whole-surface greening is not** — that lands at the Tuning Rig. Spec and candidate pool: the 2026-08-18 entries. **Parry presentation** *(inherited 2026-08-19; the lockout tell shipped 2026-08-27)*: Polish inherits the tell's **look**, and the open preview question beside it — whether V3's parry pose reads consistently beside V1's held guard, a pack mix that shipped without being judged. Neither needs a search; both need looking at. **All three stun tells are built** *(the 2026-08-24/25 entries; the recoil 08-27)* and Polish inherits their **look, not their construction**; changing any of them trips the *no-instrument-we-built* trap, so check the wiring, not just the spans. **Knockdown's presentation is inherited whole (2026-08-20)**, everything past the tell-what-fired legibility bar: the knockdown/fall/rise clip batch and the get-up options' look; polishing the get-up clip in its authored scene (`AnimSource/GetUpAttack.casc`); and the two rises deliberately blending into idle over their second half — a choice to revisit once idle poses are real. **Regenerate the fall and hitstun curves with the `Tools/AnimPipeline/ue_*_curves.py` scripts, never by hand.** **What is knowingly left there**: hitstun's residual *"sliding steps"*, **structural rather than a defect** — pacing fixes *when* the feet move and never *how far*, and all three routes that would remove it need something the project does not have. And the descent's slightly **linear** middle, signed off twice and recorded rather than chased. The 2026-08-28 entries carry both, and the routes if the look ever reopens; a full ragdoll stays refused. **The block get-up reads "underwhelming and looks a tad undeliberate"** (the designer) — its input path was fixed 2026-08-28 (that entry, and its trap); the look complaint stands. **The dodge get-up's remaining question is the blend-out's own look**: at the resulting 1.50x it clears the dodge but starts eating the recovery, and the trigger time wants re-measuring at that rate rather than scaling the old figure. **The eight dodges' seam is one shared value while the clips' feet settle up to 100 ms apart** — whether any direction wants its own is a look question nobody has asked; the coverage gap is a dated trap. **Rotation drift under hitstun was fixed 2026-08-28; the guard break and the parry lockout have the same shape and are not ruled on** — both currently drift. **Parry lockout wants a functionality audit** *(the designer, 2026-08-28)*, their reason kept as given: *"It is not intuitive to me how parry lockout is derived, which is an indication that I have failed to effectively author parry lockout."* What the audit inherits: the value resolves through **three levels behind one virtual**, only one of which is computed rather than authored — the 2026-08-28 entry has the ladder, live values are in the mirror. The lockout also carries the recoil's duration and the tell's span, so a change moves three things at once. **`s5-parry` is red on this today** — its band never covered the ender, and the options are recorded in the trap. **Not a bug hunt**: the mechanic verifies; what is in question is whether the derivation is authorable.
+- **Regression Audit** *(the designer, 2026-09-02; temporarily outranks everything)* — **every
+  scenario predates the discovery that player input is scriptable**, so all of them drive the
+  training dummy's fixture knobs and read a log the dummy produced. `UTDInputTools` has been
+  available since 2026-08-24 and only `Tools/ClipScan/ue_chart_ab.py` and the `s8` driver use it.
+  **The audit's material is one day's evidence**: a fixture tap interval calibrated against the
+  buffer extension, which stopped producing a three-swing string the moment the extension went and
+  failed as `saw 2 distinct swing indices` while every timing assertion still passed; `bDebugAutoAttack`
+  read once at BeginPlay, so silencing a dummy mid-PIE does nothing and three runs were scored against
+  a second attacker; `COMMIT` and the chain-out lines carrying **no pawn name**, so counts credit
+  whoever is in the log. **The standing question is which scenarios should drive the player pawn
+  directly** rather than configure an opponent to produce a shape. **What the loop asserted and what
+  it could not see** is the other half — `s8` asserted swing indices and never tiers, and six green
+  rows hid a 58 ms tap committing charged. **Inherits the untested-half trap** filed the same day, and
+  the three `s8` rows it names as stale. **Not a rewrite**: the bands and the invariants are sound;
+  what is in question is the fixture model underneath them.
 - **Settings menu.** Raised 2026-08-12. Mouse sensitivity is the immediate want, and it should own
   **`TurnRateDegrees`** too — that number stopped being cosmetic the moment attacks began pointing
   wherever it had turned to, so exposing it is a balance decision rather than a comfort one, and a
@@ -10156,20 +10287,12 @@ sitting in the always-read file.
   **`ChainOpenDurationSeconds`**, whose tuning-map row carries its fence; and the **defence-cancel
   question**, whose trap carries three options as all nine cells with none chosen.
   **Knockdown's deferrals arrive here whole (2026-08-24)**, every one a feel verdict nothing
-  mechanical can settle: **floor vulnerability** and whether the down state should be invincible at
-  all; **regen paused while down** except for the exhaustion exception, whose generosity — a knockdown
-  nearly curing the exhaustion it lands on — is the designer's *one guaranteed loop at worst* and is
-  untested against a human; **parry as a get-up**, considered and not built; **the hard type's
-  experiment**, whether 1.5/0.5 against 1.0/1.0 reads as meaner rather than merely different, and
-  each type's split being its own dial; **the meaty loop**, seen once from the receiving end and
-  accepted eyes-open — a purely passive player can be looped, escapable every cycle by any
-  input-window press and by the get-up attack even at zero stamina; and **the block get-up's latched
-  aim**, whose recorded fallback if it proves too flankable is a camera-tracked rise.
-  **And the DKO verdict itself**, which is the bet the whole slice rests on: the clean-hit choice is
-  now **damage versus type** — the light string's 45 and a normal knockdown, the heavy's 25 and a
-  hard one, the charged's 40 and hard, the hold-conversion's escapable 55 and hard against the
-  ender's guaranteed 45 and normal. Whether those price as *choices* rather than dominances is what
-  a human decides.
+  mechanical can settle — floor vulnerability, regen paused while down and its exhaustion exception,
+  parry as a get-up, the hard type's split, the meaty loop accepted eyes-open, and the block get-up's
+  latched aim. That entry has each one with its recorded fallback.
+  **And the DKO verdict itself**, the bet the whole slice rests on: the clean-hit choice is now
+  **damage versus type**, priced per tier in the mirror. Whether those price as *choices* rather
+  than dominances is what a human decides.
   **Verified-good is called here; Combat AI follows it, never precedes it** — the reasoning,
   including why Netcode needs no AI, is in `Docs/Combat-Decisions.md`, 2026-08-15.
 

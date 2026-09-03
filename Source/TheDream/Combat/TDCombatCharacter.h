@@ -1471,22 +1471,33 @@ private:
 	/** Retries the buffered press, or drops it once its window has passed. */
 	void TickInputBuffer();
 
+public:
+
 	/**
-	 *  Whether the buffered press outlives its ordinary window: an ability answering it that opted
-	 *  into extension is running now. The policy is the ability's -- see
-	 *  UTDGameplayAbility::ShouldExtendBufferWhileActive. No attack opts in.
+	 *  How long the button has been down for the press that is activating an ability right now, or
+	 *  zero for a live press. Read during ActivateAbility and valid only there: a hold ladder resumes
+	 *  counting from it, so the tier is decided by the whole hold rather than the part that happened
+	 *  after activation.
 	 */
-	bool ShouldExtendBufferedPress(const FGameplayTag& InputTag) const;
+	float GetPendingActivationHoldSeconds() const { return PendingActivationHoldSeconds; }
+
+	/**
+	 *  Whether the button for the press activating right now is still down. False for a buffered
+	 *  press whose release edge already passed: that edge will never arrive again, so an ability
+	 *  that assumed it was held would climb its ladder forever on a press the player finished.
+	 */
+	bool IsPendingActivationInputHeld() const { return bPendingActivationInputHeld; }
+
+private:
+
+	/** Set around the buffer's activation call; see GetPendingActivationHoldSeconds. */
+	float PendingActivationHoldSeconds = 0.0f;
+
+	/** Set around the buffer's activation call; see IsPendingActivationInputHeld. */
+	bool bPendingActivationInputHeld = true;
 
 	/** Offers the active ability answering this input the chain-out; true if it ended for it. */
 	bool TryChainOutActiveAbility(const FGameplayTag& InputTag);
-
-	/**
-	 *  Replays a buffered release, HoldSeconds after the buffered press activated. Cancelled the
-	 *  moment real input for that tag arrives, because a live edge beats a recorded one -- otherwise
-	 *  a replay for a hold since abandoned lands on whatever is running by then.
-	 */
-	void ReplayBufferedRelease(FGameplayTag InputTag);
 
 	/** Presses the debug attack input, then releases it DebugAutoAttackHoldSeconds later. */
 	void DebugAutoAttackPress();
@@ -1547,6 +1558,13 @@ private:
 
 	/** Teleports back to DebugAutoAttackHomeTransform and kills leftover velocity. No-op if disabled. */
 	void ReturnToDebugAutoAttackHome();
+
+	/**
+	 *  The delayed reset's timer target: returns home only if no attack is running, and re-arms if
+	 *  one is. The check cannot live where the timer is set, because a chained swing's end handler
+	 *  runs before its successor activates.
+	 */
+	void TryReturnToDebugAutoAttackHome();
 
 	/**
 	 *  Points the AI controller's focus at the nearest other pawn, or clears it. Re-resolved on every
@@ -1790,7 +1808,6 @@ private:
 	void CaptureMoveDirectionForPress();
 
 	/** Pending replayed release. Live input for the same tag cancels it. */
-	FTimerHandle BufferedReleaseTimerHandle;
 
 	/** World time before which regen stays suppressed. Pushed out while a suppressor is active. */
 	float RegenSuppressedUntil = 0.0f;

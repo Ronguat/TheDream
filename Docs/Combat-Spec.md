@@ -116,7 +116,11 @@ Two rules the model depends on:
   previous light's press: the first half is `InputBufferSeconds` carrying an early press forward to
   the opening, the second is `ChainOpenDurationSeconds` holding the span open past it. Outside that,
   a press starts a fresh light 1 — including from neutral, since **nothing continues a string once
-  its swing has ended.** Only a non-final light has the span at all; light 3, heavy and charged
+  its swing has ended.** *(2026-09-02: the buffer half of that span is now an **acceptance** window —
+  a press counts if it was made within `InputBufferSeconds` of the moment it can act, measured from
+  the **press**, and is otherwise discarded rather than held. Holding no longer extends its reach,
+  and the same rule governs presses during hitstun, blockstun and parry lockout. A dead band of
+  `0.267 − InputBufferSeconds` falls out between the chain window's close and the swing's end.)* Only a non-final light has the span at all; light 3, heavy and charged
   cannot be chained out of, and a press during one expires at `InputBufferSeconds` rather than
   outliving it. **The cadence is untouched by the window's width**: the span's *opening* is
   `ChainOpenAfterRecoverySeconds`, derived from the tapped 500 ms, and only that moves the cadence.

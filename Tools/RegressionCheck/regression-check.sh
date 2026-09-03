@@ -17,7 +17,8 @@
 #            s6-dodge s6-kipup s6-block s6-hard-stand      (sub-slice D's options)
 #            s6-exhausted s6-exhausted-kipup s6-exhausted-block s6-exhausted-attack
 #            s6-airborne s6-exhaust-regen
-#            s8-chain-early s8-chain-late s8-chain-closed s8-stale  (need ue_s8_driver.py)
+#            s8-chain-early s8-chain-late s8-chain-closed s8-stale
+#            s8-discard s8-hold-tier                      (all need ue_s8_driver.py)
 # Exit 0 = all assertions passed, 1 = at least one failed, 2 = usage/no data.
 
 set -uo pipefail
@@ -1238,6 +1239,13 @@ run_s8_chain() { # run_s8_chain <expect-chaining 1/0>
 	local want="$1" outs acts s0 adv reps
 	outs=$(s8_chainouts); acts=$(s8_activates); s0=$(s8_swing0); adv=$(s8_advances)
 
+	# **Every press in these rows is a tap, so every commit must be a light.** Asserted because its
+	# absence hid a real defect: a buffered tap whose release edge passed before activation left the
+	# ladder believing the button was still down, and a 58 ms click climbed to charged while all six
+	# s8 rows stayed green -- they checked the swing index and never the tier.
+	assert_count "no tap escalated to heavy" "$(s8_commits_branch 1)" 0
+	assert_count "no tap escalated to charged" "$(s8_commits_branch 2)" 0
+
 	# One activation per press that fired. Chaining reps fire twice, a closed window twice as well
 	# -- the difference is *what* the second one is, which the swing index below decides.
 	check "some attack activated" "$([ "$acts" -gt 0 ] && echo 0 || echo 1)" "$acts ACTIVATE lines"
@@ -1258,6 +1266,45 @@ run_s8_chain() { # run_s8_chain <expect-chaining 1/0>
 		assert_count "no advance marked" "$adv" 0
 		assert_count "every activation is swing 0" "$s0" "$acts"
 	fi
+}
+
+# COMMIT carries no pawn name, so it is attributed to the pawn on the AIM WEDGE line that shares
+# its timestamp -- the commit path logs the wedge immediately before committing. Counting COMMIT
+# unscoped attributes the training dummy's swings to the player, which is a green nobody can trust.
+s8_commits_branch() { # <branch index>
+	awk -v want="$1" '
+		/AIM WEDGE/ { who=$4 }
+		/COMMIT     branch/ && who ~ /BP_PlayerCharacter/ && $4 == want { n++ }
+		END { print n+0 }' "$SLICE"
+}
+
+run_s8_discard() {
+	# A press 250 ms before the pawn is actionable sits outside the acceptance window, so it is
+	# not a decayed request -- it was made when presses are not accepted, and nothing comes out.
+	local acts outs
+	acts=$(s8_activates); outs=$(s8_chainouts)
+	check "the first tap activated" "$([ "$acts" -gt 0 ] && echo 0 || echo 1)" "$acts ACTIVATE lines"
+	assert_count "no chain-out past the window" "$outs" 0
+	# One activation per rep and no more: a second would be the discarded press firing anyway.
+	check "the late press produced nothing" \
+		"$([ "$acts" -eq "$(s8_expiries)" ] && echo 0 || echo 1)" \
+		"$acts activations against $(s8_expiries) expiries"
+}
+
+run_s8_hold_tier() {
+	# The ladder must count the whole hold, not the part after activation. Held 250 ms across an
+	# activation boundary: before this, only the 100 ms that followed counted and it flattened to a
+	# light. Asserted as the committed branch rather than a duration, because the tier *is* the
+	# question, and the measured failure rate before the fix was 9 of 12.
+	local light heavy
+	light=$(s8_commits_branch 0); heavy=$(s8_commits_branch 1)
+	check "a hold across activation reaches the heavy" \
+		"$([ "$heavy" -gt 0 ] && echo 0 || echo 1)" "$heavy heavy commits"
+	# The opening tap of each rep is a light, so lights are expected -- what must not happen is a
+	# rep whose held press also commits light, which shows as lights outnumbering heavies.
+	check "no held press flattened to a light" \
+		"$([ "$light" -le "$heavy" ] && echo 0 || echo 1)" \
+		"$light light commits against $heavy heavy"
 }
 
 run_s8_stale() {
@@ -2145,6 +2192,8 @@ case "$SCENARIO" in
 	s8-chain-late)   run_s8_chain 1 ;;
 	s8-chain-closed) run_s8_chain 0 ;;
 	s8-stale)        run_s8_stale ;;
+	s8-discard)      run_s8_discard ;;
+	s8-hold-tier)    run_s8_hold_tier ;;
 	*) echo "regression-check: unknown scenario '$SCENARIO'" >&2; usage ;;
 esac
 

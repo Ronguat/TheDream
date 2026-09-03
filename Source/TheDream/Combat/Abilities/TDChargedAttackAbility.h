@@ -445,6 +445,13 @@ private:
 	 */
 	bool bEndingViaChainOut = false;
 
+	/**
+	 *  How long this activation's press was already held before it activated, taken from the
+	 *  character at activation. Shifts every ladder checkpoint earlier by that much, so the tier is
+	 *  decided by the whole hold rather than the part after activation.
+	 */
+	float PriorHoldSeconds = 0.0f;
+
 	FTimerHandle CheckpointTimerHandle;
 	FGameplayTag AppliedAttackTag;
 };
