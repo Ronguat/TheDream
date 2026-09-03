@@ -156,15 +156,92 @@ def save_slice(run_id, sid):
     return path
 
 
-def evaluate(run_id, sid):
-    """The legacy checker against this scenario's slice. New rows get regression_eval at C4."""
-    s = SC.SCENARIOS[sid]
-    if not s.get("legacy"):
-        return None, "no evaluator yet (C4)"
-    r = sh(["bash", CHECKER, s["legacy_id"], "--slice", "%s:%s" % (run_id, sid)])
-    tail = [ln for ln in r.stdout.splitlines() if "passed," in ln]
-    return r.returncode, (tail[-1].strip() if tail else r.stdout.strip()[-120:] or r.stderr.strip()[-120:])
+EVAL = os.path.join(HERE, "regression_eval.py")
 
+
+def evaluate(run_id, sid, slice_path, args):
+    """The row's own assertions, the universal set, the golden diff, then its mutations.
+
+    The row's assertions say the mechanic still behaves; the universal set says nothing beside it
+    leaked; the golden diff says what moved whether or not anything asserts it; the mutations say
+    the assertions could have failed.
+    """
+    s = SC.SCENARIOS[sid]
+    out = dict(rc=0, detail="", universal="", golden="", mutations="")
+
+    if s.get("legacy"):
+        r = sh(["bash", CHECKER, s["legacy_id"], slice_path, "--slice", "%s:%s" % (run_id, sid)])
+        tail = [ln for ln in r.stdout.splitlines() if "passed," in ln]
+        out["rc"] = r.returncode
+        out["detail"] = tail[-1].strip() if tail else (r.stdout or r.stderr).strip()[-120:]
+    else:
+        out["detail"] = "no per-row evaluator yet (C4 covers the universal set only)"
+
+    u = sh([PY, EVAL, slice_path, "--universal"])
+    bad = [ln.strip() for ln in u.stdout.splitlines() if ln.strip().startswith("FAIL")]
+    out["universal"] = "clean" if u.returncode == 0 else "; ".join(bad)
+    if u.returncode != 0:
+        out["rc"] = out["rc"] or 1
+
+    excl = ",".join(s.get("golden", {}).get("exclude", []))
+    g = sh([PY, EVAL, slice_path, "--golden", "--id", sid, "--exclude", excl]
+           + (["--accept"] if args.accept_golden else []))
+    out["golden"] = g.stdout.strip()
+    if args.strict_golden and out["golden"].startswith("CHANGED"):
+        out["rc"] = out["rc"] or 1
+
+    if args.no_mutate or out["rc"] not in (0, None):
+        out["mutations"] = "skipped"
+    else:
+        out["mutations"] = prove_mutations(run_id, sid, slice_path, s)
+        if out["mutations"].startswith("UNPROVEN"):
+            out["rc"] = 1
+    return out
+
+
+def prove_mutations(run_id, sid, slice_path, s):
+    """Each mutation must turn the row red. One that does not means the assertions do not reach
+    what the row claims to test -- a green nobody should trust."""
+    proven, unproven = 0, []
+    for mut in s.get("mutations", []):
+        dst = slice_path.replace(".slice.log", ".mutated.log")
+        spec = ":".join(str(x) for x in mut)
+        m = sh([PY, EVAL, slice_path, "--mutate", spec, "--out", dst])
+        if m.returncode != 0:
+            unproven.append("%s (could not apply)" % spec)
+            continue
+        red = False
+        if s.get("legacy"):
+            r = sh(["bash", CHECKER, s["legacy_id"], dst, "--slice", "%s:%s" % (run_id, sid)])
+            red = r.returncode != 0
+        if not red:
+            red = sh([PY, EVAL, dst, "--universal"]).returncode != 0
+        if red:
+            proven += 1
+        else:
+            unproven.append(spec)
+        try:
+            os.remove(dst)
+        except OSError:
+            pass
+    if unproven:
+        return "UNPROVEN: " + "; ".join(unproven)
+    return "%d proven" % proven
+
+
+def append_history(run_id, results):
+    """One row per scenario per run, so a band can be watched drifting toward an edge across
+    runs rather than only failing once it crosses one."""
+    path = os.path.join(REG, "history.tsv")
+    cols = ("run", "stamp", "id", "status", "rc", "game", "frames",
+            "detail", "universal", "golden", "mutations")
+    tab, nl = chr(9), chr(10)
+    fresh = not os.path.exists(path)
+    with open(path, "a") as fh:
+        if fresh:
+            fh.write(tab.join(cols) + nl)
+        for r in results:
+            fh.write(tab.join(str(r.get(k, "")).replace(tab, " ") for k in cols) + nl)
 
 def main():
     ap = argparse.ArgumentParser()
@@ -174,6 +251,8 @@ def main():
     ap.add_argument("--realtime", action="store_true")
     ap.add_argument("--repeat", action="store_true")
     ap.add_argument("--no-mutate", action="store_true")
+    ap.add_argument("--accept-golden", action="store_true")
+    ap.add_argument("--strict-golden", action="store_true")
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--run", default=None)
     a = ap.parse_args()
@@ -266,18 +345,24 @@ def drive(run_id, ids, a):
                     game = tok[5:]
                 if tok.startswith("frames="):
                     frames = tok[7:]
-            save_slice(run_id, sid)
-            rc, detail = (None, "not evaluated") if status != "ok" else evaluate(run_id, sid)
-            results.append(dict(id=sid, status=status, game=game, frames=frames,
-                                rc=rc, detail=detail))
-            print("    %-22s %-6s game=%-8s frames=%-6s %s"
-                  % (sid, status, game, frames, detail))
+            path = save_slice(run_id, sid)
+            ev = (dict(rc=1, detail="runner reported an error", universal="-",
+                       golden="-", mutations="-") if status != "ok"
+                  else evaluate(run_id, sid, path, a))
+            results.append(dict(run=run_id, stamp=time.strftime("%Y-%m-%d %H:%M:%S"),
+                                id=sid, status=status, game=game, frames=frames, **ev))
+            print("    %-22s %-6s %-22s univ=%-8s %s | %s"
+                  % (sid, status, ev["detail"][:22], ev["universal"][:8],
+                     ev["golden"][:26], ev["mutations"][:18]))
         buf = ""
     for sid in pending:
-        results.append(dict(id=sid, status="timeout", game="-", frames="-", rc=1,
-                            detail="no END marker within %.0fs" % budget[sid]))
+        results.append(dict(run=run_id, stamp=time.strftime("%Y-%m-%d %H:%M:%S"),
+                            id=sid, status="timeout", game="-", frames="-", rc=1,
+                            detail="no END marker within %.0fs" % budget[sid],
+                            universal="-", golden="-", mutations="-"))
         print("    %-22s TIMEOUT" % sid)
 
+    append_history(run_id, results)
     report(run_id, results, time.time() - started_at)
     return 1 if any(r["status"] != "ok" or r["rc"] not in (0, None) for r in results) else 0
 

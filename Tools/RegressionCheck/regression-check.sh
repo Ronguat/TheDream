@@ -748,15 +748,23 @@ damage_during_parry_lockout() { # DAMAGED dealt BY an attacker while it is servi
 # --- assertion helpers ------------------------------------------------------
 
 assert_all_in_band() { # label values_cmd lo hi unit
-	local label="$1" lo="$3" hi="$4" unit="${5:-}" vals n bad
+	local label="$1" lo="$3" hi="$4" unit="${5:-}" vals n bad frames
 	vals=$(eval "$2")
-	n=$(printf '%s\n' "$vals" | grep -c '[0-9]')
+	n=$(printf '%s' "$vals" | grep -c '[0-9]')
 	if [ "$n" -eq 0 ]; then check "$label" 1 "no samples"; return; fi
-	bad=$(printf '%s\n' "$vals" | awk -v lo="$lo" -v hi="$hi" '$1<lo || $1>hi' | tr '\n' ' ')
+	# Spans and latencies print the band in frames beside its unit, at 1/60, because a window
+	# is argued about in frames and a run's clock is now exactly that.
+	frames=""
+	case "$unit" in
+		s)  frames=$(awk -v a="$lo" -v b="$hi" 'BEGIN{printf " (%.1f-%.1f f)", a*60, b*60}') ;;
+		ms) frames=$(awk -v a="$lo" -v b="$hi" 'BEGIN{printf " (%.1f-%.1f f)", a*0.06, b*0.06}') ;;
+	esac
+	bad=$(printf '%s' "$vals" | awk -v lo="$lo" -v hi="$hi" '$1<lo || $1>hi' | tr '
+' ' ')
 	if [ -n "${bad// /}" ]; then
-		check "$label" 1 "n=$n outside [$lo,$hi]$unit: $bad"
+		check "$label" 1 "n=$n outside [$lo,$hi]$unit$frames: $bad"
 	else
-		check "$label" 0 "n=$n all within [$lo,$hi]$unit"
+		check "$label" 0 "n=$n all within [$lo,$hi]$unit$frames"
 	fi
 }
 

@@ -1,0 +1,16 @@
+# Engine-side warnings the universal set tolerates. One line per allowed substring, each with the
+# reason directly above it. Seeded from the first run of the new loop, 2026-09-03.
+#
+# An entry here is not a dismissal. It is a claim that the line is understood, and the reason has
+# to say what it is. Adding one is a visible edit, the same shape as Tools/CommentCheck/baseline.txt.
+
+# OPEN FINDING, not benign, and deliberately not fixed by the audit that found it.
+# Swing 1's ReleaseStartSeconds (0.6688) is stale against its Release Window notify (0.7245), by
+# 55.7 ms. This is the filed notify/EntrySeconds trap firing for real: the value is stored rather
+# than computed, so authoring the notify desynchronised it silently, and the cost is a play-rate
+# distortion rather than an error. The game's own ungated warning has been saying so; nothing read
+# it, because the checker's slice keeps only the combat trace.
+# It surfaced the first time anything threw a player string. Allowlisted so the rest of the matrix
+# stays readable while the designer rules; re-deriving is Tools/AnimPipeline/ue_fit_tier_montages.py
+# and Tools/ValuesSnapshot/ue_seed_cells.py, both of which must be re-run together.
+but swing 1's ReleaseStartSeconds is

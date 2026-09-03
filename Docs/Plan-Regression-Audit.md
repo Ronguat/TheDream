@@ -51,6 +51,18 @@ way past**, per §3.
   elapsed on a whiff -- every `s8` row whiffs by design and asserts swing indices -- which is why
   six green rows never saw it. It will block `tier-cells` in Phase 2, whose whole fixture is a
   player whiffing in open space. Not investigated further, per §3.
+- **SUSPECTED DEFECT, not chased: swing 1's `ReleaseStartSeconds` is stale against its notify by
+  55.7 ms.** The universal set's engine-warning check found it on its first run, against the first
+  fixture that ever threw a *player* string: `LogTDCombatTiming: Warning: Release Window opened at
+  0.7245 but swing 1's ReleaseStartSeconds is 0.6688`. This is the filed notify/`EntrySeconds` trap
+  firing for real -- the value is stored rather than computed, so authoring the notify
+  desynchronised it silently, and the cost is a play-rate distortion rather than an error. **The
+  game has been saying so all along**; nothing read it, because the checker's slice keeps only the
+  combat trace and drops every engine line. Allowlisted with that reason in
+  `Tools/RegressionCheck/log-allowlist.txt` so the rest of the matrix stays readable; re-deriving
+  means re-running `ue_fit_tier_montages.py` and `ue_seed_cells.py` together, which is a change to
+  how the game plays and therefore not the audit's to make.
+
 - **`input-hold-tier`'s press time was stale by the same 50 ms.** Its plan pressed 200 ms before the
   *authored* end, which is 250 ms before the *actual* end and so outside `InputBufferSeconds` 0.200:
   the buffer stored at 0.867 and expired at 1.083, one tick after the ability ended at 1.067. The
