@@ -55,6 +55,9 @@ audit in miniature; the rest is making sure nothing is left on the floor.
    numbers, and frame numbers are a property of the clock, so every real-time row differs from a
    fixed-step baseline by construction. **Read the canary's assertions, never its skeleton** — its
    job is that the bands hold on both clocks, and all three `tier` rows passed 5 of 5 on each.
+   `--realtime` skips scripted rows, whose plans are authored in frames; and its hygiene readout can
+   catch a legacy row's dummy dead or mid-swing where the fixed clock did not, which is the clock
+   moving the teardown, not a leak.
 
 3. **Leave nothing verified uncommitted, and *propose* the push.** Commit anything finished; the
    push itself waits on the completion gate in Working Rules, so this step ends by naming what is

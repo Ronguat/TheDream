@@ -290,6 +290,14 @@ def main():
     if unknown:
         print("unknown scenario(s): %s" % ", ".join(unknown))
         return 2
+    if a.realtime:
+        framed = [i for i in ids if SC.SCENARIOS[i].get("plans")]
+        if framed:
+            print("  real-time skips %d frame-authored row(s): %s" % (len(framed), ", ".join(framed)))
+            ids = [i for i in ids if i not in framed]
+        if not ids:
+            print("nothing left to run on the wall clock")
+            return 2
 
     shape = SC.validate()
     if shape:
