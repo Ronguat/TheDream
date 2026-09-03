@@ -457,7 +457,9 @@ void UTDChargedAttackAbility::CloseReleaseWindow()
 	// Recovery is the span the chain-out may open inside; note it before deriving anything, so a
 	// chain press already waiting in the buffer can leave on the very next buffer tick.
 	bInRecovery = true;
-	RecoveryStartedAt = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
+	RecoveryStartedAt = ActivationWorldTime
+		+ (Branches.IsValidIndex(SelectedBranchIndex) ? Branches[SelectedBranchIndex].ReleaseAtSeconds : 0.0f)
+		+ GetSwingReleaseSeconds(CurrentSwingIndex, SelectedBranchIndex);
 
 	const float RecoveryRate = ComputeRecoveryPlayRate(RecoveryFrom, TargetSeconds);
 	if (RecoveryRate > 0.0f)
@@ -530,18 +532,25 @@ void UTDChargedAttackAbility::HandleReleaseWindowBegan(FGameplayEventData Payloa
 
 	// The notify reports its own length, so the window can be stretched to the authored
 	// duration without anyone maintaining a copy of the timeline.
-	const float WindowLength = Payload.EventMagnitude;
+	const float WindowEnd = Payload.EventMagnitude;
 	const float ReleaseSeconds = GetSwingReleaseSeconds(CurrentSwingIndex, SelectedBranchIndex);
-	if (WindowLength <= 0.0f || ReleaseSeconds <= 0.0f)
+	if (WindowEnd <= 0.0f || ReleaseSeconds <= 0.0f)
 	{
 		return;
 	}
 
-	const float ReleaseRate = FMath::Max(WindowLength / ReleaseSeconds, TDMinPlayRate);
+	// The window left from the montage's position to the notify's own end: the begin event lands
+	// on the tick after the notify, and a fast windup has already moved into the window by then.
+	// The end event is dispatched the tick after the crossing is detected, so the crossing is
+	// placed half a tick before the tick meant to carry it and the event span is ReleaseSeconds.
+	const float Remaining = FMath::Max(
+		WindowEnd - ((ActualStart >= 0.0f) ? ActualStart : ExpectedStart), KINDA_SMALL_NUMBER);
+	const float Tick = GetWorld() ? GetWorld()->GetDeltaSeconds() : (1.0f / 60.0f);
+	const float ReleaseRate = FMath::Max(Remaining / FMath::Max(ReleaseSeconds - 1.5f * Tick, Tick), TDMinPlayRate);
 	SetMontagePlayRate(ReleaseRate);
 
-	TD_TIMING_LOG(TEXT("[%.3f] RELEASE    %s pos=%.4f windowLen=%.4f rate=%.3f (want %.3fs)"),
-		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f, *GetNameSafe(GetAvatarActorFromActorInfo()), ActualStart, WindowLength, ReleaseRate, ReleaseSeconds);
+	TD_TIMING_LOG(TEXT("[%.3f] RELEASE    %s pos=%.4f windowEnd=%.4f remaining=%.4f rate=%.3f (want %.3fs)"),
+		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f, *GetNameSafe(GetAvatarActorFromActorInfo()), ActualStart, WindowEnd, Remaining, ReleaseRate, ReleaseSeconds);
 }
 
 float UTDChargedAttackAbility::ComputeWindupPlayRate() const
@@ -817,9 +826,11 @@ bool UTDChargedAttackAbility::IsChainOutOpen() const
 	// Two-sided: the span opens after ChainOpenAfterRecoverySeconds and closes ChainOpenDurationSeconds
 	// later, which lands inside recovery rather than at its end. Past the close the swing runs the
 	// rest of recovery with no exit, and a press arriving there starts a fresh string instead.
+	// Half a tick either side, so the frames the two edges land on are inside the span.
+	const float HalfTick = 0.5f * World->GetDeltaSeconds();
 	const float SinceRecovery = World->GetTimeSeconds() - RecoveryStartedAt;
-	return SinceRecovery >= ChainOpenAfterRecoverySeconds
-		&& SinceRecovery <= ChainOpenAfterRecoverySeconds + ChainOpenDurationSeconds;
+	return SinceRecovery >= ChainOpenAfterRecoverySeconds - HalfTick
+		&& SinceRecovery <= ChainOpenAfterRecoverySeconds + ChainOpenDurationSeconds + HalfTick;
 }
 
 bool UTDChargedAttackAbility::TryChainOutForBufferedPress()

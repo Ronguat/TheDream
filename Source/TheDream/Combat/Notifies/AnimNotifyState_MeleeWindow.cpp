@@ -40,7 +40,7 @@ namespace
 
 namespace
 {
-	void SendMeleeWindowEvent(USkeletalMeshComponent* MeshComp, const FGameplayTag& EventTag, float WindowLength, const UAnimSequenceBase* SourceAnimation)
+	void SendMeleeWindowEvent(USkeletalMeshComponent* MeshComp, const FGameplayTag& EventTag, float WindowEnd, const UAnimSequenceBase* SourceAnimation)
 	{
 		if (!MeshComp)
 		{
@@ -69,7 +69,8 @@ namespace
 		// notifies cannot be read back off the asset. Passing it along means the ability
 		// can stretch the window to the duration it wants without anyone maintaining a
 		// second copy of the timeline.
-		Payload.EventMagnitude = WindowLength;
+		// The montage time the window closes.
+		Payload.EventMagnitude = WindowEnd;
 
 		UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(Owner, EventTag, Payload);
 	}
@@ -81,7 +82,9 @@ void UAnimNotifyState_MeleeWindow::NotifyBegin(USkeletalMeshComponent* MeshComp,
 
 	LogWindowEdge(MeshComp, TEXT("BEGIN"));
 
-	SendMeleeWindowEvent(MeshComp, TDTags::Event_Melee_WindowBegin, TotalDuration, Animation);
+	const FAnimNotifyEvent* Event = EventReference.GetNotify();
+	const float WindowEnd = (Event ? Event->GetTriggerTime() : 0.0f) + TotalDuration;
+	SendMeleeWindowEvent(MeshComp, TDTags::Event_Melee_WindowBegin, WindowEnd, Animation);
 }
 
 void UAnimNotifyState_MeleeWindow::NotifyEnd(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, const FAnimNotifyEventReference& EventReference)

@@ -166,8 +166,9 @@ edit here that cannot be reviewed, because nothing is left to review.
 2026-09-03. The full real-time matrix has not run (only the canary families); no probe places the
 target below the attacker's height band; the parry lockout of chained heavy and charged cells (1/1,
 1/2, 2/1, 2/2) is unasserted because no dummy throws them; jump is untested as a get-up option; and
-the two rows red for the game — `tier-cells`' chained totals, `edge-lockout-end`'s held attack —
-stay red until the designer rules, so a matrix with two reds is the expected state, not a regression.
+`attack-airborne` is red for the game — the spec says an airborne refusal does not buffer and the
+game stores it — until the designer rules, so a matrix with that one red is the expected state, not
+a regression. The Phase 2 entry's two reds were fixed the same day; see the rulings entry above it.
 
 **~~Whenever a green matrix is read as coverage — *the audit rebuilt the loop and added none.*~~ —
 DISCHARGED 2026-09-03**, the same day, by Phase 2's fifty scripted rows: every mechanic the list
@@ -1808,7 +1809,7 @@ long.
 | `TraceRadius` | 08-11, 08-12 |
 | `TurnRateDegrees` | 08-12, 08-13, 08-14, 08-15, 08-18 |
 | `UAbilityTask_PlayMontageAndWait` | 08-12 |
-| `UAnimNotifyState_MeleeWindow` | 08-09 |
+| `UAnimNotifyState_MeleeWindow` | 08-09, 09-03 |
 | `UCharacterMovementComponent` | 08-12 |
 | `UGameplayAbility` | 08-11 |
 | `USequencePlayerLibrary::SetAccumulatedTime` | 08-25 |
@@ -1874,6 +1875,7 @@ long.
 | `gen-matrix.py` | 09-03 |
 | `golden/` (the accepted skeletons) | 09-03 |
 | `raw_session_count` | 09-02 |
+| `reach-aim-gap` | 09-03 |
 | `regression-run.sh` | 09-03 |
 | `regression_eval.py` | 09-03 |
 | `regression_rows.py` | 09-03 |
@@ -1883,6 +1885,85 @@ long.
 | `ue_fit_tier_montages.py` | 09-02 |
 | `ue_regression_runner.py` | 09-03 |
 | `ue_seed_cells.py` | 09-02 |
+
+## 2026-09-03 — Four rulings land: the held input, the chained light's release, the chain window on the spec, and the wedge that spent its lunge twice
+
+The designer ruled on the Phase 2 entry's findings the same day: fix the held input, fix the chained
+totals, move the game's chain window to the spec, and make the aim wedge's gap the authored margin.
+Four C++ changes, one editor-closed rebuild each time a header or a notify moved, and the rows that
+found each defect are the rows that verify its fix.
+
+### The held input
+
+`TryActivateAbilitiesForInput` marked every spec's `InputPressed` on every buffer retry, and a press
+already released had spent its release edge, so the flag stayed up and the get-up's
+`IsInputHeldForAbility` read a phantom hold. The retry now passes `bMarkInputPressed` false when the
+buffered press has been released; the ladder already learned its hold from
+`IsPendingActivationInputHeld`. `edge-lockout-end`: a get-up attack tapped at 93 f rises at 94 f on
+its own press, where it had risen at 90 or 91 on the phantom; tapped at 87 f it still rises at the
+90 f open through the buffer.
+
+### The chained light's release, which took three passes
+
+The release rate was `WindowLength / ReleaseSeconds`, fitted as if the whole notify remained when the
+begin event arrives, but the event lands on the tick after the notify's start and a chained light's
+3.344x windup had spent 0.033 of the window by then: L2's release ran **7 f** and the ender's 12
+against 9 and 13.35 authored. First pass: fit from the remaining window using the hand-copied
+`ReleaseStartSeconds` — over-corrected to 11 f, and the trace showed why: the copies are right, the
+montage's position at the *end* event is what sits past the notify's end. Second pass: the notify
+sends its own end, `GetTriggerTime() + TotalDuration`, as the event's magnitude, and both readers,
+the ladder and the get-up attack, fit to `WindowEnd − ActualStart`. The montage then crosses the end
+at exactly 9.0 f for every 0.150 cell, and the END event still lands at 10 or 11: **detection on the
+first tick at or past the end, dispatch one tick later, and a crossing on a tick boundary is a float
+race between the two.** Third pass: the crossing is placed half a tick before the tick meant to carry
+the event, `ReleaseSeconds − 1.5 ticks`, so the event span, which is what the trace task runs
+between and therefore what "the period it deals damage" means, is the authored one. `tier-cells`
+now asserts each cell's release span, −0.5 to +1 f for the ender's non-integer 13.35: **17 of 17**,
+and every chained total 0 to +3 f, 11 of 11. `knockdown-getup-attack` 7 of 7 on the same fit.
+
+### The chain window on the spec
+
+`RecoveryStartedAt` was stamped by the release-end notify, a tick late, so the opening sat at 0.500
+and a press at 0.283 expired one frame before it. It is now the authored recovery start, activation
+plus `ReleaseAtSeconds` plus `ReleaseSeconds`, and both the window's edges and the buffer's expiry
+carry half a tick of tolerance so the frame a deadline lands on is inside it. Measured from the
+first press: **16 f expires, 17 to 41 f chain, 42 f expires** — the spec's 0.283 to 0.683 exactly,
+where before the fix 17 expired, 18 and 19 raced, 41 expired and 42 chained. The consequence named
+in the plan holds everywhere the buffer decides: a press exactly `InputBufferSeconds` before the
+moment it can act now counts deterministically (`edge-hitstun-accept` 21 f fires, 20 expires;
+`edge-recovery-accept` 53 fires against a heavy ending at 64 to 65 f, 54 still races on the tick
+order of the end and the retry).
+
+**An instrument mistake, kept because the band's comment was the trap.** The string rows' "chain
+latency", RELEASE OFF to the chained ACTIVATE, went red at 116 ms after the fix and I re-based its
+band to 108 to 142 ms on the reading that it measured the window's opening. It measures the tap: the
+strings press at 0.500, the release now ends at 22 f, so the span is 8 to 10 f and the original
+125 to 175 ms band was right. Restored, with the comment saying what it measures.
+
+### The wedge
+
+Homing re-selected its target every tick from the attacker's current position with a reach that
+already included the base lunge, so the 100 cm base lunge was counted and then travelled: a light
+landed from about **520 cm** away and aim assist named a target from **690**, a gap of 170 against
+the designed 100. `FindAimAssistTarget` now takes the position the swing began at and spends the
+wedge's reach by the travel since; the arc still reads from the current facing. `reach-aim-gap`:
+named through 590, none from 600, a gap of about 75 against the measured land and the authored 100
+against the authored 492. `reach-aim-wedge` unchanged at 15° named, 35° none.
+
+**The full matrix on the final binary: 88 of 89 green in 1935 s**, the one red being
+`attack-airborne` below. Eighteen goldens moved with the fixes and were accepted in the same commit.
+
+### Also found on the way
+
+- **The spec is not silent on the airborne press.** Its buffer paragraph ends "the airborne-attack
+  and airborne-dodge refusals deliberately do not buffer"; the Phase 2 entry's "the spec is silent"
+  was wrong, read off a truncated grep. The game stores an airborne press and expires it at 200 ms.
+  `attack-airborne` asserts the spec's rule again and is **red as a defect candidate awaiting a
+  ruling**: fix the game, or move the spec.
+- Every `ReleaseStartSeconds` copy matched its notify to the millisecond; the 0.03 s warning has
+  never fired for a real drift.
+- Under the fixed clock the viewport ghosts for up to a second; nothing the loop reads is affected
+  and the cause is not established. Filed in the instruments doc.
 
 ## 2026-09-03 — Phase 2 lands fifty scripted rows, two of them red for the game, and every edge sits one frame from a race
 

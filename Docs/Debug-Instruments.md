@@ -230,6 +230,10 @@ not per press** — 69 lines were three presses, and the burst's length is now t
 
 **`KNOCKDOWN <pawn> rose on held <tag>` joined 2026-09-02**, printed when the floor's input window admits a get-up whose button was already down. It sits beside the `KNOCKDOWN RISE ... by=` line, which names the option; a rise with no `rose on held` line came from a press, not a hold.
 
+**`RELEASE` carries `windowEnd=` and `remaining=`** *(2026-09-03)*: the notify's own end in montage
+time and the window left from the position the begin event found, which the release rate is fitted
+to; `windowLen=` is gone.
+
 **The loop's own lines** *(2026-09-03)*: `REGRESSION BEGIN/ROLES/LOCK/INJECT/REP/TEARDOWN/END/DONE`
 bound and annotate a scenario, `INJECT` carrying the runner's frame and the key it pressed or
 released, `REP` and `TEARDOWN` the hygiene readout per pawn; `DEBUG RESET`, `DEBUG HEALTH` and
@@ -614,6 +618,11 @@ PIE sessions in one log.
 consecutive runs produce identical event skeletons, where the same fixtures free-running spread a
 span over 35 ms. `--realtime` is the same runner on the wall clock, kept as the canary.
 
+**The viewport lies under the fixed clock** *(observed 2026-09-03)*: temporal anti-aliasing ghosts
+persist for up to a second during fixed-step runs and never on the wall clock. The cause is not
+established; nothing the loop reads is rendered. Judge feel on the real clock, never during a run.
+Two experiments for an idle editor: `r.AntiAliasingMethod 0` during a run, and TAA in place of TSR.
+
 **Every scenario is bounded by markers** the runner emits — `REGRESSION BEGIN/ROLES/INJECT/TEARDOWN/END`
 — so `regression-check.sh <row> --slice <run>:<id>` reads exactly one scenario out of a shared log,
 and `slice_log` and `raw_session_count` share those bounds. Slices, tapes and `summary.json` land in
@@ -747,6 +756,7 @@ settings rather than assertions — as do measurements, which record what a run 
 | `edge-lockout-end` | `-` | hold 0.22, interval 4.5 | silent | - | 100 |
 | `edge-parry-close` | `-` | hold 0.1 | silent | - | 100 |
 | `edge-recovery-accept` | `-` | silent | silent | - | 84 |
+| `reach-aim-gap` | `-` | silent | silent | - | 116 |
 | `reach-aim-wedge` | `-` | silent | silent | - | 68 |
 | `reach-arc` | `-` | silent | silent | - | 76 |
 | `reach-height` | `-` | silent | silent | - | 68 |

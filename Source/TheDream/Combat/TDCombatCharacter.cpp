@@ -252,7 +252,9 @@ void ATDCombatCharacter::Tick(float DeltaSeconds)
 	// when the system acts.
 	if (bAimAssistHoming && (bAimAssistDrawDebug || TDShouldDrawMeleeTrace()))
 	{
-		AimAssistWedge.DrawDebug(GetWorld(), GetActorLocation(), GetAimYawDegrees(), FColor::Cyan);
+		FTDAttackHitbox Drawn = AimAssistWedge;
+		Drawn.MaxReachCm = FMath::Max(0.0f, AimAssistWedge.MaxReachCm - FVector::Dist2D(GetActorLocation(), AimAssistOrigin));
+		Drawn.DrawDebug(GetWorld(), GetActorLocation(), GetAimYawDegrees(), FColor::Cyan);
 	}
 #endif
 }
@@ -3581,7 +3583,8 @@ void ATDCombatCharacter::GatherAbilitiesForInput(const FGameplayTag& InputTag, T
 	}
 }
 
-bool ATDCombatCharacter::TryActivateAbilitiesForInput(const FGameplayTag& InputTag, bool bForwardToActive)
+bool ATDCombatCharacter::TryActivateAbilitiesForInput(const FGameplayTag& InputTag, bool bForwardToActive,
+	bool bMarkInputPressed)
 {
 	if (!AbilitySystem)
 	{
@@ -3604,7 +3607,7 @@ bool ATDCombatCharacter::TryActivateAbilitiesForInput(const FGameplayTag& InputT
 		// Marks the spec as held before activating, which is the state WaitInputRelease reads
 		// -- so an ability starts life knowing the button is down and holds keep working.
 		// Skipped for anything already running on a retry: see bForwardToActive.
-		if (bForwardToActive || !Spec->IsActive())
+		if (bMarkInputPressed && (bForwardToActive || !Spec->IsActive()))
 		{
 			AbilitySystem->AbilitySpecInputPressed(*Spec);
 		}
@@ -3867,7 +3870,8 @@ void ATDCombatCharacter::TickInputBuffer()
 	// moves: neither holding the button nor releasing it buys reach. A press outside that span is
 	// not a decayed request, it is one made when presses are not accepted -- the same shape as
 	// pressing during a knockdown's lockout rather than its input window.
-	if (Now >= BufferedInput.ExpiryWorldTime)
+	// Expired once a whole tick past the deadline, so the frame the deadline lands on is inside it.
+	if (Now > BufferedInput.ExpiryWorldTime + 0.5f * World->GetDeltaSeconds())
 	{
 		TD_TIMING_LOG(TEXT("[%.3f] BUFFER     %s %s: expired, %.0fms after press"),
 			Now, *GetName(), *BufferedInput.InputTag.ToString(), (Now - BufferedInput.PressWorldTime) * 1000.0f);
@@ -3906,7 +3910,8 @@ void ATDCombatCharacter::TickInputBuffer()
 	// ladder on a press the player finished in 58 ms.
 	bPendingActivationInputHeld = !BufferedInput.bReleased;
 
-	if (!TryActivateAbilitiesForInput(BufferedInput.InputTag, /*bForwardToActive=*/false))
+	if (!TryActivateAbilitiesForInput(BufferedInput.InputTag, /*bForwardToActive=*/false,
+		/*bMarkInputPressed=*/!BufferedInput.bReleased))
 	{
 		PendingActivationHoldSeconds = 0.0f;
 		bPendingActivationInputHeld = true;
@@ -3958,10 +3963,15 @@ float ATDCombatCharacter::GetStaminaPercent() const
 
 void ATDCombatCharacter::SetAimAssistHoming(const FTDAttackHitbox& InWedge, const FGameplayTagContainer& InImmunityTags, bool bActive, bool bInDrawDebug)
 {
+	const bool bWasHoming = bAimAssistHoming;
 	AimAssistWedge = InWedge;
 	AimAssistImmunityTags = InImmunityTags;
 	bAimAssistHoming = bActive && InWedge.IsEnabled();
 	bAimAssistDrawDebug = bInDrawDebug;
+	if (bAimAssistHoming && !bWasHoming)
+	{
+		AimAssistOrigin = GetActorLocation();
+	}
 
 	// **Traced because this wedge is what the debug draw shows, and a wedge cannot be read by eye.**
 	// A whole session was lost to exactly that: the drawn volume was branch 0's for every tier, and
@@ -3981,7 +3991,8 @@ AActor* ATDCombatCharacter::FindAimAssistTarget(
 	float AimYawDegrees,
 	const FTDAttackHitbox& Wedge,
 	const FGameplayTagContainer& ImmunityTags,
-	float& OutBearingDegrees)
+	float& OutBearingDegrees,
+	const FVector* TravelOrigin)
 {
 	const UWorld* World = Attacker ? Attacker->GetWorld() : nullptr;
 	if (!World || !Wedge.IsEnabled())
@@ -3991,13 +4002,25 @@ AActor* ATDCombatCharacter::FindAimAssistTarget(
 
 	const FVector Origin = Attacker->GetActorLocation();
 
+	// The reach left after the travel from where the swing began; the arc still reads from here.
+	FTDAttackHitbox Remaining = Wedge;
+	if (TravelOrigin)
+	{
+		Remaining.MaxReachCm = FMath::Max(0.0f, Wedge.MaxReachCm - FVector::Dist2D(Origin, *TravelOrigin));
+		if (!Remaining.IsEnabled())
+		{
+			OutBearingDegrees = 0.0f;
+			return nullptr;
+		}
+	}
+
 	TArray<FOverlapResult> Overlaps;
 	World->OverlapMultiByObjectType(
 		Overlaps,
 		Origin,
 		FQuat::Identity,
 		FCollisionObjectQueryParams(ECC_Pawn),
-		FCollisionShape::MakeSphere(Wedge.GetBroadPhaseRadiusCm()),
+		FCollisionShape::MakeSphere(Remaining.GetBroadPhaseRadiusCm()),
 		FCollisionQueryParams(SCENE_QUERY_STAT(TDAimAssist), /*bTraceComplex=*/false, Attacker));
 
 	AActor* Best = nullptr;
@@ -4029,14 +4052,14 @@ AActor* ATDCombatCharacter::FindAimAssistTarget(
 		const FVector TargetCentre = Candidate->GetActorLocation();
 		const float TargetRadius = Capsule->GetScaledCapsuleRadius();
 
-		if (!Wedge.OverlapsCapsule(Origin, AimYawDegrees, TargetCentre, TargetRadius, Capsule->GetScaledCapsuleHalfHeight()))
+		if (!Remaining.OverlapsCapsule(Origin, AimYawDegrees, TargetCentre, TargetRadius, Capsule->GetScaledCapsuleHalfHeight()))
 		{
 			continue;
 		}
 
 		float Bearing = 0.0f;
 		float HalfArc = 0.0f;
-		if (!Wedge.GetBearingToCapsule(Origin, AimYawDegrees, TargetCentre, TargetRadius, Bearing, HalfArc))
+		if (!Remaining.GetBearingToCapsule(Origin, AimYawDegrees, TargetCentre, TargetRadius, Bearing, HalfArc))
 		{
 			continue;
 		}
@@ -4071,7 +4094,8 @@ bool ATDCombatCharacter::GetFacingHomingYaw(float& OutYaw) const
 	const float AimYaw = GetAimYawDegrees();
 
 	float Bearing = 0.0f;
-	const AActor* Target = FindAimAssistTarget(this, AimYaw, AimAssistWedge, AimAssistImmunityTags, Bearing);
+	const AActor* Target = FindAimAssistTarget(this, AimYaw, AimAssistWedge, AimAssistImmunityTags, Bearing,
+		&AimAssistOrigin);
 	if (!Target)
 	{
 		return false;

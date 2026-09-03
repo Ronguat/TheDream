@@ -34,11 +34,11 @@ f=49 TARGET BP_PlayerCharacter_C_0
 f=52 RELEASE BEGIN BP_PlayerCharacter_C_0 
 f=52 RELEASE BP_PlayerCharacter_C_0 
 f=52 TARGET BP_PlayerCharacter_C_0 
-f=62 RELEASE END BP_PlayerCharacter_C_0 
-f=62 RELEASE OFF BP_PlayerCharacter_C_0 
-f=99 ABILITY END BP_PlayerCharacter_C_0 
-f=99 AIM WEDGE BP_PlayerCharacter_C_0 
-f=99 MONTAGE BP_PlayerCharacter_C_0 section=None
+f=61 RELEASE END BP_PlayerCharacter_C_0 
+f=61 RELEASE OFF BP_PlayerCharacter_C_0 
+f=97 ABILITY END BP_PlayerCharacter_C_0 
+f=97 AIM WEDGE BP_PlayerCharacter_C_0 
+f=97 MONTAGE BP_PlayerCharacter_C_0 section=None
 f=184 ACTIVATE BP_PlayerCharacter_C_0 swing=0
 f=184 AIM WEDGE BP_PlayerCharacter_C_0 
 f=184 INPUT BP_PlayerCharacter_C_0 
@@ -53,8 +53,8 @@ f=194 TARGET BP_PlayerCharacter_C_0
 f=196 RELEASE BEGIN BP_PlayerCharacter_C_0 
 f=196 RELEASE BP_PlayerCharacter_C_0 
 f=196 TARGET BP_PlayerCharacter_C_0 
+f=205 RELEASE END BP_PlayerCharacter_C_0 
 f=205 RELEASE OFF BP_PlayerCharacter_C_0 
-f=206 RELEASE END BP_PlayerCharacter_C_0 
 f=220 ABILITY END BP_PlayerCharacter_C_0 
 f=220 ACTIVATE BP_PlayerCharacter_C_0 swing=1
 f=220 AIM WEDGE BP_PlayerCharacter_C_0 
@@ -75,11 +75,11 @@ f=229 TARGET BP_PlayerCharacter_C_0
 f=232 RELEASE BEGIN BP_PlayerCharacter_C_0 
 f=232 RELEASE BP_PlayerCharacter_C_0 
 f=232 TARGET BP_PlayerCharacter_C_0 
-f=242 RELEASE END BP_PlayerCharacter_C_0 
-f=242 RELEASE OFF BP_PlayerCharacter_C_0 
-f=279 ABILITY END BP_PlayerCharacter_C_0 
-f=279 AIM WEDGE BP_PlayerCharacter_C_0 
-f=279 MONTAGE BP_PlayerCharacter_C_0 section=None
+f=241 RELEASE END BP_PlayerCharacter_C_0 
+f=241 RELEASE OFF BP_PlayerCharacter_C_0 
+f=277 ABILITY END BP_PlayerCharacter_C_0 
+f=277 AIM WEDGE BP_PlayerCharacter_C_0 
+f=277 MONTAGE BP_PlayerCharacter_C_0 section=None
 f=364 ACTIVATE BP_PlayerCharacter_C_0 swing=0
 f=364 AIM WEDGE BP_PlayerCharacter_C_0 
 f=364 INPUT BP_PlayerCharacter_C_0 
@@ -94,8 +94,8 @@ f=374 TARGET BP_PlayerCharacter_C_0
 f=377 RELEASE BEGIN BP_PlayerCharacter_C_0 
 f=377 RELEASE BP_PlayerCharacter_C_0 
 f=377 TARGET BP_PlayerCharacter_C_0 
-f=387 RELEASE END BP_PlayerCharacter_C_0 
-f=387 RELEASE OFF BP_PlayerCharacter_C_0 
+f=386 RELEASE END BP_PlayerCharacter_C_0 
+f=386 RELEASE OFF BP_PlayerCharacter_C_0 
 f=400 ABILITY END BP_PlayerCharacter_C_0 
 f=400 ACTIVATE BP_PlayerCharacter_C_0 swing=1
 f=400 AIM WEDGE BP_PlayerCharacter_C_0 
@@ -116,11 +116,11 @@ f=409 TARGET BP_PlayerCharacter_C_0
 f=412 RELEASE BEGIN BP_PlayerCharacter_C_0 
 f=412 RELEASE BP_PlayerCharacter_C_0 
 f=412 TARGET BP_PlayerCharacter_C_0 
+f=421 RELEASE END BP_PlayerCharacter_C_0 
 f=421 RELEASE OFF BP_PlayerCharacter_C_0 
-f=422 RELEASE END BP_PlayerCharacter_C_0 
-f=458 ABILITY END BP_PlayerCharacter_C_0 
-f=458 AIM WEDGE BP_PlayerCharacter_C_0 
-f=458 MONTAGE BP_PlayerCharacter_C_0 section=None
+f=457 ABILITY END BP_PlayerCharacter_C_0 
+f=457 AIM WEDGE BP_PlayerCharacter_C_0 
+f=457 MONTAGE BP_PlayerCharacter_C_0 section=None
 f=544 ACTIVATE BP_PlayerCharacter_C_0 swing=0
 f=544 AIM WEDGE BP_PlayerCharacter_C_0 
 f=544 INPUT BP_PlayerCharacter_C_0 
@@ -135,8 +135,8 @@ f=554 TARGET BP_PlayerCharacter_C_0
 f=557 RELEASE BEGIN BP_PlayerCharacter_C_0 
 f=557 RELEASE BP_PlayerCharacter_C_0 
 f=557 TARGET BP_PlayerCharacter_C_0 
+f=566 RELEASE END BP_PlayerCharacter_C_0 
 f=566 RELEASE OFF BP_PlayerCharacter_C_0 
-f=567 RELEASE END BP_PlayerCharacter_C_0 
 f=580 ABILITY END BP_PlayerCharacter_C_0 
 f=580 ACTIVATE BP_PlayerCharacter_C_0 swing=1
 f=580 AIM WEDGE BP_PlayerCharacter_C_0 
@@ -157,11 +157,11 @@ f=589 TARGET BP_PlayerCharacter_C_0
 f=592 RELEASE BEGIN BP_PlayerCharacter_C_0 
 f=592 RELEASE BP_PlayerCharacter_C_0 
 f=592 TARGET BP_PlayerCharacter_C_0 
-f=602 RELEASE END BP_PlayerCharacter_C_0 
-f=602 RELEASE OFF BP_PlayerCharacter_C_0 
-f=639 ABILITY END BP_PlayerCharacter_C_0 
-f=639 AIM WEDGE BP_PlayerCharacter_C_0 
-f=639 MONTAGE BP_PlayerCharacter_C_0 section=None
+f=601 RELEASE END BP_PlayerCharacter_C_0 
+f=601 RELEASE OFF BP_PlayerCharacter_C_0 
+f=637 ABILITY END BP_PlayerCharacter_C_0 
+f=637 AIM WEDGE BP_PlayerCharacter_C_0 
+f=637 MONTAGE BP_PlayerCharacter_C_0 section=None
 f=724 ACTIVATE BP_PlayerCharacter_C_0 swing=0
 f=724 AIM WEDGE BP_PlayerCharacter_C_0 
 f=724 INPUT BP_PlayerCharacter_C_0 
@@ -176,8 +176,8 @@ f=734 TARGET BP_PlayerCharacter_C_0
 f=737 RELEASE BEGIN BP_PlayerCharacter_C_0 
 f=737 RELEASE BP_PlayerCharacter_C_0 
 f=737 TARGET BP_PlayerCharacter_C_0 
-f=747 RELEASE END BP_PlayerCharacter_C_0 
-f=747 RELEASE OFF BP_PlayerCharacter_C_0 
+f=746 RELEASE END BP_PlayerCharacter_C_0 
+f=746 RELEASE OFF BP_PlayerCharacter_C_0 
 f=760 ABILITY END BP_PlayerCharacter_C_0 
 f=760 ACTIVATE BP_PlayerCharacter_C_0 swing=1
 f=760 AIM WEDGE BP_PlayerCharacter_C_0 
@@ -198,11 +198,11 @@ f=769 TARGET BP_PlayerCharacter_C_0
 f=772 RELEASE BEGIN BP_PlayerCharacter_C_0 
 f=772 RELEASE BP_PlayerCharacter_C_0 
 f=772 TARGET BP_PlayerCharacter_C_0 
-f=782 RELEASE END BP_PlayerCharacter_C_0 
-f=782 RELEASE OFF BP_PlayerCharacter_C_0 
-f=819 ABILITY END BP_PlayerCharacter_C_0 
-f=819 AIM WEDGE BP_PlayerCharacter_C_0 
-f=819 MONTAGE BP_PlayerCharacter_C_0 section=None
+f=781 RELEASE END BP_PlayerCharacter_C_0 
+f=781 RELEASE OFF BP_PlayerCharacter_C_0 
+f=817 ABILITY END BP_PlayerCharacter_C_0 
+f=817 AIM WEDGE BP_PlayerCharacter_C_0 
+f=817 MONTAGE BP_PlayerCharacter_C_0 section=None
 f=904 ACTIVATE BP_PlayerCharacter_C_0 swing=0
 f=904 AIM WEDGE BP_PlayerCharacter_C_0 
 f=904 INPUT BP_PlayerCharacter_C_0 
@@ -217,8 +217,8 @@ f=914 TARGET BP_PlayerCharacter_C_0
 f=917 RELEASE BEGIN BP_PlayerCharacter_C_0 
 f=917 RELEASE BP_PlayerCharacter_C_0 
 f=917 TARGET BP_PlayerCharacter_C_0 
-f=927 RELEASE END BP_PlayerCharacter_C_0 
-f=927 RELEASE OFF BP_PlayerCharacter_C_0 
+f=926 RELEASE END BP_PlayerCharacter_C_0 
+f=926 RELEASE OFF BP_PlayerCharacter_C_0 
 f=940 ABILITY END BP_PlayerCharacter_C_0 
 f=940 ACTIVATE BP_PlayerCharacter_C_0 swing=1
 f=940 AIM WEDGE BP_PlayerCharacter_C_0 
@@ -239,11 +239,11 @@ f=950 TARGET BP_PlayerCharacter_C_0
 f=953 RELEASE BEGIN BP_PlayerCharacter_C_0 
 f=953 RELEASE BP_PlayerCharacter_C_0 
 f=953 TARGET BP_PlayerCharacter_C_0 
-f=960 RELEASE END BP_PlayerCharacter_C_0 
-f=960 RELEASE OFF BP_PlayerCharacter_C_0 
-f=996 ABILITY END BP_PlayerCharacter_C_0 
-f=996 AIM WEDGE BP_PlayerCharacter_C_0 
-f=996 MONTAGE BP_PlayerCharacter_C_0 section=None
+f=962 RELEASE END BP_PlayerCharacter_C_0 
+f=962 RELEASE OFF BP_PlayerCharacter_C_0 
+f=999 ABILITY END BP_PlayerCharacter_C_0 
+f=999 AIM WEDGE BP_PlayerCharacter_C_0 
+f=999 MONTAGE BP_PlayerCharacter_C_0 section=None
 f=1084 ACTIVATE BP_PlayerCharacter_C_0 swing=0
 f=1084 AIM WEDGE BP_PlayerCharacter_C_0 
 f=1084 INPUT BP_PlayerCharacter_C_0 
@@ -258,8 +258,8 @@ f=1093 TARGET BP_PlayerCharacter_C_0
 f=1096 RELEASE BEGIN BP_PlayerCharacter_C_0 
 f=1096 RELEASE BP_PlayerCharacter_C_0 
 f=1096 TARGET BP_PlayerCharacter_C_0 
-f=1106 RELEASE END BP_PlayerCharacter_C_0 
-f=1106 RELEASE OFF BP_PlayerCharacter_C_0 
+f=1105 RELEASE END BP_PlayerCharacter_C_0 
+f=1105 RELEASE OFF BP_PlayerCharacter_C_0 
 f=1120 ABILITY END BP_PlayerCharacter_C_0 
 f=1120 ACTIVATE BP_PlayerCharacter_C_0 swing=1
 f=1120 AIM WEDGE BP_PlayerCharacter_C_0 
@@ -280,11 +280,11 @@ f=1130 TARGET BP_PlayerCharacter_C_0
 f=1133 RELEASE BEGIN BP_PlayerCharacter_C_0 
 f=1133 RELEASE BP_PlayerCharacter_C_0 
 f=1133 TARGET BP_PlayerCharacter_C_0 
-f=1140 RELEASE END BP_PlayerCharacter_C_0 
-f=1140 RELEASE OFF BP_PlayerCharacter_C_0 
-f=1176 ABILITY END BP_PlayerCharacter_C_0 
-f=1176 AIM WEDGE BP_PlayerCharacter_C_0 
-f=1176 MONTAGE BP_PlayerCharacter_C_0 section=None
+f=1142 RELEASE END BP_PlayerCharacter_C_0 
+f=1142 RELEASE OFF BP_PlayerCharacter_C_0 
+f=1179 ABILITY END BP_PlayerCharacter_C_0 
+f=1179 AIM WEDGE BP_PlayerCharacter_C_0 
+f=1179 MONTAGE BP_PlayerCharacter_C_0 section=None
 f=1264 ACTIVATE BP_PlayerCharacter_C_0 swing=0
 f=1264 AIM WEDGE BP_PlayerCharacter_C_0 
 f=1264 INPUT BP_PlayerCharacter_C_0 
@@ -299,8 +299,8 @@ f=1273 TARGET BP_PlayerCharacter_C_0
 f=1276 RELEASE BEGIN BP_PlayerCharacter_C_0 
 f=1276 RELEASE BP_PlayerCharacter_C_0 
 f=1276 TARGET BP_PlayerCharacter_C_0 
-f=1286 RELEASE END BP_PlayerCharacter_C_0 
-f=1286 RELEASE OFF BP_PlayerCharacter_C_0 
+f=1285 RELEASE END BP_PlayerCharacter_C_0 
+f=1285 RELEASE OFF BP_PlayerCharacter_C_0 
 f=1300 ABILITY END BP_PlayerCharacter_C_0 
 f=1300 ACTIVATE BP_PlayerCharacter_C_0 swing=1
 f=1300 AIM WEDGE BP_PlayerCharacter_C_0 
@@ -321,11 +321,11 @@ f=1310 TARGET BP_PlayerCharacter_C_0
 f=1313 RELEASE BEGIN BP_PlayerCharacter_C_0 
 f=1313 RELEASE BP_PlayerCharacter_C_0 
 f=1313 TARGET BP_PlayerCharacter_C_0 
-f=1320 RELEASE END BP_PlayerCharacter_C_0 
-f=1320 RELEASE OFF BP_PlayerCharacter_C_0 
-f=1356 ABILITY END BP_PlayerCharacter_C_0 
-f=1356 AIM WEDGE BP_PlayerCharacter_C_0 
-f=1356 MONTAGE BP_PlayerCharacter_C_0 section=None
+f=1322 RELEASE END BP_PlayerCharacter_C_0 
+f=1322 RELEASE OFF BP_PlayerCharacter_C_0 
+f=1359 ABILITY END BP_PlayerCharacter_C_0 
+f=1359 AIM WEDGE BP_PlayerCharacter_C_0 
+f=1359 MONTAGE BP_PlayerCharacter_C_0 section=None
 f=1444 DEBUG RESET BP_PlayerCharacter_C_0 
 f=1444 DEBUG RESET BP_TrainingDummy_C_1 
 f=1444 DEBUG RESET BP_TrainingDummy_C_2 

@@ -435,6 +435,7 @@ def tier_cells(ctx, r, s):
     n, rel_ok, tot_ok, esc_ok, com_ok, mont_ok = 0, 0, 0, 0, 0, 0
     detail = []
     tot_first, tot_first_ok, tot_chain, tot_chain_ok, chain_detail = 0, 0, 0, 0, []
+    span_n, span_ok, span_detail = 0, 0, []
     for k, seg in enumerate(ctx.reps):
         p, b = cells[ctx.variant(k, s)]
         acts = lines(seg, "ACTIVATE", player, "swing=%d" % p)
@@ -456,6 +457,15 @@ def tier_cells(ctx, r, s):
         montage = mirror("GA_Attack", "Positions[%d].Cells[%d].Montage" % (p, b)).rsplit(".", 1)[-1]
         if abs((rel[0] - a_t) - release_at) <= 0.030:
             rel_ok += 1
+        rel_end = first(after, "RELEASE END", player)
+        release_s = float(mirror("GA_Attack", "Positions[%d].Cells[%d].ReleaseSeconds" % (p, b)))
+        if rel_end[0] is not None:
+            span_n += 1
+            over = (rel_end[0] - rel[0]) - release_s
+            if -0.009 <= over <= 0.020:
+                span_ok += 1
+            else:
+                span_detail.append("cell %d/%d release %.3f vs %.3f" % (p, b, rel_end[0] - rel[0], release_s))
         elapsed = fields(end[1]).get("elapsed", -1)
         over = elapsed - total
         if p == 0:
@@ -481,6 +491,8 @@ def tier_cells(ctx, r, s):
             mont_ok += 1
     r.counted(n, "cells thrown", "%d reps across 9 cells" % n)
     r.add(n > 0 and rel_ok == n, "release opens at the branch's ReleaseAt", "%d of %d within 30 ms" % (rel_ok, n))
+    r.add(span_n > 0 and span_ok == span_n, "release lasts the cell's ReleaseSeconds, -0.5 to +1 f",
+          "%d of %d%s" % (span_ok, span_n, "; " + "; ".join(sorted(set(span_detail))[:4]) if span_detail else ""))
     r.add(tot_first > 0 and tot_first_ok == tot_first, "position 1 totals: authored sum, 0 to +3 f",
           "%d of %d%s" % (tot_first_ok, tot_first, "; " + "; ".join(detail[:3]) if detail else ""))
     r.add(tot_chain > 0 and tot_chain_ok == tot_chain, "chained totals: authored sum, 0 to +3 f",
@@ -655,9 +667,8 @@ def _refused_row(ctx, r, s, ability, absent_tag=None, absent_contains=None, labe
 def attack_airborne(ctx, r, s):
     _refused_row(ctx, r, s, "GA_Attack", "ACTIVATE")
     player = ctx.who("player")
-    fates = sorted(set(re.sub(r"\d+ms", "Nms", x.split("InputTag.Attack: ", 1)[-1])
-                       for seg in ctx.reps for _, x in lines(seg, "BUFFER", player, "InputTag.Attack:")))
-    r.add(True, "the buffer's handling of the airborne press: reported", "REPORT %s" % fates)
+    stored = sum(1 for seg in ctx.reps for _ in lines(seg, "BUFFER", player, "InputTag.Attack: stored"))
+    r.add(stored == 0, "the airborne press is not buffered", "%d stored" % stored)
 
 
 def attack_whiff_commitment(ctx, r, s):
@@ -971,6 +982,37 @@ def reach_aim_wedge(ctx, r, s):
           % (["hit" if o[2] else "miss" for o in inside], ["hit" if o[2] else "miss" for o in outside]))
 
 
+def reach_aim_gap(ctx, r, s):
+    """Per distance: whether aim assist named the target, how far the player travelled, and whether
+    the swing landed. The near probe must be named and hit, the far one neither."""
+    player, target = ctx.who("player"), ctx.who("defender")
+    dists = s["expect"]["distances"]
+    tape = ctx.tape.get(player, [])
+    seen = {}
+    for k, seg in enumerate(ctx.reps):
+        v = ctx.variant(k, s)
+        act = first(seg, "ACTIVATE", player)
+        end = first(seg, "ABILITY END", player)
+        if act[0] is None or end[0] is None:
+            continue
+        named = bool(lines(seg, "AIM ASSIST", player, "'%s'" % target))
+        hit = bool(lines(seg, "DAMAGED", None, "by " + player))
+        rows = [q for q in tape if act[0] <= q["t"] <= end[0]]
+        travel = _dist(rows[-1], rows[0]) if len(rows) > 1 else 0.0
+        tgt = first(seg, "TARGET", player, "release")
+        rel = fields(tgt[1]).get("dist") if tgt[1] else None
+        seen.setdefault(v, []).append("%s travel=%.0f release-dist=%s %s" % (
+            "named" if named else "none", travel, rel, "hit" if hit else "miss"))
+    r.counted(sum(len(x) for x in seen.values()), "swings thrown", "%d" % sum(len(x) for x in seen.values()))
+    near, far = seen.get(0, []), seen.get(1, [])
+    r.add(bool(near) and all(o.startswith("named") and o.endswith("hit") for o in near),
+          "%d cm: named and hit" % dists[0], "saw %s" % near)
+    r.add(bool(far) and all(o.startswith("none") and o.endswith("miss") for o in far),
+          "%d cm: neither" % dists[1], "saw %s" % far)
+    for v in range(2, len(dists)):
+        r.add(True, "%d cm: reported" % dists[v], "REPORT %s" % seen.get(v, []))
+
+
 def parry_grace_catch(ctx, r, s):
     """Rep 1's second swing is caught by grace; later reps, 6 f further apart each, land."""
     player, second = ctx.who("player"), ctx.who("defender")
@@ -1232,6 +1274,7 @@ ROWS = {
     "reach-arc": reach_probes,
     "reach-height": reach_probes,
     "reach-aim-wedge": reach_aim_wedge,
+    "reach-aim-gap": reach_aim_gap,
     "edge-actionable": edge,
     "edge-hitstun-accept": edge,
     "edge-parry-close": edge,

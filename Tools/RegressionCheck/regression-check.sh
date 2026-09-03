@@ -154,8 +154,8 @@ BAND_CHAIN_GAP=0.500; BAND_CHAIN_GAP_TOL=0.045
 # silently stops being true -- which is what s4-guarantee observes directly.
 BAND_HITSTUN_LIGHT=0.550; BAND_HITSTUN_TOL=0.020
 
-# RELEASE OFF (recovery opens) to the chained ACTIVATE: ChainOpenAfterRecoverySeconds plus one
-# buffer tick. The plan said "<= 2 frames", written when ChainOpen was still 0.
+# RELEASE OFF to the chained ACTIVATE, with the string tapped at 0.500: the release ends 22 f after
+# the first press and the tap lands at 30 f, 0 to +2 f late through the buffer tick, 8 to 10 f.
 BAND_CHAIN_LATENCY_MIN_MS=125; BAND_CHAIN_LATENCY_MAX_MS=175
 
 # Knockback determinism deliberately has NO band. The KNOCKBACK line prints its own authored

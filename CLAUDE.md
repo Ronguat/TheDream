@@ -247,8 +247,8 @@ Execution order, the only line that changes when the order does:
 > **~~Attack Ladder~~ → ~~Dodge~~ → ~~Sword & Shield~~ → ~~Input Buffer~~ → ~~Death~~ → ~~Dodge Distance~~ → ~~Attack Swap~~ → ~~[hover bug]~~ → ~~[facing pass]~~ → ~~Recovery~~ + ~~Lunge~~ → ~~Target Lock~~ → ~~Block~~ → ~~Light String~~ → ~~Parry~~ → ~~Knockdown~~ → ~~Skeleton Merge~~ → ~~Death-full~~ → ~~Regression Audit~~ → **Polish** → Settings → Art → Netcode → Tuning Rig → Gamemode → Interplay**
 
 **Pick up at Polish.** Briefs are in `Docs/Combat-Decisions.md`; **the roster is one megaslice**.
-**Two matrix rows are red as defect candidates awaiting a ruling** — `tier-cells`' chained totals,
-`edge-lockout-end`'s held attack, both in the 2026-09-03 Phase 2 entry — the expected state until ruled.
+**One matrix row is red as a defect candidate awaiting a ruling** — `attack-airborne`: the spec says an
+airborne refusal does not buffer and the game stores it, in the 2026-09-03 rulings entry — expected until ruled.
 
 **The verification bar every slice now ships against** *(2026-08-24, the dated entry)*: verified
 functionality, with animations legible enough to tell which mechanic is firing. Visual refinement

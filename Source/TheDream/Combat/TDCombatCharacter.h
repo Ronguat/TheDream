@@ -1341,6 +1341,8 @@ public:
 
 	FTDAttackHitbox AimAssistWedge;
 	FGameplayTagContainer AimAssistImmunityTags;
+	/** Where the homing swing began; the wedge's reach is measured from here, so travel spends it. */
+	FVector AimAssistOrigin = FVector::ZeroVector;
 	bool bAimAssistHoming = false;
 	bool bAimAssistDrawDebug = false;
 
@@ -1377,7 +1379,8 @@ public:
 		float AimYawDegrees,
 		const FTDAttackHitbox& Wedge,
 		const FGameplayTagContainer& ImmunityTags,
-		float& OutBearingDegrees);
+		float& OutBearingDegrees,
+		const FVector* TravelOrigin = nullptr);
 
 protected:
 
@@ -1471,8 +1474,12 @@ private:
 	 *
 	 *  bForwardToActive is false on a buffered retry: the button was pressed once, and telling a
 	 *  running ability it was re-pressed every frame is a lie WaitInputRelease would read.
+	 *
+	 *  bMarkInputPressed: whether the specs' InputPressed is set, which reads as "the button is
+	 *  down now"; a replayed press whose release has already been seen leaves it clear.
 	 */
-	bool TryActivateAbilitiesForInput(const FGameplayTag& InputTag, bool bForwardToActive);
+	bool TryActivateAbilitiesForInput(const FGameplayTag& InputTag, bool bForwardToActive,
+		bool bMarkInputPressed = true);
 
 	/** Forwards the release edge to every matching spec. */
 	void ReleaseAbilitiesForInput(const FGameplayTag& InputTag);
@@ -1503,6 +1510,9 @@ public:
 	 *  after activation.
 	 */
 	float GetPendingActivationHoldSeconds() const { return PendingActivationHoldSeconds; }
+
+	/** Where the homing swing began; the wedge's reach is measured from here. */
+	const FVector& GetAimAssistOrigin() const { return AimAssistOrigin; }
 
 	/**
 	 *  Whether the button for the press activating right now is still down. False for a buffered

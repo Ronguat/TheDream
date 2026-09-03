@@ -154,8 +154,8 @@ void UTDGetUpAttackAbility::HandleReleaseWindowBegan(FGameplayEventData Payload)
 			ActualStart, ReleaseStartSeconds);
 	}
 
-	const float WindowLength = Payload.EventMagnitude;
-	if (WindowLength <= 0.0f || ReleaseSeconds <= 0.0f)
+	const float WindowEnd = Payload.EventMagnitude;
+	if (WindowEnd <= 0.0f || ReleaseSeconds <= 0.0f)
 	{
 		return;
 	}
@@ -165,18 +165,19 @@ void UTDGetUpAttackAbility::HandleReleaseWindowBegan(FGameplayEventData Payload)
 	// base's and the charged ability's, whose ~10 ms loss at 1x sits inside the s1 bands -- plays
 	// the release 25-45 ms short here. Falls back to the authored length when the position is
 	// unreadable.
-	const float WindowEnd = ReleaseStartSeconds + WindowLength;
-	const float Remaining = (ActualStart >= 0.0f) ? WindowEnd - ActualStart : WindowLength;
+	const float Remaining = WindowEnd - ((ActualStart >= 0.0f) ? ActualStart : ReleaseStartSeconds);
 	if (Remaining <= KINDA_SMALL_NUMBER)
 	{
 		return;
 	}
 
-	const float ReleaseRate = FMath::Max(Remaining / ReleaseSeconds, TDMinPlayRate);
+	// The ladder's fit; see UTDChargedAttackAbility::HandleReleaseWindowBegan.
+	const float Tick = GetWorld() ? GetWorld()->GetDeltaSeconds() : (1.0f / 60.0f);
+	const float ReleaseRate = FMath::Max(Remaining / FMath::Max(ReleaseSeconds - 1.5f * Tick, Tick), TDMinPlayRate);
 	SetMontagePlayRate(ReleaseRate);
 
-	TD_TIMING_LOG(TEXT("[%.3f] RELEASE    %s pos=%.4f windowLen=%.4f remaining=%.4f rate=%.3f (want %.3fs)"),
-		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f, *GetNameSafe(GetAvatarActorFromActorInfo()), ActualStart, WindowLength, Remaining, ReleaseRate, ReleaseSeconds);
+	TD_TIMING_LOG(TEXT("[%.3f] RELEASE    %s pos=%.4f windowEnd=%.4f remaining=%.4f rate=%.3f (want %.3fs)"),
+		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f, *GetNameSafe(GetAvatarActorFromActorInfo()), ActualStart, WindowEnd, Remaining, ReleaseRate, ReleaseSeconds);
 }
 
 void UTDGetUpAttackAbility::HandleTraceWindowClosed()

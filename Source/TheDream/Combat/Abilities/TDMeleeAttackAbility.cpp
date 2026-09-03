@@ -124,7 +124,9 @@ void UTDMeleeAttackAbility::ApplyAimAssist(const FTDAttackHitbox& AssistWedge)
 	const float AimYaw = Avatar->GetAimYawDegrees();
 
 	float Bearing = 0.0f;
-	const AActor* Target = ATDCombatCharacter::FindAimAssistTarget(Avatar, AimYaw, AssistWedge, TargetImmunityTags, Bearing);
+	const ATDCombatCharacter* Origin = Cast<ATDCombatCharacter>(Avatar);
+	const AActor* Target = ATDCombatCharacter::FindAimAssistTarget(Avatar, AimYaw, AssistWedge, TargetImmunityTags, Bearing,
+		Origin ? &Origin->GetAimAssistOrigin() : nullptr);
 	if (!Target)
 	{
 		TD_TIMING_LOG(TEXT("[%.3f] AIM ASSIST %s no candidate in wedge (reach=%.0f arc=%.0f)"),

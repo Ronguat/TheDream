@@ -435,7 +435,8 @@ private:
 	/** True from RELEASE OFF to the ability's end -- the span the chain-out may open inside. */
 	bool bInRecovery = false;
 
-	/** World time recovery began, for ChainOpenAfterRecoverySeconds. */
+	/** The authored recovery start in world time -- activation plus ReleaseAtSeconds plus
+	 *  ReleaseSeconds -- which ChainOpenAfterRecoverySeconds counts from. */
 	float RecoveryStartedAt = 0.0f;
 
 	/**

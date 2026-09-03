@@ -556,7 +556,7 @@ SCENARIOS["dodge-iframes"] = _player_defends(
 
 # --- group C: composition ------------------------------------------------------------------------
 
-# An attack pressed in the air is refused while airborne; what the buffer does with it is reported.
+# An attack pressed in the air is refused while airborne and, per the spec, not buffered.
 SCENARIOS["attack-airborne"] = _player_alone(
     "attack", plans=[[(0, "player", "tap", "jump"), (18, "player", "tap", "attack")]],
     mutations=[("drop", "REFUSED", 99)], reps=3, tail=90)
@@ -652,16 +652,16 @@ _edge("edge", "edge-heavy-checkpoint",
       [[(0, "player", "hold", "attack", h)] for h in (20, 23, 21, 22)],
       "commit", ["1", "2", None, None], ("set", "COMMIT", "branch", "0"))
 
-# The chain window as the game runs it: open from 30 f after the first press for 12 f, so a second
-# press is carried to the opening from 18 f and accepted at once until 42 f; the frame on each edge
-# is a race and reported. Past the close a press is stored and expires unless the swing's end, at
-# 57 to 59 f, falls inside its 12 f acceptance, which fires it fresh.
+# The chain window as the spec has it: a second press continues the string from 0.283 to 0.683
+# after the first, 17 f to 41 f, carried to the 29 f opening or accepted at once; 16 f and 42 f
+# fall outside. Past the close a press is stored and expires unless the swing's end, at 57 to 60 f,
+# falls inside its 12 f acceptance, which fires it fresh.
 _edge("edge", "edge-chain-open",
-      [[(0, "player", "tap", "attack"), (f, "player", "tap", "attack")] for f in (16, 20, 17, 18, 19)],
+      [[(0, "player", "tap", "attack"), (f, "player", "tap", "attack")] for f in (16, 17, 18, 19, 20)],
       "chain", ["none", "chain", None, None, None], ("drop", "STRING", 99))
 
 _edge("edge", "edge-chain-close",
-      [[(0, "player", "tap", "attack"), (f, "player", "tap", "attack")] for f in (39, 43, 40, 41, 42)],
+      [[(0, "player", "tap", "attack"), (f, "player", "tap", "attack")] for f in (41, 42, 39, 40, 43)],
       "chain", ["chain", "none", None, None, None], ("drop", "STRING", 99))
 
 _edge("edge", "edge-fresh-open",
@@ -865,6 +865,19 @@ SCENARIOS["reach-aim-wedge"] = _player_alone(
             (6, "player", "tap", "attack")] for d in _WEDGE_DEG],
     mutations=[("drop", "AIM ASSIST", 99)], reps=2 * len(_WEDGE_DEG), tail=90, target=_at_bearing(15),
     expect=dict(degrees=list(_WEDGE_DEG)))
+
+
+# Where the light acquires a target against where it lands, with the lunge on: the wedge's reach is
+# base lunge + branch lunge + damage reach + margin, the hit lands after the travel. Both measured to
+# the body, the two boundaries should sit AimAssistMarginCm apart. The near and far probes are the
+# sides; the rest report.
+_GAP_CM = (470, 700, 510, 530, 550, 570, 590, 600, 620, 640, 660, 680)
+SCENARIOS["reach-aim-gap"] = _player_alone(
+    "reach",
+    plans=[[(0, "player", "face", OPEN_DEFENDER[1]), (0, "defender", "teleport") + _at_bearing(0, dist=d),
+            (6, "player", "tap", "attack")] for d in _GAP_CM],
+    mutations=[("drop", "AIM ASSIST", 99)], reps=2 * len(_GAP_CM), tail=120, target=_at_bearing(0, dist=470),
+    expect=dict(distances=list(_GAP_CM)), tape_every=1)
 
 
 # --- the remaining edges -------------------------------------------------------------------------
