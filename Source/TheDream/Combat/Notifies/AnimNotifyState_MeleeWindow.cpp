@@ -29,9 +29,10 @@ namespace
 		const FAnimMontageInstance* Instance = (AnimInstance && Montage) ? AnimInstance->GetActiveInstanceForMontage(Montage) : nullptr;
 		const UWorld* World = MeshComp ? MeshComp->GetWorld() : nullptr;
 
-		UE_LOG(LogTDCombatTiming, Log, TEXT("[%.3f] RELEASE %s  pos=%.4f rate=%.3f"),
+		UE_LOG(LogTDCombatTiming, Log, TEXT("[%.3f] RELEASE %s  %s pos=%.4f rate=%.3f"),
 			World ? World->GetTimeSeconds() : -1.0f,
 			Edge,
+			*GetNameSafe(MeshComp ? MeshComp->GetOwner() : nullptr),
 			(AnimInstance && Montage) ? AnimInstance->Montage_GetPosition(Montage) : -1.0f,
 			Instance ? Instance->GetPlayRate() : -1.0f);
 	}

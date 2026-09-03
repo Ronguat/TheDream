@@ -376,10 +376,10 @@ acts_during_parry_window() { # anything that activated while a parry window was 
 		/^\[[0-9.]+\] (PARRY SUCCESS|PARRY WHIFF|HITSTUN|GUARD BREAK)/ { in_win=0; next }
 		in_win && who != "" && $0 ~ ("ACTIVATE +" who " +swing=") { print $0; next }
 		in_win && who != "" && $0 ~ ("BLOCK +cost .* on " who) { print $0; next }
-		# DODGE carries no avatar name, so it cannot be scoped. Left in deliberately: this
-		# scenario has neither combatant dodging, so any DODGE at all is a regression worth
-		# seeing, and a fixture that adds one must revisit this line.
-		in_win && /^\[[0-9.]+\] DODGE +dir=/ { print $0 }' "$SLICE"
+		# Deliberately unscoped, where the two above are scoped to who: this scenario has
+		# neither combatant dodging, so any DODGE at all is worth seeing. A fixture that adds
+		# one must revisit this line.
+		in_win && /^\[[0-9.]+\] DODGE +[A-Za-z_0-9]+ +dir=/ { print $0 }' "$SLICE"
 }
 
 # --- what "an ability started" actually looks like in this trace ----------------
@@ -387,7 +387,7 @@ acts_during_parry_window() { # anything that activated while a parry window was 
 # not read the way their mechanics are named:
 #
 #   attack  ->  "ACTIVATE   swing=0 pos=... windupRate ..."   (there is NO "ATTACK" tag)
-#   dodge   ->  "DODGE      dir=Bw section=..."               ("DODGE END" is not a start)
+#   dodge   ->  "DODGE      <pawn> dir=Bw section=..."        ("DODGE END" is not a start)
 #   block   ->  "BLOCK      cost 10 on ...  remaining=..."    (multiple spaces, not one)
 #   parry   ->  "PARRY WINDOW open ...  until=..."
 #
@@ -429,7 +429,7 @@ acts_during_parry_recovery() { # anything that activated while a recovery was ru
 			# Scoped to the recovering character, for the reason acts_during_parry_window gives.
 			if (who != "" && $0 ~ ("ACTIVATE +" who " +swing=")) { print $0; next }
 			if (who != "" && $0 ~ ("BLOCK +cost .* on " who)) { print $0; next }
-			if ($0 ~ /^\[[0-9.]+\] DODGE +dir=/) { print $0; next }
+			if ($0 ~ /^\[[0-9.]+\] DODGE +[A-Za-z_0-9]+ +dir=/) { print $0; next }
 			if ($0 ~ ("PARRY WINDOW open on " who)) { print $0; next }
 		}' "$SLICE"
 }
@@ -503,7 +503,7 @@ parried_string_violations() { # a parried swing must not mark a string advance
 waiver_dodge_latency_ms() { # ms from each DAMAGED to the next DODGE, the waiver's own latency
 	awk '
 		/^\[[0-9.]+\] DAMAGED/ { t=$1; gsub(/[\[\]]/,"",t); hit=t; armed=1; next }
-		armed && /^\[[0-9.]+\] DODGE      dir=/ {
+		armed && /^\[[0-9.]+\] DODGE      [A-Za-z_0-9]+ +dir=/ {
 			t=$1; gsub(/[\[\]]/,"",t)
 			printf "%.0f\n", (t-hit)*1000
 			armed=0
@@ -564,7 +564,7 @@ dodges_inside_hitstun() { # DODGE lines falling between a HITSTUN and its HITSTU
 	awk '
 		/^\[[0-9.]+\] HITSTUN    / { inside=1; next }
 		/^\[[0-9.]+\] HITSTUN END/ { inside=0; next }
-		inside && /^\[[0-9.]+\] DODGE      dir=/ { n++ }
+		inside && /^\[[0-9.]+\] DODGE      [A-Za-z_0-9]+ +dir=/ { n++ }
 		END { print n+0 }' "$SLICE"
 }
 
@@ -814,7 +814,7 @@ run_s2() { # run_s2 <stamina_damage> <blockstun_span|none> <health_damage>
 run_s3() {
 	local starts ends clean_n
 
-	starts=$(grep -c "^\[[0-9.]*\] DODGE      dir=" "$SLICE")
+	starts=$(grep -cE "^\[[0-9.]+\] DODGE      [A-Za-z_0-9]+ +dir=" "$SLICE")
 	ends=$(grep -c "^\[[0-9.]*\] DODGE END" "$SLICE")
 	assert_count "DODGE/DODGE END paired" "$ends" "$starts"
 
@@ -1268,13 +1268,11 @@ run_s8_chain() { # run_s8_chain <expect-chaining 1/0>
 	fi
 }
 
-# COMMIT carries no pawn name, so it is attributed to the pawn on the AIM WEDGE line that shares
-# its timestamp -- the commit path logs the wedge immediately before committing. Counting COMMIT
-# unscoped attributes the training dummy's swings to the player, which is a green nobody can trust.
+# COMMIT names its own pawn, so it is scoped directly. Counting COMMIT unscoped attributes the
+# training dummy's swings to the player, which is a green nobody can trust.
 s8_commits_branch() { # <branch index>
 	awk -v want="$1" '
-		/AIM WEDGE/ { who=$4 }
-		/COMMIT     branch/ && who ~ /BP_PlayerCharacter/ && $4 == want { n++ }
+		$2 == "COMMIT" && $3 ~ /BP_PlayerCharacter/ && $4 == "branch" && $5 == want { n++ }
 		END { print n+0 }' "$SLICE"
 }
 
@@ -1403,7 +1401,7 @@ clean_dodge_distances() {
 	# dodges truncated by the session itself -- the last dodge before StopPIE ends mid-travel
 	# with zero drift, which reads as a travel failure.
 	awk -v m="$BAND_DODGE_LATERAL_MAX" -v mind="$BAND_DODGE_MIN_DURATION" '
-		/^\[[0-9.]+\] DODGE      dir=/ { t=$1; gsub(/[\[\]]/,"",t); start=t+0; have=1; next }
+		/^\[[0-9.]+\] DODGE      [A-Za-z_0-9]+ +dir=/ { t=$1; gsub(/[\[\]]/,"",t); start=t+0; have=1; next }
 		have && /^\[[0-9.]+\] DODGE END/ {
 			t=$1; gsub(/[\[\]]/,"",t); dur=(t+0)-start; have=0
 			r=""; d=""
@@ -1420,7 +1418,7 @@ dodge_fit_lengths() { # fitLen= from every DODGE that resolved a directional sec
 	# and is fitted by KnockdownRollSeconds instead, so including it would assert two different
 	# values against one band.
 	awk '
-		/^\[[0-9.]+\] DODGE      dir=/ {
+		/^\[[0-9.]+\] DODGE      [A-Za-z_0-9]+ +dir=/ {
 			sec=""; fit=""
 			for (i=1;i<=NF;i++) {
 				if ($i ~ /^section=/) { split($i,a,"="); sec=a[2] }
@@ -1439,7 +1437,7 @@ dodge_from_full_remaining() {
 		BEGIN { expect=1 }
 		/^\[[0-9.]+\] EXHAUSTION END/ { expect=1; next }
 		/^\[[0-9.]+\] REVIVE/ { expect=1; next }
-		/^\[[0-9.]+\] DODGE      dir=/ {
+		/^\[[0-9.]+\] DODGE      [A-Za-z_0-9]+ +dir=/ {
 			if (expect) {
 				for (i=1;i<=NF;i++) if ($i ~ /^remaining=/) { split($i,a,"="); print a[2] }
 				expect=0
@@ -1560,7 +1558,7 @@ getup_press_to_release() { # ms from each fixture get-up attack press to the nex
 }
 
 getup_elapsed() { # elapsed= of every completed get-up attack, read off its own ABILITY END line
-	grep -E '^\[[0-9.]+\] ABILITY END  GA_GetUpAttack' "$SLICE" | grep -v "(cancelled)" | grep -o "elapsed=[0-9.]*" | cut -d= -f2
+	grep -E '^\[[0-9.]+\] ABILITY END  [A-Za-z_0-9]+ GA_GetUpAttack' "$SLICE" | grep -v "(cancelled)" | grep -o "elapsed=[0-9.]*" | cut -d= -f2
 }
 
 getup_damage() { # DAMAGED dealt by a pawn the fixture made press the get-up attack
@@ -1632,7 +1630,7 @@ getup_rises_by() { # count of rises whose by= token matches $1
 getup_dodge_remaining() { # remaining= on the DODGE each $1 get-up opened with
 	awk -v want="$1" '
 		$2 == "KNOCKDOWN" && $3 == "RISE" { split($5,b,"="); armed = (b[2] ~ "^(" want ")$"); next }
-		armed && $2 == "DODGE" && $3 ~ /^dir=/ {
+		armed && $2 == "DODGE" && $4 ~ /^dir=/ {
 			for (i=1;i<=NF;i++) if ($i ~ /^remaining=/) { split($i,a,"="); print a[2] }
 			armed=0
 		}' "$SLICE"
@@ -1994,10 +1992,10 @@ self_test() {
 	echo
 	SLICE=$(mktemp)
 	cat >"$SLICE" <<'EOF'
-[1.000] ACTIVATE   pos=0.0000
+[1.000] ACTIVATE   Fixture swing=0 pos=0.0000
 [1.000] INPUT      InputTag.Attack pressed on Fixture
-[1.200] RELEASE BEGIN  pos=0.3
-[1.769] ABILITY END  pos=0.0000 elapsed=0.769
+[1.200] RELEASE BEGIN  Fixture pos=0.3
+[1.769] ABILITY END  Fixture pos=0.0000 elapsed=0.769
 [2.000] DAMAGED    Defender by Fixture  damage=15  health=85.0
 [2.500] DAMAGED    Defender by Fixture  damage=15  health=70.0
 EOF

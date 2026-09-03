@@ -217,8 +217,8 @@ void UTDChargedAttackAbility::HandleCheckpoint()
 			CombatCharacter->SetAimAssistHoming(BuildAimAssistWedge(NextIndex), TargetImmunityTags, true, bDrawDebugTrace);
 		}
 
-		TD_TIMING_LOG(TEXT("[%.3f] ESCALATE   -> branch %d  pos=%.4f"),
-			GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f, NextIndex, GetMontagePosition());
+		TD_TIMING_LOG(TEXT("[%.3f] ESCALATE   %s -> branch %d  pos=%.4f"),
+			GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f, *GetNameSafe(GetAvatarActorFromActorInfo()), NextIndex, GetMontagePosition());
 
 		ScheduleCheckpoint(Branches[NextIndex].HoldUntilSeconds);
 		return;
@@ -246,8 +246,8 @@ void UTDChargedAttackAbility::EnterCoil()
 	// still applies: it is an aim guarantee rather than a tell, and nothing else caps redirection.
 	if (ActiveTierMontage)
 	{
-		TD_TIMING_LOG(TEXT("[%.3f] COIL START pos=%.4f (rated at the tier swap)"),
-			GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f, GetMontagePosition());
+		TD_TIMING_LOG(TEXT("[%.3f] COIL START %s pos=%.4f (rated at the tier swap)"),
+			GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f, *GetNameSafe(GetAvatarActorFromActorInfo()), GetMontagePosition());
 		return;
 	}
 
@@ -271,8 +271,8 @@ void UTDChargedAttackAbility::EnterCoil()
 	const float CoilRate = FMath::Max(CoilDistance / CoilDuration, TDMinPlayRate);
 	SetMontagePlayRate(CoilRate);
 
-	TD_TIMING_LOG(TEXT("[%.3f] COIL START pos=%.4f rate=%.3f (derived)"),
-		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f, CurrentPosition, CoilRate);
+	TD_TIMING_LOG(TEXT("[%.3f] COIL START %s pos=%.4f rate=%.3f (derived)"),
+		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f, *GetNameSafe(GetAvatarActorFromActorInfo()), CurrentPosition, CoilRate);
 }
 
 void UTDChargedAttackAbility::CommitAttack()
@@ -403,8 +403,8 @@ void UTDChargedAttackAbility::CommitAttack()
 
 	SetMontagePlayRate(CommitRate);
 
-	TD_TIMING_LOG(TEXT("[%.3f] COMMIT     branch %d (%s) pos=%.4f rate=%.3f targetRelease=%.3f"),
-		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f, SelectedBranchIndex,
+	TD_TIMING_LOG(TEXT("[%.3f] COMMIT     %s branch %d (%s) pos=%.4f rate=%.3f targetRelease=%.3f"),
+		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f, *GetNameSafe(GetAvatarActorFromActorInfo()), SelectedBranchIndex,
 		*Branch.AttackTag.ToString(), CurrentPosition, CommitRate, Branch.ReleaseAtSeconds);
 
 	// Only used once a branch earns a distinct release animation.
@@ -483,8 +483,8 @@ void UTDChargedAttackAbility::CloseReleaseWindow()
 	// attack starts its windup with whatever gap accumulated during the previous attack -- fine,
 	// the windup being sized to close the full 180 degree ceiling.
 
-	TD_TIMING_LOG(TEXT("[%.3f] RELEASE OFF  pos=%.4f rate=%.3f (want %.3fs to blendOut %.4f)"),
-		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f, RecoveryFrom, RecoveryRate,
+	TD_TIMING_LOG(TEXT("[%.3f] RELEASE OFF  %s pos=%.4f rate=%.3f (want %.3fs to blendOut %.4f)"),
+		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f, *GetNameSafe(GetAvatarActorFromActorInfo()), RecoveryFrom, RecoveryRate,
 		TargetSeconds, GetBlendOutStartSeconds(RecoveryRate));
 }
 
@@ -540,8 +540,8 @@ void UTDChargedAttackAbility::HandleReleaseWindowBegan(FGameplayEventData Payloa
 	const float ReleaseRate = FMath::Max(WindowLength / ReleaseSeconds, TDMinPlayRate);
 	SetMontagePlayRate(ReleaseRate);
 
-	TD_TIMING_LOG(TEXT("[%.3f] RELEASE    pos=%.4f windowLen=%.4f rate=%.3f (want %.3fs)"),
-		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f, ActualStart, WindowLength, ReleaseRate, ReleaseSeconds);
+	TD_TIMING_LOG(TEXT("[%.3f] RELEASE    %s pos=%.4f windowLen=%.4f rate=%.3f (want %.3fs)"),
+		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f, *GetNameSafe(GetAvatarActorFromActorInfo()), ActualStart, WindowLength, ReleaseRate, ReleaseSeconds);
 }
 
 float UTDChargedAttackAbility::ComputeWindupPlayRate() const
@@ -833,9 +833,10 @@ bool UTDChargedAttackAbility::TryChainOutForBufferedPress()
 	// quite long recovery, but can be chained which skips it". The early end runs the ordinary
 	// EndAbility funnel, so facing, tags, homing and the lunge clean up exactly as on a natural
 	// end, and EndAbility marks the string advance for the activation the buffer fires next tick.
-	TD_TIMING_LOG(TEXT("[%.3f] STRING     chain out of swing %d, %.0fms into recovery"),
+	TD_TIMING_LOG(TEXT("[%.3f] STRING     chain out of swing %d on %s, %.0fms into recovery"),
 		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f,
 		CurrentSwingIndex,
+		*GetNameSafe(GetAvatarActorFromActorInfo()),
 		GetWorld() ? (GetWorld()->GetTimeSeconds() - RecoveryStartedAt) * 1000.0f : 0.0f);
 
 	bEndingViaChainOut = true;
@@ -896,8 +897,9 @@ void UTDChargedAttackAbility::EndAbility(const FGameplayAbilitySpecHandle Handle
 	// When the ability ends relative to the release window's close is not otherwise
 	// observable, and it decides whether HandleReleaseWindowEnded can run at all: ending
 	// first destroys the task waiting for that edge.
-	TD_TIMING_LOG(TEXT("[%.3f] ABILITY END  pos=%.4f elapsed=%.3f%s"),
+	TD_TIMING_LOG(TEXT("[%.3f] ABILITY END  %s pos=%.4f elapsed=%.3f%s"),
 		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f,
+		*GetNameSafe(GetAvatarActorFromActorInfo()),
 		GetMontagePosition(),
 		GetElapsedSeconds(),
 		bWasCancelled ? TEXT(" (cancelled)") : TEXT(""));

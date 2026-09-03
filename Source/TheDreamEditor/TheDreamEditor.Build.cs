@@ -14,6 +14,7 @@ public class TheDreamEditor : ModuleRules
 			"AnimGraph",
 			"BlueprintGraph",
 			"EnhancedInput",
+			"InputCore",
 			"Slate",
 			"SlateCore"
 		});

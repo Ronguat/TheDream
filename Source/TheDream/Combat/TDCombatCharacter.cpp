@@ -2552,6 +2552,81 @@ void ATDCombatCharacter::ReviveFromDebug()
 	ClearDeathState();
 }
 
+void ATDCombatCharacter::DebugResetForFixture()
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	TD_TIMING_LOG(TEXT("[%.3f] DEBUG RESET  %s"),
+		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f, *GetName());
+
+	if (AbilitySystem)
+	{
+		AbilitySystem->CancelAllAbilities();
+	}
+	BufferedInput.Clear();
+
+	// Each state's own exit, in the order the code would reach them. Every one returns early when
+	// its state is not live, so a pawn already at rest passes through untouched.
+	EndHitstun();
+	EndBlockstun();
+	EndGuardBreak();
+	EndKnockdown();
+	ClearParryWindowState();
+	EndParryGrace();
+	EndParryRecovery();
+	EndParryLockout();
+	ClearDodgeRecoveryState();
+
+	// Written before the exhaustion exit, as ReviveFromDebug does: EXHAUSTION END prints the bar it
+	// ends on, and every other exit from exhaustion is at max. Exiting first prints a mid-regen
+	// value on a line whose band is MaxStamina.
+	if (AbilitySystem)
+	{
+		AbilitySystem->SetNumericAttributeBase(UTDAttributeSet::GetHealthAttribute(), GetMaxHealth());
+		AbilitySystem->SetNumericAttributeBase(UTDAttributeSet::GetStaminaAttribute(), GetMaxStamina());
+	}
+	ExitExhaustion();
+	ClearDeathState();
+
+	// The locks the cancel above does not reach: an ability cancelled outside its own EndAbility
+	// releases them, but the on-hit waiver's release has no matching take, so clear both outright.
+	SetAbilityMovementLocked(false);
+	SetAbilityFacingLocked(false);
+
+	if (UCharacterMovementComponent* Movement = GetCharacterMovement())
+	{
+		Movement->StopMovementImmediately();
+		Movement->SetMovementMode(MOVE_Walking);
+	}
+}
+
+void ATDCombatCharacter::DebugSetStamina(float Value)
+{
+	if (!HasAuthority() || !AbilitySystem)
+	{
+		return;
+	}
+	const float Clamped = FMath::Clamp(Value, 0.0f, GetMaxStamina());
+	TD_TIMING_LOG(TEXT("[%.3f] DEBUG STAMINA  %s %.1f"),
+		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f, *GetName(), Clamped);
+	AbilitySystem->SetNumericAttributeBase(UTDAttributeSet::GetStaminaAttribute(), Clamped);
+}
+
+void ATDCombatCharacter::DebugSetHealth(float Value)
+{
+	if (!HasAuthority() || !AbilitySystem)
+	{
+		return;
+	}
+	const float Clamped = FMath::Clamp(Value, 0.0f, GetMaxHealth());
+	TD_TIMING_LOG(TEXT("[%.3f] DEBUG HEALTH  %s %.1f"),
+		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f, *GetName(), Clamped);
+	AbilitySystem->SetNumericAttributeBase(UTDAttributeSet::GetHealthAttribute(), Clamped);
+}
+
 void ATDCombatCharacter::EnterExhaustion()
 {
 	bExhausted = true;
@@ -3633,8 +3708,9 @@ void ATDCombatCharacter::OnAbilityInputPressed(FGameplayTag InputTag)
 	{
 		if (!BufferedInput.InputTag.MatchesTagExact(InputTag))
 		{
-			TD_TIMING_LOG(TEXT("[%.3f] BUFFER     %s: dropped, superseded by %s"),
+			TD_TIMING_LOG(TEXT("[%.3f] BUFFER     %s %s: dropped, superseded by %s"),
 				GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f,
+				*GetName(),
 				*BufferedInput.InputTag.ToString(),
 				*InputTag.ToString());
 		}
@@ -3674,7 +3750,7 @@ void ATDCombatCharacter::OnAbilityInputPressed(FGameplayTag InputTag)
 	BufferedInput.MoveAngleDegrees = PressMoveAngleDegrees;
 	BufferedInput.bHadMoveInput = bPressHadMoveInput;
 
-	TD_TIMING_LOG(TEXT("[%.3f] BUFFER     %s: stored%s"), Now, *InputTag.ToString(),
+	TD_TIMING_LOG(TEXT("[%.3f] BUFFER     %s %s: stored%s"), Now, *GetName(), *InputTag.ToString(),
 		bPressHadMoveInput ? *FString::Printf(TEXT(", heading %.0f deg"), PressMoveAngleDegrees) : TEXT(", neutral"));
 }
 
@@ -3709,8 +3785,8 @@ void ATDCombatCharacter::OnAbilityInputReleased(FGameplayTag InputTag)
 	BufferedInput.bReleased = true;
 	BufferedInput.HoldSeconds = FMath::Max(0.0f, Now - BufferedInput.PressWorldTime);
 
-	TD_TIMING_LOG(TEXT("[%.3f] BUFFER     %s: released after %.0fms held"),
-		Now, *InputTag.ToString(), BufferedInput.HoldSeconds * 1000.0f);
+	TD_TIMING_LOG(TEXT("[%.3f] BUFFER     %s %s: released after %.0fms held"),
+		Now, *GetName(), *InputTag.ToString(), BufferedInput.HoldSeconds * 1000.0f);
 }
 
 bool ATDCombatCharacter::TryChainOutActiveAbility(const FGameplayTag& InputTag)
@@ -3793,8 +3869,8 @@ void ATDCombatCharacter::TickInputBuffer()
 	// pressing during a knockdown's lockout rather than its input window.
 	if (Now >= BufferedInput.ExpiryWorldTime)
 	{
-		TD_TIMING_LOG(TEXT("[%.3f] BUFFER     %s: expired, %.0fms after press"),
-			Now, *BufferedInput.InputTag.ToString(), (Now - BufferedInput.PressWorldTime) * 1000.0f);
+		TD_TIMING_LOG(TEXT("[%.3f] BUFFER     %s %s: expired, %.0fms after press"),
+			Now, *GetName(), *BufferedInput.InputTag.ToString(), (Now - BufferedInput.PressWorldTime) * 1000.0f);
 		BufferedInput.Clear();
 		return;
 	}
@@ -3837,8 +3913,8 @@ void ATDCombatCharacter::TickInputBuffer()
 		return;
 	}
 
-	TD_TIMING_LOG(TEXT("[%.3f] BUFFER     %s: fired %.0fms late, %.0fms already held%s"),
-		Now, *BufferedInput.InputTag.ToString(),
+	TD_TIMING_LOG(TEXT("[%.3f] BUFFER     %s %s: fired %.0fms late, %.0fms already held%s"),
+		Now, *GetName(), *BufferedInput.InputTag.ToString(),
 		(Now - BufferedInput.PressWorldTime) * 1000.0f,
 		PendingActivationHoldSeconds * 1000.0f,
 		BufferedInput.bReleased ? TEXT("") : TEXT(", still held"));

@@ -224,17 +224,16 @@ arm them — they are no longer silent. **`ROTATE` joined 2026-08-18** and fires
 **Two traps in scoring an `s8` run, both paid for 2026-09-02.** `bDebugAutoAttack` is read **once at
 BeginPlay** to register the attack loop, so silencing a dummy from inside a running PIE does nothing
 and the log carries a second attacker — **silence it before StartPIE, like every other fixture knob.**
-And `COMMIT` and the chain-out lines carry **no pawn name**: attribute a commit to the pawn on the
-`AIM WEDGE` line sharing its timestamp, or counts credit whoever is in the log. A `REFUSED` burst is
-also **one line per retry tick, not per press** — 69 lines were three presses, and the burst's length
-is now the acceptance window.
+And `COMMIT` and the chain-out lines carried **no pawn name**, so counts credited whoever was in the
+log — closed 2026-09-03 by the rename below. A `REFUSED` burst is also **one line per retry tick,
+not per press** — 69 lines were three presses, and the burst's length is now the acceptance window.
 
 **`KNOCKDOWN <pawn> rose on held <tag>` joined 2026-09-02**, printed when the floor's input window admits a get-up whose button was already down. It sits beside the `KNOCKDOWN RISE ... by=` line, which names the option; a rise with no `rose on held` line came from a press, not a hold.
 
 **`STRING`'s variants changed 2026-09-02**: `link window open ... until <t>` is gone with the window
 it reported, replaced by `advance marked on <pawn> (after swing N)`, which carries **no deadline**
 because there is none — the mark is consumed by the activation in the same tick. `chain out of
-swing N, <n>ms into recovery` and `reset on <pawn> (<reason>)` are unchanged. **A grep for the old
+swing N on <pawn>, <n>ms into recovery` and `reset on <pawn> (<reason>)` are unchanged. **A grep for the old
 string returns nothing and means only that**, not that chaining stopped.
 
 ***`ACTIVATE` gained its avatar's name on 2026-08-19 and the format changed: `ACTIVATE   <Actor>
@@ -243,8 +242,16 @@ swing=N ...`.*** Anything parsing it with fixed spacing before `swing=` breaks s
 owns one and the line was unattributable in any fixture where more than one of them attacks — an
 assertion about the defender counted the attacker's swings. That is exactly why `REFUSED` gained an
 avatar name on 2026-08-12, and **the fix had simply never been carried across to the other tags**.
-`DODGE` still carries none; `BLOCK`, `PARRY *`, `REFUSED` and `DAMAGED` do. Worth checking before
-writing any assertion that has to know *whose* event it is.
+**Carried across to the rest 2026-09-03**: twelve tags gained one, so every combat trace line now
+names a pawn. `ABILITY END`, `AIM ASSIST`, `BUFFER`, `COIL START`, `COMMIT`, `DODGE`, `DODGE END`,
+`ESCALATE`, `MONTAGE`, `RELEASE` with its `OFF`/`BEGIN`/`END` variants, `STRING chain out` and
+`TARGET` take it **immediately after the tag** — except `STRING chain out`, where it follows the
+swing index, and `RELEASE BEGIN`/`END`, where it follows the edge. `TARGET`'s existing `%s` was the
+*phase* and its quoted name the *target's*, which is why it read as named and was not.
+**`BLOCK`, `PARRY WINDOW`, `STRING advance`/`reset`, `INPUT` and `REFUSED` name their pawn later in
+the line**, as the object rather than the subject; `regression-check.sh --bands-check` lints for a
+pawn argument and holds those five as its exceptions. **`ROTATE` names two candidates and not the
+actor** — deliberately left, since its fixture has one attacker.
 
 **`FACING LOCK` gained `camDelta`
 and `since press`** — the camera yaw moved between the press and the commit, which is what

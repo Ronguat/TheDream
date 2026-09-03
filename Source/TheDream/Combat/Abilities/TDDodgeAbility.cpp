@@ -211,8 +211,8 @@ void UTDDodgeAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, c
 
 		// rate x DodgeSeconds should equal the fitted length. If it does not, the section resolved
 		// to something other than the roll that was intended.
-		TD_TIMING_LOG(TEXT("[%.3f] DODGE      dir=%s section=%s clip=%s fitLen=%.3f rate=%.3f want=%.3fs remaining=%.1f"),
-			World->GetTimeSeconds(), *UEnum::GetValueAsString(DodgeDirection), *Section.ToString(),
+		TD_TIMING_LOG(TEXT("[%.3f] DODGE      %s dir=%s section=%s clip=%s fitLen=%.3f rate=%.3f want=%.3fs remaining=%.1f"),
+			World->GetTimeSeconds(), *GetNameSafe(GetAvatarActorFromActorInfo()), *UEnum::GetValueAsString(DodgeDirection), *Section.ToString(),
 			*MontageToPlay->GetName(), FitLength, PlayRate, DodgeSeconds, StaminaRemaining);
 	}
 	else
@@ -220,8 +220,8 @@ void UTDDodgeAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, c
 		// Traced even with no montage. The montage is optional and is currently unset, so
 		// gating the only record that a dodge happened on having one made the ability
 		// invisible to the trace exactly while it was the thing under test.
-		TD_TIMING_LOG(TEXT("[%.3f] DODGE      dir=%s want=%.3fs remaining=%.1f (no montage)"),
-			World->GetTimeSeconds(), *UEnum::GetValueAsString(DodgeDirection), DodgeSeconds, StaminaRemaining);
+		TD_TIMING_LOG(TEXT("[%.3f] DODGE      %s dir=%s want=%.3fs remaining=%.1f (no montage)"),
+			World->GetTimeSeconds(), *GetNameSafe(GetAvatarActorFromActorInfo()), *UEnum::GetValueAsString(DodgeDirection), DodgeSeconds, StaminaRemaining);
 	}
 
 	World->GetTimerManager().SetTimer(
@@ -312,8 +312,9 @@ void UTDDodgeAbility::EndAbility(const FGameplayAbilitySpecHandle Handle, const 
 			// bug announcing itself.
 			const FVector Local = Avatar->GetActorTransform().InverseTransformVectorNoScale(Delta);
 
-			TD_TIMING_LOG(TEXT("[%.3f] DODGE END  dir=%s fwd=%+.1f right=%+.1f up=%+.1f dist=%.1fuu yaw=%.0f%s"),
+			TD_TIMING_LOG(TEXT("[%.3f] DODGE END  %s dir=%s fwd=%+.1f right=%+.1f up=%+.1f dist=%.1fuu yaw=%.0f%s"),
 				GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f,
+				*GetNameSafe(GetAvatarActorFromActorInfo()),
 				*UEnum::GetValueAsString(DodgeDirection),
 				Local.X,
 				Local.Y,

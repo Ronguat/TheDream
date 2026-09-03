@@ -1806,6 +1806,30 @@ private:
 	/** Debug only: clears State.Dead, restores movement, refills health and stamina. */
 	void ReviveFromDebug();
 
+public:
+	/**
+	 *  Debug only: returns this pawn to the state a rep starts from, by calling each state's own
+	 *  exit rather than writing the flags. Moves nothing -- placement belongs to whoever ran it.
+	 *
+	 *  Authority-only, like ReviveFromDebug: the exits write replicated bools and attribute bases.
+	 *  Logs DEBUG RESET so a slice shows where the fixture intervened rather than the game.
+	 */
+	UFUNCTION(BlueprintCallable, Category="Combat|Debug")
+	void DebugResetForFixture();
+
+	/**
+	 *  Debug only: writes the attribute base, clamped to [0, max], so the change delegates run --
+	 *  a write of 0 enters exhaustion by the game's own path rather than by setting its tag.
+	 */
+	UFUNCTION(BlueprintCallable, Category="Combat|Debug")
+	void DebugSetStamina(float Value);
+
+	/** Debug only: as DebugSetStamina, so a low value makes the next hit lethal by the normal path. */
+	UFUNCTION(BlueprintCallable, Category="Combat|Debug")
+	void DebugSetHealth(float Value);
+
+private:
+
 	/** Hands the mesh to physics. No-op without a physics asset -- and silent, so verify in play. */
 	void StartRagdoll();
 

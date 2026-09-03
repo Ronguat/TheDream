@@ -113,8 +113,8 @@ void UTDGetUpAttackAbility::EndAbility(const FGameplayAbilitySpecHandle Handle, 
 
 	const UWorld* World = GetWorld();
 	const float Now = World ? World->GetTimeSeconds() : 0.0f;
-	TD_TIMING_LOG(TEXT("[%.3f] ABILITY END  %s pos=%.4f elapsed=%.3f%s"),
-		Now, *GetName(), GetMontagePosition(), Now - ActivationWorldTime,
+	TD_TIMING_LOG(TEXT("[%.3f] ABILITY END  %s %s pos=%.4f elapsed=%.3f%s"),
+		Now, *GetNameSafe(GetAvatarActorFromActorInfo()), *GetName(), GetMontagePosition(), Now - ActivationWorldTime,
 		bWasCancelled ? TEXT(" (cancelled)") : TEXT(""));
 
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
@@ -174,8 +174,8 @@ void UTDGetUpAttackAbility::HandleReleaseWindowBegan(FGameplayEventData Payload)
 	const float ReleaseRate = FMath::Max(Remaining / ReleaseSeconds, TDMinPlayRate);
 	SetMontagePlayRate(ReleaseRate);
 
-	TD_TIMING_LOG(TEXT("[%.3f] RELEASE    pos=%.4f windowLen=%.4f remaining=%.4f rate=%.3f (want %.3fs)"),
-		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f, ActualStart, WindowLength, Remaining, ReleaseRate, ReleaseSeconds);
+	TD_TIMING_LOG(TEXT("[%.3f] RELEASE    %s pos=%.4f windowLen=%.4f remaining=%.4f rate=%.3f (want %.3fs)"),
+		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f, *GetNameSafe(GetAvatarActorFromActorInfo()), ActualStart, WindowLength, Remaining, ReleaseRate, ReleaseSeconds);
 }
 
 void UTDGetUpAttackAbility::HandleTraceWindowClosed()
@@ -218,8 +218,8 @@ void UTDGetUpAttackAbility::CloseReleaseWindow()
 			RecoveryFrom, GetBlendOutStartSeconds(1.0f), RecoverySeconds);
 	}
 
-	TD_TIMING_LOG(TEXT("[%.3f] RELEASE OFF  pos=%.4f rate=%.3f (want %.3fs to blendOut %.4f)"),
-		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f, RecoveryFrom, RecoveryRate,
+	TD_TIMING_LOG(TEXT("[%.3f] RELEASE OFF  %s pos=%.4f rate=%.3f (want %.3fs to blendOut %.4f)"),
+		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f, *GetNameSafe(GetAvatarActorFromActorInfo()), RecoveryFrom, RecoveryRate,
 		RecoverySeconds, GetBlendOutStartSeconds(RecoveryRate));
 }
 

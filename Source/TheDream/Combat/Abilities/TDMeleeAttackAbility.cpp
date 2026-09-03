@@ -89,8 +89,8 @@ void UTDMeleeAttackAbility::LogTargetGeometry(const TCHAR* Phase) const
 
 	if (!Nearest)
 	{
-		TD_TIMING_LOG(TEXT("[%.3f] TARGET     %s  no pawn within %.0f cm"),
-			World->GetTimeSeconds(), Phase, ProbeRadiusCm);
+		TD_TIMING_LOG(TEXT("[%.3f] TARGET     %s %s  no pawn within %.0f cm"),
+			World->GetTimeSeconds(), *GetNameSafe(GetAvatarActorFromActorInfo()), Phase, ProbeRadiusCm);
 		return;
 	}
 
@@ -101,8 +101,9 @@ void UTDMeleeAttackAbility::LogTargetGeometry(const TCHAR* Phase) const
 		Avatar->GetActorRotation().Yaw,
 		FMath::RadiansToDegrees(FMath::Atan2(Delta.Y, Delta.X)));
 
-	TD_TIMING_LOG(TEXT("[%.3f] TARGET     %s  '%s' dist=%.1f bearing=%+.1f"),
+	TD_TIMING_LOG(TEXT("[%.3f] TARGET     %s %s  '%s' dist=%.1f bearing=%+.1f"),
 		World->GetTimeSeconds(),
+		*GetNameSafe(GetAvatarActorFromActorInfo()),
 		Phase,
 		*Nearest->GetName(),
 		NearestDistance,
@@ -126,8 +127,8 @@ void UTDMeleeAttackAbility::ApplyAimAssist(const FTDAttackHitbox& AssistWedge)
 	const AActor* Target = ATDCombatCharacter::FindAimAssistTarget(Avatar, AimYaw, AssistWedge, TargetImmunityTags, Bearing);
 	if (!Target)
 	{
-		TD_TIMING_LOG(TEXT("[%.3f] AIM ASSIST no candidate in wedge (reach=%.0f arc=%.0f)"),
-			World->GetTimeSeconds(), AssistWedge.MaxReachCm, AssistWedge.ArcDegrees);
+		TD_TIMING_LOG(TEXT("[%.3f] AIM ASSIST %s no candidate in wedge (reach=%.0f arc=%.0f)"),
+			World->GetTimeSeconds(), *GetNameSafe(GetAvatarActorFromActorInfo()), AssistWedge.MaxReachCm, AssistWedge.ArcDegrees);
 		return;
 	}
 
@@ -142,8 +143,8 @@ void UTDMeleeAttackAbility::ApplyAimAssist(const FTDAttackHitbox& AssistWedge)
 	NewRotation.Yaw = TargetYaw;
 	Avatar->SetActorRotation(NewRotation);
 
-	TD_TIMING_LOG(TEXT("[%.3f] AIM ASSIST '%s' aimBearing=%+.1f -> turned %+.1f"),
-		World->GetTimeSeconds(), *Target->GetName(), Bearing, Correction);
+	TD_TIMING_LOG(TEXT("[%.3f] AIM ASSIST %s '%s' aimBearing=%+.1f -> turned %+.1f"),
+		World->GetTimeSeconds(), *GetNameSafe(GetAvatarActorFromActorInfo()), *Target->GetName(), Bearing, Correction);
 }
 
 void UTDMeleeAttackAbility::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled)
@@ -206,8 +207,9 @@ bool UTDMeleeAttackAbility::StartAttackMontage(FName StartSection, float PlayRat
 	// truth that ReleaseStartSeconds duplicates by hand, so a drift is visible on the same screen.
 	if (TDShouldTraceCombatTiming() && ActiveMontage)
 	{
-		TD_TIMING_LOG(TEXT("[%.3f] MONTAGE    '%s' sections=%d  length=%.4f"),
+		TD_TIMING_LOG(TEXT("[%.3f] MONTAGE    %s '%s' sections=%d  length=%.4f"),
 			GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f,
+			*GetNameSafe(GetAvatarActorFromActorInfo()),
 			*ActiveMontage->GetName(),
 			ActiveMontage->CompositeSections.Num(),
 			ActiveMontage->GetPlayLength());
@@ -215,8 +217,9 @@ bool UTDMeleeAttackAbility::StartAttackMontage(FName StartSection, float PlayRat
 		for (int32 Index = 0; Index < ActiveMontage->CompositeSections.Num(); ++Index)
 		{
 			const FCompositeSection& Composite = ActiveMontage->CompositeSections[Index];
-			TD_TIMING_LOG(TEXT("[%.3f] MONTAGE      [%d] '%s' start=%.4f nextSection='%s'"),
+			TD_TIMING_LOG(TEXT("[%.3f] MONTAGE      %s [%d] '%s' start=%.4f nextSection='%s'"),
 				GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f,
+				*GetNameSafe(GetAvatarActorFromActorInfo()),
 				Index,
 				*Composite.SectionName.ToString(),
 				Composite.GetTime(),
@@ -226,8 +229,9 @@ bool UTDMeleeAttackAbility::StartAttackMontage(FName StartSection, float PlayRat
 		for (int32 Index = 0; Index < ActiveMontage->Notifies.Num(); ++Index)
 		{
 			const FAnimNotifyEvent& Event = ActiveMontage->Notifies[Index];
-			TD_TIMING_LOG(TEXT("[%.3f] MONTAGE      notify '%s' trigger=%.4f duration=%.4f"),
+			TD_TIMING_LOG(TEXT("[%.3f] MONTAGE      %s notify '%s' trigger=%.4f duration=%.4f"),
 				GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f,
+				*GetNameSafe(GetAvatarActorFromActorInfo()),
 				*Event.NotifyName.ToString(),
 				Event.GetTriggerTime(),
 				Event.GetDuration());
@@ -614,7 +618,8 @@ void UTDMeleeAttackAbility::SilenceMontageTask()
 
 void UTDMeleeAttackAbility::HandleMontageCompleted()
 {
-	TD_TIMING_LOG(TEXT("[%.3f] MONTAGE    OnCompleted"), GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f);
+	TD_TIMING_LOG(TEXT("[%.3f] MONTAGE    %s OnCompleted"), GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f,
+		*GetNameSafe(GetAvatarActorFromActorInfo()));
 	HandleMontageFinished();
 }
 
@@ -632,8 +637,9 @@ void UTDMeleeAttackAbility::HandleMontageBlendedOut()
 	const FName Section = (AnimInstance && ActiveMontage) ? AnimInstance->Montage_GetCurrentSection(ActiveMontage) : NAME_None;
 	const bool bPlaying = (AnimInstance && ActiveMontage) ? AnimInstance->Montage_IsPlaying(ActiveMontage) : false;
 
-	TD_TIMING_LOG(TEXT("[%.3f] MONTAGE    OnBlendOut  pos=%.4f section=%s playing=%d montageLen=%.4f"),
+	TD_TIMING_LOG(TEXT("[%.3f] MONTAGE    %s OnBlendOut  pos=%.4f section=%s playing=%d montageLen=%.4f"),
 		GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f,
+		*GetNameSafe(GetAvatarActorFromActorInfo()),
 		Position,
 		*Section.ToString(),
 		bPlaying ? 1 : 0,
@@ -644,7 +650,8 @@ void UTDMeleeAttackAbility::HandleMontageBlendedOut()
 
 void UTDMeleeAttackAbility::HandleMontageCancelled()
 {
-	TD_TIMING_LOG(TEXT("[%.3f] MONTAGE    OnCancelled"), GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f);
+	TD_TIMING_LOG(TEXT("[%.3f] MONTAGE    %s OnCancelled"), GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f,
+		*GetNameSafe(GetAvatarActorFromActorInfo()));
 	HandleMontageInterrupted();
 }
 
@@ -655,7 +662,8 @@ void UTDMeleeAttackAbility::HandleMontageFinished()
 
 void UTDMeleeAttackAbility::HandleMontageInterrupted()
 {
-	TD_TIMING_LOG(TEXT("[%.3f] MONTAGE    OnInterrupted"), GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f);
+	TD_TIMING_LOG(TEXT("[%.3f] MONTAGE    %s OnInterrupted"), GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f,
+		*GetNameSafe(GetAvatarActorFromActorInfo()));
 	EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, true);
 }
 

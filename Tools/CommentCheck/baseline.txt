@@ -66,8 +66,10 @@ Tools/SkeletonCheck/skeleton-check.sh	17	169
 Source/TheDreamEditor/Private/TDCurveTools.cpp	2	27
 Source/TheDreamEditor/Private/TDStateMachineTools.cpp	3	47
 Source/TheDreamEditor/Public/TDCurveTools.h	16	131
-Source/TheDreamEditor/Public/TDInputTools.h	10	96
+Source/TheDreamEditor/Public/TDInputTools.h	23	217
 Source/TheDreamEditor/Public/TDStateMachineTools.h	49	385
 Source/TheDream/Combat/TDCombatCharacter.cpp	889	11571
 Tools/RegressionCheck/regression-check.sh	561	6993
 Tools/McpBridge/ue-mcp.sh	12	88
+Source/TheDreamEditor/Private/TDInputTools.cpp	4	29
+Source/TheDreamEditor/Public/TDTimeTools.h	9	65
