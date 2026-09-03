@@ -759,6 +759,7 @@ do measurements, which record what a run produced.
 | `parry-reward` | hold 0.1 | silent | f0 attacker swing ; f0 attacker lock_to State.Attacking; f0 set_stamina 50.0; f6 tap parry (4 reps) | reps done, or 52 s |  |
 | `parry-whiff` | silent | silent | f0 tap parry; f9 tap attack; f27 tap attack; f36 tap dodge; f51 tap block; f57 tap block (6 reps) | reps done, or 44 s | yes |
 | `knockdown-airborne` | hold 0.22 | silent | f0 attacker swing ; f0 attacker lock_to State.Attacking; f0 tap jump / f0 attacker swing ; f0 attacker lock_to State.Attacking (8 reps) | reps done, or 120 s | yes |
+| `knockdown-airborne-regen` | hold 0.22 | silent | f0 attacker swing ; f0 attacker lock_to State.Attacking; f0 set_stamina 50.0; f0 tap jump (3 reps) | reps done, or 44 s |  |
 | `knockdown-floor-per-body` | hold 0.22, interval 4.5 | hold 0.22, interval 4.8 | f0 attacker lock_to State.Attacking (5 reps) | reps done, or 60 s |  |
 | `knockdown-getup-attack` | hold 0.22 | auto_attack False, auto_defend_mode OFF, get_up_mode ATTACK_GET_UP, periodic_jump False | - | 4x KNOCKDOWN RISE, or 60 s | yes |
 | `knockdown-getup-exhausted-held` | hold 0.22 | silent | f0 attacker swing ; f0 attacker lock_to State.Attacking; f0 set_stamina 0.0; f0 lock_to State.KnockedDown; f30 hold block 90; f30 hold dodge 90; f30 hold attack 90 / f0 attacker swing ; f0 attacker lock_to State.Attacking; f0 set_stamina 0.0; f0 lock_to State.KnockedDown; f30 hold block 90 (6 reps) | reps done, or 68 s |  |
@@ -811,7 +812,7 @@ gap the roster has to name or close. Starred rows are the canary.
 | 360 finisher | `string-finisher-arc`* |
 | acceptance window | `edge-actionable`, `edge-fresh-open`, `edge-hitstun-accept`, `edge-lockout-end`, `edge-recovery-accept`, `input-accept-blockstun`, `input-accept-hitstun`, `input-accept-lockout`, `input-hold-tier` |
 | aim wedge | `reach-aim-gap`, `reach-aim-wedge` |
-| airborne knockdown | `knockdown-airborne`* |
+| airborne knockdown | `knockdown-airborne`*, `knockdown-airborne-regen` |
 | airborne refusal | `attack-airborne`, `dodge-airborne` |
 | arc | `reach-arc` |
 | attack total | `tier-cells`, `tier-charged`*, `tier-heavy`*, `tier-light`* |

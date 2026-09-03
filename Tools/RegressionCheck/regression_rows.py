@@ -2420,6 +2420,36 @@ def knockdown_airborne(ctx, r, s):
         r.add(hung == 0, "no airborne body hung", "%d of %d high samples failed to fall back to their own stand" % (hung, high))
 
 
+def knockdown_airborne_regen(ctx, r, s):
+    """Floored mid-air on a half bar, the player stands and the bar refills on the ordinary clock:
+    the knockdown's pause after the stand, then the rest at the normal rate."""
+    player = ctx.who("player")
+    tape = ctx.tape.get(player, [])
+    obj = "BP_PlayerCharacter"
+    mx = float(mirror(obj, "StartingMaxStamina"))
+    pause = float(mirror(obj, "StaminaRegenPauseSeconds"))
+    rate = float(mirror(obj, "StaminaRegenPerSecond"))
+    n, airborne, refilled, times = 0, 0, 0, []
+    for seg in ctx.reps:
+        kd = first(seg, "KNOCKDOWN", player, "type=")
+        st = first(seg, "KNOCKDOWN STAND", player)
+        if kd[0] is None or st[0] is None:
+            continue
+        n += 1
+        if sfield(kd[1], "airborne") == "1":
+            airborne += 1
+        at_stand = [q for q in tape if q["t"] >= st[0]]
+        full = next((q["t"] for q in at_stand if q["stamina"] >= mx - 0.5), None)
+        want = pause + (mx - min(q["stamina"] for q in at_stand[:1] or [dict(stamina=mx)])) / rate + 0.5
+        times.append(None if full is None else round(full - st[0], 2))
+        if full is not None and full - st[0] <= want:
+            refilled += 1
+    r.counted(n, "knockdowns with a stand", "%d reps" % n)
+    r.add(n > 0 and airborne == n, "every knockdown entered airborne", "%d of %d" % (airborne, n))
+    r.add(n > 0 and refilled == n, "the bar is back at max after the stand on the ordinary clock",
+          "%d of %d; seconds from the stand to max %s" % (refilled, n, times))
+
+
 def knockdown_regen_exception(ctx, r, s):
     obj = "BP_PlayerCharacter"
     pause = float(mirror(obj, "StaminaRegenPauseSeconds"))
@@ -2491,6 +2521,7 @@ ROWS = {
     "knockdown-getup-attack": knockdown_getup_attack,
     "knockdown-airborne": knockdown_airborne,
     "knockdown-regen-exception": knockdown_regen_exception,
+    "knockdown-airborne-regen": knockdown_airborne_regen,
     "death-revive": death_revive,
     "death-over-knockdown": death_over_knockdown,
     "parry-grace-catch": parry_grace_catch,

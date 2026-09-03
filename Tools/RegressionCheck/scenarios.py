@@ -392,6 +392,15 @@ SCENARIOS["knockdown-airborne"] = _player_defends(
     mutations=[("set", "KNOCKDOWN", "airborne", "0")], reps=8, tail=150, duration=120.0,
     canary=True, covers=("airborne knockdown",))
 
+# The same airborne knockdown on a half bar: a jump's regen pause clears only on a landing, so the
+# bar must be back at max within the pause and the refill after the stand. The tail is fixed, since
+# a half bar is not a state the rest check sees.
+SCENARIOS["knockdown-airborne-regen"] = _player_defends(
+    "knockdown", _atk(HEAVY),
+    plans=[[LOCK_ATK, (0, "player", "set_stamina", 50.0), (0, "player", "tap", "jump")]],
+    mutations=[("set", "KNOCKDOWN", "airborne", "0")], reps=3, tail=300,
+    expect=dict(tail_fixed=True), covers=("airborne knockdown",))
+
 # The reward's magnitude: the bar is written to 50 the frame the swing begins, so the credit has
 # room, and every catch must pay the authored reward in full.
 SCENARIOS["parry-reward"] = _player_defends(

@@ -1903,6 +1903,17 @@ long.
 | `ue_seed_cells.py` | 09-02 |
 | `wall_tick_for` | 09-03 |
 
+## 2026-09-03 — A half bar refills on the clock after an airborne knockdown
+
+The at-rest tail's first run stranded a jump's regen pause by resetting a pawn mid-air, and the
+death path's own comment names the class: a jump that never lands leaves regen suppressed for the
+character's life, which death clears and the knockdown entry does not. The in-play case is a body
+floored mid-air, whose carry is root motion. `knockdown-airborne-regen` probes it: the bar written
+to 50 as the heavy begins, the jump, the knockdown entering airborne, and the bar back at max
+**1.73 to 1.75 s after the stand** in three of three reps, the knockdown's half-second pause plus
+50 at 40 a second, so `Landed` fires from a root-motion carry and nothing is stranded. Kept as a
+row, 9 s of wall; nothing to rule.
+
 ## 2026-09-03 — The tail ends when the game is at rest, and the matrix reads 76 of 76 in 10 minutes
 
 The ledger's next number after the swing package: 767 s of the matrix's 1281 s of game were tails,
