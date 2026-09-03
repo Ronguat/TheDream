@@ -232,9 +232,10 @@ def _getup_held(ctx, r, s):
             if lines(seg, "KNOCKDOWN", player, "rose on held InputTag.%s" % held[v]):
                 held_ok += 1
         if want == "auto":
+            # The held input was refused rather than ignored. Any reason: exhaustion shadows the
+            # knockdown's own reason whenever it is up, and the absent rise is the fact asserted.
             want_refusals += 1
-            if lines(seg, "REFUSED", player, "no stand from a hard knockdown") or \
-                    lines(seg, "REFUSED", player, "knocked down"):
+            if [t for t, _ in lines(seg, "REFUSED", player) if kd_t <= t <= rise_t]:
                 refused_stand += 1
     r.counted(n, "knockdowns with a rise", "%d reps" % n)
     r.add(n > 0 and good == n, "rise by the expected option on the expected frame",
@@ -242,7 +243,7 @@ def _getup_held(ctx, r, s):
     r.add(held_n > 0 and held_ok == held_n, "rose on held names the winning input",
           "%d of %d" % (held_ok, held_n))
     if want_refusals:
-        r.add(refused_stand == want_refusals, "held stand refused where the type forbids it",
+        r.add(refused_stand == want_refusals, "held input refused where nothing may rise",
               "%d of %d" % (refused_stand, want_refusals))
 
 
@@ -386,7 +387,246 @@ def reach_light(ctx, r, s):
           "%d of %d as placed; release distances %s" % (ok, n, dists))
 
 
+# --- the authored values, read from the mirror rather than typed -------------------------------
+
+_MIRROR = {}
+
+
+def mirror(obj, prop):
+    """A value off Docs/Combat-Values.tsv, the dated mirror of the live CDOs."""
+    if not _MIRROR:
+        path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
+            os.path.abspath(__file__)))), "Docs", "Combat-Values.tsv")
+        for line in open(path, encoding="utf-8"):
+            if line.startswith("#") or line.startswith("Object\t"):
+                continue
+            parts = line.rstrip("\n").split("\t")
+            if len(parts) == 3:
+                _MIRROR[(parts[0], parts[1])] = parts[2]
+    return _MIRROR[(obj, prop)]
+
+
+def parry_reward(ctx, r, s):
+    """Every catch with room on the bar pays the authored reward in full."""
+    player = ctx.who("player")
+    want = float(mirror("BP_PlayerCharacter", "ParryStaminaReward"))
+    n, full, spent = 0, 0, 0
+    for seg in ctx.reps:
+        catches = lines(seg, "PARRY SUCCESS", player)
+        if not catches:
+            continue
+        n += len(catches)
+        if lines(seg, "DEBUG STAMINA", player):
+            spent += 1
+        full += sum(1 for _, x in catches if abs(fields(x).get("gained", -1) - want) < 0.01)
+    r.counted(n, "catches", "%d" % n)
+    r.add(spent > 0 and spent == len([1 for seg in ctx.reps if lines(seg, "PARRY SUCCESS", player)]),
+          "the bar was spent before every catch", "%d rep(s)" % spent)
+    r.add(n > 0 and full == n, "every catch credits the full reward",
+          "%d of %d credited %.0f" % (full, n, want))
+
+
+def tier_cells(ctx, r, s):
+    """Each cell's release timing, total, escalation count, committed branch and montage, from the
+    player's own presses, read against the mirror."""
+    player = ctx.who("player")
+    cells = s["expect"]["cells"]
+    n, rel_ok, tot_ok, esc_ok, com_ok, mont_ok = 0, 0, 0, 0, 0, 0
+    detail = []
+    for k, seg in enumerate(ctx.reps):
+        p, b = cells[ctx.variant(k, s)]
+        acts = lines(seg, "ACTIVATE", player, "swing=%d" % p)
+        if not acts:
+            continue
+        a_t, a_x = acts[-1]
+        start = next(i for i, (t, x) in enumerate(seg) if t == a_t and x == a_x)
+        after = seg[start + 1:]
+        rel = first(after, "RELEASE BEGIN", player)
+        end = next(((t, x) for t, x in after if tag_of(x) == "ABILITY END" and player in x
+                    and "(cancelled)" not in x), (None, None))
+        com = first(after, "COMMIT", player)
+        if rel[0] is None or end[0] is None or com[1] is None:
+            continue
+        n += 1
+        release_at = float(mirror("GA_Attack", "Branches[%d].ReleaseAtSeconds" % b))
+        total = release_at + float(mirror("GA_Attack", "Positions[%d].Cells[%d].ReleaseSeconds" % (p, b))) \
+            + float(mirror("GA_Attack", "Positions[%d].Cells[%d].RecoverySeconds" % (p, b)))
+        montage = mirror("GA_Attack", "Positions[%d].Cells[%d].Montage" % (p, b)).rsplit(".", 1)[-1]
+        if abs((rel[0] - a_t) - release_at) <= 0.030:
+            rel_ok += 1
+        elapsed = fields(end[1]).get("elapsed", -1)
+        if 0.0 <= elapsed - total <= 0.050 + 1e-6:
+            tot_ok += 1
+        else:
+            detail.append("cell %d/%d total %.3f vs %.3f" % (p, b, elapsed, total))
+        escalations = len([1 for t, x in after if t <= end[0] and tag_of(x) == "ESCALATE" and player in x])
+        if escalations == b:
+            esc_ok += 1
+        m = re.search(r"branch (\d+)", com[1])
+        if m and int(m.group(1)) == b:
+            com_ok += 1
+        swaps = [x for t, x in after if t <= end[0] and tag_of(x) == "TIER SWAP" and player in x]
+        if (b == 0 and not swaps) or (b > 0 and swaps and ("'%s'" % montage) in swaps[-1]):
+            mont_ok += 1
+    r.counted(n, "cells thrown", "%d reps across 9 cells" % n)
+    r.add(n > 0 and rel_ok == n, "release opens at the branch's ReleaseAt", "%d of %d within 30 ms" % (rel_ok, n))
+    r.add(n > 0 and tot_ok == n, "total is the cell's authored sum, 0 to +3 f",
+          "%d of %d%s" % (tot_ok, n, "; " + "; ".join(detail[:3]) if detail else ""))
+    r.add(n > 0 and esc_ok == n, "escalations equal the branch", "%d of %d" % (esc_ok, n))
+    r.add(n > 0 and com_ok == n, "commit names the branch", "%d of %d" % (com_ok, n))
+    r.add(n > 0 and mont_ok == n, "the cell's own montage is swapped in", "%d of %d" % (mont_ok, n))
+
+
+def _string_player(ctx, r, s):
+    """The player's string: three swings at the cadence, each landing or blocked as the target
+    stands, every value read against the mirror."""
+    player, target = ctx.who("player"), ctx.who("defender")
+    blocked = bool(s["expect"].get("blocked"))
+    gap_lo, gap_hi = 0.500 - 0.045, 0.500 + 0.045
+    lat_lo, lat_hi = 0.125, 0.175
+    dmg = float(mirror("GA_Attack", "Positions[0].Cells[0].Damage"))
+    sdmg = float(mirror("GA_Attack", "Positions[0].Cells[0].StaminaDamage"))
+    hit_stun = float(mirror("GA_Attack", "Positions[0].Cells[0].HitstunSeconds"))
+    blk_stun = float(mirror("GA_Attack", "Positions[0].Cells[0].BlockstunSeconds"))
+    strings, gaps, lats, contacts, stuns, kb_ok, kb_n, kd, bad_contact = 0, [], [], 0, [], 0, 0, 0, 0
+    for seg in ctx.reps:
+        acts = lines(seg, "ACTIVATE", player)
+        idx = [int(sfield(x, "swing") or -1) for _, x in acts]
+        if idx != [0, 1, 2]:
+            continue
+        strings += 1
+        for (t0, _), (t1, _) in zip(acts, acts[1:]):
+            gaps.append(round(t1 - t0, 3))
+        offs = lines(seg, "RELEASE OFF", player)
+        for (to, _), (ta, _) in zip(offs, acts[1:]):
+            lats.append(round(ta - to, 3))
+        if blocked:
+            hits = lines(seg, "BLOCKED", target)
+            contacts += len(hits)
+            bad_contact += sum(1 for _, x in hits if abs(fields(x).get("staminaDamage", -1) - sdmg) > 0.01)
+            bad_contact += len(lines(seg, "DAMAGED", target))
+            for t, x in lines(seg, "BLOCKSTUN", target):
+                stuns.append(round(fields(x)["until"] - t, 3))
+            kbs = lines(seg, "KNOCKBACK", target, "(blocked)")
+        else:
+            hits = lines(seg, "DAMAGED", target)
+            contacts += len(hits)
+            bad_contact += sum(1 for _, x in hits if abs(fields(x).get("damage", -1) - dmg) > 0.01)
+            for t, x in lines(seg, "HITSTUN", target):
+                stuns.append(round(fields(x)["until"] - t, 3))
+            kbs = lines(seg, "KNOCKBACK", target)
+            kd += len(lines(seg, "KNOCKDOWN", target, "type="))
+        for _, x in kbs:
+            kb_n += 1
+            m = re.search(r"spacing=(-?\d+\.?\d*) \(authored (-?\d+\.?\d*)\)", x)
+            if m and float(m.group(1)) >= float(m.group(2)) - 0.5:
+                kb_ok += 1
+    r.counted(strings, "strings of three swings", "%d" % strings)
+    r.add(gaps and all(gap_lo <= g <= gap_hi for g in gaps), "chain gap at the tapped cadence",
+          "n=%d in [%.3f, %.3f]: %s" % (len(gaps), gap_lo, gap_hi, sorted(set(gaps))))
+    r.add(lats and all(lat_lo <= l <= lat_hi for l in lats), "chain latency inside its band",
+          "n=%d in [%.3f, %.3f]: %s" % (len(lats), lat_lo, lat_hi, sorted(set(lats))))
+    kind = "BLOCKED" if blocked else "DAMAGED"
+    r.add(strings > 0 and contacts == 3 * strings and bad_contact == 0,
+          "every swing %s for the cell's value" % ("is blocked" if blocked else "lands"),
+          "%d %s across %d strings, %d off value" % (contacts, kind, strings, bad_contact))
+    want = blk_stun if blocked else hit_stun
+    r.add(stuns and all(abs(v - want) <= 0.020 for v in stuns),
+          "%s spans the authored %.3f" % ("blockstun" if blocked else "hitstun", want),
+          "n=%d: %s" % (len(stuns), sorted(set(stuns))))
+    if blocked:
+        r.add(kb_n == contacts and kb_n > 0, "one blocked knockback per blocked hit",
+              "%d knockbacks, %d blocked hits" % (kb_n, contacts))
+    else:
+        r.add(strings > 0 and kd == strings, "the ender floors the target once per string",
+              "%d knockdowns across %d strings" % (kd, strings))
+    r.add(kb_n > 0 and kb_ok == kb_n, "knockback never pulls inward", "%d of %d" % (kb_ok, kb_n))
+
+
+def string_player_cadence(ctx, r, s):
+    _string_player(ctx, r, s)
+
+
+def string_player_blocked(ctx, r, s):
+    _string_player(ctx, r, s)
+
+
+def dodge_directions(ctx, r, s):
+    """Every section resolves from a held direction, fitted to the dash and travelling its distance
+    along that direction."""
+    player = ctx.who("player")
+    dirs = s["expect"]["dirs"]
+    dist = float(mirror("GA_Dodge", "DodgeTargetDistanceCm"))
+    fit = float(mirror("GA_Dodge", "DodgeClipSeconds"))
+    n, sec_ok, fit_ok, dist_ok, split_ok, seen = 0, 0, 0, 0, 0, {}
+    comp = dict(Fw=(1, 0), FR=(1, 1), R=(0, 1), BR=(-1, 1), Bw=(-1, 0), BL=(-1, -1), L=(0, -1), FL=(1, -1))
+    for k, seg in enumerate(ctx.reps):
+        want = dirs[ctx.variant(k, s)]
+        _, d = first(seg, "DODGE", player)
+        _, e = first(seg, "DODGE END", player)
+        if not d or not e:
+            continue
+        n += 1
+        sec = sfield(d, "section")
+        seen.setdefault(want, []).append(sec)
+        if sec == want:
+            sec_ok += 1
+        if abs(fields(d).get("fitLen", -1) - fit) < 0.002:
+            fit_ok += 1
+        f = fields(e)
+        travelled = f.get("dist", -1)
+        if abs(travelled - dist) <= 15.0:
+            dist_ok += 1
+        fw, rt = comp[want]
+        norm = (fw * fw + rt * rt) ** 0.5
+        want_fwd, want_right = dist * fw / norm, dist * rt / norm
+        if abs(f.get("fwd", 0) - want_fwd) <= 20.0 and abs(f.get("right", 0) - want_right) <= 20.0:
+            split_ok += 1
+    r.counted(n, "dodges with a start and an end", "%d across %d directions" % (n, len(seen)))
+    r.add(n > 0 and sec_ok == n, "section follows the held direction",
+          "%d of %d; %s" % (sec_ok, n, {k: v for k, v in seen.items() if any(x != k for x in v)} or "all as held"))
+    r.add(n > 0 and fit_ok == n, "fitted to the dash, %.3f" % fit, "%d of %d" % (fit_ok, n))
+    r.add(n > 0 and dist_ok == n, "travels %.0f within 15 cm" % dist, "%d of %d" % (dist_ok, n))
+    r.add(n > 0 and split_ok == n, "travel lies along the held direction", "%d of %d within 20 cm per axis" % (split_ok, n))
+
+
+def dodge_iframes(ctx, r, s):
+    """A dodge opened into the swing takes no damage, and the swing runs on; the control is hit."""
+    player, attacker = ctx.who("player"), ctx.who("attacker")
+    dodged, clean, ran_on, controls, hit = 0, 0, 0, 0, 0
+    for k, seg in enumerate(ctx.reps):
+        v = ctx.variant(k, s)
+        if not lines(seg, "ACTIVATE", attacker):
+            continue
+        if v == 0:
+            d_t, _ = first(seg, "DODGE", player)
+            e_t, _ = first(seg, "DODGE END", player)
+            if d_t is None or e_t is None:
+                continue
+            dodged += 1
+            contact = [t for t, _ in lines(seg, "DAMAGED", player) + lines(seg, "BLOCKED", player)
+                       if d_t <= t <= e_t]
+            if not contact:
+                clean += 1
+            if not lines(seg, "LUNGE STOP", attacker):
+                ran_on += 1
+        else:
+            controls += 1
+            if lines(seg, "DAMAGED", player):
+                hit += 1
+    r.counted(dodged, "dodges into the swing", "%d" % dodged)
+    r.add(dodged > 0 and clean == dodged, "nothing lands during the dodge", "%d of %d" % (clean, dodged))
+    r.add(dodged > 0 and ran_on == dodged, "the evaded swing runs on, no LUNGE STOP", "%d of %d" % (ran_on, dodged))
+    r.add(controls > 0 and hit == controls, "the control rep is hit", "%d of %d" % (hit, controls))
+
+
 ROWS = {
+    "string-player-cadence": string_player_cadence,
+    "string-player-blocked": string_player_blocked,
+    "dodge-directions": dodge_directions,
+    "dodge-iframes": dodge_iframes,
+    "parry-reward": parry_reward,
+    "tier-cells": tier_cells,
     "input-accept-hitstun": input_accept_hitstun,
     "input-accept-blockstun": input_accept_blockstun,
     "input-accept-lockout": input_accept_lockout,

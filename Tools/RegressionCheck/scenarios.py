@@ -373,16 +373,16 @@ def _player_defends(family, attacker, plans, mutations, reps, expect=None, tail=
 
 
 def _player_alone(family, plans, mutations, reps, expect=None, tail=90, duration=None,
-                  target=None, props=None, tape_every=2):
+                  target=None, props=None, tape_every=2, defender=None):
     """Both dummies silent; the player throws in open space, or at a parked target when a row
-    places one."""
+    places one. defender overrides the target's knobs, for a target that guards."""
     ex = dict(reps=reps, gate=True, tail_frames=tail)
     ex.update(expect or {})
     return dict(
         family=family, legacy=False,
         roles=dict(attacker=(PLACED_ATTACKER[0], PARKED_DUMMY, 0.0),
                    defender=(PLACED_DEFENDER[0],) + (target or (PARKED_DUMMY, 0.0))),
-        knobs={"attacker": dict(SILENT), "defender": dict(SILENT)},
+        knobs={"attacker": dict(SILENT), "defender": dict(defender or SILENT)},
         player=dict(spawn=(-4000.0, -4000.0, 100.0) if target is None
                     else (OPEN_DEFENDER[0][0], OPEN_DEFENDER[0][1], 100.0),
                     yaw=0.0 if target is None else OPEN_DEFENDER[1], props=dict(props or {})),
@@ -450,6 +450,106 @@ SCENARIOS["knockdown-getup-exhausted-held"] = _player_defends(
            _EXHAUST_THEN_DOWN + [(30, "player", "hold", "block", 90)]],
     mutations=[("set", "KNOCKDOWN RISE", "by", "block")], reps=6, tail=120,
     expect=dict(by=["attack", "auto"], held=["Attack", None], lockout=1.5, auto_at=2.0))
+
+LOCK_ATK = (0, "attacker", "lock_to", "State.Attacking")
+
+
+def _legacy_scripted(family, legacy_id, attacker, plans, mutations, reps, tail=90, duration=None,
+                     teardown_allow=("Attacking", "StaminaRegenPaused")):
+    """A legacy row whose fixture became a plan: the bash checker's assertions stay, the player does
+    what the dummy's timer used to approximate."""
+    row = _player_defends(family, attacker, plans, mutations, reps, tail=tail, duration=duration,
+                          teardown_allow=teardown_allow)
+    row["legacy"], row["legacy_id"] = True, legacy_id
+    return row
+
+
+# The player parries phase-locked to the attacker's string: swing 0's hitbox at 12-21 f, caught by a
+# window opened at 6 f; swing 1 activates at 30 f, its hitbox at 42-51 f, caught by one opened at
+# 36 f, swing 0 having been blocked so the parrier is not in hitstun when it presses. Alternating
+# them lets the string chain once before it is caught, which "chaining resumes" reads, and keeps
+# every caught swing on the 0.75 s lockout the legacy band covers.
+SCENARIOS["parry-catch"] = _legacy_scripted(
+    "parry", "s5-parry", _atk(LIGHT, **STRING),
+    plans=[[LOCK_ATK, (6, "player", "tap", "parry")],
+           [LOCK_ATK, (2, "player", "press", "block"), (22, "player", "release", "block"),
+            (36, "player", "tap", "parry")]],
+    mutations=[("drop", "PARRY SUCCESS", 1)], reps=6, tail=120, duration=90.0)
+
+# A whiffed parry with nothing arriving, then a press into each phase: the window at 9 f, the
+# recovery at 27 f, 36 f and 51 f, and a guard at 57 f once the recovery has ended at 54 f.
+_WHIFF_PROBE = [(0, "player", "tap", "parry"), (9, "player", "tap", "attack"),
+                (27, "player", "tap", "attack"), (36, "player", "tap", "dodge"),
+                (51, "player", "tap", "block"), (57, "player", "tap", "block")]
+SCENARIOS["parry-whiff"] = dict(_player_alone("parry", plans=[_WHIFF_PROBE],
+                                              mutations=[("drop", "PARRY WHIFF", 1)], reps=6,
+                                              tail=90),
+                                legacy=True, legacy_id="s5-parry-whiff")
+
+# The player jumps the frame the heavy begins and is 0.2 s into the jump when it lands, so every
+# other knockdown enters airborne at height; the reps between it stay grounded and give the legacy
+# row the floor it measures against.
+SCENARIOS["knockdown-airborne"] = _legacy_scripted(
+    "knockdown", "s6-airborne", _atk(HEAVY),
+    plans=[[LOCK_ATK, (0, "player", "tap", "jump")], [LOCK_ATK]],
+    mutations=[("set", "KNOCKDOWN", "airborne", "0")], reps=8, tail=150, duration=120.0)
+
+# The reward's magnitude: the bar is written to 50 the frame the swing begins, so the credit has
+# room, and every catch must pay the authored reward in full.
+SCENARIOS["parry-reward"] = _player_defends(
+    "parry", _atk(LIGHT),
+    plans=[[LOCK_ATK, (0, "player", "set_stamina", 50.0), (6, "player", "tap", "parry")]],
+    mutations=[("set", "PARRY SUCCESS", "gained", "0.0")], reps=4, tail=90)
+
+# All nine cells from the player's own presses, whiffing in open space. Each plan's last swing is the
+# cell under test; the taps before it chain at 31 f and 62 f, inside each chain window.
+_T, _H, _C = 13, 51, 51
+_CELL_PLANS = [
+    [(0, "player", "tap", "attack")],
+    [(0, "player", "hold", "attack", _T)],
+    [(0, "player", "hold", "attack", _H)],
+    [(0, "player", "tap", "attack"), (31, "player", "tap", "attack")],
+    [(0, "player", "tap", "attack"), (31, "player", "hold", "attack", _T)],
+    [(0, "player", "tap", "attack"), (31, "player", "hold", "attack", _C)],
+    [(0, "player", "tap", "attack"), (31, "player", "tap", "attack"), (62, "player", "tap", "attack")],
+    [(0, "player", "tap", "attack"), (31, "player", "tap", "attack"), (62, "player", "hold", "attack", _T)],
+    [(0, "player", "tap", "attack"), (31, "player", "tap", "attack"), (62, "player", "hold", "attack", _C)],
+]
+SCENARIOS["tier-cells"] = _player_alone(
+    "tier", plans=_CELL_PLANS, mutations=[("shift", "RELEASE BEGIN", 0.100)], reps=18, tail=130,
+    expect=dict(cells=[(0, 0), (0, 1), (0, 2), (1, 0), (1, 1), (1, 2), (2, 0), (2, 1), (2, 2)]))
+
+# The player throws the string at a target 150 cm ahead, three taps at the tapped cadence of 30 f
+# (D11): the shipping input path on the attack side, where string-cadence and string-blocked drive
+# the dummy's timer. The target stands still, or holds its guard for the blocked form.
+_TARGET_AHEAD = ((OPEN_DEFENDER[0][0], OPEN_DEFENDER[0][1] - 150.0, 96.0), 90.0)
+_STRING_TAPS = [(0, "player", "tap", "attack"), (30, "player", "tap", "attack"),
+                (60, "player", "tap", "attack")]
+SCENARIOS["string-player-cadence"] = _player_alone(
+    "string", plans=[_STRING_TAPS], mutations=[("set", "DAMAGED", "damage", "99")], reps=4,
+    tail=180, target=_TARGET_AHEAD, expect=dict(blocked=False))
+SCENARIOS["string-player-blocked"] = _player_alone(
+    "string", plans=[_STRING_TAPS], mutations=[("set", "BLOCKED", "staminaDamage", "99")], reps=4,
+    tail=120, target=_TARGET_AHEAD, defender=_def("HOLD_BLOCK"), expect=dict(blocked=True))
+
+# Eight directions, each held 12 f before the dodge and through it. X right, Y forward, in the
+# camera frame the player's control rotation sets.
+_DIRS = [("Fw", 0, 1), ("FR", 1, 1), ("R", 1, 0), ("BR", 1, -1),
+         ("Bw", 0, -1), ("BL", -1, -1), ("L", -1, 0), ("FL", -1, 1)]
+SCENARIOS["dodge-directions"] = _player_alone(
+    "dodge",
+    plans=[[(0, "player", "move", float(x), float(y), 40), (12, "player", "tap", "dodge")]
+           for _d, x, y in _DIRS],
+    mutations=[("set", "DODGE END", "dist", "999.9")], reps=16, tail=60,
+    expect=dict(dirs=[d for d, _x, _y in _DIRS]))
+
+# I-frames, directly: a dodge opened 9 f into the attacker's swing spans 9-33 f, covering the hitbox
+# at 12-21 f, and the swing must run on rather than stop on an evaded body. The control rep does not
+# dodge and is hit.
+SCENARIOS["dodge-iframes"] = _player_defends(
+    "dodge", _atk(LIGHT),
+    plans=[[LOCK_ATK, (9, "player", "tap", "dodge")], [LOCK_ATK]],
+    mutations=[("drop", "DAMAGED", 99)], reps=6, tail=90)
 
 # Hard knockdown: lockout 90 f, window 30 f, auto-rise at 120 f. Each variant holds from 30 f into
 # the lockout until past the rise. Priority is guard, dodge, attack, stand (KnockdownGetUpPriority).

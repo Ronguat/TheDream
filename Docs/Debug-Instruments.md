@@ -641,6 +641,7 @@ settings rather than assertions — as do measurements, which record what a run 
 
 | Scenario | Was | Attacker | Defender | Player plan | s |
 |---|---|---|---|---|---|
+| `tier-cells` | `-` | silent | silent | - | 92 |
 | `tier-charged` | `s1-charged` | hold 0.85 | silent | - | 30 |
 | `tier-heavy` | `s1-heavy` | hold 0.22 | silent | - | 30 |
 | `tier-light` | `s1-light` | hold 0.1 | silent | - | 30 |
@@ -650,6 +651,8 @@ settings rather than assertions — as do measurements, which record what a run 
 | `string-cadence` | `s4-string` | hold 0.1, string_taps 3 | silent | - | 60 |
 | `string-finisher-arc` | `s4-360` | facing_mode NEVER, hold 0.1, string_taps 3, suppress_lunge True | silent | - | 90 |
 | `string-guarantee` | `s4-guarantee` | hold 0.1, string_taps 3 | auto_attack False, auto_defend_mode PERIODIC_DODGE, get_up_mode WAIT, periodic_jump False | - | 60 |
+| `string-player-blocked` | `-` | silent | auto_attack False, auto_defend_mode HOLD_BLOCK, get_up_mode WAIT, periodic_jump False | - | 36 |
+| `string-player-cadence` | `-` | silent | silent | - | 36 |
 | `chain-closed` | `s8-chain-closed` | silent | silent | f0 tap attack; f51 tap attack | 30 |
 | `chain-early` | `s8-chain-early` | silent | silent | f0 tap attack; f21 tap attack | 30 |
 | `chain-late` | `s8-chain-late` | silent | silent | f0 tap attack; f36 tap attack | 30 |
@@ -663,10 +666,12 @@ settings rather than assertions — as do measurements, which record what a run 
 | `block-heavy` | `s2-heavy` | hold 0.22 | auto_attack False, auto_defend_mode HOLD_BLOCK, get_up_mode WAIT, periodic_jump False | - | 150 |
 | `block-light` | `s2-light` | hold 0.1 | auto_attack False, auto_defend_mode HOLD_BLOCK, get_up_mode WAIT, periodic_jump False | - | 150 |
 | `dodge-cycle` | `s3` | hold 0.1 | auto_attack False, auto_defend_mode PERIODIC_DODGE, get_up_mode WAIT, periodic_jump False | - | 120 |
-| `parry-catch` | `s5-parry` | hold 0.1, string_taps 3 | auto_attack False, auto_defend_mode PERIODIC_PARRY, get_up_mode WAIT, periodic_jump False | - | 180 |
-| `parry-reward` | `s5-parry-reward` | hold 0.1, interval 3.0, string_taps 3 | auto_attack False, auto_defend_mode PERIODIC_PARRY, get_up_mode WAIT, parry_interval 6.0, parry_pre_block 3.935, periodic_jump False | - | 60 |
-| `parry-whiff` | `s5-parry-whiff` | hold 0.1, string_taps 3 | auto_attack True, interval 0.7, auto_defend_mode PERIODIC_PARRY, get_up_mode WAIT, parry_interval 0.5, periodic_jump False, suppress_lunge True | - | 60 |
-| `knockdown-airborne` | `s6-airborne` | hold 0.1, string_taps 3 | auto_attack False, auto_defend_mode OFF, get_up_mode WAIT, jump_interval 1.3, periodic_jump True | - | 240 |
+| `dodge-directions` | `-` | silent | silent | - | 84 |
+| `dodge-iframes` | `-` | hold 0.1 | silent | - | 68 |
+| `parry-catch` | `s5-parry` | hold 0.1, string_taps 3 | silent | - | 90 |
+| `parry-reward` | `-` | hold 0.1 | silent | - | 52 |
+| `parry-whiff` | `s5-parry-whiff` | silent | silent | - | 44 |
+| `knockdown-airborne` | `s6-airborne` | hold 0.22 | silent | - | 120 |
 | `knockdown-exhausted-attack` | `s6-exhausted-attack` | hold 0.1, string_taps 3 | auto_attack False, auto_defend_mode PERIODIC_PARRY, get_up_mode ATTACK_GET_UP, parry_interval 13.0, parry_pre_block 12.0, periodic_jump False | - | 120 |
 | `knockdown-exhausted-block` | `s6-exhausted-block` | hold 0.1, string_taps 3 | auto_attack False, auto_defend_mode PERIODIC_PARRY, get_up_mode BLOCK_GET_UP, parry_interval 13.0, parry_pre_block 12.0, periodic_jump False | - | 120 |
 | `knockdown-exhausted-dodge` | `s6-exhausted` | hold 0.1, string_taps 3 | auto_attack False, auto_defend_mode PERIODIC_PARRY, get_up_mode DODGE_GET_UP, parry_interval 13.0, parry_pre_block 12.0, periodic_jump False | - | 120 |
