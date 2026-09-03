@@ -198,6 +198,12 @@ scripts define `run()` returning a dict and pass **full dotted names** to `execu
 **Stop PIE before compiling a Blueprint or saving an asset.** While PIE runs, actor lookups return
 the `UEDPIE_0_` world's actors — right for inspecting live state, wrong for authoring.
 
+**PIE and the tick rate are scriptable from Python** *(Python and `TheDreamEditor`, 2026-09-03;
+capability in `Docs/Unreal-Findings.md`)*. Three silent failures: **both PIE requests are
+asynchronous**, so poll `is_in_play_in_editor` or drive the previous session; **begin play takes no
+start transform** and the level holds two `PlayerStart`s, so the pawn spawns at one at random;
+**fixed time step changes what wall clock means**, so restore it before reading a wall-time number.
+
 **Never duplicate a World Partition level to make a new map** — the external actor packages do not
 re-path and actors silently go missing. Use File → New Level → Empty.
 
@@ -244,6 +250,10 @@ and its handle was not** — the same shape as `SkeletalMesh::SetSkeleton` and `
 from two separate script calls measured **607 ms** and escalated the ladder, `AIM WEDGE` reach
 climbing 550 → 650 → 750. **Timed defensive fixtures are scriptable from here on.**
 
+**Input also reaches the *shipping* path** *(2026-09-03)*: `UTDInputTools::InputKey` enters where
+the viewport does, running the mapping context and the binding. **The cheaper depth flatters you** —
+`InjectAction` bypasses the mapping, so green there says nothing about whether a key is bound. And
+**`FKey`'s name is not reflection-writable**: the setter returns success and leaves the struct empty.
 
 **A PIE transform is not a placed transform** *(confirmed 2026-08-13)*: it is where an actor *ended
 up* — settled under gravity, pushed if anything could push it. **The tell is that `z` has also moved.** Re-read in
@@ -579,8 +589,9 @@ everything that previously worked, not only what changed.** A type change can si
 Blueprint map, and nothing announces it.
 
 Name the checks up front, run them in one session, report as a pass/fail table. Most of it is
-automated: `Tools/RegressionCheck/regression-check.sh` asserts the invariants against a PIE log and
-prints that table itself. **Run its `--self-test` before trusting a green result.** The checklist,
+automated: **`Tools/RegressionCheck/regression-run.sh` drives the whole loop** — preflight, PIE,
+evaluation — and `regression-check.sh` remains the log evaluator underneath it, which is what you
+run against a slice by hand. **Run its `--self-test` before trusting a green result.** The checklist,
 the scenario matrix and the fixtures are in `Docs/Debug-Instruments.md`.
 
 ---

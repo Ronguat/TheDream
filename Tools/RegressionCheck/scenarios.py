@@ -99,59 +99,208 @@ CHECKPOINTS = (0.15, 0.35, 0.75)
 
 
 # --- scenarios --------------------------------------------------------------
-# C2 drives three of these end to end: tier-light for knobs and placements, chain-early for a
-# tapped plan, input-hold-tier for a hold spanning an activation boundary. The remaining 35
-# legacy rows port at C5.
+# The 38 legacy rows, ported under the names of D9. Their fixtures are the matrix's, unchanged in
+# meaning: the attacker dummy drives the exchange through its Debug knobs, and the player is parked
+# out of reach -- except the s8 family, where the player throws every swing and both dummies are
+# silent.
+#
+# _row builds the common shape so a row's entry is its knobs and its plan, not its boilerplate.
+
+
+def _row(family, legacy_id, duration, attacker=None, defender=None, player_spawn=PARKED,
+         player_yaw=0.0, plan=(), reps=None, mutations=(), exclude=("drift=",), props=None):
+    return dict(
+        family=family, legacy=True, legacy_id=legacy_id,
+        roles=dict(attacker=PLACED_ATTACKER, defender=PLACED_DEFENDER),
+        knobs={"attacker": dict(attacker or {}), "defender": dict(defender or {})},
+        player=dict(spawn=player_spawn, yaw=player_yaw, props=dict(props or {})),
+        plan=list(plan), stop=dict(duration=float(duration)),
+        expect=dict(reps=reps) if reps else dict(),
+        mutations=list(mutations), golden=dict(exclude=list(exclude)),
+    )
+
+
+def _scripted(family, legacy_id, plan, mutations, reps=8, period=180, duration=30.0):
+    """An s8-family row: the player throws every swing at a pawn parked in open space, so each
+    swing whiffs -- a landed hit waives commitment and resets the string, a different question."""
+    return dict(
+        family=family, legacy=True, legacy_id=legacy_id,
+        roles=dict(attacker=(PLACED_ATTACKER[0], PARKED_DUMMY, 0.0),
+                   defender=(PLACED_DEFENDER[0], PARKED_DUMMY, 0.0)),
+        knobs={"attacker": dict(SILENT), "defender": dict(SILENT)},
+        player=dict(spawn=(-4000.0, -4000.0, 100.0), yaw=0.0, props={}),
+        plan=list(plan), stop=dict(duration=duration),
+        expect=dict(reps=reps, period_frames=period),
+        mutations=list(mutations), golden=dict(exclude=["drift="]),
+    )
+
+
+# The dummy's hold selects the tier: 0.1 light, 0.22 heavy, 0.85 charged, each strictly between
+# two of the CHECKPOINTS above.
+LIGHT, HEAVY, CHARGED = 0.1, 0.22, 0.85
+STRING = {"debug_auto_attack_string_taps": 3}
+
+
+def _atk(hold=LIGHT, **kw):
+    k = {"debug_auto_attack_hold_seconds": hold}
+    k.update(kw)
+    return k
+
+
+def _def(mode="OFF", **kw):
+    k = dict(SILENT)
+    k["debug_auto_defend_mode"] = mode
+    k.update(kw)
+    return k
+
 
 SCENARIOS = {
 
-    "tier-light": dict(
-        family="tier", legacy=True, legacy_id="s1-light",
-        roles=dict(attacker=PLACED_ATTACKER, defender=PLACED_DEFENDER),
-        knobs={"attacker": {"debug_auto_attack_hold_seconds": 0.1},
-               "defender": dict(SILENT)},
-        player=dict(spawn=PARKED, yaw=0.0, props={}),
-        plan=[],
-        stop=dict(duration=30.0),
-        expect=dict(reps=8),
-        mutations=[("shift", "RELEASE BEGIN", 0.100)],
-        golden=dict(exclude=["drift=", "pos=", "rate="]),
-    ),
+    # --- tier: the ladder's three rungs from position 1 ----------------------
+    "tier-light":   _row("tier", "s1-light",   30, _atk(LIGHT),   _def(),
+                         mutations=[("shift", "RELEASE BEGIN", 0.100)]),
+    "tier-heavy":   _row("tier", "s1-heavy",   30, _atk(HEAVY),   _def(),
+                         mutations=[("shift", "RELEASE BEGIN", 0.100)]),
+    "tier-charged": _row("tier", "s1-charged", 30, _atk(CHARGED), _def(),
+                         mutations=[("shift", "RELEASE BEGIN", 0.100)]),
 
-    # The player throws every swing in the s8 family, at a pawn parked in open space: each swing
-    # whiffs, because a landed hit waives commitment and resets the string.
-    "chain-early": dict(
-        family="chain", legacy=True, legacy_id="s8-chain-early",
-        roles=dict(attacker=(PLACED_ATTACKER[0],) + (PARKED_DUMMY, 0.0),
-                   defender=(PLACED_DEFENDER[0],) + (PARKED_DUMMY, 0.0)),
-        knobs={"attacker": dict(SILENT), "defender": dict(SILENT)},
-        player=dict(spawn=(-4000.0, -4000.0, 100.0), yaw=0.0, props={}),
-        plan=[(0, "player", "tap", "attack"), (21, "player", "tap", "attack")],
-        stop=dict(duration=30.0),
-        expect=dict(reps=8, period_frames=180),
-        mutations=[("drop", "STRING     chain out", 1)],
-        golden=dict(exclude=["pos=", "rate="]),
-    ),
+    # --- attack: what a swing hands back, and what it does not ---------------
+    "attack-cancel": _row("attack", "s5-cancel", 30,
+                          _atk(LIGHT, debug_cancel_attack_into_block=True), _def(),
+                          mutations=[("drop", "BLOCK      cost", 99)]),
+    "attack-waiver": _row("attack", "s5-waiver", 30,
+                          _atk(LIGHT, debug_dodge_after_hit=True), _def(),
+                          mutations=[("shift", "DODGE      ", 0.500)]),
 
-    "input-hold-tier": dict(
-        family="input", legacy=True, legacy_id="s8-hold-tier",
-        roles=dict(attacker=(PLACED_ATTACKER[0],) + (PARKED_DUMMY, 0.0),
-                   defender=(PLACED_DEFENDER[0],) + (PARKED_DUMMY, 0.0)),
-        knobs={"attacker": dict(SILENT), "defender": dict(SILENT)},
-        player=dict(spawn=(-4000.0, -4000.0, 100.0), yaw=0.0, props={}),
-        # Accepted 150 ms before actionable and held across it: 250 ms of hold in total, which must
-        # buy the heavy rather than only the 100 ms that follows activation.
-        #
-        # Frame 51 is actionable minus 150 ms, actionable being the light's measured total of
-        # 1.000 s for a whiffing swing. The s8 driver's frame 48 was derived against the authored
-        # 0.950 and now lands 250 ms out, past InputBufferSeconds 0.200, so the press expires one
-        # tick after the ability ends. Re-derive here whenever that total moves.
-        plan=[(0, "player", "tap", "attack"), (51, "player", "hold", "attack", 15)],
-        stop=dict(duration=30.0),
-        expect=dict(reps=8, period_frames=180),
-        mutations=[("set", "COMMIT", "branch", "0")],
-        golden=dict(exclude=["pos=", "rate="]),
-    ),
+    # --- string: three swings at the tapped cadence --------------------------
+    "string-cadence":   _row("string", "s4-string", 60, _atk(LIGHT, **STRING), _def(),
+                             mutations=[("shift", "HITSTUN END", 0.100)]),
+    "string-guarantee": _row("string", "s4-guarantee", 60, _atk(LIGHT, **STRING),
+                             _def("PERIODIC_DODGE"),
+                             mutations=[("shift", "HITSTUN END", -0.400)]),
+    "string-blocked":   _row("string", "s4-block", 60, _atk(LIGHT, **STRING), _def("HOLD_BLOCK"),
+                             mutations=[("shift", "BLOCKSTUN END", 0.100)]),
+    # The 360-degree ender needs a stationary attacker with a body on each side, so the player
+    # stands in opposite the defender and the lunge is suppressed.
+    "string-finisher-arc": _row("string", "s4-360", 90,
+                                _atk(LIGHT, debug_auto_attack_facing_mode="NEVER",
+                                     debug_suppress_lunge=True, **STRING),
+                                _def(), player_spawn=(200.0, 150.0, 100.0),
+                                mutations=[("drop", "DAMAGED", 1)]),
+
+    # --- chain and input: the s8 family, thrown by the player ----------------
+    # Frames are actionable-relative. A whiffing light's measured total is 1.000 s, so a press
+    # meant to land N ms before actionable sits at frame 60 - N/16.67.
+    "chain-early":  _scripted("chain", "s8-chain-early",
+                              [(0, "player", "tap", "attack"), (21, "player", "tap", "attack")],
+                              [("drop", "STRING     chain out", 1)]),
+    "chain-late":   _scripted("chain", "s8-chain-late",
+                              [(0, "player", "tap", "attack"), (36, "player", "tap", "attack")],
+                              [("drop", "STRING     chain out", 1)]),
+    "chain-closed": _scripted("chain", "s8-chain-closed",
+                              [(0, "player", "tap", "attack"), (51, "player", "tap", "attack")],
+                              [("dup", "STRING     chain out", 1)]),
+    "input-stale":  _scripted("input", "s8-stale",
+                              [(0, "player", "hold", "attack", 24), (30, "player", "tap", "attack")],
+                              [("drop", "BUFFER", 1)]),
+    "input-discard": _scripted("input", "s8-discard",
+                               [(0, "player", "tap", "attack"), (45, "player", "tap", "attack")],
+                               [("drop", "BUFFER", 1)]),
+    "input-hold-tier": _scripted("input", "s8-hold-tier",
+                                 [(0, "player", "tap", "attack"),
+                                  (51, "player", "hold", "attack", 15)],
+                                 [("set", "COMMIT", "branch", "0")]),
+
+    # --- block: the guard's price per tier -----------------------------------
+    "block-light":   _row("block", "s2-light", 150, _atk(LIGHT), _def("HOLD_BLOCK"),
+                          mutations=[("set", "BLOCKED", "staminaDamage", "99")]),
+    "block-heavy":   _row("block", "s2-heavy", 150, _atk(HEAVY), _def("HOLD_BLOCK"),
+                          mutations=[("set", "BLOCKED", "staminaDamage", "99")]),
+    "block-charged": _row("block", "s2-charged", 150, _atk(CHARGED), _def("HOLD_BLOCK"),
+                          mutations=[("set", "BLOCKED", "staminaDamage", "1")]),
+
+    # --- dodge ---------------------------------------------------------------
+    "dodge-cycle": _row("dodge", "s3", 120, _atk(LIGHT), _def("PERIODIC_DODGE"),
+                        mutations=[("set", "DODGE END", "dist", "999.9")]),
+
+    # --- parry ---------------------------------------------------------------
+    "parry-catch":  _row("parry", "s5-parry", 180, _atk(LIGHT, **STRING), _def("PERIODIC_PARRY"),
+                         mutations=[("drop", "PARRY SUCCESS", 1)]),
+    "parry-reward": _row("parry", "s5-parry-reward", 60,
+                         _atk(LIGHT, debug_auto_attack_interval=3.0, **STRING),
+                         _def("PERIODIC_PARRY", debug_parry_interval_seconds=6.0,
+                              debug_parry_pre_block_seconds=3.935),
+                         mutations=[("set", "PARRY SUCCESS", "gained", "0.0")]),
+    "parry-whiff":  _row("parry", "s5-parry-whiff", 60, _atk(LIGHT, **STRING),
+                         _def("PERIODIC_PARRY", debug_parry_interval_seconds=0.5,
+                              debug_auto_attack=True, debug_auto_attack_interval=0.7,
+                              debug_suppress_lunge=True),
+                         mutations=[("drop", "PARRY WHIFF", 1)]),
+
+    # --- knockdown -----------------------------------------------------------
+    "knockdown-normal": _row("knockdown", "s6-knockdown", 60, _atk(LIGHT, **STRING), _def(),
+                             mutations=[("set", "KNOCKDOWN", "lockout", "9.999")]),
+    "knockdown-hard":   _row("knockdown", "s6-hard", 60, _atk(HEAVY), _def(),
+                             mutations=[("set", "KNOCKDOWN", "lockout", "9.999")]),
+    "knockdown-stand":  _row("knockdown", "s6-stand", 90, _atk(LIGHT, **STRING),
+                             _def(debug_periodic_jump=True, debug_jump_interval_seconds=1.3),
+                             mutations=[("drop", "KNOCKDOWN RISE", 1)]),
+    "knockdown-getup-attack": _row("knockdown", "s6-getup", 60, _atk(HEAVY),
+                                   _def(debug_get_up_mode="ATTACK_GET_UP"),
+                                   mutations=[("shift", "RELEASE BEGIN", 0.150)]),
+    "knockdown-getup-dodge":  _row("knockdown", "s6-dodge", 60,
+                                   _atk(LIGHT, debug_auto_attack_interval=6.0, **STRING),
+                                   _def(debug_get_up_mode="DODGE_GET_UP"),
+                                   mutations=[("set", "DODGE", "remaining", "99.9")]),
+    "knockdown-getup-kipup":  _row("knockdown", "s6-kipup", 60,
+                                   _atk(HEAVY, debug_auto_attack_interval=6.0),
+                                   _def(debug_get_up_mode="DODGE_GET_UP"),
+                                   mutations=[("set", "DODGE END", "dist", "999.9")]),
+    "knockdown-getup-block":  _row("knockdown", "s6-block", 60,
+                                   _atk(LIGHT, debug_auto_attack_interval=6.0, **STRING),
+                                   _def(debug_get_up_mode="BLOCK_GET_UP"),
+                                   mutations=[("drop", "BLOCK", 1)]),
+    "knockdown-hard-no-stand": _row("knockdown", "s6-hard-stand", 60, _atk(HEAVY),
+                                    _def(debug_get_up_mode="STAND_GET_UP"),
+                                    mutations=[("drop", "REFUSED", 1)]),
+    "knockdown-airborne": _row("knockdown", "s6-airborne", 240, _atk(LIGHT, **STRING),
+                               _def(debug_periodic_jump=True, debug_jump_interval_seconds=1.3),
+                               mutations=[("set", "KNOCKDOWN", "airborne", "0")]),
+    # The pre-block drains the defender to a break, and the knockdowns land inside the exhaustion
+    # that follows -- the only fixture that holds a character exhausted while it is floored.
+    "knockdown-regen-exception": _row("knockdown", "s6-exhaust-regen", 150, _atk(LIGHT, **STRING),
+                                      _def("PERIODIC_PARRY", debug_parry_pre_block_seconds=12.0,
+                                           debug_parry_interval_seconds=13.0),
+                                      mutations=[("shift", "EXHAUSTION END", 0.500)]),
+    "knockdown-exhausted-dodge": _row("knockdown", "s6-exhausted", 120, _atk(LIGHT, **STRING),
+                                      _def("PERIODIC_PARRY", debug_parry_pre_block_seconds=12.0,
+                                           debug_parry_interval_seconds=13.0,
+                                           debug_get_up_mode="DODGE_GET_UP"),
+                                      mutations=[("dup", "KNOCKDOWN RISE", 1)]),
+    "knockdown-exhausted-kipup": _row("knockdown", "s6-exhausted-kipup", 120, _atk(HEAVY),
+                                      _def("PERIODIC_PARRY", debug_parry_pre_block_seconds=12.0,
+                                           debug_parry_interval_seconds=13.0,
+                                           debug_get_up_mode="DODGE_GET_UP"),
+                                      mutations=[("dup", "KNOCKDOWN RISE", 1)]),
+    "knockdown-exhausted-block": _row("knockdown", "s6-exhausted-block", 120,
+                                      _atk(LIGHT, **STRING),
+                                      _def("PERIODIC_PARRY", debug_parry_pre_block_seconds=12.0,
+                                           debug_parry_interval_seconds=13.0,
+                                           debug_get_up_mode="BLOCK_GET_UP"),
+                                      mutations=[("dup", "KNOCKDOWN RISE", 1)]),
+    "knockdown-exhausted-attack": _row("knockdown", "s6-exhausted-attack", 120,
+                                       _atk(LIGHT, **STRING),
+                                       _def("PERIODIC_PARRY", debug_parry_pre_block_seconds=12.0,
+                                            debug_parry_interval_seconds=13.0,
+                                            debug_get_up_mode="ATTACK_GET_UP"),
+                                       mutations=[("drop", "KNOCKDOWN RISE", 1)]),
+
+    # --- death ---------------------------------------------------------------
+    "death-revive": _row("death", "s7-death", 90, _atk(LIGHT, **STRING),
+                         _def(debug_auto_revive_seconds=3.0),
+                         mutations=[("shift", "REVIVE", 1.000)]),
+    "death-over-knockdown": _row("death", "s7-death-grade", 60, _atk(HEAVY), _def(),
+                                 mutations=[("dup", "KNOCKDOWN  ", 1)]),
 }
 
 

@@ -353,6 +353,45 @@ combat log; a finding *about a surface* belongs in this file.
 
 ## Dated findings — newest first
 
+## 2026-09-03 — The clock, PIE and the shipping input path all turn out to be scriptable
+
+Found while building the regression loop, which needed all three to run unattended.
+
+**A fixed time step is a function library away** *(C++ headers then `TheDreamEditor`, 2026-09-03)*.
+`UEngine::UpdateTimeAndHandleMaxTickRate` reads `FApp::UseFixedTimeStep()` every tick under
+`WITH_FIXED_TIME_STEP_SUPPORT`, which `TargetRules.bWithFixedTimeStepSupport` defaults to true, and
+`FApp::SetUseFixedTimeStep` / `SetFixedDeltaTime` are public statics. **Only the command line set
+them**: no console variable and no Python symbol does. `UTDTimeTools` wraps them and returns
+`FApp::UseFixedTimeStep()` so a build without support reads back false rather than free-running
+silently. **Measured**: 1800 ticks at 1/60 gave exactly 30.000 s of game time in 15.5 s of wall, and
+ten samples of a span that spread 35 ms free-running came back **identical**. Determinism is the
+prize; the 2x is a bonus.
+
+**PIE is driven from in-editor Python** *(Python, 2026-09-03)*. `LevelEditorSubsystem` exposes
+`editor_request_begin_play`, `editor_request_end_play` and `is_in_play_in_editor`. Both requests are
+asynchronous, begin play uses the first active level viewport and takes no start transform, and
+`unreal.log_flush()` plus a share-readable live log let a script tail its own trace. Together with
+the clock this is what makes a matrix run without an agent between scenarios.
+
+**Input reaches the shipping path, not just the action** *(C++ headers then PIE, 2026-09-03)*.
+`APlayerController::InputKey(const FInputKeyEventArgs&)` is `ENGINE_API` and is the call the game
+viewport makes; `FInputKeyEventArgs::CreateSimulated` builds the args. So a wrapper runs key state,
+the mapping context and its modifiers, the action's triggers and the binding — where Enhanced
+Input's `InjectInputForAction`, the route since 2026-08-24, enters one layer lower and bypasses the
+mapping. **Proven on the player pawn**: a single key tap produced `INPUT pressed`, `ACTIVATE`,
+`COMMIT branch 0 (Light)`, `RELEASE BEGIN` and `ABILITY END elapsed=0.967`.
+
+**Two handles that are not where you would look for them.** `FKey`'s name is **not**
+reflection-writable — `set_editor_property("key_name", ...)` returns success and leaves the struct
+empty — so build one with `import_text("LeftMouseButton")`. And `AbilitySystemBlueprintLibrary` does
+**not** exist in Python; the library is `unreal.AbilitySystemLibrary`, whose
+`get_ability_system_component` works, and the component exposes `has_matching_gameplay_tag` rather
+than any `get_owned_gameplay_tags`, so a tag readout queries a known list instead of enumerating.
+`Config/DefaultGameplayTags.ini` plus `TDGameplayTags.cpp`'s native defines are that list.
+
+**`create_player` is available and unused** *(Python, 2026-09-03)*. It exists on
+`GameplayStatics`; the loop deliberately stays single-world, since the checker assumes one clock.
+
 ## 2026-09-02 — The anim graph takes a node from the toolset, sockets are trialled through the CDO, and the hand-off is charted in play
 
 **An Inertialization node can be created and spliced into `ABP_Combat`'s top-level AnimGraph from

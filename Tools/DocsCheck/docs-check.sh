@@ -56,6 +56,8 @@ check_tables() { # $1=file -> prints offending line numbers, rc 1 if any
 # Catches a cross-file pointer whose target moved. Each row asserts a literal a doc
 # points at; a miss means the target moved and the pointer did not.
 # Format: file:::literal:::which pointer relies on it.
+ENGINE_PY="/c/Program Files (x86)/UE_5.8/Engine/Binaries/ThirdParty/Python3/Win64/python.exe"
+
 MANIFEST='
 CLAUDE.md:::### When a slice ships:::Closing-Down step 5 routes by this section
 CLAUDE.md:::## Working Rules:::Debug-Instruments points the loop-coverage rule here
@@ -369,6 +371,16 @@ done
 out=$(check_manifest "$MANIFEST") && ok "pointer-manifest" "all $(printf '%s\n' "$MANIFEST" | grep -c ':::') pointers resolve" || fail "pointer-manifest" "$out"
 
 out=$(check_index Docs/Combat-Decisions.md) && ok "index-freshness" "index current" || fail "index-freshness" "$out"
+
+# The scenario matrix is generated from the fixtures, so a fixture edit that forgot the doc
+# fails here rather than leaving a reader a table that describes the run before last.
+if [ -f Tools/RegressionCheck/gen-matrix.py ]; then
+	if "$ENGINE_PY" Tools/RegressionCheck/gen-matrix.py --check >/dev/null 2>&1; then
+		ok "matrix-freshness" "the generated matrix matches scenarios.py"
+	else
+		fail "matrix-freshness" "run Tools/RegressionCheck/gen-matrix.py -- scenarios.py has moved"
+	fi
+fi
 
 out=$(check_sup_order Docs/Combat-Decisions.md) && ok "bridge-order" "supersession table sorted, entry rows adjacent" || fail "bridge-order" "$out"
 

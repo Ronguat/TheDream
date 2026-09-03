@@ -581,10 +581,51 @@ combat surface still prints a full green table, and nothing in the output distin
 scenarios, all passing" from "seven scenarios, and last week's feature is not one of them" — which
 is why the choice binds at plan time.
 
-**Adding a scenario is three edits**: a band block at the top of the script with its source in a
-comment, a `run_*` function or a case arm, and a row in the matrix below naming the fixture it
-expects. **Then run `--self-test`, and make the new assertion fail once on purpose** before trusting
-it — a band nobody has seen reject anything is indistinguishable from one that cannot.
+**Adding a scenario is an entry in `Tools/RegressionCheck/scenarios.py`** *(fixture behaviour, 2026-09-03)* — roles
+with placements, knobs, a plan in frames, a stop condition, and **at least one mutation**, which
+`validate()` refuses to let you omit. Assertions go in `regression_eval.py`; the 38 ported rows keep
+their bash ones and a legacy row migrates only when it is being changed for another reason. **Then
+make the new assertion fail once on purpose** — a band nobody has seen reject anything is
+indistinguishable from one that cannot, which is what the mutation harness below automates.
+
+### Running the loop
+
+`Tools/RegressionCheck/regression-run.sh` drives everything; `regression-check.sh` is the log
+evaluator underneath it, run by hand against a slice.
+
+```bash
+./Tools/RegressionCheck/regression-run.sh --all
+./Tools/RegressionCheck/regression-run.sh --family knockdown --realtime
+./Tools/RegressionCheck/regression-run.sh --all --dry-run     # preflight only, no PIE
+```
+
+**Preflight is the half that makes a green mean something**: the editor answers and is not in PIE,
+`PlayNumberOfClients` is 1, `TD.DebugCombatTiming` is 1, open asset editors are named, `--self-test`
+and `--bands-check` pass, the working tree is printed, and a pid lock stops two runs interleaving two
+PIE sessions in one log.
+
+**The clock is fixed at 1/60** *(D1)*, which is what makes a run repeatable rather than merely fast:
+consecutive runs produce identical event skeletons, where the same fixtures free-running spread a
+span over 35 ms. `--realtime` is the same runner on the wall clock, kept as the canary.
+
+**Every scenario is bounded by markers** the runner emits — `REGRESSION BEGIN/ROLES/INJECT/TEARDOWN/END`
+— so `regression-check.sh <row> --slice <run>:<id>` reads exactly one scenario out of a shared log,
+and `slice_log` and `raw_session_count` share those bounds. Slices, tapes and `summary.json` land in
+`Saved/Regression/<run>/`; `history.tsv` accumulates one row per scenario per run.
+
+**Four things run on every slice, whatever the row asserts.** The **universal set** (eight
+invariants: pairings closing per pawn, the health ledger stepping by exactly `damage=` and clamping
+at zero, no montage played short of its length, monotonic timestamps, hygiene before every reset,
+and zero engine warnings outside `log-allowlist.txt` — each allowlist line carrying its reason). The
+**frame ledger**, printed rather than asserted. The **golden skeleton**, one line per event diffed
+against the accepted one, so a behaviour change is reported whether or not anything asserts it —
+`--accept-golden` after the change is explained, `--strict-golden` to fail on it. And the row's
+**mutations**, each of which must turn it red.
+
+**The rep gate and the reset.** A scripted row settles by the game's own clock, the hygiene readout
+records what the game left behind, and only then does `DebugResetForFixture` re-establish the
+baseline. The order is the point: the reset never masks a leak, because the readout has already
+happened, and the universal set fails a reset with no readout before it.
 
 ### Scenario matrix
 
@@ -596,43 +637,95 @@ looks ignored.
 `regression-check.sh`'s config block and are read there. Fixture numbers stay inline, being
 settings rather than assertions — as do measurements, which record what a run produced.
 
-| Scenario | Attacker `…HoldSeconds` | Defender `DebugAutoDefendMode` | Asserts |
-|---|---|---|---|
-| `s1-light` | 0.1 | `Off` | press→`RELEASE BEGIN` `BAND_RELEASE_LIGHT` ±`BAND_RELEASE_TOL`; elapsed `BAND_ELAPSED_LIGHT` + `BAND_ELAPSED_MIN`–`BAND_ELAPSED_MAX`; `BAND_ESCALATE_LIGHT` escalations, `BAND_COIL_LIGHT` coils; **zero** engine `No Inertialization node found` lines in the raw session *(all three s1 rows, 2026-09-02 — the slice drops engine lines, so this one is counted off the raw log)* |
-| `s1-heavy` | 0.22 | `Off` | `BAND_RELEASE_HEAVY` ±`BAND_RELEASE_TOL`; elapsed `BAND_ELAPSED_HEAVY` + the same window; exactly `BAND_ESCALATE_HEAVY` escalation, `BAND_COIL_HEAVY` coil; the inertialization line |
-| `s1-charged` | **0.85** | `Off` | `BAND_RELEASE_CHARGED` ±`BAND_RELEASE_TOL`; elapsed `BAND_ELAPSED_CHARGED` + the same window; exactly `BAND_ESCALATE_CHARGED` escalations, `BAND_COIL_CHARGED` coil; the inertialization line |
-| `s2-light` | 0.1 | `HoldBlock` | stamina damage `BAND_STAMDMG_LIGHT`; `BLOCK cost` per `BLOCK up`; `GUARD BREAK` count equals blocks at `remaining=0.0`; break stun `BAND_GUARDSTUN` ±`BAND_GUARDSTUN_TOL`; `BLOCKSTUN` span `BAND_BLOCKSTUN_LIGHT` ±`BAND_BLOCKSTUN_TOL`; guard-down `DAMAGED` `BAND_HEALTHDMG_LIGHT` with the health ledger stepping exactly |
-| `s2-heavy` | 0.22 | `HoldBlock` | as above with `BAND_STAMDMG_HEAVY`, `BLOCKSTUN` span `BAND_BLOCKSTUN_HEAVY`, `DAMAGED` `BAND_HEALTHDMG_HEAVY` |
-| `s2-charged` | **0.85** | `HoldBlock` | as above with `BAND_STAMDMG_CHARGED`, `DAMAGED` `BAND_HEALTHDMG_CHARGED`, and **`BLOCKSTUN` never fires at all** |
-| `s3` | 0.1 | `PeriodicDodge` | `DODGE`/`DODGE END` paired; **no `DODGE RECOVERY` at all**, the gap being retired, and n=0 dodges fails rather than passing vacuously; clean travel `BAND_DODGE_MIN`–`BAND_DODGE_MAX`; dodge from full leaves `BAND_DODGE_REMAINING_FROM_FULL`; **`fitLen` exactly `BAND_DODGE_FIT` on every dodge that resolved a section** — the dash portion, not the 0.833 section, with get-ups excluded by their `section=None`, and it sees `Bw` only; `EXHAUSTED`/`EXHAUSTION END` paired, entering at `BAND_EXHAUST_ENTER` and clearing at `BAND_EXHAUST_EXIT` |
-| `s4-string` | 0.1, **taps 3** | `Off` | `BAND_STRING_SWINGS` swing indices in equal counts; chain gap `BAND_CHAIN_GAP` ±`BAND_CHAIN_GAP_TOL` and chain latency `BAND_CHAIN_LATENCY_MIN_MS`–`BAND_CHAIN_LATENCY_MAX_MS`; `DAMAGED` `BAND_HEALTHDMG_LIGHT` with the ledger stepping; `HITSTUN` spans `BAND_HITSTUN_LIGHT` ±`BAND_HITSTUN_TOL`; **`KNOCKBACK` spacing never below the authored value it prints, and n=0 fails** |
-| `s4-guarantee` | 0.1, **taps 3** | `PeriodicDodge` | `REFUSED` lines attributed to `State.Hitstun`; **zero `DODGE` between `HITSTUN` and `HITSTUN END`** — the string's guarantee, observable; `HITSTUN` spans as above |
-| `s4-block` | 0.1, **taps 3** | `HoldBlock` | `BLOCKED` staminaDamage `BAND_STAMDMG_LIGHT`; `BLOCKSTUN` spans `BAND_BLOCKSTUN_LIGHT` ±`BAND_BLOCKSTUN_TOL`; **one blocked `KNOCKBACK` per `BLOCKED`**, the ender included; knockback never inward |
-| `s4-360` | 0.1, **taps 3**, `FacingMode` **Never**, **`bDebugSuppressLunge`** | `Off`, plus the player spawned at (200, 150) opposite the defender | **every string**, since 2026-08-24: attacks 1–2 damage **zero** distinct targets throughout; attack 3 damages **two** in string 1 and **exactly one** after; at least two normal-grade `KNOCKDOWN` lines. A single string **fails** — sampling past the first is the point |
-| `s5-parry` | 0.1, **taps 3** | `PeriodicParry` | `PARRY WINDOW` span `BAND_PARRY_WINDOW` ±`BAND_PARRY_SPAN_TOL`; at least one `PARRY SUCCESS` (**n=0 fails**); credited reward inside [`BAND_PARRY_GAINED_MIN`, `BAND_PARRY_GAINED_MAX`]; **zero `STRING` advance marked after a parried swing**; **every `PARRY GESTURE` inside its own window (n=0 fails)** ; **`PARRY GRACE` span `BAND_PARRY_GRACE` ±`BAND_PARRY_SPAN_TOL`**; every `by=window` success starts exactly one tail; **Grace never re-arms** (no tail from a `by=grace` catch, none overlapping) |
-| `s5-parry-reward` | 0.1, **taps 3**, interval **3.0** | `PeriodicParry`, **`DebugParryIntervalSeconds` 6.0**, **`DebugParryPreBlockSeconds` 3.935** | every `PARRY SUCCESS` following a *released* guard credits `gained` **`BAND_PARRY_GAINED_EXACT`**. **The period is locked to the attacker's and the phase is derived from human timing** — 6.0 is two attack cycles, which is what lets the pre-block be both correctly phased and long enough to drain. Measured **6 of 6 catches**, all crediting 25, bar 60.6–70.6 |
-| `s5-parry-whiff` | 0.1, **taps 3** | `PeriodicParry`, `DebugParryIntervalSeconds` **0.5**, **and the defender also auto-attacks** (`bDebugAutoAttack`, interval **0.7**, `bDebugSuppressLunge`) | `PARRY RECOVERY` span `BAND_PARRY_RECOVERY` ±`BAND_PARRY_SPAN_TOL`; `REFUSED` naming **the lockout** (`parrying` or `parry recovery`) at least once; **nothing activates inside a recovery span (n=0 fails)**; **nothing activates inside a parry window either (n=0 fails)** |
-| `s5-cancel` | 0.1, **`bDebugCancelAttackIntoBlock`** | `Off` | zero `RELEASE BEGIN`; zero `DAMAGED`; `BLOCK cost` at least once |
-| `s5-waiver` | 0.1, **`bDebugDodgeAfterHit`** | `Off` | attacker `DODGE` within `BAND_WAIVER_DODGE_MAX_MS` of its own `DAMAGED`; `MOVE UNLOCK` present |
-| `s6-knockdown` | 0.1, **taps 3** | `Off` | the ender's knockdown: every `KNOCKDOWN` reads `type=normal`; entry→rise **`BAND_KD_ENTRY_TO_RISE` ±`BAND_KD_SPAN_TOL`**; rise→stand **`BAND_KD_RISE` ±`BAND_KD_SPAN_TOL`**; **the fall landing inside its own lockout** — the *montage* span, `(played - from) / rate` off the `KNOCKDOWN MONTAGE` line against the `KNOCKDOWN` `lockout=`, because a fitted portion lets the montage outlast `want=`; authored values rather than measured, so it is frame-rate-proof; **zero `DAMAGED` between a knockdown and its rise** (floor invincibility, and it fails on n=0 knockdowns rather than passing vacuously); every rise `by=auto` |
-| `s6-hard` | 0.22 | `Off` | the same spans from the other grade — `type=hard`, entry→rise `BAND_KD_ENTRY_TO_RISE`, rise→stand `BAND_KD_RISE`. **The total is type-invariant by design**, which is why this cannot see the 1.5/0.5 split and `s6-stand` exists |
-| `s6-stand` | 0.1, **taps 3** | `Off`, plus **`bDebugPeriodicJump`** (interval **1.3**) | the lockout made observable: presses inside it are `REFUSED … knocked down (lockout)`, and the first press after it fires `RISE by=stand`. Chosen stands must land in **[jail, auto-rise)** — measured n=9 all within [1.000, 1.975] s |
-| `s6-getup` | **0.22** (hard singles) | `Off`, plus **`DebugGetUpMode` `AttackGetUp`** | the fixture's press inside the **hard** input window; rise `by=attack`; press→`RELEASE BEGIN` `BAND_RELEASE_GETUP` ±`BAND_RELEASE_TOL`; the authored `BAND_ELAPSED_GETUP` total; the riser's hit landing; no `STRING` after. **Run unattended** — a human's floor presses rise `by=attack` on their own pawn and poison the counts |
-| `s6-dodge` | 0.1, **taps 3**, **interval 6.0** | `Off`, plus **`DebugGetUpMode` `DodgeGetUp`** | **rise-to-stand equals `DodgeSeconds`, not the shared rise** — the i-frame assertion beside it stops at `DODGE END`, which is where the old gap opened; rise `by=dodge` inside the normal input window; **zero rises `by=kipup`**; `remaining=` **`BAND_GETUP_DODGE_COST`** on every get-up dodge; travel `BAND_DODGE_MIN`–`BAND_DODGE_MAX`; **zero `DAMAGED` on the riser between its rise and its `DODGE END`** — the i-frames, observable. **The 6.0 interval is load-bearing**: at the default 3.0 the attacker re-engages before regen tops the bar, and the cost assertion then reads a partly-regenerated bar instead of the authored cost |
-| `s6-kipup` | **0.22**, **taps 1**, **interval 6.0** | `Off`, plus **`DebugGetUpMode` `DodgeGetUp`** | **rise-to-stand equals `DodgeSeconds`**, same gap, same reason; the same input on hard: rise `by=kipup` inside the hard input window; **zero rises `by=dodge`**, the directional form never yielded; travel **0–`BAND_KIPUP_TRAVEL_MAX`** — slack for capsule settle, not a travel budget; cost `BAND_GETUP_DODGE_COST` |
-| `s6-block` | 0.1, **taps 3**, interval 6.0 | `Off`, plus **`DebugGetUpMode` `BlockGetUp`** | rise `by=block` inside the normal input window; **`BLOCK up` within `BAND_BLOCK_GUARD_GAP` of that rise** — the guard live from activation rather than from the top of the rise, which is the option's whole claim |
-| `s6-hard-stand` | **0.22**, **taps 1** | `Off`, plus **`DebugGetUpMode` `StandGetUp`** | hard removes the free stand: `REFUSED … no stand from a hard knockdown` at least once, **zero rises `by=stand`**, and the auto-rise still arriving on the full `BAND_KD_ENTRY_TO_RISE` clock — a removed option rather than a broken one. The refusal and the absent rise are asserted separately, so a silent no-op fails |
-| `s6-exhaust-regen` | 0.1, **taps 3** | `PeriodicParry`, `DebugParryPreBlockSeconds` **12.0**, `DebugParryIntervalSeconds` **13.0** — the pre-block drains to a break, and knockdowns land inside the exhaustion that follows | **the exhaustion exception**, asserted as time that fails to appear: every `EXHAUSTED` → `EXHAUSTION END` span containing a knockdown matches `pause + max÷exhausted-regen` (+ the break stun) within **`BAND_EXHAUST_SPAN_TOL`**, so the knockdown cost no recovery. **n=0 fails.** Needs no ledger trace — suppression would add the whole 2.5 s down-span, an order above the tolerance. Measured 6 spans, worst 7 ms |
-| `s6-airborne` | 0.1, **taps 3** | `Off`, plus **`bDebugPeriodicJump`** (interval **1.3**) | the airborne carry: at least one knockdown entering `airborne=1` (**n=0 fails**), and of the samples clearing **`BAND_AIRBORNE_MIN_HEIGHT`** above the floor, every one falling back to its own stand — *equal heights across a carry mean the body hung*. **The floor is the lowest grounded stand in the same run**, never the highest: the level has raised geometry and a stand occasionally happens on it. **Rare by nature** — measured 1 airborne in 20 knockdowns, so budget minutes |
-| `s7-death` | 0.1, **taps 3** | `Off`, `DebugAutoReviveSeconds` at its default **3.0** | death's own bookkeeping: `DEATH` fires (**n=0 fails**); every death lands at **exactly 0.0** health; every death has a `REVIVE`; `DEATH`→`REVIVE` is **`BAND_REVIVE_DELAY` ±`BAND_REVIVE_TOL`**, tracking the debug affordance rather than a design value; and **zero `DAMAGED` while dead**, plus the impulse read off `DEATH SETTLE` at ragdoll teardown and banded **`BAND_DEATH_SETTLE_LO`–`BAND_DEATH_SETTLE_HI`** against a measured 396-449 — the killing blow shares the death's timestamp and is excluded by a strict comparison, so only a *later* hit counts |
-| `s7-death-grade` | **0.22**, **taps 1** | `Off` | death supersedes knockdown on one contact: **zero deaths also produced a `KNOCKDOWN`**, with `KNOCKDOWN` count as the control that grading is live in the run. **The fixture is what makes it rigorous, not the assertion** — on heavies every swing is graded, so any death is necessarily a graded kill. On a light string the lethal blow is hit 7 while enders are hits 3 and 6, so it lands on a swing that would not have floored anyway and the check passes without exercising anything. Both assertions proven by injecting a `KNOCKDOWN` at a death's timestamp |
-| `s8-chain-early` | **scripted, not the dummy** — `Tools/RegressionCheck/ue_s8_driver.py` with `{"scen":"chain-early"}`; **silence the dummies before StartPIE** -- the driver cannot, the flag being read at BeginPlay | n/a | a press in the buffered slice (tap at 0.35) chains: at least one chain-out, **exactly one `STRING advance marked` per chain-out**, and one swing 0 per first-press. The advance count is the assertion that matters — a mark standing with no successor is the stale-window failure the link window had |
-| `s8-chain-late` | as above, `{"scen":"chain-late"}` — tap at 0.60, inside the open span | n/a | same four assertions; the press fires on arrival rather than waiting for the opening |
-| `s8-chain-closed` | as above, `{"scen":"chain-closed"}` — tap at 0.80, past the span's close | n/a | **zero chain-outs, zero advances marked, and every activation swing 0.** This is the row that would go red if the chain span lost its closing |
-| `s8-discard` | as above, `{"scen":"discard"}` — tap at 0.70, 250 ms before actionable | n/a | **nothing comes out**: activations equal buffer expiries, no chain-out. The acceptance window's other edge, and the row that would go red if a discarded press started firing again |
-| `s8-hold-tier` | as above, `{"scen":"hold-tier"}` — tap 0.00, hold 0.80–1.05 | n/a | the held press commits **heavy**, not light: lights must not outnumber heavies. Before the ladder counted accumulated hold, 9 of 12 such presses committed light against 227–345 ms holds |
-| `s8-stale` | as above, `{"scen":"stale"}` — hold 0.00–0.40 for a heavy, then tap at 0.50 | n/a | the held swing activates; **zero chain-outs** (a heavy cannot be chained out of); at least one `BUFFER expired`; and **activations equal expiries**, so no attack fires after the swing that swallowed the press. Before the buffer extension was dropped this produced a stray light 1 up to 1.55 s late |
-| `s6-exhausted` (`-kipup`, `-block`, `-attack`) | 0.1 taps 3; **0.22 taps 1** for `-kipup` | **`PeriodicParry`, `DebugParryPreBlockSeconds` 12.0, `DebugParryIntervalSeconds` 13.0** — `s5-parry-reward`'s pre-block trick used for its side effect, plus the matching `DebugGetUpMode` | of the presses landing **while `State.Exhausted` is up** (**n=0 fails**), the three defensive options produce **zero** rises and the get-up attack produces one every time. **The refusal is asserted as the absent rise, not as a `REFUSED` line** — see the note below |
+<!-- matrix:begin -->
+
+| Scenario | Was | Attacker | Defender | Player plan | s |
+|---|---|---|---|---|---|
+| `tier-charged` | `s1-charged` | hold 0.85 | silent | - | 30 |
+| `tier-heavy` | `s1-heavy` | hold 0.22 | silent | - | 30 |
+| `tier-light` | `s1-light` | hold 0.1 | silent | - | 30 |
+| `attack-cancel` | `s5-cancel` | hold 0.1, cancel_attack_into_block True | silent | - | 30 |
+| `attack-waiver` | `s5-waiver` | hold 0.1, dodge_after_hit True | silent | - | 30 |
+| `string-blocked` | `s4-block` | hold 0.1, string_taps 3 | auto_attack False, auto_defend_mode HOLD_BLOCK, get_up_mode WAIT, periodic_jump False | - | 60 |
+| `string-cadence` | `s4-string` | hold 0.1, string_taps 3 | silent | - | 60 |
+| `string-finisher-arc` | `s4-360` | facing_mode NEVER, hold 0.1, string_taps 3, suppress_lunge True | silent | - | 90 |
+| `string-guarantee` | `s4-guarantee` | hold 0.1, string_taps 3 | auto_attack False, auto_defend_mode PERIODIC_DODGE, get_up_mode WAIT, periodic_jump False | - | 60 |
+| `chain-closed` | `s8-chain-closed` | silent | silent | f0 tap attack; f51 tap attack | 30 |
+| `chain-early` | `s8-chain-early` | silent | silent | f0 tap attack; f21 tap attack | 30 |
+| `chain-late` | `s8-chain-late` | silent | silent | f0 tap attack; f36 tap attack | 30 |
+| `input-discard` | `s8-discard` | silent | silent | f0 tap attack; f45 tap attack | 30 |
+| `input-hold-tier` | `s8-hold-tier` | silent | silent | f0 tap attack; f51 hold attack 15 | 30 |
+| `input-stale` | `s8-stale` | silent | silent | f0 hold attack 24; f30 tap attack | 30 |
+| `block-charged` | `s2-charged` | hold 0.85 | auto_attack False, auto_defend_mode HOLD_BLOCK, get_up_mode WAIT, periodic_jump False | - | 150 |
+| `block-heavy` | `s2-heavy` | hold 0.22 | auto_attack False, auto_defend_mode HOLD_BLOCK, get_up_mode WAIT, periodic_jump False | - | 150 |
+| `block-light` | `s2-light` | hold 0.1 | auto_attack False, auto_defend_mode HOLD_BLOCK, get_up_mode WAIT, periodic_jump False | - | 150 |
+| `dodge-cycle` | `s3` | hold 0.1 | auto_attack False, auto_defend_mode PERIODIC_DODGE, get_up_mode WAIT, periodic_jump False | - | 120 |
+| `parry-catch` | `s5-parry` | hold 0.1, string_taps 3 | auto_attack False, auto_defend_mode PERIODIC_PARRY, get_up_mode WAIT, periodic_jump False | - | 180 |
+| `parry-reward` | `s5-parry-reward` | hold 0.1, interval 3.0, string_taps 3 | auto_attack False, auto_defend_mode PERIODIC_PARRY, get_up_mode WAIT, parry_interval 6.0, parry_pre_block 3.935, periodic_jump False | - | 60 |
+| `parry-whiff` | `s5-parry-whiff` | hold 0.1, string_taps 3 | auto_attack True, interval 0.7, auto_defend_mode PERIODIC_PARRY, get_up_mode WAIT, parry_interval 0.5, periodic_jump False, suppress_lunge True | - | 60 |
+| `knockdown-airborne` | `s6-airborne` | hold 0.1, string_taps 3 | auto_attack False, auto_defend_mode OFF, get_up_mode WAIT, jump_interval 1.3, periodic_jump True | - | 240 |
+| `knockdown-exhausted-attack` | `s6-exhausted-attack` | hold 0.1, string_taps 3 | auto_attack False, auto_defend_mode PERIODIC_PARRY, get_up_mode ATTACK_GET_UP, parry_interval 13.0, parry_pre_block 12.0, periodic_jump False | - | 120 |
+| `knockdown-exhausted-block` | `s6-exhausted-block` | hold 0.1, string_taps 3 | auto_attack False, auto_defend_mode PERIODIC_PARRY, get_up_mode BLOCK_GET_UP, parry_interval 13.0, parry_pre_block 12.0, periodic_jump False | - | 120 |
+| `knockdown-exhausted-dodge` | `s6-exhausted` | hold 0.1, string_taps 3 | auto_attack False, auto_defend_mode PERIODIC_PARRY, get_up_mode DODGE_GET_UP, parry_interval 13.0, parry_pre_block 12.0, periodic_jump False | - | 120 |
+| `knockdown-exhausted-kipup` | `s6-exhausted-kipup` | hold 0.22 | auto_attack False, auto_defend_mode PERIODIC_PARRY, get_up_mode DODGE_GET_UP, parry_interval 13.0, parry_pre_block 12.0, periodic_jump False | - | 120 |
+| `knockdown-getup-attack` | `s6-getup` | hold 0.22 | auto_attack False, auto_defend_mode OFF, get_up_mode ATTACK_GET_UP, periodic_jump False | - | 60 |
+| `knockdown-getup-block` | `s6-block` | hold 0.1, interval 6.0, string_taps 3 | auto_attack False, auto_defend_mode OFF, get_up_mode BLOCK_GET_UP, periodic_jump False | - | 60 |
+| `knockdown-getup-dodge` | `s6-dodge` | hold 0.1, interval 6.0, string_taps 3 | auto_attack False, auto_defend_mode OFF, get_up_mode DODGE_GET_UP, periodic_jump False | - | 60 |
+| `knockdown-getup-kipup` | `s6-kipup` | hold 0.22, interval 6.0 | auto_attack False, auto_defend_mode OFF, get_up_mode DODGE_GET_UP, periodic_jump False | - | 60 |
+| `knockdown-hard` | `s6-hard` | hold 0.22 | silent | - | 60 |
+| `knockdown-hard-no-stand` | `s6-hard-stand` | hold 0.22 | auto_attack False, auto_defend_mode OFF, get_up_mode STAND_GET_UP, periodic_jump False | - | 60 |
+| `knockdown-normal` | `s6-knockdown` | hold 0.1, string_taps 3 | silent | - | 60 |
+| `knockdown-regen-exception` | `s6-exhaust-regen` | hold 0.1, string_taps 3 | auto_attack False, auto_defend_mode PERIODIC_PARRY, get_up_mode WAIT, parry_interval 13.0, parry_pre_block 12.0, periodic_jump False | - | 150 |
+| `knockdown-stand` | `s6-stand` | hold 0.1, string_taps 3 | auto_attack False, auto_defend_mode OFF, get_up_mode WAIT, jump_interval 1.3, periodic_jump True | - | 90 |
+| `death-over-knockdown` | `s7-death-grade` | hold 0.22 | silent | - | 60 |
+| `death-revive` | `s7-death` | hold 0.1, string_taps 3 | silent, auto_revive 3.0 | - | 90 |
+
+*Generated from `Tools/RegressionCheck/scenarios.py` by `Tools/RegressionCheck/gen-matrix.py`. Edit the fixtures there, never this table.*
+<!-- matrix:end -->
+
+**The table above is generated** from `Tools/RegressionCheck/scenarios.py` by
+`Tools/RegressionCheck/gen-matrix.py`, which `docs-check` re-runs to catch a fixture edit
+that forgot the doc. It is the fixture authority; what follows is what each row *asserts*,
+which is prose and stays hand-written.
+
+
+| Scenario | Asserts |
+|---|---|
+| `s1-light` | press→`RELEASE BEGIN` `BAND_RELEASE_LIGHT` ±`BAND_RELEASE_TOL`; elapsed `BAND_ELAPSED_LIGHT` + `BAND_ELAPSED_MIN`–`BAND_ELAPSED_MAX`; `BAND_ESCALATE_LIGHT` escalations, `BAND_COIL_LIGHT` coils; **zero** engine `No Inertialization node found` lines in the raw session *(all three s1 rows, 2026-09-02 — the slice drops engine lines, so this one is counted off the raw log)* |
+| `s1-heavy` | `BAND_RELEASE_HEAVY` ±`BAND_RELEASE_TOL`; elapsed `BAND_ELAPSED_HEAVY` + the same window; exactly `BAND_ESCALATE_HEAVY` escalation, `BAND_COIL_HEAVY` coil; the inertialization line |
+| `s1-charged` | `BAND_RELEASE_CHARGED` ±`BAND_RELEASE_TOL`; elapsed `BAND_ELAPSED_CHARGED` + the same window; exactly `BAND_ESCALATE_CHARGED` escalations, `BAND_COIL_CHARGED` coil; the inertialization line |
+| `s2-light` | stamina damage `BAND_STAMDMG_LIGHT`; `BLOCK cost` per `BLOCK up`; `GUARD BREAK` count equals blocks at `remaining=0.0`; break stun `BAND_GUARDSTUN` ±`BAND_GUARDSTUN_TOL`; `BLOCKSTUN` span `BAND_BLOCKSTUN_LIGHT` ±`BAND_BLOCKSTUN_TOL`; guard-down `DAMAGED` `BAND_HEALTHDMG_LIGHT` with the health ledger stepping exactly |
+| `s2-heavy` | as above with `BAND_STAMDMG_HEAVY`, `BLOCKSTUN` span `BAND_BLOCKSTUN_HEAVY`, `DAMAGED` `BAND_HEALTHDMG_HEAVY` |
+| `s2-charged` | as above with `BAND_STAMDMG_CHARGED`, `DAMAGED` `BAND_HEALTHDMG_CHARGED`, and **`BLOCKSTUN` never fires at all** |
+| `s3` | `DODGE`/`DODGE END` paired; **no `DODGE RECOVERY` at all**, the gap being retired, and n=0 dodges fails rather than passing vacuously; clean travel `BAND_DODGE_MIN`–`BAND_DODGE_MAX`; dodge from full leaves `BAND_DODGE_REMAINING_FROM_FULL`; **`fitLen` exactly `BAND_DODGE_FIT` on every dodge that resolved a section** — the dash portion, not the 0.833 section, with get-ups excluded by their `section=None`, and it sees `Bw` only; `EXHAUSTED`/`EXHAUSTION END` paired, entering at `BAND_EXHAUST_ENTER` and clearing at `BAND_EXHAUST_EXIT` |
+| `s4-string` | `BAND_STRING_SWINGS` swing indices in equal counts; chain gap `BAND_CHAIN_GAP` ±`BAND_CHAIN_GAP_TOL` and chain latency `BAND_CHAIN_LATENCY_MIN_MS`–`BAND_CHAIN_LATENCY_MAX_MS`; `DAMAGED` `BAND_HEALTHDMG_LIGHT` with the ledger stepping; `HITSTUN` spans `BAND_HITSTUN_LIGHT` ±`BAND_HITSTUN_TOL`; **`KNOCKBACK` spacing never below the authored value it prints, and n=0 fails** |
+| `s4-guarantee` | `REFUSED` lines attributed to `State.Hitstun`; **zero `DODGE` between `HITSTUN` and `HITSTUN END`** — the string's guarantee, observable; `HITSTUN` spans as above |
+| `s4-block` | `BLOCKED` staminaDamage `BAND_STAMDMG_LIGHT`; `BLOCKSTUN` spans `BAND_BLOCKSTUN_LIGHT` ±`BAND_BLOCKSTUN_TOL`; **one blocked `KNOCKBACK` per `BLOCKED`**, the ender included; knockback never inward |
+| `s4-360` | **every string**, since 2026-08-24: attacks 1–2 damage **zero** distinct targets throughout; attack 3 damages **two** in string 1 and **exactly one** after; at least two normal-grade `KNOCKDOWN` lines. A single string **fails** — sampling past the first is the point |
+| `s5-parry` | `PARRY WINDOW` span `BAND_PARRY_WINDOW` ±`BAND_PARRY_SPAN_TOL`; at least one `PARRY SUCCESS` (**n=0 fails**); credited reward inside [`BAND_PARRY_GAINED_MIN`, `BAND_PARRY_GAINED_MAX`]; **zero `STRING` advance marked after a parried swing**; **every `PARRY GESTURE` inside its own window (n=0 fails)** ; **`PARRY GRACE` span `BAND_PARRY_GRACE` ±`BAND_PARRY_SPAN_TOL`**; every `by=window` success starts exactly one tail; **Grace never re-arms** (no tail from a `by=grace` catch, none overlapping) |
+| `s5-parry-reward` | every `PARRY SUCCESS` following a *released* guard credits `gained` **`BAND_PARRY_GAINED_EXACT`**. **The period is locked to the attacker's and the phase is derived from human timing** — 6.0 is two attack cycles, which is what lets the pre-block be both correctly phased and long enough to drain. Measured **6 of 6 catches**, all crediting 25, bar 60.6–70.6 |
+| `s5-parry-whiff` | `PARRY RECOVERY` span `BAND_PARRY_RECOVERY` ±`BAND_PARRY_SPAN_TOL`; `REFUSED` naming **the lockout** (`parrying` or `parry recovery`) at least once; **nothing activates inside a recovery span (n=0 fails)**; **nothing activates inside a parry window either (n=0 fails)** |
+| `s5-cancel` | zero `RELEASE BEGIN`; zero `DAMAGED`; `BLOCK cost` at least once |
+| `s5-waiver` | attacker `DODGE` within `BAND_WAIVER_DODGE_MAX_MS` of its own `DAMAGED`; `MOVE UNLOCK` present |
+| `s6-knockdown` | the ender's knockdown: every `KNOCKDOWN` reads `type=normal`; entry→rise **`BAND_KD_ENTRY_TO_RISE` ±`BAND_KD_SPAN_TOL`**; rise→stand **`BAND_KD_RISE` ±`BAND_KD_SPAN_TOL`**; **the fall landing inside its own lockout** — the *montage* span, `(played - from) / rate` off the `KNOCKDOWN MONTAGE` line against the `KNOCKDOWN` `lockout=`, because a fitted portion lets the montage outlast `want=`; authored values rather than measured, so it is frame-rate-proof; **zero `DAMAGED` between a knockdown and its rise** (floor invincibility, and it fails on n=0 knockdowns rather than passing vacuously); every rise `by=auto` |
+| `s6-hard` | the same spans from the other grade — `type=hard`, entry→rise `BAND_KD_ENTRY_TO_RISE`, rise→stand `BAND_KD_RISE`. **The total is type-invariant by design**, which is why this cannot see the 1.5/0.5 split and `s6-stand` exists |
+| `s6-stand` | the lockout made observable: presses inside it are `REFUSED … knocked down (lockout)`, and the first press after it fires `RISE by=stand`. Chosen stands must land in **[jail, auto-rise)** — measured n=9 all within [1.000, 1.975] s |
+| `s6-getup` | the fixture's press inside the **hard** input window; rise `by=attack`; press→`RELEASE BEGIN` `BAND_RELEASE_GETUP` ±`BAND_RELEASE_TOL`; the authored `BAND_ELAPSED_GETUP` total; the riser's hit landing; no `STRING` after. **Run unattended** — a human's floor presses rise `by=attack` on their own pawn and poison the counts |
+| `s6-dodge` | **rise-to-stand equals `DodgeSeconds`, not the shared rise** — the i-frame assertion beside it stops at `DODGE END`, which is where the old gap opened; rise `by=dodge` inside the normal input window; **zero rises `by=kipup`**; `remaining=` **`BAND_GETUP_DODGE_COST`** on every get-up dodge; travel `BAND_DODGE_MIN`–`BAND_DODGE_MAX`; **zero `DAMAGED` on the riser between its rise and its `DODGE END`** — the i-frames, observable. **The 6.0 interval is load-bearing**: at the default 3.0 the attacker re-engages before regen tops the bar, and the cost assertion then reads a partly-regenerated bar instead of the authored cost |
+| `s6-kipup` | **rise-to-stand equals `DodgeSeconds`**, same gap, same reason; the same input on hard: rise `by=kipup` inside the hard input window; **zero rises `by=dodge`**, the directional form never yielded; travel **0–`BAND_KIPUP_TRAVEL_MAX`** — slack for capsule settle, not a travel budget; cost `BAND_GETUP_DODGE_COST` |
+| `s6-block` | rise `by=block` inside the normal input window; **`BLOCK up` within `BAND_BLOCK_GUARD_GAP` of that rise** — the guard live from activation rather than from the top of the rise, which is the option's whole claim |
+| `s6-hard-stand` | hard removes the free stand: `REFUSED … no stand from a hard knockdown` at least once, **zero rises `by=stand`**, and the auto-rise still arriving on the full `BAND_KD_ENTRY_TO_RISE` clock — a removed option rather than a broken one. The refusal and the absent rise are asserted separately, so a silent no-op fails |
+| `s6-exhaust-regen` | **the exhaustion exception**, asserted as time that fails to appear: every `EXHAUSTED` → `EXHAUSTION END` span containing a knockdown matches `pause + max÷exhausted-regen` (+ the break stun) within **`BAND_EXHAUST_SPAN_TOL`**, so the knockdown cost no recovery. **n=0 fails.** Needs no ledger trace — suppression would add the whole 2.5 s down-span, an order above the tolerance. Measured 6 spans, worst 7 ms |
+| `s6-airborne` | the airborne carry: at least one knockdown entering `airborne=1` (**n=0 fails**), and of the samples clearing **`BAND_AIRBORNE_MIN_HEIGHT`** above the floor, every one falling back to its own stand — *equal heights across a carry mean the body hung*. **The floor is the lowest grounded stand in the same run**, never the highest: the level has raised geometry and a stand occasionally happens on it. **Rare by nature** — measured 1 airborne in 20 knockdowns, so budget minutes |
+| `s7-death` | death's own bookkeeping: `DEATH` fires (**n=0 fails**); every death lands at **exactly 0.0** health; every death has a `REVIVE`; `DEATH`→`REVIVE` is **`BAND_REVIVE_DELAY` ±`BAND_REVIVE_TOL`**, tracking the debug affordance rather than a design value; and **zero `DAMAGED` while dead**, plus the impulse read off `DEATH SETTLE` at ragdoll teardown and banded **`BAND_DEATH_SETTLE_LO`–`BAND_DEATH_SETTLE_HI`** against a measured 396-449 — the killing blow shares the death's timestamp and is excluded by a strict comparison, so only a *later* hit counts |
+| `s7-death-grade` | death supersedes knockdown on one contact: **zero deaths also produced a `KNOCKDOWN`**, with `KNOCKDOWN` count as the control that grading is live in the run. **The fixture is what makes it rigorous, not the assertion** — on heavies every swing is graded, so any death is necessarily a graded kill. On a light string the lethal blow is hit 7 while enders are hits 3 and 6, so it lands on a swing that would not have floored anyway and the check passes without exercising anything. Both assertions proven by injecting a `KNOCKDOWN` at a death's timestamp |
+| `s8-chain-early` | a press in the buffered slice (tap at 0.35) chains: at least one chain-out, **exactly one `STRING advance marked` per chain-out**, and one swing 0 per first-press. The advance count is the assertion that matters — a mark standing with no successor is the stale-window failure the link window had |
+| `s8-chain-late` | same four assertions; the press fires on arrival rather than waiting for the opening |
+| `s8-chain-closed` | **zero chain-outs, zero advances marked, and every activation swing 0.** This is the row that would go red if the chain span lost its closing |
+| `s8-discard` | **nothing comes out**: activations equal buffer expiries, no chain-out. The acceptance window's other edge, and the row that would go red if a discarded press started firing again |
+| `s8-hold-tier` | the held press commits **heavy**, not light: lights must not outnumber heavies. Before the ladder counted accumulated hold, 9 of 12 such presses committed light against 227–345 ms holds |
+| `s8-stale` | the held swing activates; **zero chain-outs** (a heavy cannot be chained out of); at least one `BUFFER expired`; and **activations equal expiries**, so no attack fires after the swing that swallowed the press. Before the buffer extension was dropped this produced a stray light 1 up to 1.55 s late |
+| `s6-exhausted` (`-kipup`, `-block`, `-attack`) | of the presses landing **while `State.Exhausted` is up** (**n=0 fails**), the three defensive options produce **zero** rises and the get-up attack produces one every time. **The refusal is asserted as the absent rise, not as a `REFUSED` line** — see the note below |
 
 **`s5-parry-whiff` needs its own interval, and finding out why cost a run** *(2026-08-18)*. At the
 default 1.7 the recovery is **never exercised**: a whiff closes 0.3 s after the press and its

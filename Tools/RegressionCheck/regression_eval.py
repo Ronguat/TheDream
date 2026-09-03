@@ -162,9 +162,11 @@ def universal(trace, markers, raw, r):
             who = text.split()[1]
             if "health" in f and "damage" in f:
                 prev = last.get(who)
-                if prev is not None and abs((prev - f["damage"]) - f["health"]) > 0.51:
-                    breaks.append("%s at %.3f: %.1f-%.1f != %.1f"
-                                  % (who, t, prev, f["damage"], f["health"]))
+                # The attribute clamps at zero, so a blow bigger than the bar left is not a break.
+                want = max(0.0, prev - f["damage"]) if prev is not None else None
+                if want is not None and abs(want - f["health"]) > 0.51:
+                    breaks.append("%s at %.3f: %.1f-%.1f gives %.1f, saw %.1f"
+                                  % (who, t, prev, f["damage"], want, f["health"]))
                 if prev is not None:
                     steps += 1
                 last[who] = f["health"]
