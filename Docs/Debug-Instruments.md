@@ -229,6 +229,8 @@ And `COMMIT` and the chain-out lines carry **no pawn name**: attribute a commit 
 also **one line per retry tick, not per press** — 69 lines were three presses, and the burst's length
 is now the acceptance window.
 
+**`KNOCKDOWN <pawn> rose on held <tag>` joined 2026-09-02**, printed when the floor's input window admits a get-up whose button was already down. It sits beside the `KNOCKDOWN RISE ... by=` line, which names the option; a rise with no `rose on held` line came from a press, not a hold.
+
 **`STRING`'s variants changed 2026-09-02**: `link window open ... until <t>` is gone with the window
 it reported, replaced by `advance marked on <pawn> (after swing N)`, which carries **no deadline**
 because there is none — the mark is consumed by the activation in the same tick. `chain out of

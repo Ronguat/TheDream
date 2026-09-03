@@ -216,6 +216,14 @@ Timings land within about a frame, biased late — and **the bias is the tick th
     | Get-up attack | attack | free, committed, naked | ✓ | ✓ |
 
   - **Exhaustion refuses block, dodge and kip-up** as the ordinary defensive actions they are, leaving the get-up attack, the neutral stand and the wait. **Being down is the one lockout that does not deny an exhausted player their regen** — the exception that prices the vortex out, so a knockdown nearly cures the exhaustion it lands on. *(Both halves verified — the refusals by `s6-exhausted*`, the regen by `s6-exhaust-regen`, which measures the knockdown as time that fails to appear from the exhaustion span.)*
+  - **A get-up option whose input is already held fires when the input window opens** *(2026-09-02)*,
+    not only one pressed inside it — the down state is a lull, and a press made during the lockout
+    would otherwise expire against the ordinary acceptance window. **Knockdown-specific**: the
+    general form of "re-activate while held" turns a held action button into auto-repeat. When
+    several are held, `KnockdownGetUpPriority` decides — **guard, dodge, get-up attack, stand** —
+    ordered by what an unwanted selection costs across the stamina bar *and* exposure, which is why
+    the attack loses to both defensive options despite costing nothing on the bar, and why the
+    neutral stand is last for being the default. Releasing before the window opens abandons it.
   - **The get-up attack** is one fixed swing: no hold conversion, no chain, no string membership. **Committed from activation** — the exit was chosen from the floor, and a cancellable startup would make it a free probe — with the standard waiver dropping that commitment on a clean hit. 0.30 windup / 0.35 release / 0.60 recovery, knockback radial like the knockdown's. It is the one offensive action exhaustion leaves you, and **nothing about it may guarantee a follow-up**.
   - **Forced facing turns every cleanly hit victim to face its attacker**, rate-limited by `ForcedFacingTurnRateDegrees`, and it applies to **all** hitstun rather than only to knockdowns.
 

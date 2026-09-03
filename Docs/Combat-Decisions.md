@@ -1157,7 +1157,9 @@ lockout** exactly as it governs attack recovery — one expiry site, changed onc
 half came free and is therefore unexercised. No row asserts that a press early in a stun is
 discarded and one inside the window fires. The designer's read is that hitstun and blockstun are
 short enough for this to be healthy and that **knockdown was the case worth worrying about**; that
-one is answered by the get-up change, which is decided and unbuilt.
+one is answered by the get-up change, which is built and smoke-tested but has **no scenario either** —
+one hard knockdown rising twice on a held guard is not coverage of four options, a priority order,
+or the exhaustion interaction that resolves the sharpest case without consulting priority at all.
 
 **What is stale.** `s8-chain-late`, `s8-stale` and `s8-discard` last ran before the release-edge fix
 and before the tier assertions existed. `s8-chain-early` and `s8-chain-closed` were re-run after and
@@ -1664,6 +1666,7 @@ long.
 | `KnockdownFallPathOffsetCurve` | 08-28 |
 | `KnockdownFallSeconds` | 08-20, 08-25 |
 | `KnockdownFallTimeMappingCurve` | 08-25, 08-28 |
+| `KnockdownGetUpPriority` | 09-02 |
 | `KnockdownLockoutSecondsNormal` | 08-25 |
 | `KnockdownRiseSeconds` | 08-20 |
 | `KnockdownRollSeconds` | 08-25, 08-28 |
@@ -1757,6 +1760,7 @@ long.
 | `TDPlayerState` | 08-15 |
 | `TargetImmunityTags` | 08-13 |
 | `TheDreamEditor` (module) | 08-24 |
+| `TickKnockdownGetUpFromHeldInput` | 09-02 |
 | `TierAnimations` | 09-01, 09-02 |
 | `TraceRadius` | 08-11, 08-12 |
 | `TurnRateDegrees` | 08-12, 08-13, 08-14, 08-15, 08-18 |
@@ -1897,7 +1901,7 @@ none asserted the **tier**, so a tap committing charged passed all six. `no tap 
 and `no tap escalated to charged` now sit on the chain rows, proven able to fail against the build
 that had the defect.
 
-### The get-up options: decided, not built
+### The get-up options: held inputs reach the floor's window
 
 Held inputs reaching a get-up is **knockdown-specific and stays that way**. `bResumeWhileInputHeld`
 is documented for held *states* and the general form *"turns a held attack button into auto-repeat"*
@@ -1922,6 +1926,15 @@ recorded so a later reader does not notice the zero and conclude the order is wr
 already resolves the case that matters most without consulting priority at all — the three defensive
 options produce no rise while `State.Exhausted` is up and the get-up attack produces one every time.
 Parry is not a get-up option and holding it does nothing, which is silent but deliberate.
+
+**Built and smoke-tested the same day.** `TickKnockdownGetUpFromHeldInput` walks
+`KnockdownGetUpPriority` while the input window is open and rises on the first held option that
+activates; `TickResumeHeldAbilities` is suppressed while down so there is one road rather than two
+racing in a frame. **The one-shot needs no guard**: the rise clears the window, so nothing can
+follow. Measured on a hard knockdown — lockout 1.500, window 0.500 — a held guard rose **1.504 s
+after the knockdown, twice, at the instant the lockout ended**, against a control knockdown with
+nothing held that rose `by=auto` at the window's far end. **Not a scenario**: the loop is being
+audited next and this deliberately added nothing to it; the trap above names it untested.
 
 ### Verified, and what is deliberately not
 

@@ -721,6 +721,18 @@ protected:
 	float KnockdownRiseSeconds = 0.5f;
 
 	/**
+	 *  Which get-up option wins when several inputs are held as the window opens, first entry first.
+	 *  Ordered by what an unwanted selection costs across the stamina bar and the exposure ledger
+	 *  both, so the get-up attack loses to either defensive option despite costing nothing on the
+	 *  bar, and the neutral stand is last for being the default.
+	 *
+	 *  An ordering cannot live on any one ability the way bAllowedFromKnockdown does -- it is a
+	 *  comparison between them -- so it is authored here, once.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat|Knockdown")
+	TArray<FGameplayTag> KnockdownGetUpPriority;
+
+	/**
 	 *  How far a knocked-down body is carried, along the attacker->victim bearing.
 	 *
 	 *  Radial, not along the attacker's facing, and the two axes are never unified: the string's
@@ -1470,6 +1482,17 @@ private:
 
 	/** Retries the buffered press, or drops it once its window has passed. */
 	void TickInputBuffer();
+
+	/**
+	 *  Rises on a get-up option whose input is *held* when the knockdown's input window opens, in
+	 *  KnockdownGetUpPriority order. Knockdown-specific on purpose: the general form of "re-activate
+	 *  while held" is bResumeWhileInputHeld, which is for held states and turns a held action button
+	 *  into auto-repeat.
+	 */
+	void TickKnockdownGetUpFromHeldInput();
+
+	/** Whether any ability answering this input has its button down now and is not already running. */
+	bool IsInputHeldForAbility(const FGameplayTag& InputTag) const;
 
 public:
 

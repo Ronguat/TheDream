@@ -40,6 +40,16 @@ ATDCombatCharacter::ATDCombatCharacter()
 
 	OwnedAttributeSet = CreateDefaultSubobject<UTDAttributeSet>(TEXT("AttributeSet"));
 
+	// Guard, dodge, get-up attack, neutral stand. Requested rather than referenced from a native
+	// tag table: these are the abilities' authored InputTags, and resolving them by name keeps this
+	// order editable beside them rather than compiled against a second list.
+	KnockdownGetUpPriority = {
+		FGameplayTag::RequestGameplayTag(TEXT("InputTag.Block"), false),
+		FGameplayTag::RequestGameplayTag(TEXT("InputTag.Dodge"), false),
+		FGameplayTag::RequestGameplayTag(TEXT("InputTag.Attack"), false),
+		FGameplayTag::RequestGameplayTag(TEXT("InputTag.Jump"), false),
+	};
+
 	// The pack's own Sword / Shield sockets, on hand_r and hand_l, carrying the grip rotation and a
 	// non-uniform scale that corrects meshes authored several times too large. Attach here and both
 	// props are right at identity.
@@ -214,10 +224,21 @@ void ATDCombatCharacter::Tick(float DeltaSeconds)
 		TickBlockCommitment(World->GetTimeSeconds());
 	}
 
+	// **The floor takes the held input first, and the resume is suppressed while it does.** Both
+	// would answer a held guard during the input window, from two different mechanisms in the same
+	// frame -- and which won would be decided by whichever ticked first, an ordering nobody
+	// authored. One road down, so the priority below is the only thing that decides.
+	if (bKnockedDown)
+	{
+		TickKnockdownGetUpFromHeldInput();
+	}
 	// Deliberately after the airborne cancel above, so a resume requested by landing is evaluated
 	// against a frame in which the guard has already been taken down rather than one where the two
 	// are fighting.
-	TickResumeHeldAbilities();
+	else
+	{
+		TickResumeHeldAbilities();
+	}
 
 	// Not authority-gated: a buffered press is local input waiting to be spent, and it is
 	// spent through the same path a live press takes.
@@ -419,6 +440,67 @@ void ATDCombatCharacter::HandleAbilityEndedForResume(const FAbilityEndedData& En
 	//
 	// Deferring to the next tick makes the re-entrancy unrepresentable rather than guarded against.
 	bResumePending = true;
+}
+
+void ATDCombatCharacter::TickKnockdownGetUpFromHeldInput()
+{
+	// The lockout answers nothing: that span is the floor's cost, and admitting a held input inside
+	// it would price the whole down state at one button.
+	if (!AbilitySystem || !IsInKnockdownInputWindow())
+	{
+		return;
+	}
+
+	// **Priority, not preference.** Ordered by what an unwanted selection costs across both ledgers
+	// -- the bar and the exposure. A guarded rise is 15 and releasable at once; a dodge is 50 and
+	// commits a trajectory, though its i-frames leave you safe; the get-up attack is free on the bar
+	// and the worst of the three, because it is committed from activation and guarantees no
+	// follow-up. The neutral stand is last for a different reason: it is the default, and a default
+	// that outranked a deliberate choice would rob you of the choice.
+	//
+	// **Read the order, not the stamina.** The attack costs nothing on the bar and still loses to
+	// both defensive options.
+	for (const FGameplayTag& InputTag : KnockdownGetUpPriority)
+	{
+		if (!InputTag.IsValid() || !IsInputHeldForAbility(InputTag))
+		{
+			continue;
+		}
+
+		// First held option that will actually activate wins, and one activation ends the search:
+		// the rise clears the input window, so nothing else can follow it this frame or any other.
+		if (TryActivateAbilitiesForInput(InputTag, /*bForwardToActive=*/false))
+		{
+			TD_TIMING_LOG(TEXT("[%.3f] KNOCKDOWN  %s rose on held %s"),
+				GetWorld() ? GetWorld()->GetTimeSeconds() : -1.0f, *GetName(), *InputTag.ToString());
+			return;
+		}
+	}
+}
+
+bool ATDCombatCharacter::IsInputHeldForAbility(const FGameplayTag& InputTag) const
+{
+	if (!AbilitySystem)
+	{
+		return false;
+	}
+
+	TArray<FGameplayAbilitySpecHandle> Handles;
+	GatherAbilitiesForInput(InputTag, Handles);
+
+	for (const FGameplayAbilitySpecHandle& Handle : Handles)
+	{
+		// InputPressed rather than a stored press: it is marked even when activation is refused and
+		// cleared on the real release edge, which is exactly "the button is down now". A buffered
+		// press would answer "it was down recently", which is the buffer's question, not this one.
+		const FGameplayAbilitySpec* Spec = AbilitySystem->FindAbilitySpecFromHandle(Handle);
+		if (Spec && Spec->InputPressed && !Spec->IsActive())
+		{
+			return true;
+		}
+	}
+
+	return false;
 }
 
 void ATDCombatCharacter::TickResumeHeldAbilities()
