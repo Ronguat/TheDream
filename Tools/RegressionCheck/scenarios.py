@@ -196,8 +196,23 @@ SCENARIOS = {
                                 mutations=[("drop", "DAMAGED", 1)]),
 
     # --- chain and input: the s8 family, thrown by the player ----------------
-    # Frames are actionable-relative. A whiffing light's measured total is 1.000 s, so a press
-    # meant to land N ms before actionable sits at frame 60 - N/16.67.
+    # Carried from ue_s8_driver.py, retired 2026-09-03 once all six ran green through the runner.
+    # Light 1's spans, which every frame below is derived from: windup 0.200, release to 0.350,
+    # recovery to 0.950 authored, chain-out open [0.483, 0.683], InputBufferSeconds 0.200.
+    #
+    # Frames are actionable-relative, and **actionable is measured, not authored**: a whiffing
+    # light's total reads 1.000 s, so a press meant to land N ms before it sits at frame
+    # 60 - N/16.67. The driver's own frames were derived against the authored 0.950 and are 3
+    # frames early, which is why chain-closed and input-discard moved on the port.
+    #
+    #   chain-early    tap, tap at 21 f (0.35 s)  -- in the buffered slice, fires when chain opens
+    #   chain-late     tap, tap at 36 f (0.60 s)  -- inside the open span, fires on the press
+    #   chain-closed   tap, tap at 51 f           -- past the close, 150 ms before actionable:
+    #                                                no chain, a fresh swing 0 instead
+    #   input-stale    hold 24 f, tap at 30 f     -- a tap during a committed heavy must expire
+    #   input-discard  tap, tap at 45 f           -- 250 ms before actionable, outside acceptance
+    #   input-hold-tier tap, hold 15 f from 51 f  -- accepted 150 ms before actionable and held
+    #                                                across it, so the ladder must count all 250 ms
     "chain-early":  _scripted("chain", "s8-chain-early",
                               [(0, "player", "tap", "attack"), (21, "player", "tap", "attack")],
                               [("drop", "STRING     chain out", 1)]),

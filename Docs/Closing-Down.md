@@ -14,7 +14,7 @@ and never yours to infer — the user took that responsibility explicitly on 202
 ending on a finished item is not a session the assistant may end.**
 
 It exists because the 2026-08-12 audit found eight wrong claims across the docs, and **every one of
-them was cheap to catch at a boundary and expensive to trip over later**. Steps 3 and 4 are the
+them was cheap to catch at a boundary and expensive to trip over later**. Steps 4 and 5 are the
 audit in miniature; the rest is making sure nothing is left on the floor.
 
 1. **Make the editor state safe.** `AssetTools.save_assets` **naming what you touched**, then
@@ -37,16 +37,30 @@ audit in miniature; the rest is making sure nothing is left on the floor.
    `git status` rather than against the act of closing. Anything mid-session that *does* need the
    editor closed — a header change, a full rebuild — still announces first; that rule lives in
    `Docs/Working-In-Unreal.md`, where every other reason to close it lives.
-2. **Leave nothing verified uncommitted, and *propose* the push.** Commit anything finished; the
+2. **Run the loop, and read what it says rather than its exit code.**
+   `./Tools/RegressionCheck/regression-run.sh --all`, then the real-time canary
+   `--family tier --realtime` and `string-cadence --realtime`. It takes about 26 minutes at the
+   fixed clock, so background it and do step 4 while it runs.
+
+   **A red row is a correctness item and blocks the push**, whether or not this session touched
+   what it covers. **A CHANGED row is not a failure**: the golden skeleton reports what moved
+   whether or not anything asserts it, so explain it in the handoff and accept its skeleton
+   (`--accept-golden`) in the same commit as the change that caused it — never in a commit of its
+   own, which is how an unexplained behaviour change gets a signature.
+
+   **An UNPROVEN mutation is worse than a red**: it says the row could not have failed, so its
+   green means nothing. Fix the mutation before trusting anything that row reports.
+
+3. **Leave nothing verified uncommitted, and *propose* the push.** Commit anything finished; the
    push itself waits on the completion gate in Working Rules, so this step ends by naming what is
    ready to go rather than by sending it. For anything deliberately left out, say so and why —
    pending *tuning* does not block a push, pending *correctness* does.
 
-   **Run step 3 before committing.** These two are numbered in the order you *think* about them and
-   executed in the reverse, because step 3 audits the very files step 2 would commit — commit first
+   **Run step 4 before committing.** These two are numbered in the order you *think* about them and
+   executed in the reverse, because step 4 audits the very files step 3 would commit — commit first
    and every fix it finds becomes a second commit for no reason. Noted 2026-08-14, after doing it
    this way by instinct and being asked why the procedure appeared to skip a step.
-3. **Audit the two always-read files. `CLAUDE.md` in full, every time.** It is short enough that a
+4. **Audit the two always-read files. `CLAUDE.md` in full, every time.** It is short enough that a
    full pass is cheap, and it is the pinnacle of what this project is — it earns one. For
    `Docs/Working-In-Unreal.md`, re-read what you added today.
 
@@ -95,7 +109,7 @@ audit in miniature; the rest is making sure nothing is left on the floor.
    closedown audits then passed them (found 2026-08-18): a content re-read checks fitness, not
    integrity, and the line-count backstop stayed green throughout. `docs-check` now fails on both
    damage shapes; the re-read is for what it cannot see.
-4. **Discharge what you fixed.** Did this session fix anything filed as a trap? Clear it *and say
+5. **Discharge what you fixed.** Did this session fix anything filed as a trap? Clear it *and say
    what discharged it*, in the same commit. Did anything supersede an entry, or make an absence
    claim? Rows and dates, per the rules above.
 
@@ -105,7 +119,7 @@ audit in miniature; the rest is making sure nothing is left on the floor.
    session's change left five stale readings for an audit to find. **Combat values moved?
    Regenerate `Docs/Combat-Values.tsv`** — the file's header carries the command — so the mirror
    stays dated to the change.
-5. **Update the focus, and route a shipped item's consequences.** If the next item changed,
+6. **Update the focus, and route a shipped item's consequences.** If the next item changed,
    `Current Focus` is the only place that says so.
 
    **This is where the shipped-item routing fires, and nowhere else.** A shipped item keeps only
@@ -116,10 +130,10 @@ audit in miniature; the rest is making sure nothing is left on the floor.
 
    Attached here deliberately: the rule was written 2026-08-14 with no trigger, which is how the
    traps re-read failed until it became a step. An unenforced instruction fails.
-6. **Check memory is still pointing, not restating.** Only `combat-prototype-state` normally needs
+7. **Check memory is still pointing, not restating.** Only `combat-prototype-state` normally needs
    touching, and only if the state actually moved. Anything a future contributor would need belongs
    in the repo instead.
-7. **Hand off explicitly.** Where to pick up, what is verified versus merely written, and what is
+8. **Hand off explicitly.** Where to pick up, what is verified versus merely written, and what is
    open. **Name anything claimed but not verified** — that is the item most likely to be believed
    next session and least likely to be re-checked.
 
@@ -128,12 +142,12 @@ audit in miniature; the rest is making sure nothing is left on the floor.
    wrong, so the additions a reasonable person would have made anyway are exactly the ones that go
    unmentioned. Saying "nothing" is a real answer and should be said out loud rather than left to
    silence, which is indistinguishable from not having checked.
-8. **Title the session, for the archive. Five words maximum.** What the session *did*, not what it
+9. **Title the session, for the archive. Five words maximum.** What the session *did*, not what it
    touched — "Ship Lunge, lock attack movement" over "worked on combat". Verbs over nouns; no date,
    no item numbers, nothing the archive already knows.
 
    **The cap is the point, not a nicety.** Five words does not fit a summary, so it forces the
-   session's dominant thing to the front and leaves everything else to step 7 — which is where a
+   session's dominant thing to the front and leaves everything else to step 8 — which is where a
    reader who needs detail is going anyway. **A session that did two unrelated things names the
    bigger one**; the title is an index entry, not a record, and the handoff directly above it is
    what stops the smaller one from being lost.

@@ -19,7 +19,7 @@
 #            s6-exhausted s6-exhausted-kipup s6-exhausted-block s6-exhausted-attack
 #            s6-airborne s6-exhaust-regen
 #            s8-chain-early s8-chain-late s8-chain-closed s8-stale
-#            s8-discard s8-hold-tier                      (all need ue_s8_driver.py)
+#            s8-discard s8-hold-tier          (all driven by scenarios.py's plans)
 # Exit 0 = all assertions passed, 1 = at least one failed, 2 = usage/no data.
 
 set -uo pipefail
@@ -1262,7 +1262,7 @@ run_s4_string() {
 
 # --- s8: the chain input window --------------------------------------------
 #
-# Driven by Tools/RegressionCheck/ue_s8_driver.py, one press pattern per rep against a pawn parked
+# Driven by scenarios.py's plans, one press pattern per rep against a pawn parked
 # in open space. Every swing whiffs deliberately: a landed hit waives commitment and resets the
 # string, which is a different question from the input window these assert.
 

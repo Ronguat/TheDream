@@ -162,6 +162,20 @@ stays here and misdirects the next person, which is worse than never having file
 discharged it and keep anything from it that is still true. Removing a trap silently is the one
 edit here that cannot be reviewed, because nothing is left to review.
 
+**Whenever a green matrix is read as coverage — *the audit rebuilt the loop and added none.***
+Filed 2026-09-03 at the end of Phase 1. The mechanism is new — fixed clock, scripted player,
+mutations, golden traces, a universal set — and **the 38 rows are the same 38 as before**. Every
+mechanic `Docs/Plan-Regression-Audit.md`'s §5 names is still unasserted: the nine tier cells (H2,
+H3, C2 and C3 have never been asserted on release timing at all), the eight dodge directions and
+i-frames, held get-up inputs, acceptance in hitstun / blockstun / parry lockout, block and parry
+facing, movement locks, the eleven boundary probes, the two-attacker rows, the geometry edges.
+**The trap is that the loop now looks thorough.** Read §5 before believing it covers a mechanic.
+
+**Two reds stand undiagnosed and block a push as correctness items**: `dodge-cycle`'s three
+`DODGE RECOVERY` lines against a retired gap and a `DodgeRecoverySeconds` of 0, and
+`knockdown-getup-attack`'s 1.300 total on 2 of 8 samples against [1.250, 1.285],
+non-deterministic under a fixed clock. Each stopped its own row; neither was investigated.
+
 **Before clearing the master's `compatibleSkeletons` entry — it is the only one left, and it is
 load-bearing.** Filed 2026-08-24 from the skeleton audit, **narrowed the same day when Skeleton
 Merge shipped**. The original claim — that SwordShield's list carried the knockdown get-ups — is
@@ -296,8 +310,12 @@ is that over the window. Measured across three heavies whose notifies had been r
 of 0.88, 0.57 and 0.49 against an intended 1.000 — and the designer's independent read ranked their
 severity in exactly that order, from *"behaves as expected"* through *"slight hitch"* to *"the
 rewind is still there"*. **A distortion this size reads as a blend fault**, which is what it was
-mistaken for through several rounds of tuning the wrong variable. Re-derive after every notify
-edit. **A notify closer to the clip's start than the window forces a negative entry**, clamped to
+mistaken for through several rounds of tuning the wrong variable. **Three are live as of 2026-09-03** —
+swing 1 by 55.7 ms, swing 2 by 40.0, the get-up attack by 35.2 — found by the new loop's
+engine-warning check on its first run. **The ungated warning had been saying so all along** and
+nothing read it, the checker's slice keeping the trace and dropping every engine line. Values,
+reason and the re-derivation are in `Tools/RegressionCheck/log-allowlist.txt`, where they are
+allowlisted rather than fixed. Re-derive after every notify edit. **A notify closer to the clip's start than the window forces a negative entry**, clamped to
 0, which costs runway and leaves the rate under 1 — and enters the clip at its rest pose, which is
 what made the first H1 read poorly. **The re-derivation is scripted** *(2026-09-02)*:
 `Tools/AnimPipeline/ue_fit_tier_montages.py` places the window from its JSON and
@@ -1413,6 +1431,7 @@ concludes the log is wrong rather than merely old. Add a row whenever a name cha
 | Entries say | Code now |
 |---|---|
 | **"coil"**, as a term for the mechanism | **Retired 2026-09-01**, moved here from `CLAUDE.md`'s vocabulary at the 2026-09-02 closedown, which kept the rule and shed the story. It named **one animation serving two or more tiers**, the slomo being how it stretched to cover them; bespoke tier clips ended the reuse. **`Coil*` symbols stay and are live** — `CoilEndSeconds`, `CoilTurnRateDegrees`, `EnterCoil` and the `COIL START` trace. Entries before that date use "coil" for the shared-clip mechanism, and the vocabulary list still carries the one-line retirement. |
+| **`s[#]` scenario ids** — `s1-light`, `s4-360`, `s6-exhausted`, and the other 35 | **Renamed 2026-09-03** to `family-rule[-variant]`, the family a mechanic: `tier-light`, `string-finisher-arc`, `knockdown-exhausted-dodge`. The mapping is `legacy_id` on every entry in `Tools/RegressionCheck/scenarios.py`, which is the authority; the old ids are still the bash checker's case arms, so both names appear in the tooling on purpose. Entries before that date use the `s[#]` form throughout. `ue_s8_driver.py` retired with them, its plans moving into the `chain-*` and `input-*` entries. |
 | **`StringLinkWindowSeconds`**, the **link window**, and `OpenStringLinkWindow` / `HasStringLinkWindowOpen` / `StringWindowEndsAt` | **Gone as of 2026-09-02.** The window did two jobs and only the first survives: advancing the string, now `bStringAdvancePending` marked by `MarkStringAdvancePending` on the chain-out path alone and consumed by the next activation; and keeping that advance available for 400 ms after the ability ended, which is the part that was retired. The trace line `STRING link window open ... until` is now `STRING advance marked ...` with no deadline. Entries before that date describe a fourth phase that no longer exists. |
 | **the chain-out span as "the whole of recovery"** | **A two-sided span**: it opens at `ChainOpenAfterRecoverySeconds` and closes `ChainOpenDurationSeconds` later, both inside recovery. Entries up to 2026-09-02 describe it as running to the ability's end, which was true — `IsChainOutOpen` had an opening and no closing. |
 | **Not scriptable at all** (`Working-In-Unreal.md` section) | **What is and is not scriptable** — retitled because most of the section refutes limits rather than asserting them, then **moved wholesale to `Docs/Unreal-Findings.md` on 2026-08-27** when the lookup half was split from the pre-read. |
@@ -1471,7 +1490,7 @@ reading the file front to back found it.** An index nobody has to read front to 
 
 Generated from the archive rather than maintained by hand, so it goes stale rather than wrong —
 a missing row means the entry is newer than the index, never that the symbol is absent.
-Current through **2026-09-02** — update the date when regenerating, and `docs-check` turns
+Current through **2026-09-03** — update the date when regenerating, and `docs-check` turns
 staleness into a red row by comparing it against the newest entry. The rule for reading it is the standing one,
 that **a search finding nothing proves only that the filter did not match.**
 
@@ -1564,6 +1583,9 @@ long.
 | `DebugAutoAttackInterval` | 08-15 |
 | `DebugAutoAttackStringTaps` | 08-16 |
 | `DebugAutoParryCycle` | 08-21 |
+| `DebugResetForFixture` | 09-03 |
+| `DebugSetHealth` | 09-03 |
+| `DebugSetStamina` | 09-03 |
 | `DefaultEffects` | 08-10 |
 | `DisableMovement` | 08-11 |
 | `DoMove` | 08-12, 08-16 |
@@ -1782,7 +1804,7 @@ long.
 | `UTDGameplayAbility::InputTag` | 08-09 |
 | `UTDGameplayAbility::StartLunge` | 08-13 |
 | `UTDGameplayAbility` | 08-12, 08-14, 08-24 |
-| `UTDInputTools` | 08-24 |
+| `UTDInputTools` | 08-24, 09-03 |
 | `UTDJumpAbility` | 08-20 |
 | `UTDMeleeAttackAbility::HandleTraceHit` | 08-14 |
 | `UTDMeleeAttackAbility::LungeDistanceCm` | 08-12 |
@@ -1792,6 +1814,7 @@ long.
 | `UTDParryAbility` | 08-24 |
 | `UTDStateMachineTools::SetNodeUpdateFunction` | 08-25 |
 | `UTDStateMachineTools` | 08-24 |
+| `UTDTimeTools` | 09-03 |
 | `UpdateCameraRelativeFacing` | 08-11, 08-12 |
 | `UpdateStateFrom` | 08-14 |
 | `WeaponMesh` | 08-11 |
@@ -1830,10 +1853,105 @@ long.
 | `bUseControllerRotationYaw` | 08-12 |
 | `compositeSections` | 08-15, 08-18, 08-28 |
 | `gEComponents` | 08-10, 08-11 |
+| `gen-matrix.py` | 09-03 |
 | `raw_session_count` | 09-02 |
+| `regression-run.sh` | 09-03 |
+| `regression_eval.py` | 09-03 |
+| `regression_run.py` | 09-03 |
+| `scenarios.py` | 09-03 |
 | `ue_chart_ab.py` | 09-02 |
 | `ue_fit_tier_montages.py` | 09-02 |
+| `ue_regression_runner.py` | 09-03 |
 | `ue_seed_cells.py` | 09-02 |
+
+## 2026-09-03 — The loop gets a clock, the player gets to throw the punches, and the fixtures were the part that was wrong
+
+Phase 1 of the Regression Audit. The bands and the invariants were sound, as the brief predicted;
+what was wrong was the fixture model underneath them, and a clock nobody had tried to control.
+
+### The clock was the unlock, and speed was the smaller half of it
+
+`FApp::SetUseFixedTimeStep` and `SetFixedDeltaTime` are public statics that only the command line
+had ever set — no console variable and no Python symbol reaches them — so `UTDTimeTools` in
+`TheDreamEditor` wraps them. Under a fixed 1/60 tick, **1800 ticks is exactly 30.000 s of game time
+in 15.5 s of wall**.
+
+**The 2x is the boring half.** The prize is that a run is *repeatable*: ten `ABILITY END elapsed`
+samples that spread 35 ms free-running came back **identical to the millisecond**, and consecutive
+runs produce byte-identical event skeletons. That is what makes a golden-trace diff mean anything —
+without it every run differs and the diff is noise.
+
+**It also falsified the band comment it was measured against.** `BAND_ELAPSED_MIN` 0.000 argues the
+overhead is nil "whenever the authored span divides evenly into the frame time", and 0.950 is
+exactly 57 frames at 1/60 — yet a connecting light lands deterministically at **0.983, two frames
+over**, 2 ms under the band's ceiling. In band, and one change away from not being.
+
+### The player pawn can throw the punches, which is what the audit was called for
+
+`APlayerController::InputKey(const FInputKeyEventArgs&)` is `ENGINE_API` and is the call the game
+viewport makes, so a wrapper runs the whole shipping chain: key state, the mapping context and its
+modifiers, the action's triggers, the binding. Enhanced Input's `InjectInputForAction`, the route
+since 2026-08-24, enters one layer lower and **bypasses the mapping** — so every fixture built on it
+proved the ability worked and nothing about whether a key reaches it.
+
+Keys are read from `IMC_Combat` and `IMC_Default` at load rather than written as literals, so a
+rebind moves the fixtures with the game.
+
+### What the fixtures were actually doing, which is the audit's answer
+
+The brief's standing question was which scenarios should drive the player directly. The port
+answered it by breaking: **two of the six `s8` plans were timed against the authored total and the
+real one is 50 ms longer.** `input-hold-tier` pressed 200 ms before the *authored* end, which is 250
+ms before the *actual* end and outside `InputBufferSeconds` 0.200, so the buffer expired one tick
+after the ability ended and the row measured nothing for eight reps while reporting only one heavy.
+`chain-closed` and `input-discard` had the same drift. **The rows now derive their frames from the
+measured total and say so**, which is the difference between a fixture and a number somebody typed.
+
+### Three things the loop found that no scenario asserts
+
+Each was invisible for the same reason: the checker's slice keeps the combat trace and **drops every
+engine line**, so the game had been saying all three out loud.
+
+- **Three `ReleaseStartSeconds` values are stale against their notifies** — swing 1 by 55.7 ms, swing
+  2 by 40.0, the get-up attack by 35.2. The filed notify/`EntrySeconds` trap, firing for real and
+  systemically. Allowlisted with its reason rather than fixed, because re-deriving changes how the
+  game plays.
+- **`UTDGetUpAttackAbility`'s `ACTIVATE` logged the ability instance, not the avatar** —
+  `GA_GetUpAttack_C_0` where every other `ACTIVATE` carries the pawn. It had mis-attributed every
+  get-up row's activations since the get-up shipped. Fixed, being D3's rule rather than a new one.
+- **A whiffing light's total is 1.000 s against a connecting light's 0.983** — same run, same clock,
+  same tier. `BAND_ELAPSED_MAX` is +0.035, so **the whiffing case sits outside the band the
+  connecting case passes**, and no row asserts elapsed on a whiff. Not chased.
+
+### What the loop asserts now that it could not before
+
+Four things run on every slice whatever the row was written for: eight **universal invariants**, a
+**frame ledger**, a **golden skeleton** diffed against the accepted one, and the row's
+**mutations** — each of which must turn it red, because a row that could not have failed is a row
+whose green means nothing. The harness found seven mutations that did not bite, which is exactly
+the failure it exists to name.
+
+`--bands-check` re-derives 36 bands from `Combat-Values.tsv` and nine relationships nothing in the
+code enforces, so a retune landing in an asset can no longer leave a band asserting the old value.
+A format lint reads each trace call's *arguments* — a format string cannot say which `%s` is a pawn
+— so a new line without one fails preflight.
+
+### Measured
+
+| | |
+|---|---|
+| Full matrix, 38 rows | **1586 s of wall for 3000 s of game**, unattended, against ~95 min of PIE plus an agent round trip per scenario |
+| Rows passing their own assertions, unchanged from the bash checker | **35 of 38** |
+| Determinism | consecutive runs produce identical event skeletons |
+| Trace lines that now name their pawn | **all of them**; twelve renamed, plus the get-up's `ACTIVATE` |
+
+### Verified, and what is deliberately not
+
+Verified: every mechanism by making it fire — the lint by inserting a nameless tag, the golden diff
+by rewriting a `COMMIT` branch, the mutations by the harness itself, the matrix freshness check by
+staling the region. **Not verified: Phase 2 exists only as the plan's §5** — no new coverage was
+added, so every mechanic the old loop could not see is still unseen. The two standing reds and the
+`pos=-1.0000` ruling are the designer's, and are in the plan's findings section.
 
 ## 2026-09-02 — Input buffering becomes an acceptance window, and two of the three defects were found in play rather than by the loop
 
