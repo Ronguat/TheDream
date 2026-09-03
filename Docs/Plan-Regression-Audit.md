@@ -44,6 +44,8 @@ The designer, 2026-09-02 and 2026-09-03.
 | D11 | The attacker model: player-driven variants of the string rows, so the shipping input path is asserted on the attack side as well as the dummy's. |
 | D12 | No new level. Placements are scenario data applied to the editor-world actors before PIE; a row that needs open ground is placed away from the ramp. |
 | D13 | A fixture reset and two attribute setters on the character, used only at rep boundaries and only after the hygiene check has read the pawn the game left behind. The debug knobs stay frozen; their retirement is Structure Audit's. |
+| D14 | `TARGET` is a twelfth tag carrying no pawn name — its first `%s` is the phase, `"commit"` or `"release"`, and its quoted name is the *target's*. It renames with the other eleven. |
+| D15 | The format lint is position-agnostic: it requires a pawn-name argument at the call site, first unless the tag is in a short committed exception list. Pawn-first is the default a new tag must meet; the list is the record of what predates it. `DAMAGED`, `BLOCKED`, `KNOCKBACK` and `PARRY SUCCESS` each carry a subject and an object, so no position rule reaches a uniform pawn field — the evaluator resolves names against the `REGRESSION ROLES` line instead. |
 
 Frame vocabulary is adopted: spans print in frames beside seconds, and each scenario reports a
 frame ledger (§4.5), as a readout rather than an assertion.
@@ -81,9 +83,13 @@ What the loop was built against and no longer holds:
   `ThumbMouseButton`, jump `SpaceBar`, move `W A S D` with swizzle and negate modifiers; `IA_Attack`
   carries an action-level `InputTriggerDown`.
 - **Directions are one overload away.** `IA_Move` is a 2D axis with X right and Y forward.
-- **Eleven trace tags carry no pawn name**: `ABILITY END`, `AIM ASSIST`, `BUFFER`, `COIL START`,
+- **Twelve trace tags carry no pawn name**: `ABILITY END`, `AIM ASSIST`, `BUFFER`, `COIL START`,
   `COMMIT`, `DODGE`, `DODGE END`, `ESCALATE`, `MONTAGE`, `RELEASE` and its `OFF`, `BEGIN` and `END`
-  variants, `STRING chain out`.
+  variants, `STRING chain out`, `TARGET`. **Read eleven when planned** *(source, 2026-09-03)*;
+  `TARGET` was miscounted as named because it does carry a `%s` there — the phase rather than a pawn.
+  **`ROTATE` has the same shape and is deliberately left**: its two names are the candidates, not the
+  actor, so it passes an argument lint while naming nobody. No row asserts it and its fixture has one
+  attacker; a second attacker in the same log is what would make it ambiguous.
 - **The character already owns every state's exit** *(source, 2026-09-03)*: `ExitExhaustion`,
   `ClearDeathState`, `EndGuardBreak`, `EndBlockstun`, `EndParryLockout`, `EndKnockdown`, `EndHitstun`,
   `EndParryRecovery`, `ClearDodgeRecoveryState`, `ClearParryWindowState`, `EndParryGrace`, and
@@ -93,8 +99,10 @@ What the loop was built against and no longer holds:
 
 ## 3. Conventions that bind every later step
 
-- A trace line is `[t] TAG  <Actor> fields…`, the actor immediately after the tag, as `ACTIVATE` and
-  `KNOCKDOWN` already do. A lint over the source's format strings enforces it (§4.5).
+- A trace line names its pawn. `[t] TAG  <Actor> fields…` is the form a new line takes, as `ACTIVATE`
+  and `KNOCKDOWN` already do; the lint of §4.5 enforces the naming and holds the exceptions that
+  predate it — `BLOCK`, `PARRY WINDOW`, `STRING advance`/`reset`/`chain out`, `INPUT` and `REFUSED`
+  read better with the pawn as the object, and the two-pawn lines have no first position to give it.
 - Scenario ids are `family-rule[-variant]`: lowercase, hyphenated, the family a mechanic, no numbers
   unless the number is the meaning, never a value, so a retune renames nothing. Families and their
   order: `tier`, `attack`, `string`, `chain`, `input`, `block`, `dodge`, `parry`, `knockdown`,
@@ -164,7 +172,8 @@ like `ReviveFromDebug`, each logging one trace line (`DEBUG RESET <Actor>`, `DEB
 Game module, `.cpp` only, the actor name after the tag: `ABILITY END` (both variants), `AIM ASSIST`
 (both), `BUFFER` (five), `COIL START` (two), `COMMIT`, `DODGE` (two), `DODGE END`, `ESCALATE`,
 `MONTAGE` (seven), `RELEASE` and `RELEASE OFF` in the charged and get-up abilities, the notify's
-`RELEASE BEGIN`/`END`, and `STRING chain out of swing %d` gains ` on <Actor>` after the index.
+`RELEASE BEGIN`/`END`, `TARGET` (both) whose existing `%s` is the phase and keeps its place after the
+name, and `STRING chain out of swing %d` gains ` on <Actor>` after the index.
 Name source: `GetNameSafe(GetAvatarActorFromActorInfo())` in abilities, the mesh's owner in the
 notify, `GetName()` on the character.
 
@@ -326,8 +335,14 @@ interrupt: clock and screen percentage restored, dilation 1.0, play ended if run
   light LungeDistanceCm + MaxReachCm − LungeStandoffCm` (trap: the connect inequality); the two
   knockdown types' lockout plus window equal (spec: type-invariant total). `KnockdownSpacingCm` above
   the covered range is a WARN, being deliberate design the fixtures lean on.
-- Format lint, same flag: every `TD_TIMING_LOG` format string in `Source/TheDream` begins
-  `[%.3f] <TAG>  %s` after the eleven renames, so a future trace line without a pawn fails preflight.
+- Format lint, same flag, over every `LogTDCombatTiming` call in `Source/TheDream` — `TD_TIMING_LOG`
+  and the notify's raw `UE_LOG` alike, or that line escapes it. It reads the call's arguments, not the
+  format string, since a string cannot say which `%s` is a pawn: one of `GetName()`,
+  `GetNameSafe(…)` or `GetAvatarActorFromActorInfo()` must be among them, and must be the first
+  unless the tag is in `Tools/RegressionCheck/trace-exceptions.txt`. A tag absent from that file must
+  name its pawn first, so a future line without a pawn fails preflight and a new exception is a
+  visible edit. Seeded with the five tags of §3 after the twelve renames: `BLOCK`, `PARRY WINDOW`,
+  `STRING`, `INPUT`, `REFUSED`.
 - Frames: every span and latency row prints `(N f)` at 1/60 beside seconds.
 - Frame ledger, in `regression_eval.py` and run on every slice: per `DAMAGED` or `BLOCKED`, the
   defender's actionable frame (`HITSTUN END`, `BLOCKSTUN END` or `KNOCKDOWN STAND` for that pawn)
