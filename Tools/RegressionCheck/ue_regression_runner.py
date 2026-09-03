@@ -31,6 +31,10 @@ recent lock_to, which rebases them to the frame its tag appeared on.
 A frame is a sixtieth of game time on either clock: a step is due when the game time since its base
 reaches frame/60, so the same plan means the same thing under the fixed step and on the wall clock.
 
+A swing op asks the named dummy for its auto-attack now and stops its loop, so a rep does not wait
+for a timer; a lock_to that follows it locks on the swing the press started. A timer row's attacker
+fires its first swing on the row's first frame and keeps its loop.
+
 A row stops on its duration, or on an until condition -- (tag, n) or (tag, token, n) -- met when the
 trace since BEGIN carries n lines of that tag, read off the log between ticks; timeout bounds it.
 At settle every dummy loop is switched off and states the row's teardown_allow names are ignored,
@@ -264,6 +268,7 @@ class Run(object):
         self.log_offset = 0
         self.log_partial = ""
         self.last_until_frame = -1
+        self.swing_armed = False
         # The time ledger, per row.
         self.phase_time = {}
         self.lock_t0 = None
@@ -540,6 +545,8 @@ class Run(object):
             if done:
                 return
         else:
+            if f == 0 and self.step == 0 and not self.pending:
+                self.first_swing()
             plan = self.plans()[0]
             period = s.get("expect", {}).get("period_frames")
             if period:
@@ -567,6 +574,18 @@ class Run(object):
                 self.count_trace()
             if self.until_count >= self.until_need or elapsed >= float(stop.get("timeout", UNTIL_TIMEOUT_S)):
                 self.goto("settle")
+
+    def first_swing(self):
+        """A timer row's attacker swings on the row's first frame rather than one interval in."""
+        for role in self.periodic_attackers():
+            actor = self.pie_roles.get(role)
+            if actor is None:
+                continue
+            try:
+                ok = bool(actor.debug_auto_attack_press_now(True))
+            except Exception:
+                ok = False
+            self.mark("INJECT %s frame=%d %s swing %s" % (self.sid, self.frame, role, "pressed" if ok else "refused"))
 
     def count_trace(self):
         """Lines of the until tag written since BEGIN: the log is flushed and read from where the
@@ -618,11 +637,14 @@ class Run(object):
                 who = self.role_or_player(stepv[1])
                 present = has_tag(who, stepv[3]) if who is not None else False
                 if self.lock_wait == 0:
-                    # First look: record what is already up, and lock only on a later edge.
-                    self.lock_seen = present
+                    # First look: record what is already up, and lock only on a later edge -- unless
+                    # a swing op just pressed, in which case the tag it raised is the edge.
+                    armed, self.swing_armed = self.swing_armed, False
+                    self.lock_seen = present and not armed
                     self.lock_wait = 1
                     self.lock_t0 = now
-                    return False
+                    if not (armed and present):
+                        return False
                 if present and not self.lock_seen:
                     # Rebase to the frame the tag appeared on, and read the steps after it against it.
                     self.base = self.rep_frame
@@ -704,6 +726,14 @@ class Run(object):
             who = self.role_or_player(actor)
             mode = unreal.MovementMode.MOVE_FLYING if stepv[3] else unreal.MovementMode.MOVE_WALKING
             who.get_editor_property("character_movement").set_movement_mode(mode, 0)
+        elif op == "swing":
+            who = self.role_or_player(actor)
+            try:
+                ok = bool(who.debug_auto_attack_press_now(False))
+            except Exception:
+                ok = False
+            self.swing_armed = ok
+            self.mark("INJECT %s frame=%d %s swing %s" % (self.sid, self.frame, actor, "pressed" if ok else "refused"))
         elif op == "set":
             who = self.role_or_player(actor)
             who.set_editor_property(stepv[3], self.coerce(stepv[3], stepv[4]))
@@ -815,7 +845,7 @@ class Run(object):
             return
         self.step, self.rep_frame, self.base = 0, 0, 0
         self.lock_seen, self.lock_wait, self.last_due = False, 0, 0
-        self.rep_t0 = None
+        self.rep_t0, self.swing_armed = None, False
         self.goto("run")
 
     def phase_settle(self):

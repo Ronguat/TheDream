@@ -631,7 +631,12 @@ span over 35 ms. **`--realtime` is the same runner on the wall clock and runs th
 ones flagged `canary=True` in `scenarios.py`: timer-driven fixtures, and locked plans whose offsets
 are many frames wide, whose timing holds on either clock. A frame is a sixtieth of game time on both
 clocks, so a plan means the same thing under the fixed step and on the wall clock; the frame-exact
-probes, the edges and the buffer rows, are fixed-clock only and not canaries.
+probes, the edges and the buffer rows, are fixed-clock only and not canaries. **On a wall-clock
+slice a frame-built band earns one tick** *(ruled 2026-09-03)*: the evaluator reads the run's
+manifest beside the slice and widens timing bands by one tick of that run's own frame time, capped
+at a sixtieth, printing how much of it each band used; the fixed-clock matrix keeps every band as
+it is, so the canary is expected green and a canary red is the wall clock disagreeing by more than
+a tick.
 
 **The viewport lies under the fixed clock** *(observed 2026-09-03)*: temporal anti-aliasing ghosts
 persist for up to a second during fixed-step runs and never on the wall clock. The cause is not
@@ -645,6 +650,10 @@ does not change.
 **Every scenario is bounded by markers** the runner emits — `REGRESSION BEGIN/ROLES/INJECT/TEARDOWN/END`
 — so a slice is exactly one scenario out of a shared log. Slices, tapes and `summary.json` land in
 `Saved/Regression/<run>/`; `history.tsv` accumulates one row per scenario per run.
+
+**`validate()` refuses a fixture the first run would have caught** *(2026-09-03)*: a guard pressed
+against the attacker's swing and released before that tier's hit lands, and an attacker that floors
+on an interval shorter than the knockdown it causes, both read from the mirror.
 
 **A row stops on its samples, not on a clock** *(2026-09-03)*. A timer-fixture row names
 `until=(tag, n)` — eight `ABILITY END`s, four `KNOCKDOWN STAND`s — and the runner counts the trace
@@ -678,7 +687,10 @@ list of `(frame, actor, op, ...)` steps. The ops are `tap`, `press`, `release`, 
 `stop_move` for the player's keys, resolved from the mapping contexts at load; `face`, `teleport`,
 `fly` and `set` for any pawn; `set_stamina` and `set_health`, used at rep boundaries; `lock_to`,
 which waits for a tag's rising edge on a pawn and counts every later frame from it, so a defence is
-timed against the attacker's `ACTIVATE` rather than against a timer; and `mark`. The player pawn is
+timed against the attacker's `ACTIVATE` rather than against a timer; `swing`, which asks a dummy
+for its auto-attack now and stops its loop, so the lock after it takes that swing and no rep waits
+on a timer *(2026-09-03; `_player_defends` prepends it, the two-attacker rows opt out)*; and `mark`.
+A timer row's attacker swings on the row's first frame and keeps its loop. The player pawn is
 the precisely timed actor; dummies are periodic or inert. A row's assertions live in
 `regression_rows.py`, keyed by id, reading the slice per rep and the tape (position, yaw, health,
 stamina per pawn per frame) where displacement is the observable; the authored values they compare
@@ -707,59 +719,59 @@ do measurements, which record what a run produced.
 | `tier-light` | hold 0.1, interval 2.2 | silent | - | 8x ABILITY END, or 30 s | yes |
 | `attack-airborne` | silent | silent | f0 tap jump; f18 tap attack (3 reps) | reps done, or 32 s |  |
 | `attack-cancel` | hold 0.1, cancel_attack_into_block True | silent | - | 4x BLOCK cost, or 30 s | yes |
-| `attack-waiver` | hold 0.1, dodge_after_hit True | silent | f0 attacker lock_to State.Attacking (3 reps) | reps done, or 44 s | yes |
+| `attack-waiver` | hold 0.1, dodge_after_hit True | silent | f0 attacker swing ; f0 attacker lock_to State.Attacking (3 reps) | reps done, or 44 s | yes |
 | `attack-whiff-commitment` | silent | silent | f0 tap attack; f24 tap dodge (3 reps) | reps done, or 32 s |  |
 | `string-cadence` | hold 0.1, string_taps 3 | silent | - | 8x STRING chain out, or 60 s | yes |
 | `string-finisher-arc` | facing_mode NEVER, hold 0.1, string_taps 3, suppress_lunge True | silent | - | 4x KNOCKDOWN STAND, or 90 s | yes |
-| `string-guarantee` | hold 0.1, string_taps 3 | silent | f0 lock_to State.Hitstun; f6 tap dodge (3 reps) | reps done, or 44 s | yes |
+| `string-guarantee` | hold 0.1, string_taps 3 | silent | f0 attacker swing ; f0 lock_to State.Hitstun; f6 tap dodge (3 reps) | reps done, or 44 s | yes |
 | `string-player-blocked` | silent | auto_attack False, auto_defend_mode HOLD_BLOCK, get_up_mode WAIT, periodic_jump False | f0 tap attack; f30 tap attack; f60 tap attack (4 reps) | reps done, or 36 s |  |
 | `string-player-cadence` | silent | silent | f0 tap attack; f30 tap attack; f60 tap attack (4 reps) | reps done, or 36 s |  |
-| `input-accept-blockstun` | hold 0.1 | silent | f0 attacker lock_to State.Attacking; f2 press block; f0 lock_to State.Blockstun; f1 release block; f7 tap attack / f0 attacker lock_to State.Attacking; f2 press block; f0 lock_to State.Blockstun; f1 release block; f11 tap attack (6 reps) | reps done, or 68 s |  |
-| `input-accept-hitstun` | hold 0.1 | silent | f0 lock_to State.Hitstun; f19 tap attack / f0 lock_to State.Hitstun; f23 tap attack (6 reps) | reps done, or 68 s |  |
+| `input-accept-blockstun` | hold 0.1 | silent | f0 attacker swing ; f0 attacker lock_to State.Attacking; f2 press block; f0 lock_to State.Blockstun; f1 release block; f7 tap attack / f0 attacker swing ; f0 attacker lock_to State.Attacking; f2 press block; f0 lock_to State.Blockstun; f1 release block; f11 tap attack (6 reps) | reps done, or 68 s |  |
+| `input-accept-hitstun` | hold 0.1 | silent | f0 attacker swing ; f0 lock_to State.Hitstun; f19 tap attack / f0 attacker swing ; f0 lock_to State.Hitstun; f23 tap attack (6 reps) | reps done, or 68 s |  |
 | `input-accept-lockout` | silent | auto_attack False, auto_defend_mode PERIODIC_PARRY, get_up_mode WAIT, periodic_jump False | f0 defender lock_to State.Parrying; f0 tap attack; f0 lock_to State.ParryLockout; f31 tap attack / f0 defender lock_to State.Parrying; f0 tap attack; f0 lock_to State.ParryLockout; f35 tap attack (6 reps) | reps done, or 90 s |  |
-| `input-block-never-replays` | hold 0.1 | silent | f0 lock_to State.Hitstun; f25 tap block / f0 lock_to State.Hitstun; f25 hold block 40 (6 reps) | reps done, or 68 s |  |
+| `input-block-never-replays` | hold 0.1 | silent | f0 attacker swing ; f0 lock_to State.Hitstun; f25 tap block / f0 attacker swing ; f0 lock_to State.Hitstun; f25 hold block 40 (6 reps) | reps done, or 68 s |  |
 | `input-hold-tier` | silent | silent | f0 tap attack; f51 hold attack 15 (8 reps) | 30 s |  |
-| `input-last-wins` | hold 0.1 | silent | f0 lock_to State.Hitstun; f24 tap attack; f27 tap dodge (3 reps) | reps done, or 44 s |  |
-| `input-parry-never-buffers` | hold 0.1 | silent | f0 lock_to State.Hitstun; f25 tap parry (3 reps) | reps done, or 44 s |  |
-| `block-charged` | hold 0.85, interval 3.0 | silent | f0 attacker lock_to State.Attacking; f2 press block; f60 release block / f0 attacker lock_to State.Attacking (4 reps) | reps done, or 52 s | yes |
+| `input-last-wins` | hold 0.1 | silent | f0 attacker swing ; f0 lock_to State.Hitstun; f24 tap attack; f27 tap dodge (3 reps) | reps done, or 44 s |  |
+| `input-parry-never-buffers` | hold 0.1 | silent | f0 attacker swing ; f0 lock_to State.Hitstun; f25 tap parry (3 reps) | reps done, or 44 s |  |
+| `block-charged` | hold 0.85, interval 3.0 | silent | f0 attacker swing ; f0 attacker lock_to State.Attacking; f2 press block; f60 release block / f0 attacker swing ; f0 attacker lock_to State.Attacking (4 reps) | reps done, or 52 s | yes |
 | `block-commitment` | silent | silent | f0 press block; f6 release block / f0 press block; f24 release block (6 reps) | reps done, or 44 s |  |
-| `block-facing` | hold 0.1 | silent | f0 face 90.0; f0 attacker lock_to State.Attacking; f2 press block; f30 release block / f0 face 270.0; f0 attacker lock_to State.Attacking; f2 press block; f30 release block (4 reps) | reps done, or 52 s |  |
-| `block-heavy` | hold 0.22, interval 3.0 | silent | f0 attacker lock_to State.Attacking; f2 press block; f30 release block / f0 attacker lock_to State.Attacking; f2 set_stamina 58.0; f2 press block; f30 release block / f0 attacker lock_to State.Attacking (6 reps) | reps done, or 68 s | yes |
-| `block-light` | hold 0.1, interval 2.2 | silent | f0 attacker lock_to State.Attacking; f2 press block; f30 release block / f0 attacker lock_to State.Attacking; f2 set_stamina 13.0; f2 press block; f30 release block / f0 attacker lock_to State.Attacking (6 reps) | reps done, or 68 s | yes |
-| `block-stun-offense-only` | hold 0.1 | silent | f0 attacker lock_to State.Attacking; f2 press block; f0 lock_to State.Blockstun; f1 release block; f6 tap dodge / f0 attacker lock_to State.Attacking; f2 press block; f0 lock_to State.Blockstun; f1 release block; f6 tap parry / f0 attacker lock_to State.Attacking; f2 press block; f0 lock_to State.Blockstun; f1 release block; f6 tap attack (6 reps) | reps done, or 68 s |  |
+| `block-facing` | hold 0.1 | silent | f0 attacker swing ; f0 face 90.0; f0 attacker lock_to State.Attacking; f2 press block; f30 release block / f0 attacker swing ; f0 face 270.0; f0 attacker lock_to State.Attacking; f2 press block; f30 release block (4 reps) | reps done, or 52 s |  |
+| `block-heavy` | hold 0.22, interval 3.0 | silent | f0 attacker swing ; f0 attacker lock_to State.Attacking; f2 press block; f30 release block / f0 attacker swing ; f0 attacker lock_to State.Attacking; f2 set_stamina 58.0; f2 press block; f30 release block / f0 attacker swing ; f0 attacker lock_to State.Attacking (6 reps) | reps done, or 68 s | yes |
+| `block-light` | hold 0.1, interval 2.2 | silent | f0 attacker swing ; f0 attacker lock_to State.Attacking; f2 press block; f30 release block / f0 attacker swing ; f0 attacker lock_to State.Attacking; f2 set_stamina 13.0; f2 press block; f30 release block / f0 attacker swing ; f0 attacker lock_to State.Attacking (6 reps) | reps done, or 68 s | yes |
+| `block-stun-offense-only` | hold 0.1 | silent | f0 attacker swing ; f0 attacker lock_to State.Attacking; f2 press block; f0 lock_to State.Blockstun; f1 release block; f6 tap dodge / f0 attacker swing ; f0 attacker lock_to State.Attacking; f2 press block; f0 lock_to State.Blockstun; f1 release block; f6 tap parry / f0 attacker swing ; f0 attacker lock_to State.Attacking; f2 press block; f0 lock_to State.Blockstun; f1 release block; f6 tap attack (6 reps) | reps done, or 68 s |  |
 | `dodge-airborne` | silent | silent | f0 tap jump; f18 tap dodge (3 reps) | reps done, or 32 s |  |
 | `dodge-cycle` | silent | silent | f0 tap dodge; f30 tap dodge (2 reps) | reps done, or 28 s | yes |
 | `dodge-directions` | silent | silent | f0 move 0.0 1.0 40; f12 tap dodge / f0 move 1.0 1.0 40; f12 tap dodge / f0 move 1.0 0.0 40; f12 tap dodge / +5 more (16 reps) | reps done, or 84 s |  |
-| `dodge-iframes` | hold 0.1 | silent | f0 attacker lock_to State.Attacking; f9 tap dodge / f0 attacker lock_to State.Attacking (6 reps) | reps done, or 68 s |  |
-| `parry-catch` | hold 0.1, string_taps 3 | silent | f0 attacker lock_to State.Attacking; f6 tap parry / f0 attacker lock_to State.Attacking; f2 press block; f22 release block; f36 tap parry (6 reps) | reps done, or 90 s | yes |
-| `parry-facing` | hold 0.1 | silent | f0 face 90.0; f0 attacker lock_to State.Attacking; f6 tap parry (2 reps) | reps done, or 36 s |  |
+| `dodge-iframes` | hold 0.1 | silent | f0 attacker swing ; f0 attacker lock_to State.Attacking; f9 tap dodge / f0 attacker swing ; f0 attacker lock_to State.Attacking (6 reps) | reps done, or 68 s |  |
+| `parry-catch` | hold 0.1, string_taps 3 | silent | f0 attacker swing ; f0 attacker lock_to State.Attacking; f6 tap parry / f0 attacker swing ; f0 attacker lock_to State.Attacking; f2 press block; f22 release block; f36 tap parry (6 reps) | reps done, or 90 s | yes |
+| `parry-facing` | hold 0.1 | silent | f0 attacker swing ; f0 face 90.0; f0 attacker lock_to State.Attacking; f6 tap parry (2 reps) | reps done, or 36 s |  |
 | `parry-grace-catch` | hold 0.1 | hold 0.1, interval 3.1 | f0 attacker lock_to State.Attacking; f6 tap parry (6 reps) | reps done, or 68 s |  |
-| `parry-lockout-charged` | hold 0.85 | silent | f0 attacker lock_to State.Attacking; f44 tap parry (3 reps) | reps done, or 44 s |  |
-| `parry-lockout-heavy` | hold 0.22 | silent | f0 attacker lock_to State.Attacking; f20 tap parry (3 reps) | reps done, or 44 s |  |
-| `parry-lockout-light` | hold 0.1, string_taps 3 | silent | f0 attacker lock_to State.Attacking; f6 tap parry / f0 attacker lock_to State.Attacking; f2 press block; f22 release block; f36 tap parry / f0 attacker lock_to State.Attacking; f2 press block; f52 release block; f67 tap parry (6 reps) | reps done, or 68 s |  |
+| `parry-lockout-charged` | hold 0.85 | silent | f0 attacker swing ; f0 attacker lock_to State.Attacking; f44 tap parry (3 reps) | reps done, or 44 s |  |
+| `parry-lockout-heavy` | hold 0.22 | silent | f0 attacker swing ; f0 attacker lock_to State.Attacking; f20 tap parry (3 reps) | reps done, or 44 s |  |
+| `parry-lockout-light` | hold 0.1, string_taps 3 | silent | f0 attacker swing ; f0 attacker lock_to State.Attacking; f6 tap parry / f0 attacker swing ; f0 attacker lock_to State.Attacking; f2 press block; f22 release block; f36 tap parry / f0 attacker swing ; f0 attacker lock_to State.Attacking; f2 press block; f52 release block; f67 tap parry (6 reps) | reps done, or 68 s |  |
 | `parry-refused` | silent | silent | f0 press block; f6 tap parry; f30 release block / f0 tap dodge; f6 tap parry / f0 set_stamina 0.0; f3 tap parry / +1 more (8 reps) | reps done, or 52 s |  |
-| `parry-reward` | hold 0.1 | silent | f0 attacker lock_to State.Attacking; f0 set_stamina 50.0; f6 tap parry (4 reps) | reps done, or 52 s |  |
+| `parry-reward` | hold 0.1 | silent | f0 attacker swing ; f0 attacker lock_to State.Attacking; f0 set_stamina 50.0; f6 tap parry (4 reps) | reps done, or 52 s |  |
 | `parry-whiff` | silent | silent | f0 tap parry; f9 tap attack; f27 tap attack; f36 tap dodge; f51 tap block; f57 tap block (6 reps) | reps done, or 44 s | yes |
-| `knockdown-airborne` | hold 0.22 | silent | f0 attacker lock_to State.Attacking; f0 tap jump / f0 attacker lock_to State.Attacking (8 reps) | reps done, or 120 s | yes |
+| `knockdown-airborne` | hold 0.22 | silent | f0 attacker swing ; f0 attacker lock_to State.Attacking; f0 tap jump / f0 attacker swing ; f0 attacker lock_to State.Attacking (8 reps) | reps done, or 120 s | yes |
 | `knockdown-floor-per-body` | hold 0.22, interval 4.5 | hold 0.22, interval 4.8 | f0 attacker lock_to State.Attacking (5 reps) | reps done, or 60 s |  |
 | `knockdown-getup-attack` | hold 0.22 | auto_attack False, auto_defend_mode OFF, get_up_mode ATTACK_GET_UP, periodic_jump False | - | 4x KNOCKDOWN RISE, or 60 s | yes |
-| `knockdown-getup-exhausted-held` | hold 0.22 | silent | f0 attacker lock_to State.Attacking; f0 set_stamina 0.0; f0 lock_to State.KnockedDown; f30 hold block 90; f30 hold dodge 90; f30 hold attack 90 / f0 attacker lock_to State.Attacking; f0 set_stamina 0.0; f0 lock_to State.KnockedDown; f30 hold block 90 (6 reps) | reps done, or 68 s |  |
-| `knockdown-getup-held` | hold 0.22 | silent | f0 lock_to State.KnockedDown; f30 hold block 90 / f0 lock_to State.KnockedDown; f30 hold dodge 90 / f0 lock_to State.KnockedDown; f30 hold attack 90 / +4 more (14 reps) | reps done, or 132 s |  |
-| `knockdown-getup-held-normal` | hold 0.1, string_taps 3 | silent | f0 lock_to State.KnockedDown; f30 hold jump 60 / f0 lock_to State.KnockedDown; f30 hold block 60; f30 hold dodge 60; f30 hold attack 60; f30 hold jump 60 / f0 lock_to State.KnockedDown; f30 hold dodge 60 (6 reps) | reps done, or 68 s |  |
-| `knockdown-getup-tap-priority` | hold 0.22, interval 4.5 | silent | f0 lock_to State.KnockedDown; f30 hold block 90; f88 tap attack (3 reps) | reps done, or 44 s |  |
+| `knockdown-getup-exhausted-held` | hold 0.22 | silent | f0 attacker swing ; f0 attacker lock_to State.Attacking; f0 set_stamina 0.0; f0 lock_to State.KnockedDown; f30 hold block 90; f30 hold dodge 90; f30 hold attack 90 / f0 attacker swing ; f0 attacker lock_to State.Attacking; f0 set_stamina 0.0; f0 lock_to State.KnockedDown; f30 hold block 90 (6 reps) | reps done, or 68 s |  |
+| `knockdown-getup-held` | hold 0.22 | silent | f0 attacker swing ; f0 lock_to State.KnockedDown; f30 hold block 90 / f0 attacker swing ; f0 lock_to State.KnockedDown; f30 hold dodge 90 / f0 attacker swing ; f0 lock_to State.KnockedDown; f30 hold attack 90 / +4 more (14 reps) | reps done, or 132 s |  |
+| `knockdown-getup-held-normal` | hold 0.1, string_taps 3 | silent | f0 attacker swing ; f0 lock_to State.KnockedDown; f30 hold jump 60 / f0 attacker swing ; f0 lock_to State.KnockedDown; f30 hold block 60; f30 hold dodge 60; f30 hold attack 60; f30 hold jump 60 / f0 attacker swing ; f0 lock_to State.KnockedDown; f30 hold dodge 60 (6 reps) | reps done, or 68 s |  |
+| `knockdown-getup-tap-priority` | hold 0.22, interval 4.5 | silent | f0 attacker swing ; f0 lock_to State.KnockedDown; f30 hold block 90; f88 tap attack (3 reps) | reps done, or 44 s |  |
 | `knockdown-hard` | hold 0.22 | silent | - | 4x KNOCKDOWN STAND, or 60 s | yes |
 | `knockdown-normal` | hold 0.1, string_taps 3 | silent | - | 4x KNOCKDOWN STAND, or 60 s | yes |
-| `knockdown-regen-exception` | hold 0.1, string_taps 3 | silent | f0 attacker lock_to State.Attacking; f0 set_stamina 50.0; f0 tap dodge / f0 attacker lock_to State.Attacking; f2 set_stamina 13.0; f2 press block; f40 release block (4 reps) | reps done, or 52 s | yes |
-| `death-midair` | hold 0.1 | silent | f0 attacker lock_to State.Attacking; f0 set_health 15.0; f0 tap jump; f240 move 0.0 1.0 40 (2 reps) | reps done, or 36 s |  |
-| `death-over-knockdown` | hold 0.22 | silent | f0 attacker lock_to State.Attacking; f0 set_health 25.0 / f0 attacker lock_to State.Attacking (4 reps) | reps done, or 52 s | yes |
-| `death-revive` | hold 0.1, string_taps 3 | silent | f0 attacker lock_to State.Attacking; f0 set_health 15.0 (3 reps) | reps done, or 44 s | yes |
+| `knockdown-regen-exception` | hold 0.1, string_taps 3 | silent | f0 attacker swing ; f0 attacker lock_to State.Attacking; f0 set_stamina 50.0; f0 tap dodge / f0 attacker swing ; f0 attacker lock_to State.Attacking; f2 set_stamina 13.0; f2 press block; f40 release block (4 reps) | reps done, or 52 s | yes |
+| `death-midair` | hold 0.1 | silent | f0 attacker swing ; f0 attacker lock_to State.Attacking; f0 set_health 15.0; f0 tap jump; f240 move 0.0 1.0 40 (2 reps) | reps done, or 36 s |  |
+| `death-over-knockdown` | hold 0.22 | silent | f0 attacker swing ; f0 attacker lock_to State.Attacking; f0 set_health 25.0 / f0 attacker swing ; f0 attacker lock_to State.Attacking (4 reps) | reps done, or 52 s | yes |
+| `death-revive` | hold 0.1, string_taps 3 | silent | f0 attacker swing ; f0 attacker lock_to State.Attacking; f0 set_health 15.0 (3 reps) | reps done, or 44 s | yes |
 | `lock-attack-recovery` | silent | silent | f0 move 0.0 1.0 110; f12 tap attack / f12 tap attack (4 reps) | reps done, or 36 s |  |
 | `lock-block-speed` | silent | silent | f0 press block; f0 move 0.0 1.0 90 (3 reps) | reps done, or 32 s |  |
-| `lock-blockstun-free` | hold 0.1 | silent | f0 attacker lock_to State.Attacking; f2 press block; f0 lock_to State.Blockstun; f0 move 0.0 1.0 40 / f0 attacker lock_to State.Attacking; f2 press block; f0 lock_to State.Blockstun (4 reps) | reps done, or 52 s |  |
+| `lock-blockstun-free` | hold 0.1 | silent | f0 attacker swing ; f0 attacker lock_to State.Attacking; f2 press block; f0 lock_to State.Blockstun; f0 move 0.0 1.0 40 / f0 attacker swing ; f0 attacker lock_to State.Attacking; f2 press block; f0 lock_to State.Blockstun (4 reps) | reps done, or 52 s |  |
 | `lock-exhausted-speed` | silent | silent | f0 set_stamina 0.0; f0 move 0.0 1.0 90 (3 reps) | reps done, or 32 s |  |
-| `lock-guard-break` | hold 0.22 | silent | f0 set_stamina 40.0; f0 attacker lock_to State.Attacking; f2 press block; f0 lock_to State.GuardBroken; f1 release block; f1 move 0.0 1.0 90; f10 tap jump / f0 set_stamina 40.0; f0 attacker lock_to State.Attacking; f2 press block; f0 lock_to State.GuardBroken; f1 release block (4 reps) | reps done, or 52 s |  |
-| `lock-hitstun` | hold 0.1 | silent | f0 lock_to State.Hitstun; f0 move 0.0 1.0 120 / f0 lock_to State.Hitstun (4 reps) | reps done, or 52 s |  |
-| `lock-knockdown` | hold 0.22, interval 4.5 | silent | f0 lock_to State.KnockedDown; f0 move 0.0 1.0 160 / f0 lock_to State.KnockedDown (4 reps) | reps done, or 52 s |  |
+| `lock-guard-break` | hold 0.22 | silent | f0 attacker swing ; f0 set_stamina 40.0; f0 attacker lock_to State.Attacking; f2 press block; f0 lock_to State.GuardBroken; f1 release block; f1 move 0.0 1.0 90; f10 tap jump / f0 attacker swing ; f0 set_stamina 40.0; f0 attacker lock_to State.Attacking; f2 press block; f0 lock_to State.GuardBroken; f1 release block (4 reps) | reps done, or 52 s |  |
+| `lock-hitstun` | hold 0.1 | silent | f0 attacker swing ; f0 lock_to State.Hitstun; f0 move 0.0 1.0 120 / f0 attacker swing ; f0 lock_to State.Hitstun (4 reps) | reps done, or 52 s |  |
+| `lock-knockdown` | hold 0.22, interval 4.5 | silent | f0 attacker swing ; f0 lock_to State.KnockedDown; f0 move 0.0 1.0 160 / f0 attacker swing ; f0 lock_to State.KnockedDown (4 reps) | reps done, or 52 s |  |
 | `lock-parry` | silent | silent | f0 tap parry; f0 move 0.0 1.0 90 (3 reps) | reps done, or 32 s |  |
 | `edge-actionable` | silent | silent | f0 tap attack; f57 tap attack / f0 tap attack; f58 tap attack / f0 tap attack; f54 tap attack / +2 more (10 reps) | reps done, or 60 s |  |
 | `edge-chain-close` | silent | silent | f0 tap attack; f41 tap attack / f0 tap attack; f42 tap attack / f0 tap attack; f39 tap attack / +2 more (10 reps) | reps done, or 60 s |  |
@@ -767,10 +779,10 @@ do measurements, which record what a run produced.
 | `edge-fresh-open` | silent | silent | f0 tap attack; f45 tap attack / f0 tap attack; f46 tap attack / f0 tap attack; f44 tap attack / +2 more (10 reps) | reps done, or 60 s |  |
 | `edge-guard-floor` | silent | silent | f0 press block; f14 release block / f0 press block; f16 release block / f0 press block; f15 release block (6 reps) | reps done, or 44 s |  |
 | `edge-heavy-checkpoint` | silent | silent | f0 hold attack 20 / f0 hold attack 23 / f0 hold attack 21 / +1 more (8 reps) | reps done, or 52 s |  |
-| `edge-hitstun-accept` | hold 0.1 | silent | f0 lock_to State.Hitstun; f18 tap attack / f0 lock_to State.Hitstun; f24 tap attack / f0 lock_to State.Hitstun; f20 tap attack / +2 more (10 reps) | reps done, or 100 s |  |
+| `edge-hitstun-accept` | hold 0.1 | silent | f0 attacker swing ; f0 lock_to State.Hitstun; f18 tap attack / f0 attacker swing ; f0 lock_to State.Hitstun; f24 tap attack / f0 attacker swing ; f0 lock_to State.Hitstun; f20 tap attack / +2 more (10 reps) | reps done, or 100 s |  |
 | `edge-light-checkpoint` | silent | silent | f0 hold attack 8 / f0 hold attack 11 / f0 hold attack 9 / +1 more (8 reps) | reps done, or 52 s |  |
-| `edge-lockout-end` | hold 0.22, interval 4.5 | silent | f0 lock_to State.KnockedDown; f87 tap attack / f0 lock_to State.KnockedDown; f93 tap attack / f0 lock_to State.KnockedDown; f89 tap attack / +2 more (10 reps) | reps done, or 100 s |  |
-| `edge-parry-close` | hold 0.1 | silent | f0 attacker lock_to State.Attacking; f10 tap parry / f0 attacker lock_to State.Attacking; f16 tap parry / f0 attacker lock_to State.Attacking; f12 tap parry / +2 more (10 reps) | reps done, or 100 s |  |
+| `edge-lockout-end` | hold 0.22, interval 4.5 | silent | f0 attacker swing ; f0 lock_to State.KnockedDown; f87 tap attack / f0 attacker swing ; f0 lock_to State.KnockedDown; f93 tap attack / f0 attacker swing ; f0 lock_to State.KnockedDown; f89 tap attack / +2 more (10 reps) | reps done, or 100 s |  |
+| `edge-parry-close` | hold 0.1 | silent | f0 attacker swing ; f0 attacker lock_to State.Attacking; f10 tap parry / f0 attacker swing ; f0 attacker lock_to State.Attacking; f16 tap parry / f0 attacker swing ; f0 attacker lock_to State.Attacking; f12 tap parry / +2 more (10 reps) | reps done, or 100 s |  |
 | `edge-recovery-accept` | silent | silent | f0 hold attack 13; f48 tap attack / f0 hold attack 13; f58 tap attack / f0 hold attack 13; f30 tap attack / +6 more (18 reps) | reps done, or 92 s |  |
 | `reach-aim-gap` | silent | silent | f0 face 270.0; f0 defender teleport 90.0; f6 tap attack / f0 face 270.0; f0 defender teleport 90.0; f6 tap attack / f0 face 270.0; f0 defender teleport 90.0; f6 tap attack / +9 more (24 reps) | reps done, or 116 s |  |
 | `reach-aim-wedge` | silent | silent | f0 face 270.0; f0 defender teleport 105.0; f6 tap attack / f0 face 270.0; f0 defender teleport 135.0; f6 tap attack / f0 face 270.0; f0 defender teleport 115.0; f6 tap attack / +3 more (12 reps) | reps done, or 68 s |  |

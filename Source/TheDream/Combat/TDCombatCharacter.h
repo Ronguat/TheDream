@@ -1838,6 +1838,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Combat|Debug")
 	void DebugSetHealth(float Value);
 
+	/**
+	 *  Debug only: the auto-attack press now rather than on its timer. Refused while a swing is
+	 *  live. bKeepLoop restarts the loop from this press; false stops it.
+	 */
+	UFUNCTION(BlueprintCallable, Category="Combat|Debug")
+	bool DebugAutoAttackPressNow(bool bKeepLoop);
+
 private:
 
 	/** Hands the mesh to physics. No-op without a physics asset -- and silent, so verify in play. */

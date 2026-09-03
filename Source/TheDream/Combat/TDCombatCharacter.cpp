@@ -3406,6 +3406,34 @@ void ATDCombatCharacter::TryReturnToDebugAutoAttackHome()
 	ReturnToDebugAutoAttackHome();
 }
 
+bool ATDCombatCharacter::DebugAutoAttackPressNow(bool bKeepLoop)
+{
+	if (!HasAuthority() || !bDebugAutoAttack || !DebugAutoAttackInputTag.IsValid())
+	{
+		return false;
+	}
+	if (AbilitySystem && AbilitySystem->HasMatchingGameplayTag(FGameplayTag::RequestGameplayTag(TEXT("State.Attacking"))))
+	{
+		return false;
+	}
+	if (bKeepLoop)
+	{
+		GetWorldTimerManager().SetTimer(
+			DebugAutoAttackTimerHandle,
+			this,
+			&ATDCombatCharacter::DebugAutoAttackPress,
+			DebugAutoAttackInterval,
+			true,
+			DebugAutoAttackInterval);
+	}
+	else
+	{
+		GetWorldTimerManager().ClearTimer(DebugAutoAttackTimerHandle);
+	}
+	DebugAutoAttackPress();
+	return true;
+}
+
 void ATDCombatCharacter::DebugAutoAttackPress()
 {
 	if (!bDebugAutoAttack && DebugStringTapsRemaining <= 0)

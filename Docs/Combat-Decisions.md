@@ -162,6 +162,14 @@ stays here and misdirects the next person, which is worse than never having file
 discharged it and keep anything from it that is still true. Removing a trap silently is the one
 edit here that cannot be reviewed, because nothing is left to review.
 
+**Whenever a heavy ends on its contact — *the wall clock's blended-out heavy.*** Filed 2026-09-03
+from the canary, run `0903-164116`, `tier-heavy`: the third of eight heavies ended at its hit, at
+0.417 s of its 1.050, with its montage reporting `OnBlendOut pos=0.0000 playing=0` on the contact
+tick and its release-end notify reading `pos=-1.0000` after it; the other seven ran their full
+total. Never seen on the fixed clock, where every heavy in every run ends at 1.050, and not seen
+in the canary run before it. The evidence is the slice; the cause is not established, and nothing
+was changed for it. Read a wall-clock heavy that ends short as this until an entry says otherwise.
+
 **Whenever the matrix is read as covering a mechanic — *what Phase 2 did not reach.*** Filed
 2026-09-03, narrowed the same day by the designer's rulings. The full real-time matrix ran the same
 day (rulings entry) and runs on the designer's weekly schedule rather than at closedowns. The height band below the attacker is
@@ -1603,6 +1611,7 @@ long.
 | `CostGameplayEffectClass` | 08-10 |
 | `DamageEffectClass` | 08-14 |
 | `DebugAutoAttackInterval` | 08-15 |
+| `DebugAutoAttackPressNow` | 09-03 |
 | `DebugAutoAttackStringTaps` | 08-16 |
 | `DebugAutoParryCycle` | 08-21 |
 | `DebugResetForFixture` | 09-03 |
@@ -1842,6 +1851,8 @@ long.
 | `WeaponMesh` | 08-11 |
 | `WithNetSerializer` | 08-12 |
 | `YawOffsetDegrees` | 08-13 |
+| `_fixture_lints` | 09-03 |
+| `_never_inward`, `gesture_outside_window`, `damaged_ledger_violations`, `clean_dodge_distances` | 09-03 |
 | `animSegments` | 08-21 |
 | `bAbilityFacingLocked` | 08-12 |
 | `bAbilityMovementLocked` | 08-24 |
@@ -1889,6 +1900,104 @@ long.
 | `ue_fit_tier_montages.py` | 09-02 |
 | `ue_regression_runner.py` | 09-03 |
 | `ue_seed_cells.py` | 09-02 |
+| `wall_tick_for` | 09-03 |
+
+## 2026-09-03 — The loop stops waiting for the dummy, the canary earns a tick, and the checker's comments find their homes
+
+The items left standing after the legacy audit, taken one at a time with the designer and shipped
+as one package: the lock waits, the canary's wall-clock reds, the late regen, the artifact, the
+retired checker's comments, a fixture lint, and the universal set's pairs.
+
+### The swing op
+
+A plan that began on `LOCK_ATK` idled for whatever was left of the dummy's interval, on average
+half of it, every rep; the nine timer rows each opened with one empty interval. `swing` asks the
+named dummy for its auto-attack now: `DebugAutoAttackPressNow` presses on the spot, refused while a
+swing is live, and either restarts the loop from that press or stops it. A gated row's attacker
+stops its loop, so the only swings in a rep are the ones asked for and nothing races the lock; a
+lock that follows the op takes the swing the press started as its edge. A timer row's attacker
+swings on the row's first frame and keeps its loop. `_player_defends` prepends the op to every plan
+unless told not to; the two-attacker rows keep their timers, since the spacing between two loops
+is what they measure.
+
+Measured: the full pass fell from 897 s to 724 s of wall and from 1581 s to 1281 s of game; the time waiting for locks across the matrix is 64 s, most of it the two-attacker rows that keep their timers and the locks that wait for a hit to land after the swing they asked for. The ledger names the tail as the largest idle now, 767 s of game, and that is the next target.
+
+### The canary's tick
+
+Two canary rows were red by one wall-clock tick against bands built in sixtieths. **Ruled
+2026-09-03: a clock-aware allowance**, on the condition that nothing which would otherwise be caught
+gets through. On a wall-clock slice only, read from the run's manifest beside it, a frame-built band
+widens by one tick of that run's own frame time, capped at a sixtieth; the fixed-clock matrix, the
+run every closedown and push reads, keeps every band as it is. A bug the allowance could hide would
+have to show only on the wall clock and by less than one tick, which is the tick itself. Each band
+reports how much of the allowance it used, so a drift is seen climbing before it crosses. The
+universal set's sentinel window takes the same tick. The tick is the longest single-tick gap
+between the slice's timestamps plus the millisecond they round to, 8 to 17 ms on this machine.
+
+### The late regen, explained
+
+`knockdown-getup-exhausted-held` refilled the bar 4.016 s after the drain in its first rep and
+4.433 s in the two after. Each later rep followed one that ended with the player knocked down after
+its exhaustion had cleared, and a knockdown while not exhausted pauses regen until half a second
+past the stand: that stand came at 8.950, the pause ran to 9.450, and the next rep drained the bar
+at 9.017. The pause is a cost of acting and exhaustion is not a refund, as `TickStaminaRegen` says;
+nothing the row asserts, and not a defect.
+
+### The fixture lint
+
+Two faults the first run of the audit's fixtures found, now refused at load by `validate()` from
+the mirror: a guard pressed against the attacker's swing and released before that tier's hit
+lands, and an attacker that floors on an interval shorter than the knockdown it causes. Both are
+arithmetic the loop already had.
+
+### The universal set's pairs
+
+Reviewed against the state exits the code takes. The knockdown and death entries cancel every
+ability, which prints the cancelled ends and the guard's cancelled drop, so those pairs close; the
+parry window closes only by a catch, a whiff or the fixture's reset, since a hit inside it is a
+catch. The one sequence a fixture produced that the table lacked was the re-floor, fixed in the
+audit entry. A lethal hit during a rise is produced by no fixture and its pairing is untested.
+
+### What the retired checker's comments carried
+
+Every rationale in `regression-check.sh`'s comments was checked for a home in the spec, the
+decision log, the tuning map or the preflight. Four had none and live here, each routed from the
+symbol index by the function that now embodies it:
+
+- **Knockback's invariant is one-sided by design.** `FinalSpacingCm = max(authored, currentAlong)`,
+  so the assertion is spacing at or beyond the authored value, never equality: a hit landing beyond
+  the reset keeps its distance. `_never_inward`.
+- **The parry gesture trails its window's close by about a frame, structurally.** `Montage_Play`
+  runs during activation and the first montage advance lands a tick later, while `until=` is
+  stamped at once; measured 1 to 14 ms across 13 samples, never early. The gesture assertion
+  tolerates the shared span tolerance late, and widening past it is where a marker really is
+  misplaced. `gesture_outside_window`.
+- **The health ledger runs per target because the attacker re-targets the nearest living pawn.**
+  During a dead defender's revive window a swing can land on the other body, and one global chain
+  reads two characters' health as one broken sequence; reachable whenever the attack interval
+  aliases against the auto-revive. `damaged_ledger_violations`.
+- **A dodge's contamination shows as lateral drift, so that is the filter.** A stationary dodge is
+  purely backward; anything that touched the mover reads as `right=`. Filter on the tell, never on
+  the distance hoped for, and require the full duration, since the last dodge before the stop ends
+  mid-travel with zero drift. `clean_dodge_distances`.
+
+### Measured
+
+| | Before this package | After |
+|---|---|---|
+| Full matrix, fixed clock | 897 s wall, 1581 s of game | **724 s wall, 1281 s of game** |
+| Time waiting for locks | 5.9 and 7.9 s per row on a three-row check | **64 s across the matrix** |
+| Canary | 19 of 21, 471 s | **20 of 21, 370 s** |
+| Assertions passing | 377 | 377 |
+
+### Verified, and what is deliberately not
+
+Verified: the matrix at 76 of 76 with every row's plan re-accepted; the canary at
+20 of 21 with the allowance's use printed per band, its one red a heavy that ended on
+its contact on the wall clock, filed as a trap and left standing rather than re-run into a green;
+the lints by the two faults they were written for; the swing op's lock on a three-row check,
+lock waiting 14 s to 1 s across the three rows and 30 s of wall to 22. Not verified: a lethal hit during a rise, above; the allowance on a machine with a
+frame rate other than this one's.
 
 ## 2026-09-03 — Every legacy row is audited, the bash checker retires, and the matrix drops to 76 rows in 15 minutes
 

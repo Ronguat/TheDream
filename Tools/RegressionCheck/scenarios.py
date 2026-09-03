@@ -27,6 +27,7 @@ what --realtime runs.
 """
 
 import math
+import os
 
 # --- knobs ------------------------------------------------------------------
 # Every Debug* knob at its CDO value, read from Docs/Combat-Values.tsv (BP_TrainingDummy column,
@@ -99,9 +100,11 @@ ACTIONS = ("attack", "block", "dodge", "parry", "jump", "move")
 
 # Plan ops the runner implements. tap/press/hold/release/move/stop_move drive the player's keys;
 # face, teleport, set, set_stamina and set_health take any role; lock_to rebases the plan's frames
-# to the frame its tag appears on the named actor.
+# to the frame its tag appears on the named actor; swing asks a dummy for its auto-attack now and
+# stops its loop, so the lock after it takes that swing.
 OPS = ("tap", "press", "release", "hold", "move", "stop_move", "face", "teleport", "fly", "set",
-       "set_stamina", "set_health", "lock_to", "mark")
+       "set_stamina", "set_health", "lock_to", "mark", "swing")
+SWING = (0, "attacker", "swing")
 
 # Fixture holds must sit strictly between two ladder checkpoints, or the tier they select is a
 # coin toss. Sources: GA_Attack's Branches[*].HoldUntilSeconds.
@@ -253,9 +256,10 @@ SCENARIOS = {
 
 def _player_defends(family, attacker, plans, mutations, reps, expect=None, tail=60, duration=None,
                     tape_every=2, teardown_allow=("Attacking", "StaminaRegenPaused"), canary=False,
-                    covers=()):
-    """The attacker dummy on open ground with its loop running; the player stands where the
-    defender stood; the second dummy is parked and silent."""
+                    covers=(), swing=True):
+    """The attacker dummy on open ground, asked for its swing as each rep begins; the player stands
+    where the defender stood; the second dummy is parked and silent. swing=False leaves the
+    attacker's own loop to time the swings."""
     ex = dict(reps=reps, gate=True, tail_frames=tail)
     ex.update(expect or {})
     return dict(
@@ -265,7 +269,7 @@ def _player_defends(family, attacker, plans, mutations, reps, expect=None, tail=
         knobs={"attacker": dict(attacker), "defender": dict(SILENT)},
         player=dict(spawn=(OPEN_DEFENDER[0][0], OPEN_DEFENDER[0][1], 100.0), yaw=OPEN_DEFENDER[1],
                     props={}),
-        plans=[list(p) for p in plans], plan=[],
+        plans=[([SWING] if swing else []) + list(p) for p in plans], plan=[],
         stop=dict(duration=float(duration or (reps * 8.0 + 20.0))),
         expect=ex, mutations=list(mutations), golden=dict(exclude=["drift="]),
         teardown_allow=list(teardown_allow), tape_every=tape_every,
@@ -801,7 +805,7 @@ def _two_attackers(family, first, second, second_at, plans, mutations, reps, exp
     apart put their swings 6 f further apart each rep. The first stands where the attacker stands;
     the second where the row puts it."""
     row = _player_defends(family, first, plans, mutations, reps, expect=expect, tail=tail,
-                          tape_every=tape_every, covers=covers)
+                          tape_every=tape_every, covers=covers, swing=False)
     row["roles"]["defender"] = (PLACED_DEFENDER[0],) + second_at
     row["knobs"]["defender"] = dict(second)
     return row
@@ -960,6 +964,59 @@ SCENARIOS["parry-lockout-charged"] = _player_defends(
 
 # --- validation -------------------------------------------------------------
 
+_MIRROR = {}
+
+
+def _mirror(obj, prop):
+    """A value off Docs/Combat-Values.tsv, for the lints that need the authored numbers."""
+    if not _MIRROR:
+        path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+                            "Docs", "Combat-Values.tsv")
+        for line in open(path, encoding="utf-8"):
+            parts = line.rstrip("\n").split("\t")
+            if len(parts) == 3 and not line.startswith("#"):
+                _MIRROR[(parts[0], parts[1])] = parts[2]
+    return _MIRROR[(obj, prop)]
+
+
+def _branch_of(hold):
+    return min(2, sum(1 for c in CHECKPOINTS if hold > c))
+
+
+def _fixture_lints(sid, s):
+    """Faults the first run of a fixture would find: a guard released before the tier's hit lands,
+    and a flooring tier fed faster than the knockdown it causes."""
+    problems = []
+    atk = knobs_for(sid, "attacker")
+    if not atk.get("debug_auto_attack"):
+        return problems
+    branch = _branch_of(float(atk["debug_auto_attack_hold_seconds"]))
+    hit_frame = int(round(float(_mirror("GA_Attack", "Branches[%d].ReleaseAtSeconds" % branch)) * 60))
+    floors = branch >= 1 or int(atk.get("debug_auto_attack_string_taps", 1)) >= 3
+    if floors:
+        down = (float(_mirror("BP_TrainingDummy", "KnockdownLockoutSecondsHard"))
+                + float(_mirror("BP_TrainingDummy", "KnockdownInputWindowSecondsHard"))
+                + float(_mirror("BP_TrainingDummy", "KnockdownRiseSeconds")))
+        if float(atk.get("debug_auto_attack_interval", 3.0)) < down + 0.4:
+            problems.append("attacker floors on a %.1f s interval, inside the %.1f s knockdown it causes"
+                            % (float(atk.get("debug_auto_attack_interval", 3.0)), down))
+    for plan in s.get("plans") or []:
+        on_swing, press_at = False, None
+        for step in plan:
+            op = step[2]
+            if op == "swing" or (op == "lock_to" and step[3] == "State.Attacking"):
+                on_swing, press_at = True, None
+            elif op == "lock_to":
+                on_swing = False
+            elif on_swing and op == "press" and step[3] == "block":
+                press_at = step[0]
+            elif on_swing and op == "release" and step[3] == "block" and press_at is not None:
+                if press_at <= hit_frame and step[0] < hit_frame + 2:
+                    problems.append("guard pressed at %d f and released at %d f, before the tier's hit at %d f"
+                                    % (press_at, step[0], hit_frame))
+    return problems
+
+
 def validate(known_knobs=None, known_actors=None, resolve_action=None):
     """Every check that can fail before PIE. Returns a list of problems, empty when sound.
 
@@ -1013,6 +1070,8 @@ def validate(known_knobs=None, known_actors=None, resolve_action=None):
                 problems.append(where + "unknown op '%s'" % op)
             if op in ("tap", "press", "release", "hold", "move", "stop_move") and actor != "player":
                 problems.append(where + "op %s is the player's, not %s's" % (op, actor))
+            if op == "swing" and actor == "player":
+                problems.append(where + "swing names a dummy, not the player")
             if actor != "player" and actor not in s.get("roles", {}):
                 problems.append(where + "op %s names %s, which is not a role" % (op, actor))
             if op in ("tap", "press", "release", "hold"):
@@ -1027,6 +1086,9 @@ def validate(known_knobs=None, known_actors=None, resolve_action=None):
                 held = step[4] / 60.0
                 if any(abs(held - c) < 1.0 / 60.0 for c in CHECKPOINTS):
                     problems.append(where + "hold of %.3fs sits on a checkpoint" % held)
+
+        for p in _fixture_lints(sid, s):
+            problems.append(where + p)
 
         stop = s.get("stop", {})
         if "duration" not in stop and "until" not in stop:

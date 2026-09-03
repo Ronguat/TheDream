@@ -1194,7 +1194,7 @@ def parry_lockout(ctx, r, s):
             ann_ok += 1
         else:
             detail.append("cell %d/%d announced %.3f vs %.3f" % (p, b, announced, want))
-        if 0.0 <= actual - want <= 0.050 + 1e-6:
+        if -1e-6 <= actual - want <= 0.050 + 1e-6:
             end_ok += 1
         else:
             detail.append("cell %d/%d ended %+.3f" % (p, b, actual - want))
@@ -1398,6 +1398,9 @@ DEATH_SETTLE_CM = (300, 560)
 ESCALATIONS = {0: (0, 0), 1: (1, 1), 2: (2, 1)}     # (ESCALATE, COIL START) per branch
 
 _NUM = re.compile(r"[0-9]")
+# The wall-clock allowance on frame-built bands, in seconds: zero under the fixed step, one tick of
+# the run's own frame time on the wall clock, set by main() from the slice's manifest.
+WALL_TICK = 0.0
 
 
 def _f(text, name):
@@ -1418,15 +1421,23 @@ def _band(r, label, vals, lo, hi, unit=""):
         return
     flo, fhi = float(lo), float(hi)
     frames = ""
+    allow = 0.0
     if unit == "s":
         frames = " (%.1f-%.1f f)" % (flo * 60, fhi * 60)
+        allow = WALL_TICK
     elif unit == "ms":
         frames = " (%.1f-%.1f f)" % (flo * 0.06, fhi * 0.06)
-    bad = [v for v in vals if float(v) < flo or float(v) > fhi]
+        allow = WALL_TICK * 1000
+    bad = [v for v in vals if float(v) < flo - allow or float(v) > fhi + allow]
+    used = [v for v in vals if (flo - allow <= float(v) < flo) or (fhi < float(v) <= fhi + allow)]
+    note = ""
+    if used:
+        over = max(max(flo - float(v), float(v) - fhi) for v in used)
+        note = ", wall-clock allowance used: +%s%s on %s" % (("%.0f" if unit == "ms" else "%.3f") % over, unit, " ".join(used))
     if bad:
         r.add(False, label, "n=%d outside [%s,%s]%s%s: %s" % (n, lo, hi, unit, frames, " ".join(bad)))
     else:
-        r.add(True, label, "n=%d all within [%s,%s]%s%s" % (n, lo, hi, unit, frames))
+        r.add(True, label, "n=%d all within [%s,%s]%s%s%s" % (n, lo, hi, unit, frames, note))
 
 
 def _equal(r, label, vals, want):
@@ -2585,6 +2596,9 @@ def main():
     a = ap.parse_args()
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     import scenarios as SC
+    from regression_eval import wall_tick_for
+    global WALL_TICK
+    WALL_TICK = wall_tick_for(a.slice)
     if a.id not in ROWS:
         print("  no evaluator for %s" % a.id)
         return 2
@@ -2592,6 +2606,8 @@ def main():
     r = Result()
     ROWS[a.id](ctx, r, SC.SCENARIOS[a.id])
     r.show()
+    if WALL_TICK:
+        print("  wall-clock allowance %d ms on frame-built bands" % round(WALL_TICK * 1000))
     return 1 if r.failed else 0
 
 

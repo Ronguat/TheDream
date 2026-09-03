@@ -12,6 +12,7 @@ Frames are 1/60, printed beside seconds so a span can be read as the frame count
 argued about in.
 """
 import argparse
+import json
 import os
 import re
 import sys
@@ -44,6 +45,24 @@ PAIRS = [
     (("EXHAUSTED", None), [("EXHAUSTION END", None)]),
     (("DEATH", None), [("REVIVE", None)]),
 ]
+
+
+def wall_tick_for(slice_path):
+    """The allowance a wall-clock slice earns on a frame-built band: one tick of its own frame time,
+    read as the longest single-tick gap between the trace's timestamps, plus the millisecond the
+    timestamps round to, capped at a sixtieth plus that millisecond. Zero for a fixed-step run, or
+    a slice with no manifest beside it."""
+    run_json = os.path.join(os.path.dirname(os.path.abspath(slice_path)), "run.json")
+    try:
+        with open(run_json) as fh:
+            cfg = json.load(fh)
+    except (OSError, ValueError):
+        return 0.0
+    if cfg.get("fixed_step", True):
+        return 0.0
+    stamps = sorted(set(round(t, 4) for t, _ in read(slice_path)[0]))
+    gaps = [b - a for a, b in zip(stamps, stamps[1:]) if 0.002 < b - a < FRAME]
+    return (min(FRAME, max(gaps)) if gaps else FRAME) + 0.001
 
 
 def read(path):
@@ -114,7 +133,8 @@ class Result(object):
             print("%s%-6s %-38s %s" % (indent, status, label, detail))
 
 
-def universal(trace, markers, raw, r, allow=()):
+def universal(trace, markers, raw, r, allow=(), tick=0.0):
+    """tick is the wall-clock allowance on the frame-built windows below, zero under the fixed step."""
     roles = roles_from(markers)
 
     # Timestamps never go backwards. A slice that interleaved two worlds would show it here.
@@ -164,7 +184,7 @@ def universal(trace, markers, raw, r, allow=()):
         elif "pos=-1.0000" in x:
             who = pawn_of(x, roles)
             cancelled = any(who and who in xx and xx.startswith("ABILITY END") and "(cancelled)" in xx
-                            and 0 <= t - tt <= 0.040
+                            and 0 <= t - tt <= 0.040 + tick
                             for tt, xx in trace[max(0, i - 12):i])
             if not (x.startswith("RELEASE END") and cancelled):
                 sentinels.append(x)
@@ -544,8 +564,11 @@ def main():
         print("%s %s" % (status, detail))
         return 0
     r = Result()
-    universal(trace, markers, raw, r, [a for a in a.allow.split(',') if a])
+    tick = wall_tick_for(a.slice)
+    universal(trace, markers, raw, r, [a for a in a.allow.split(',') if a], tick)
     r.show()
+    if tick:
+        print("  wall-clock allowance %d ms on frame-built windows" % round(tick * 1000))
     return 1 if r.failed else 0
 
 

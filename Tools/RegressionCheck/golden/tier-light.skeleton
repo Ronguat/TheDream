@@ -1,183 +1,183 @@
-f=133 ACTIVATE BP_TrainingDummy_C_2 swing=0
-f=133 AIM WEDGE BP_TrainingDummy_C_2 
-f=133 HOME RESET BP_TrainingDummy_C_2 
-f=133 INPUT BP_TrainingDummy_C_2 
-f=133 MONTAGE BP_TrainingDummy_C_2 
-f=133 MONTAGE BP_TrainingDummy_C_2 
-f=133 MONTAGE BP_TrainingDummy_C_2 
-f=139 INPUT BP_TrainingDummy_C_2 
-f=142 AIM ASSIST BP_TrainingDummy_C_2 
-f=142 AIM WEDGE BP_TrainingDummy_C_2 
-f=142 COMMIT BP_TrainingDummy_C_2 branch=0
-f=142 TARGET BP_TrainingDummy_C_2 
-f=145 RELEASE BEGIN BP_TrainingDummy_C_2 
-f=145 RELEASE BP_TrainingDummy_C_2 
-f=145 TARGET BP_TrainingDummy_C_2 
-f=146 DAMAGED BP_TrainingDummy_C_1 by=BP_TrainingDummy_C_2 damage=15
-f=146 HITSTUN BP_TrainingDummy_C_1 
-f=146 KNOCKBACK BP_TrainingDummy_C_1 by=BP_TrainingDummy_C_2
-f=146 LUNGE STOP BP_TrainingDummy_C_2 
-f=146 WAIVER BP_TrainingDummy_C_2 
-f=148 FACING FORCED BP_TrainingDummy_C_1 
-f=154 RELEASE END BP_TrainingDummy_C_2 
-f=154 RELEASE OFF BP_TrainingDummy_C_2 
-f=180 HITSTUN END BP_TrainingDummy_C_1 
-f=180 MOVE UNLOCK BP_TrainingDummy_C_2 
-f=190 ABILITY END BP_TrainingDummy_C_2 
-f=190 AIM WEDGE BP_TrainingDummy_C_2 
-f=211 HOME RESET BP_TrainingDummy_C_2 
-f=265 ACTIVATE BP_TrainingDummy_C_2 swing=0
-f=265 AIM WEDGE BP_TrainingDummy_C_2 
-f=265 HOME RESET BP_TrainingDummy_C_2 
-f=265 INPUT BP_TrainingDummy_C_2 
-f=265 MONTAGE BP_TrainingDummy_C_2 
-f=265 MONTAGE BP_TrainingDummy_C_2 
-f=265 MONTAGE BP_TrainingDummy_C_2 
-f=271 INPUT BP_TrainingDummy_C_2 
-f=275 AIM ASSIST BP_TrainingDummy_C_2 
-f=275 AIM WEDGE BP_TrainingDummy_C_2 
-f=275 COMMIT BP_TrainingDummy_C_2 branch=0
-f=275 TARGET BP_TrainingDummy_C_2 
-f=278 RELEASE BEGIN BP_TrainingDummy_C_2 
-f=278 RELEASE BP_TrainingDummy_C_2 
-f=278 TARGET BP_TrainingDummy_C_2 
-f=280 DAMAGED BP_TrainingDummy_C_1 by=BP_TrainingDummy_C_2 damage=15
-f=280 HITSTUN BP_TrainingDummy_C_1 
-f=280 KNOCKBACK BP_TrainingDummy_C_1 by=BP_TrainingDummy_C_2
-f=280 LUNGE STOP BP_TrainingDummy_C_2 
-f=280 WAIVER BP_TrainingDummy_C_2 
-f=281 FACING FORCED BP_TrainingDummy_C_1 
-f=287 RELEASE END BP_TrainingDummy_C_2 
-f=287 RELEASE OFF BP_TrainingDummy_C_2 
-f=313 HITSTUN END BP_TrainingDummy_C_1 
-f=313 MOVE UNLOCK BP_TrainingDummy_C_2 
-f=322 ABILITY END BP_TrainingDummy_C_2 
-f=322 AIM WEDGE BP_TrainingDummy_C_2 
-f=343 HOME RESET BP_TrainingDummy_C_2 
-f=397 ACTIVATE BP_TrainingDummy_C_2 swing=0
-f=397 AIM WEDGE BP_TrainingDummy_C_2 
-f=397 HOME RESET BP_TrainingDummy_C_2 
-f=397 INPUT BP_TrainingDummy_C_2 
-f=397 MONTAGE BP_TrainingDummy_C_2 
-f=397 MONTAGE BP_TrainingDummy_C_2 
-f=397 MONTAGE BP_TrainingDummy_C_2 
-f=403 INPUT BP_TrainingDummy_C_2 
-f=406 AIM ASSIST BP_TrainingDummy_C_2 
-f=406 AIM WEDGE BP_TrainingDummy_C_2 
-f=406 COMMIT BP_TrainingDummy_C_2 branch=0
-f=406 TARGET BP_TrainingDummy_C_2 
-f=409 RELEASE BEGIN BP_TrainingDummy_C_2 
-f=409 RELEASE BP_TrainingDummy_C_2 
+f=3 ACTIVATE BP_TrainingDummy_C_2 swing=0
+f=3 AIM WEDGE BP_TrainingDummy_C_2 
+f=3 HOME RESET BP_TrainingDummy_C_2 
+f=3 INPUT BP_TrainingDummy_C_2 
+f=3 MONTAGE BP_TrainingDummy_C_2 
+f=3 MONTAGE BP_TrainingDummy_C_2 
+f=3 MONTAGE BP_TrainingDummy_C_2 
+f=9 INPUT BP_TrainingDummy_C_2 
+f=12 AIM ASSIST BP_TrainingDummy_C_2 
+f=12 AIM WEDGE BP_TrainingDummy_C_2 
+f=12 COMMIT BP_TrainingDummy_C_2 branch=0
+f=12 TARGET BP_TrainingDummy_C_2 
+f=15 RELEASE BEGIN BP_TrainingDummy_C_2 
+f=15 RELEASE BP_TrainingDummy_C_2 
+f=15 TARGET BP_TrainingDummy_C_2 
+f=16 DAMAGED BP_TrainingDummy_C_1 by=BP_TrainingDummy_C_2 damage=15
+f=16 HITSTUN BP_TrainingDummy_C_1 
+f=16 KNOCKBACK BP_TrainingDummy_C_1 by=BP_TrainingDummy_C_2
+f=16 LUNGE STOP BP_TrainingDummy_C_2 
+f=16 WAIVER BP_TrainingDummy_C_2 
+f=18 FACING FORCED BP_TrainingDummy_C_1 
+f=24 RELEASE END BP_TrainingDummy_C_2 
+f=24 RELEASE OFF BP_TrainingDummy_C_2 
+f=50 HITSTUN END BP_TrainingDummy_C_1 
+f=50 MOVE UNLOCK BP_TrainingDummy_C_2 
+f=60 ABILITY END BP_TrainingDummy_C_2 
+f=60 AIM WEDGE BP_TrainingDummy_C_2 
+f=81 HOME RESET BP_TrainingDummy_C_2 
+f=135 ACTIVATE BP_TrainingDummy_C_2 swing=0
+f=135 AIM WEDGE BP_TrainingDummy_C_2 
+f=135 HOME RESET BP_TrainingDummy_C_2 
+f=135 INPUT BP_TrainingDummy_C_2 
+f=135 MONTAGE BP_TrainingDummy_C_2 
+f=135 MONTAGE BP_TrainingDummy_C_2 
+f=135 MONTAGE BP_TrainingDummy_C_2 
+f=141 INPUT BP_TrainingDummy_C_2 
+f=144 AIM ASSIST BP_TrainingDummy_C_2 
+f=144 AIM WEDGE BP_TrainingDummy_C_2 
+f=144 COMMIT BP_TrainingDummy_C_2 branch=0
+f=144 TARGET BP_TrainingDummy_C_2 
+f=147 RELEASE BEGIN BP_TrainingDummy_C_2 
+f=147 RELEASE BP_TrainingDummy_C_2 
+f=147 TARGET BP_TrainingDummy_C_2 
+f=149 DAMAGED BP_TrainingDummy_C_1 by=BP_TrainingDummy_C_2 damage=15
+f=149 HITSTUN BP_TrainingDummy_C_1 
+f=149 KNOCKBACK BP_TrainingDummy_C_1 by=BP_TrainingDummy_C_2
+f=149 LUNGE STOP BP_TrainingDummy_C_2 
+f=149 WAIVER BP_TrainingDummy_C_2 
+f=150 FACING FORCED BP_TrainingDummy_C_1 
+f=156 RELEASE END BP_TrainingDummy_C_2 
+f=156 RELEASE OFF BP_TrainingDummy_C_2 
+f=183 HITSTUN END BP_TrainingDummy_C_1 
+f=183 MOVE UNLOCK BP_TrainingDummy_C_2 
+f=192 ABILITY END BP_TrainingDummy_C_2 
+f=192 AIM WEDGE BP_TrainingDummy_C_2 
+f=213 HOME RESET BP_TrainingDummy_C_2 
+f=267 ACTIVATE BP_TrainingDummy_C_2 swing=0
+f=267 AIM WEDGE BP_TrainingDummy_C_2 
+f=267 HOME RESET BP_TrainingDummy_C_2 
+f=267 INPUT BP_TrainingDummy_C_2 
+f=267 MONTAGE BP_TrainingDummy_C_2 
+f=267 MONTAGE BP_TrainingDummy_C_2 
+f=267 MONTAGE BP_TrainingDummy_C_2 
+f=273 INPUT BP_TrainingDummy_C_2 
+f=277 AIM ASSIST BP_TrainingDummy_C_2 
+f=277 AIM WEDGE BP_TrainingDummy_C_2 
+f=277 COMMIT BP_TrainingDummy_C_2 branch=0
+f=277 TARGET BP_TrainingDummy_C_2 
+f=280 RELEASE BEGIN BP_TrainingDummy_C_2 
+f=280 RELEASE BP_TrainingDummy_C_2 
+f=280 TARGET BP_TrainingDummy_C_2 
+f=289 RELEASE END BP_TrainingDummy_C_2 
+f=289 RELEASE OFF BP_TrainingDummy_C_2 
+f=324 ABILITY END BP_TrainingDummy_C_2 
+f=324 AIM WEDGE BP_TrainingDummy_C_2 
+f=345 HOME RESET BP_TrainingDummy_C_2 
+f=399 ACTIVATE BP_TrainingDummy_C_2 swing=0
+f=399 AIM WEDGE BP_TrainingDummy_C_2 
+f=399 HOME RESET BP_TrainingDummy_C_2 
+f=399 INPUT BP_TrainingDummy_C_2 
+f=399 MONTAGE BP_TrainingDummy_C_2 
+f=399 MONTAGE BP_TrainingDummy_C_2 
+f=399 MONTAGE BP_TrainingDummy_C_2 
+f=405 INPUT BP_TrainingDummy_C_2 
+f=409 AIM ASSIST BP_TrainingDummy_C_2 
+f=409 AIM WEDGE BP_TrainingDummy_C_2 
+f=409 COMMIT BP_TrainingDummy_C_2 branch=0
 f=409 TARGET BP_TrainingDummy_C_2 
-f=418 RELEASE END BP_TrainingDummy_C_2 
-f=418 RELEASE OFF BP_TrainingDummy_C_2 
-f=454 ABILITY END BP_TrainingDummy_C_2 
-f=454 AIM WEDGE BP_TrainingDummy_C_2 
-f=475 HOME RESET BP_TrainingDummy_C_2 
-f=529 ACTIVATE BP_TrainingDummy_C_2 swing=0
-f=529 AIM WEDGE BP_TrainingDummy_C_2 
-f=529 HOME RESET BP_TrainingDummy_C_2 
-f=529 INPUT BP_TrainingDummy_C_2 
-f=529 MONTAGE BP_TrainingDummy_C_2 
-f=529 MONTAGE BP_TrainingDummy_C_2 
-f=529 MONTAGE BP_TrainingDummy_C_2 
-f=535 INPUT BP_TrainingDummy_C_2 
-f=539 AIM ASSIST BP_TrainingDummy_C_2 
-f=539 AIM WEDGE BP_TrainingDummy_C_2 
-f=539 COMMIT BP_TrainingDummy_C_2 branch=0
-f=539 TARGET BP_TrainingDummy_C_2 
-f=542 RELEASE BEGIN BP_TrainingDummy_C_2 
-f=542 RELEASE BP_TrainingDummy_C_2 
-f=542 TARGET BP_TrainingDummy_C_2 
-f=551 RELEASE END BP_TrainingDummy_C_2 
-f=551 RELEASE OFF BP_TrainingDummy_C_2 
-f=586 ABILITY END BP_TrainingDummy_C_2 
-f=586 AIM WEDGE BP_TrainingDummy_C_2 
-f=607 HOME RESET BP_TrainingDummy_C_2 
-f=661 ACTIVATE BP_TrainingDummy_C_2 swing=0
-f=661 AIM WEDGE BP_TrainingDummy_C_2 
-f=661 HOME RESET BP_TrainingDummy_C_2 
-f=661 INPUT BP_TrainingDummy_C_2 
-f=661 MONTAGE BP_TrainingDummy_C_2 
-f=661 MONTAGE BP_TrainingDummy_C_2 
-f=661 MONTAGE BP_TrainingDummy_C_2 
-f=667 INPUT BP_TrainingDummy_C_2 
-f=671 AIM ASSIST BP_TrainingDummy_C_2 
-f=671 AIM WEDGE BP_TrainingDummy_C_2 
-f=671 COMMIT BP_TrainingDummy_C_2 branch=0
-f=671 TARGET BP_TrainingDummy_C_2 
-f=674 RELEASE BEGIN BP_TrainingDummy_C_2 
-f=674 RELEASE BP_TrainingDummy_C_2 
-f=674 TARGET BP_TrainingDummy_C_2 
-f=683 RELEASE END BP_TrainingDummy_C_2 
-f=683 RELEASE OFF BP_TrainingDummy_C_2 
-f=718 ABILITY END BP_TrainingDummy_C_2 
-f=718 AIM WEDGE BP_TrainingDummy_C_2 
-f=739 HOME RESET BP_TrainingDummy_C_2 
-f=793 ACTIVATE BP_TrainingDummy_C_2 swing=0
-f=793 AIM WEDGE BP_TrainingDummy_C_2 
-f=793 HOME RESET BP_TrainingDummy_C_2 
-f=793 INPUT BP_TrainingDummy_C_2 
-f=793 MONTAGE BP_TrainingDummy_C_2 
-f=793 MONTAGE BP_TrainingDummy_C_2 
-f=793 MONTAGE BP_TrainingDummy_C_2 
-f=799 INPUT BP_TrainingDummy_C_2 
-f=802 AIM ASSIST BP_TrainingDummy_C_2 
-f=802 AIM WEDGE BP_TrainingDummy_C_2 
-f=802 COMMIT BP_TrainingDummy_C_2 branch=0
-f=802 TARGET BP_TrainingDummy_C_2 
-f=805 RELEASE BEGIN BP_TrainingDummy_C_2 
-f=805 RELEASE BP_TrainingDummy_C_2 
+f=412 RELEASE BEGIN BP_TrainingDummy_C_2 
+f=412 RELEASE BP_TrainingDummy_C_2 
+f=412 TARGET BP_TrainingDummy_C_2 
+f=421 RELEASE END BP_TrainingDummy_C_2 
+f=421 RELEASE OFF BP_TrainingDummy_C_2 
+f=456 ABILITY END BP_TrainingDummy_C_2 
+f=456 AIM WEDGE BP_TrainingDummy_C_2 
+f=477 HOME RESET BP_TrainingDummy_C_2 
+f=531 ACTIVATE BP_TrainingDummy_C_2 swing=0
+f=531 AIM WEDGE BP_TrainingDummy_C_2 
+f=531 HOME RESET BP_TrainingDummy_C_2 
+f=531 INPUT BP_TrainingDummy_C_2 
+f=531 MONTAGE BP_TrainingDummy_C_2 
+f=531 MONTAGE BP_TrainingDummy_C_2 
+f=531 MONTAGE BP_TrainingDummy_C_2 
+f=537 INPUT BP_TrainingDummy_C_2 
+f=540 AIM ASSIST BP_TrainingDummy_C_2 
+f=540 AIM WEDGE BP_TrainingDummy_C_2 
+f=540 COMMIT BP_TrainingDummy_C_2 branch=0
+f=540 TARGET BP_TrainingDummy_C_2 
+f=543 RELEASE BEGIN BP_TrainingDummy_C_2 
+f=543 RELEASE BP_TrainingDummy_C_2 
+f=543 TARGET BP_TrainingDummy_C_2 
+f=552 RELEASE END BP_TrainingDummy_C_2 
+f=552 RELEASE OFF BP_TrainingDummy_C_2 
+f=588 ABILITY END BP_TrainingDummy_C_2 
+f=588 AIM WEDGE BP_TrainingDummy_C_2 
+f=609 HOME RESET BP_TrainingDummy_C_2 
+f=663 ACTIVATE BP_TrainingDummy_C_2 swing=0
+f=663 AIM WEDGE BP_TrainingDummy_C_2 
+f=663 HOME RESET BP_TrainingDummy_C_2 
+f=663 INPUT BP_TrainingDummy_C_2 
+f=663 MONTAGE BP_TrainingDummy_C_2 
+f=663 MONTAGE BP_TrainingDummy_C_2 
+f=663 MONTAGE BP_TrainingDummy_C_2 
+f=669 INPUT BP_TrainingDummy_C_2 
+f=672 AIM ASSIST BP_TrainingDummy_C_2 
+f=672 AIM WEDGE BP_TrainingDummy_C_2 
+f=672 COMMIT BP_TrainingDummy_C_2 branch=0
+f=672 TARGET BP_TrainingDummy_C_2 
+f=675 RELEASE BEGIN BP_TrainingDummy_C_2 
+f=675 RELEASE BP_TrainingDummy_C_2 
+f=675 TARGET BP_TrainingDummy_C_2 
+f=684 RELEASE END BP_TrainingDummy_C_2 
+f=684 RELEASE OFF BP_TrainingDummy_C_2 
+f=720 ABILITY END BP_TrainingDummy_C_2 
+f=720 AIM WEDGE BP_TrainingDummy_C_2 
+f=741 HOME RESET BP_TrainingDummy_C_2 
+f=795 ACTIVATE BP_TrainingDummy_C_2 swing=0
+f=795 AIM WEDGE BP_TrainingDummy_C_2 
+f=795 HOME RESET BP_TrainingDummy_C_2 
+f=795 INPUT BP_TrainingDummy_C_2 
+f=795 MONTAGE BP_TrainingDummy_C_2 
+f=795 MONTAGE BP_TrainingDummy_C_2 
+f=795 MONTAGE BP_TrainingDummy_C_2 
+f=801 INPUT BP_TrainingDummy_C_2 
+f=805 AIM ASSIST BP_TrainingDummy_C_2 
+f=805 AIM WEDGE BP_TrainingDummy_C_2 
+f=805 COMMIT BP_TrainingDummy_C_2 branch=0
 f=805 TARGET BP_TrainingDummy_C_2 
-f=814 RELEASE END BP_TrainingDummy_C_2 
-f=814 RELEASE OFF BP_TrainingDummy_C_2 
-f=850 ABILITY END BP_TrainingDummy_C_2 
-f=850 AIM WEDGE BP_TrainingDummy_C_2 
-f=871 HOME RESET BP_TrainingDummy_C_2 
-f=925 ACTIVATE BP_TrainingDummy_C_2 swing=0
-f=925 AIM WEDGE BP_TrainingDummy_C_2 
-f=925 HOME RESET BP_TrainingDummy_C_2 
-f=925 INPUT BP_TrainingDummy_C_2 
-f=925 MONTAGE BP_TrainingDummy_C_2 
-f=925 MONTAGE BP_TrainingDummy_C_2 
-f=925 MONTAGE BP_TrainingDummy_C_2 
-f=931 INPUT BP_TrainingDummy_C_2 
-f=935 AIM ASSIST BP_TrainingDummy_C_2 
-f=935 AIM WEDGE BP_TrainingDummy_C_2 
-f=935 COMMIT BP_TrainingDummy_C_2 branch=0
-f=935 TARGET BP_TrainingDummy_C_2 
-f=938 RELEASE BEGIN BP_TrainingDummy_C_2 
-f=938 RELEASE BP_TrainingDummy_C_2 
-f=938 TARGET BP_TrainingDummy_C_2 
-f=947 RELEASE END BP_TrainingDummy_C_2 
-f=947 RELEASE OFF BP_TrainingDummy_C_2 
-f=982 ABILITY END BP_TrainingDummy_C_2 
-f=982 AIM WEDGE BP_TrainingDummy_C_2 
-f=1003 HOME RESET BP_TrainingDummy_C_2 
-f=1057 ACTIVATE BP_TrainingDummy_C_2 swing=0
-f=1057 AIM WEDGE BP_TrainingDummy_C_2 
-f=1057 HOME RESET BP_TrainingDummy_C_2 
-f=1057 INPUT BP_TrainingDummy_C_2 
-f=1057 MONTAGE BP_TrainingDummy_C_2 
-f=1057 MONTAGE BP_TrainingDummy_C_2 
-f=1057 MONTAGE BP_TrainingDummy_C_2 
-f=1063 INPUT BP_TrainingDummy_C_2 
-f=1066 AIM ASSIST BP_TrainingDummy_C_2 
-f=1066 AIM WEDGE BP_TrainingDummy_C_2 
-f=1066 COMMIT BP_TrainingDummy_C_2 branch=0
-f=1066 TARGET BP_TrainingDummy_C_2 
-f=1069 RELEASE BEGIN BP_TrainingDummy_C_2 
-f=1069 RELEASE BP_TrainingDummy_C_2 
-f=1069 TARGET BP_TrainingDummy_C_2 
-f=1078 RELEASE END BP_TrainingDummy_C_2 
-f=1078 RELEASE OFF BP_TrainingDummy_C_2 
-f=1114 ABILITY END BP_TrainingDummy_C_2 
-f=1114 AIM WEDGE BP_TrainingDummy_C_2 
-f=1120 DEBUG RESET BP_PlayerCharacter_C_0 
-f=1120 DEBUG RESET BP_TrainingDummy_C_1 
-f=1120 DEBUG RESET BP_TrainingDummy_C_2 
-f=1120 HOME RESET BP_TrainingDummy_C_1 
-f=1120 HOME RESET BP_TrainingDummy_C_2 
-f=1120 REVIVE BP_PlayerCharacter_C_0 
-f=1120 REVIVE BP_TrainingDummy_C_1 
-f=1120 REVIVE BP_TrainingDummy_C_2 
+f=808 RELEASE BEGIN BP_TrainingDummy_C_2 
+f=808 RELEASE BP_TrainingDummy_C_2 
+f=808 TARGET BP_TrainingDummy_C_2 
+f=817 RELEASE END BP_TrainingDummy_C_2 
+f=817 RELEASE OFF BP_TrainingDummy_C_2 
+f=852 ABILITY END BP_TrainingDummy_C_2 
+f=852 AIM WEDGE BP_TrainingDummy_C_2 
+f=873 HOME RESET BP_TrainingDummy_C_2 
+f=927 ACTIVATE BP_TrainingDummy_C_2 swing=0
+f=927 AIM WEDGE BP_TrainingDummy_C_2 
+f=927 HOME RESET BP_TrainingDummy_C_2 
+f=927 INPUT BP_TrainingDummy_C_2 
+f=927 MONTAGE BP_TrainingDummy_C_2 
+f=927 MONTAGE BP_TrainingDummy_C_2 
+f=927 MONTAGE BP_TrainingDummy_C_2 
+f=933 INPUT BP_TrainingDummy_C_2 
+f=936 AIM ASSIST BP_TrainingDummy_C_2 
+f=936 AIM WEDGE BP_TrainingDummy_C_2 
+f=936 COMMIT BP_TrainingDummy_C_2 branch=0
+f=936 TARGET BP_TrainingDummy_C_2 
+f=939 RELEASE BEGIN BP_TrainingDummy_C_2 
+f=939 RELEASE BP_TrainingDummy_C_2 
+f=939 TARGET BP_TrainingDummy_C_2 
+f=948 RELEASE END BP_TrainingDummy_C_2 
+f=948 RELEASE OFF BP_TrainingDummy_C_2 
+f=984 ABILITY END BP_TrainingDummy_C_2 
+f=984 AIM WEDGE BP_TrainingDummy_C_2 
+f=988 DEBUG RESET BP_PlayerCharacter_C_0 
+f=988 DEBUG RESET BP_TrainingDummy_C_1 
+f=988 DEBUG RESET BP_TrainingDummy_C_2 
+f=988 HOME RESET BP_TrainingDummy_C_1 
+f=988 HOME RESET BP_TrainingDummy_C_2 
+f=988 REVIVE BP_PlayerCharacter_C_0 
+f=988 REVIVE BP_TrainingDummy_C_1 
+f=988 REVIVE BP_TrainingDummy_C_2 
