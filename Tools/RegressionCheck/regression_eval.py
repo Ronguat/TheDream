@@ -152,8 +152,20 @@ def universal(trace, markers, raw, r, allow=()):
     r.add(not refused, "no refused montage",
           "%d montage(s) played short of len=" % len(refused) if refused else "played= matches len=")
 
-    # Sentinels the trace prints when something was unreadable at the moment it logged.
-    sentinels = [x for _, x in trace if "pos=-1.0000" in x or "opened at 0.0000" in x]
+    # Sentinels the trace prints when something was unreadable at the moment it logged. One is
+    # expected: a parried swing's montage is already stopped when its Release Window notify ends,
+    # so RELEASE END reads pos=-1.0000 within a frame or two of that pawn's cancelled ABILITY END.
+    sentinels = []
+    for i, (t, x) in enumerate(trace):
+        if "opened at 0.0000" in x:
+            sentinels.append(x)
+        elif "pos=-1.0000" in x:
+            who = pawn_of(x, roles)
+            cancelled = any(who and who in xx and xx.startswith("ABILITY END") and "(cancelled)" in xx
+                            and 0 <= t - tt <= 0.040
+                            for tt, xx in trace[max(0, i - 12):i])
+            if not (x.startswith("RELEASE END") and cancelled):
+                sentinels.append(x)
     r.add(not sentinels, "no unreadable sentinels",
           "%d line(s)" % len(sentinels) if sentinels else "none")
 

@@ -37,17 +37,17 @@ set -uo pipefail
 BAND_RELEASE_LIGHT=200;   BAND_RELEASE_HEAVY=400;   BAND_RELEASE_CHARGED=800
 BAND_RELEASE_TOL=30
 
-# S1 -- ABILITY END elapsed against the authored total, seconds. Frame quantisation only, and it
-# does not accumulate: measured +15..+31 ms. Each band is ReleaseAt + Release + Recovery for its
-# tier: light 0.20 + 0.15 + 0.60, heavy 0.40 + 0.15 + 0.50. **Re-derive from the CDO rather than
-# nudging** -- a band moved to make a run green no longer asserts anything.
+# S1 -- ABILITY END elapsed against the authored total, seconds. Each band is ReleaseAt + Release
+# + Recovery for its tier: light 0.20 + 0.15 + 0.60, heavy 0.40 + 0.15 + 0.50. **Re-derive from the
+# CDO rather than nudging** -- a band moved to make a run green no longer asserts anything.
 BAND_ELAPSED_LIGHT=0.950; BAND_ELAPSED_HEAVY=1.050; BAND_ELAPSED_CHARGED=1.550
-# The floor is zero because zero is reachable: since the release window closes on an elapsed
-# deadline rather than on its notify, the only overhead left is the distance from that deadline to
-# the next tick, which is nil whenever the authored span divides evenly into the frame time.
-# Measured across three frame rates: +0 at 60 fps (150 ms is exactly 9 frames), +8..+22 uncapped,
-# +17 at 30 fps. The ceiling keeps its headroom for a slower machine than this one.
-BAND_ELAPSED_MIN=0.000;   BAND_ELAPSED_MAX=0.035
+# Frame quantisation, and it accumulates: three hand-offs each round up to the next tick -- the
+# Release Window notify firing past its trigger, the release deadline closing on the first tick at
+# or past it, and the montage blend-out trigger -- so the total runs 0 to +3 frames over the
+# authored sum. At a fixed 1/60 that is 0.000 to 0.050 and every value between appears across the
+# matrix; the floor is reachable when all three land exactly. The sub-frame phase of each hand-off
+# is what varies, so the same fixture reads +2 on one row and +3 on another.
+BAND_ELAPSED_MIN=0.000;   BAND_ELAPSED_MAX=0.050
 
 # S1 -- exact per-attack counts. The light never coils; charged escalates twice.
 BAND_ESCALATE_LIGHT=0; BAND_ESCALATE_HEAVY=1; BAND_ESCALATE_CHARGED=2
@@ -629,7 +629,7 @@ guardstun_spans() { # GUARD BREAK to the next GUARD END
 
 kd_entry_to_rise_by() { # seconds from KNOCKDOWN to that victim's RISE; $1 filters on by=
 	awk -v want="$1" '
-		/^\[[0-9.]+\] KNOCKDOWN  / {
+		/^\[[0-9.]+\] KNOCKDOWN  [^ ]+  type=/ {
 			t=$1; gsub(/[\[\]]/,"",t); down[$3]=t+0; next
 		}
 		/^\[[0-9.]+\] KNOCKDOWN RISE/ {
@@ -681,7 +681,7 @@ kd_rise_reasons() { # one by= token per RISE
 
 kd_damage_while_down() { # count of DAMAGED landing between a victim's KNOCKDOWN and its RISE
 	awk '
-		/^\[[0-9.]+\] KNOCKDOWN  / { down[$3]=1; next }
+		/^\[[0-9.]+\] KNOCKDOWN  [^ ]+  type=/ { down[$3]=1; next }
 		/^\[[0-9.]+\] KNOCKDOWN RISE/ { delete down[$4]; next }
 		/^\[[0-9.]+\] DAMAGED/ { if ($3 in down) n++ }
 		END { print n+0 }
@@ -704,7 +704,7 @@ kd_fall_overruns_lockout() { # authored montage span vs the lockout it sits in, 
 			span = (rate+0 > 0) ? (played - from)/rate : ""
 			next
 		}
-		/^\[[0-9.]+\] KNOCKDOWN  / {
+		/^\[[0-9.]+\] KNOCKDOWN  [^ ]+  type=/ {
 			lock=""
 			for (i=1;i<=NF;i++) if ($i ~ /^lockout=/) { split($i,a,"="); lock=a[2] }
 			if (span != "" && lock != "" && span+0 >= lock+0)
@@ -861,7 +861,7 @@ run_s3() {
 	if [ "$starts" -eq 0 ]; then
 		check "no DODGE RECOVERY (gap retired)" 1 "no dodges in log; absence proves nothing"
 	else
-		assert_count "no DODGE RECOVERY (gap retired)" 			"$(grep -c 'DODGE RECOVERY' "$SLICE")" 0
+		assert_count "no DODGE RECOVERY (gap retired)" 			"$(grep -c 'DODGE RECOVERY [^E]' "$SLICE")" 0
 	fi
 
 	# The dash is fitted, not the whole section. Guarded against the vacuous pass the same way
@@ -1904,7 +1904,7 @@ run_s6_exhausted() { # run_s6_exhausted <mode> <by-token> <survives: yes|no>
 
 kd_airborne_pairs() { # "<entry z> <stand z>" for each knockdown that began airborne
 	awk '
-		$2 == "KNOCKDOWN" && $3 != "STAND" && $3 != "RISE" && $3 != "MONTAGE" {
+		$2 == "KNOCKDOWN" && $0 ~ / type=/ {
 			z=""; air=""
 			for (i=1;i<=NF;i++) {
 				if ($i ~ /^z=/)        { split($i,a,"="); z=a[2] }
@@ -1921,7 +1921,7 @@ kd_airborne_pairs() { # "<entry z> <stand z>" for each knockdown that began airb
 
 kd_ground_stand_z() { # stand z of every knockdown that began grounded -- the floor, measured in-run
 	awk '
-		$2 == "KNOCKDOWN" && $3 != "STAND" && $3 != "RISE" && $3 != "MONTAGE" {
+		$2 == "KNOCKDOWN" && $0 ~ / type=/ {
 			air=""
 			for (i=1;i<=NF;i++) if ($i ~ /^airborne=/) { split($i,b,"="); air=b[2] }
 			if (air == "0") down[$3]=1
@@ -1994,7 +1994,7 @@ exhaust_spans_with_knockdown() { # "<span> <predicted>" per exhaustion that cont
 		open && $2 == "GUARD" && $3 == "BREAK" {
 			t=$1; gsub(/[\[\]]/,"",t); if ((t+0)-start < 0.05) brk=1; next
 		}
-		open && $2 == "KNOCKDOWN" && $3 != "RISE" && $3 != "STAND" && $3 != "MONTAGE" { kd++; next }
+		open && $2 == "KNOCKDOWN" && $0 ~ / type=/ { kd++; next }
 		open && $2 == "EXHAUSTION" && $3 == "END" {
 			t=$1; gsub(/[\[\]]/,"",t)
 			if (kd > 0) printf "%.3f %.3f\n", (t+0)-start, pause + regen + (brk ? stun : 0)
@@ -2339,7 +2339,7 @@ deaths_that_also_floored() { # deaths whose own contact still produced a KNOCKDO
 	awk '
 		/^\[[0-9.]+\] DEATH / && $3 != "SETTLE" { t=$1; gsub(/[\[\]]/,"",t); dt[$3]=t+0; next }
 		/^\[[0-9.]+\] REVIVE /     { delete dt[$3]; next }
-		/^\[[0-9.]+\] KNOCKDOWN  / { t=$1; gsub(/[\[\]]/,"",t)
+		/^\[[0-9.]+\] KNOCKDOWN  [^ ]+  type=/ { t=$1; gsub(/[\[\]]/,"",t)
 			if (($3 in dt) && (t+0)==dt[$3]) n++ }
 		END { print n+0 }
 	' "$SLICE"

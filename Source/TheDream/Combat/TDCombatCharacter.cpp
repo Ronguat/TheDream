@@ -2578,7 +2578,7 @@ void ATDCombatCharacter::DebugResetForFixture()
 	EndParryGrace();
 	EndParryRecovery();
 	EndParryLockout();
-	ClearDodgeRecoveryState();
+	EndDodgeRecovery();
 
 	// Written before the exhaustion exit, as ReviveFromDebug does: EXHAUSTION END prints the bar it
 	// ends on, and every other exit from exhaustion is at max. Exiting first prints a mid-regen

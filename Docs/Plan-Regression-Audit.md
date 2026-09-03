@@ -138,6 +138,32 @@ game. Every row carries a mutation the harness has seen turn it red. The nine th
 
 The three reds block a push as correctness items. Nothing was pushed: the session was unattended.
 
+### Resolved on resume, 2026-09-03
+
+All four diagnosed from the saved slices, none needing PIE; three were the instrument's.
+
+- **`dodge-cycle`**: the three lines were `DODGE RECOVERY END`, one per pawn, all at the teardown
+  instant. `ClearDodgeRecoveryState` logs unconditionally and the reset called it bare; the reset
+  now calls the guarded `EndDodgeRecovery`, and the row counts the gap's opener rather than any line
+  carrying the tag.
+- **`knockdown-regen-exception`**: the off-prediction span held no knockdown. Five legacy extractors
+  read `KNOCKDOWN <pawn> rose on held <tag>` as an entry; they now require `type=`, as the universal
+  pairing already did. The 0.250 s was a guard's commitment while exhausted, the game's own rule.
+- **`knockdown-getup-attack`**: identical reps closed their 21-frame release window on frame 21 or
+  22, decided by float error in accumulated world time when `now >= deadline` is nominally equal.
+  **A real one-frame nondeterminism, and the code fix is a gameplay change**: an epsilon on the
+  deadline comparison. Reported, not applied. The band absorbs it (below).
+- **The whiff versus hit total**: across all 38 rows every ability's total spreads 0 to +3 frames
+  over its authored sum, connecting or not — the Release Window notify, the release deadline and the
+  blend-out trigger each round up to a tick. The band's comment claimed it does not accumulate; it
+  does. `BAND_ELAPSED_MAX` is re-derived to +0.050 with that derivation written in.
+- **`pos=-1.0000`**: exempted only for a `RELEASE END` within two frames of the same pawn's
+  cancelled `ABILITY END`, which is the parried swing; every other sentinel still fails.
+
+Offline re-evaluation against run `final`'s slices: the three reds and the six sentinel-blocked rows
+green, self-test and bands-check green. The C++ line rebuilt in 13 s and is confirmed by the matrix
+run that follows.
+
 ## 1. Decisions taken, so nothing below is re-litigated
 
 The designer, 2026-09-02 and 2026-09-03.
@@ -159,6 +185,8 @@ The designer, 2026-09-02 and 2026-09-03.
 | D13 | A fixture reset and two attribute setters on the character, used only at rep boundaries and only after the hygiene check has read the pawn the game left behind. The debug knobs stay frozen; their retirement is Structure Audit's. |
 | D14 | `TARGET` is a twelfth tag carrying no pawn name — its first `%s` is the phase, `"commit"` or `"release"`, and its quoted name is the *target's*. It renames with the other eleven. |
 | D15 | The format lint is position-agnostic: it requires a pawn-name argument at the call site, first unless the tag is in a short committed exception list. Pawn-first is the default a new tag must meet; the list is the record of what predates it. `DAMAGED`, `BLOCKED`, `KNOCKBACK` and `PARRY SUCCESS` each carry a subject and an object, so no position rule reaches a uniform pawn field — the evaluator resolves names against the `REGRESSION ROLES` line instead. |
+| D16 | The unreadable-sentinel invariant exempts a `RELEASE END pos=-1.0000` within two frames of the same pawn's cancelled `ABILITY END`: the parried swing's montage is already gone. Every other sentinel still fails. |
+| D17 | `BAND_ELAPSED_MAX` is +0.050: three frame-quantised hand-offs at 1/60, derived from the matrix rather than nudged to it. The one-frame float race on an exact-multiple deadline is reported to the designer, not fixed. |
 
 Frame vocabulary is adopted: spans print in frames beside seconds, and each scenario reports a
 frame ledger (§4.5), as a readout rather than an assertion.
