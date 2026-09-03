@@ -259,8 +259,8 @@ names a pawn. `ABILITY END`, `AIM ASSIST`, `BUFFER`, `COIL START`, `COMMIT`, `DO
 swing index, and `RELEASE BEGIN`/`END`, where it follows the edge. `TARGET`'s existing `%s` was the
 *phase* and its quoted name the *target's*, which is why it read as named and was not.
 **`BLOCK`, `PARRY WINDOW`, `STRING advance`/`reset`, `INPUT` and `REFUSED` name their pawn later in
-the line**, as the object rather than the subject; `regression-check.sh --bands-check` lints for a
-pawn argument and holds those five as its exceptions. **`ROTATE` names two candidates and not the
+the line**, as the object rather than the subject; `regression_preflight.py` lints for a pawn
+argument and holds those five as its exceptions, listed in `trace-exceptions.txt`. **`ROTATE` names two candidates and not the
 actor** — deliberately left, since its fixture has one attacker.
 
 **`FACING LOCK` gained `camDelta`
@@ -505,31 +505,30 @@ problem wearing an animation problem's clothes. `DODGE` prints `sectionLen=`; th
 
 ---
 
-## The regression checker
+## The regression evaluator
 
-`Tools/RegressionCheck/regression-check.sh` asserts combat invariants against a PIE session's log.
-**It is a log evaluator, not a test runner** — UE's Automation framework was considered and declined
-for V3, so orchestration stays agent-side: set the fixture, `StartPIE`, poll the log on a condition,
-`StopPIE`, then run the checker. It slices from the **last** `LogWorld: Bringing World … up for play`,
-so it always reads the most recent session in whatever file it is given.
+`Tools/RegressionCheck/regression_rows.py` asserts combat invariants against one scenario's slice of
+a PIE log. **It is a log evaluator, not a test runner** — UE's Automation framework was considered
+and declined for V3, so orchestration stays outside it, in `regression-run.sh`. Every row's
+assertions live there, keyed by id, reading authored values from `Docs/Combat-Values.tsv` and their
+tolerances from constants beside them. The engine's Python runs it; `regression-run.sh` names the
+interpreter.
 
 ```bash
-./Tools/RegressionCheck/regression-check.sh s2-heavy          # last session in the default log
-./Tools/RegressionCheck/regression-check.sh s1-light some.log # or an explicit file
-./Tools/RegressionCheck/regression-check.sh --self-test       # prove it can still fail
+./Tools/RegressionCheck/regression-run.sh tier-light                     # one row, end to end
+"$ENGINE_PY" Tools/RegressionCheck/regression_rows.py tier-light Saved/Regression/<run>/tier-light.slice.log
+"$ENGINE_PY" Tools/RegressionCheck/regression_rows.py --self-test        # prove it can still fail
 ```
 
-Exit 0 = all passed, 1 = an assertion failed, 2 = usage or no data. **Bands live in one config block
-at the top**, so a retune is a one-line change; each carries its source in a comment.
+Exit 0 = all passed, 1 = an assertion failed, 2 = no evaluator for the id.
 
-**Run `--self-test` before trusting a green run.** It asserts a known-good band passes *and* a
-deliberately wrong one fails, because a checker that cannot fail is indistinguishable from one that
-passes everything. A sharper version of the same check: run a scenario against another tier's log
-(`s1-light` against an `s1-heavy` session) and watch all four assertions fail with the real numbers.
+**`--self-test` runs in every preflight.** It asserts a known-good band passes *and* a deliberately
+wrong one fails, because an evaluator that cannot fail is indistinguishable from one that passes
+everything; the mutation harness below is the same proof made per row, per run.
 
-### Two-player PIE, and why the checker must never be run against one
+### Two-player PIE, and why the loop must never run against one
 
-**The checker assumes a single world and has no way to notice otherwise.** A two-player log
+**The evaluator assumes a single world and has no way to notice otherwise.** A two-player log
 interleaves the server and client worlds, which run **different clocks** — one attack produced
 `RELEASE BEGIN` at 2.788 and again at 3.242 *(measured 2026-08-15)*. Pairing a press from one world
 with a release from the other yields numbers that look plausible and mean nothing. **Run the loop in
@@ -593,19 +592,21 @@ is why the choice binds at plan time.
 
 **Adding a scenario is an entry in `Tools/RegressionCheck/scenarios.py`** *(fixture behaviour, 2026-09-03)* — roles
 with placements, knobs, a plan in frames, a stop condition, and **at least one mutation**, which
-`validate()` refuses to let you omit. Assertions go in `regression_eval.py`; the 38 ported rows keep
-their bash ones and a legacy row migrates only when it is being changed for another reason. **Then
-make the new assertion fail once on purpose** — a band nobody has seen reject anything is
-indistinguishable from one that cannot, which is what the mutation harness below automates.
+`validate()` refuses to let you omit, and the mechanics the row `covers`, from which the coverage
+map below is generated. Assertions go in `regression_rows.py`, keyed by the row's id; the universal
+set in `regression_eval.py` runs on every slice regardless. **Then make the new assertion fail once
+on purpose** — a band nobody has seen reject anything is indistinguishable from one that cannot,
+which is what the mutation harness below automates.
 
 ### Running the loop
 
-`Tools/RegressionCheck/regression-run.sh` drives everything; `regression-check.sh` is the log
-evaluator underneath it, run by hand against a slice.
+`Tools/RegressionCheck/regression-run.sh` drives everything; `regression_rows.py` is the evaluator
+underneath it, run by hand against a slice.
 
 ```bash
 ./Tools/RegressionCheck/regression-run.sh --all
-./Tools/RegressionCheck/regression-run.sh --family knockdown --realtime
+./Tools/RegressionCheck/regression-run.sh --all --realtime    # the canary rows, on the wall clock
+./Tools/RegressionCheck/regression-run.sh --family knockdown
 ./Tools/RegressionCheck/regression-run.sh --all --dry-run     # preflight only, no PIE
 ./Tools/RegressionCheck/regression-run.sh --stop              # end the run after its current row
 ./Tools/RegressionCheck/regression-run.sh --resume 0903-115006  # the rows of that run still unrun
@@ -619,13 +620,18 @@ timestamp and a resume refuses across a rebuild: a run's rows must share one bin
 nothing as a whole. Exit code 3 is a stopped run.
 
 **Preflight is the half that makes a green mean something**: the editor answers and is not in PIE,
-`PlayNumberOfClients` is 1, `TD.DebugCombatTiming` is 1, open asset editors are named, `--self-test`
-and `--bands-check` pass, the working tree is printed, and a pid lock stops two runs interleaving two
-PIE sessions in one log.
+`PlayNumberOfClients` is 1, `TD.DebugCombatTiming` is 1, open asset editors are named, the
+evaluator's `--self-test` and `regression_preflight.py` pass — the derived relationships between
+authored values, the dummy's parity with the player, the trace format lint — the working tree is
+printed, and a pid lock stops two runs interleaving two PIE sessions in one log.
 
 **The clock is fixed at 1/60** *(D1)*, which is what makes a run repeatable rather than merely fast:
 consecutive runs produce identical event skeletons, where the same fixtures free-running spread a
-span over 35 ms. `--realtime` is the same runner on the wall clock, kept as the canary.
+span over 35 ms. **`--realtime` is the same runner on the wall clock and runs the canary rows**, the
+ones flagged `canary=True` in `scenarios.py`: timer-driven fixtures, and locked plans whose offsets
+are many frames wide, whose timing holds on either clock. A frame is a sixtieth of game time on both
+clocks, so a plan means the same thing under the fixed step and on the wall clock; the frame-exact
+probes, the edges and the buffer rows, are fixed-clock only and not canaries.
 
 **The viewport lies under the fixed clock** *(observed 2026-09-03)*: temporal anti-aliasing ghosts
 persist for up to a second during fixed-step runs and never on the wall clock. The cause is not
@@ -637,9 +643,19 @@ scene looks soft under FXAA for the length of a run and sharp again after; the H
 does not change.
 
 **Every scenario is bounded by markers** the runner emits — `REGRESSION BEGIN/ROLES/INJECT/TEARDOWN/END`
-— so `regression-check.sh <row> --slice <run>:<id>` reads exactly one scenario out of a shared log,
-and `slice_log` and `raw_session_count` share those bounds. Slices, tapes and `summary.json` land in
+— so a slice is exactly one scenario out of a shared log. Slices, tapes and `summary.json` land in
 `Saved/Regression/<run>/`; `history.tsv` accumulates one row per scenario per run.
+
+**A row stops on its samples, not on a clock** *(2026-09-03)*. A timer-fixture row names
+`until=(tag, n)` — eight `ABILITY END`s, four `KNOCKDOWN STAND`s — and the runner counts the trace
+between ticks and stops on the n-th, bounded by `timeout`; a scripted row stops when its reps are
+done. At settle every dummy loop is switched off and the states the row's `teardown_allow` names are
+ignored, so the world quiets in the time its last exchange takes rather than the settle's budget.
+**Every row reports where its time went**: the `END` marker carries game seconds waiting for locks,
+running the plan, in the tail, in the gate and in the final settle, and wall seconds starting and
+stopping play; the run's report totals them and names the five most idle rows, so the next thing
+to shorten is a number rather than an impression. The row's id is printed on the viewport while it
+runs, so what is seen can be named.
 
 **Four things run on every slice, whatever the row asserts.** The **universal set** (eight
 invariants: pairings closing per pawn, the health ledger stepping by exactly `damage=` and clamping
@@ -666,10 +682,10 @@ timed against the attacker's `ACTIVATE` rather than against a timer; and `mark`.
 the precisely timed actor; dummies are periodic or inert. A row's assertions live in
 `regression_rows.py`, keyed by id, reading the slice per rep and the tape (position, yaw, health,
 stamina per pawn per frame) where displacement is the observable; the authored values they compare
-against come from `Docs/Combat-Values.tsv`, never typed. Ids are `family-rule[-variant]`; a legacy
-row keeps its `legacy_id` for `regression-check.sh`. **The boundary family (`edge-*`) asserts two
-sides and reports the frames between** — the report is what a ruling reads, and a frame exactly on
-an authored deadline is a coin flip by float, which is a property of the game and not of the loop.
+against come from `Docs/Combat-Values.tsv`, never typed. Ids are `family-rule[-variant]`. **The
+boundary family (`edge-*`) asserts two sides and reports the frames between** — the report is what a
+ruling reads, and a frame exactly on an authored deadline is a coin flip by float, which is a
+property of the game and not of the loop.
 
 ### Scenario matrix
 
@@ -677,108 +693,172 @@ Each row names the fixture it expects. **The knobs are `EditAnywhere` instance w
 PIE** — set them on the placed actors, not the CDO, and read the runtime instance back if a value
 looks ignored.
 
-**Assertions name their `BAND_*` constant rather than its value** *(2026-08-25)*; the values live in
-`regression-check.sh`'s config block and are read there. Fixture numbers stay inline, being
-settings rather than assertions — as do measurements, which record what a run produced.
+**Assertions read authored values from `Docs/Combat-Values.tsv` and name their tolerance constants**,
+both in `regression_rows.py`. Fixture numbers stay inline, being settings rather than assertions — as
+do measurements, which record what a run produced.
 
 <!-- matrix:begin -->
 
-| Scenario | Was | Attacker | Defender | Player plan | s |
+| Scenario | Attacker | Defender | Plans | Stop | Canary |
 |---|---|---|---|---|---|
-| `tier-cells` | `-` | silent | silent | - | 92 |
-| `tier-charged` | `s1-charged` | hold 0.85 | silent | - | 30 |
-| `tier-heavy` | `s1-heavy` | hold 0.22 | silent | - | 30 |
-| `tier-light` | `s1-light` | hold 0.1 | silent | - | 30 |
-| `attack-airborne` | `-` | silent | silent | - | 32 |
-| `attack-cancel` | `s5-cancel` | hold 0.1, cancel_attack_into_block True | silent | - | 30 |
-| `attack-waiver` | `s5-waiver` | hold 0.1, dodge_after_hit True | silent | - | 30 |
-| `attack-whiff-commitment` | `-` | silent | silent | - | 32 |
-| `string-blocked` | `s4-block` | hold 0.1, string_taps 3 | auto_attack False, auto_defend_mode HOLD_BLOCK, get_up_mode WAIT, periodic_jump False | - | 60 |
-| `string-cadence` | `s4-string` | hold 0.1, string_taps 3 | silent | - | 60 |
-| `string-finisher-arc` | `s4-360` | facing_mode NEVER, hold 0.1, string_taps 3, suppress_lunge True | silent | - | 90 |
-| `string-guarantee` | `s4-guarantee` | hold 0.1, string_taps 3 | auto_attack False, auto_defend_mode PERIODIC_DODGE, get_up_mode WAIT, periodic_jump False | - | 60 |
-| `string-player-blocked` | `-` | silent | auto_attack False, auto_defend_mode HOLD_BLOCK, get_up_mode WAIT, periodic_jump False | - | 36 |
-| `string-player-cadence` | `-` | silent | silent | - | 36 |
-| `chain-closed` | `s8-chain-closed` | silent | silent | f0 tap attack; f51 tap attack | 30 |
-| `chain-early` | `s8-chain-early` | silent | silent | f0 tap attack; f21 tap attack | 30 |
-| `chain-late` | `s8-chain-late` | silent | silent | f0 tap attack; f36 tap attack | 30 |
-| `input-accept-blockstun` | `-` | hold 0.1 | silent | - | 68 |
-| `input-accept-hitstun` | `-` | hold 0.1 | silent | - | 68 |
-| `input-accept-lockout` | `-` | silent | auto_attack False, auto_defend_mode PERIODIC_PARRY, get_up_mode WAIT, periodic_jump False | - | 90 |
-| `input-block-never-replays` | `-` | hold 0.1 | silent | - | 68 |
-| `input-discard` | `s8-discard` | silent | silent | f0 tap attack; f45 tap attack | 30 |
-| `input-hold-tier` | `s8-hold-tier` | silent | silent | f0 tap attack; f51 hold attack 15 | 30 |
-| `input-last-wins` | `-` | hold 0.1 | silent | - | 44 |
-| `input-parry-never-buffers` | `-` | hold 0.1 | silent | - | 44 |
-| `input-stale` | `s8-stale` | silent | silent | f0 hold attack 24; f30 tap attack | 30 |
-| `block-charged` | `s2-charged` | hold 0.85 | auto_attack False, auto_defend_mode HOLD_BLOCK, get_up_mode WAIT, periodic_jump False | - | 150 |
-| `block-commitment` | `-` | silent | silent | - | 44 |
-| `block-facing` | `-` | hold 0.1 | silent | - | 52 |
-| `block-heavy` | `s2-heavy` | hold 0.22 | auto_attack False, auto_defend_mode HOLD_BLOCK, get_up_mode WAIT, periodic_jump False | - | 150 |
-| `block-light` | `s2-light` | hold 0.1 | auto_attack False, auto_defend_mode HOLD_BLOCK, get_up_mode WAIT, periodic_jump False | - | 150 |
-| `block-stun-offense-only` | `-` | hold 0.1 | silent | - | 68 |
-| `dodge-airborne` | `-` | silent | silent | - | 32 |
-| `dodge-cycle` | `s3` | hold 0.1 | auto_attack False, auto_defend_mode PERIODIC_DODGE, get_up_mode WAIT, periodic_jump False | - | 120 |
-| `dodge-directions` | `-` | silent | silent | - | 84 |
-| `dodge-iframes` | `-` | hold 0.1 | silent | - | 68 |
-| `parry-catch` | `s5-parry` | hold 0.1, string_taps 3 | silent | - | 90 |
-| `parry-facing` | `-` | hold 0.1 | silent | - | 36 |
-| `parry-grace-catch` | `-` | hold 0.1 | hold 0.1, interval 3.1 | - | 68 |
-| `parry-lockout-charged` | `-` | hold 0.85 | silent | - | 44 |
-| `parry-lockout-heavy` | `-` | hold 0.22 | silent | - | 44 |
-| `parry-lockout-light` | `-` | hold 0.1, string_taps 3 | silent | - | 68 |
-| `parry-refused` | `-` | silent | silent | - | 52 |
-| `parry-reward` | `-` | hold 0.1 | silent | - | 52 |
-| `parry-whiff` | `s5-parry-whiff` | silent | silent | - | 44 |
-| `knockdown-airborne` | `s6-airborne` | hold 0.22 | silent | - | 120 |
-| `knockdown-exhausted-attack` | `s6-exhausted-attack` | hold 0.1, string_taps 3 | auto_attack False, auto_defend_mode PERIODIC_PARRY, get_up_mode ATTACK_GET_UP, parry_interval 13.0, parry_pre_block 12.0, periodic_jump False | - | 120 |
-| `knockdown-exhausted-block` | `s6-exhausted-block` | hold 0.1, string_taps 3 | auto_attack False, auto_defend_mode PERIODIC_PARRY, get_up_mode BLOCK_GET_UP, parry_interval 13.0, parry_pre_block 12.0, periodic_jump False | - | 120 |
-| `knockdown-exhausted-dodge` | `s6-exhausted` | hold 0.1, string_taps 3 | auto_attack False, auto_defend_mode PERIODIC_PARRY, get_up_mode DODGE_GET_UP, parry_interval 13.0, parry_pre_block 12.0, periodic_jump False | - | 120 |
-| `knockdown-exhausted-kipup` | `s6-exhausted-kipup` | hold 0.22 | auto_attack False, auto_defend_mode PERIODIC_PARRY, get_up_mode DODGE_GET_UP, parry_interval 13.0, parry_pre_block 12.0, periodic_jump False | - | 120 |
-| `knockdown-floor-per-body` | `-` | hold 0.22, interval 4.5 | hold 0.22, interval 4.8 | - | 60 |
-| `knockdown-getup-attack` | `s6-getup` | hold 0.22 | auto_attack False, auto_defend_mode OFF, get_up_mode ATTACK_GET_UP, periodic_jump False | - | 60 |
-| `knockdown-getup-block` | `s6-block` | hold 0.1, interval 6.0, string_taps 3 | auto_attack False, auto_defend_mode OFF, get_up_mode BLOCK_GET_UP, periodic_jump False | - | 60 |
-| `knockdown-getup-dodge` | `s6-dodge` | hold 0.1, interval 6.0, string_taps 3 | auto_attack False, auto_defend_mode OFF, get_up_mode DODGE_GET_UP, periodic_jump False | - | 60 |
-| `knockdown-getup-exhausted-held` | `-` | hold 0.22 | silent | - | 68 |
-| `knockdown-getup-held` | `-` | hold 0.22 | silent | - | 132 |
-| `knockdown-getup-held-normal` | `-` | hold 0.1, string_taps 3 | silent | - | 52 |
-| `knockdown-getup-kipup` | `s6-kipup` | hold 0.22, interval 6.0 | auto_attack False, auto_defend_mode OFF, get_up_mode DODGE_GET_UP, periodic_jump False | - | 60 |
-| `knockdown-getup-tap-priority` | `-` | hold 0.22, interval 4.5 | silent | - | 44 |
-| `knockdown-hard` | `s6-hard` | hold 0.22 | silent | - | 60 |
-| `knockdown-hard-no-stand` | `s6-hard-stand` | hold 0.22 | auto_attack False, auto_defend_mode OFF, get_up_mode STAND_GET_UP, periodic_jump False | - | 60 |
-| `knockdown-normal` | `s6-knockdown` | hold 0.1, string_taps 3 | silent | - | 60 |
-| `knockdown-regen-exception` | `s6-exhaust-regen` | hold 0.1, string_taps 3 | auto_attack False, auto_defend_mode PERIODIC_PARRY, get_up_mode WAIT, parry_interval 13.0, parry_pre_block 12.0, periodic_jump False | - | 150 |
-| `knockdown-stand` | `s6-stand` | hold 0.1, string_taps 3 | auto_attack False, auto_defend_mode OFF, get_up_mode WAIT, jump_interval 1.3, periodic_jump True | - | 90 |
-| `death-midair` | `-` | hold 0.1 | silent | - | 36 |
-| `death-over-knockdown` | `s7-death-grade` | hold 0.22 | silent | - | 60 |
-| `death-revive` | `s7-death` | hold 0.1, string_taps 3 | silent, auto_revive 3.0 | - | 90 |
-| `lock-attack-recovery` | `-` | silent | silent | - | 36 |
-| `lock-block-speed` | `-` | silent | silent | - | 32 |
-| `lock-blockstun-free` | `-` | hold 0.1 | silent | - | 52 |
-| `lock-exhausted-speed` | `-` | silent | silent | - | 32 |
-| `lock-guard-break` | `-` | hold 0.22 | silent | - | 52 |
-| `lock-hitstun` | `-` | hold 0.1 | silent | - | 52 |
-| `lock-knockdown` | `-` | hold 0.22, interval 4.5 | silent | - | 52 |
-| `lock-parry` | `-` | silent | silent | - | 32 |
-| `edge-actionable` | `-` | silent | silent | - | 60 |
-| `edge-chain-close` | `-` | silent | silent | - | 60 |
-| `edge-chain-open` | `-` | silent | silent | - | 60 |
-| `edge-fresh-open` | `-` | silent | silent | - | 60 |
-| `edge-guard-floor` | `-` | silent | silent | - | 44 |
-| `edge-heavy-checkpoint` | `-` | silent | silent | - | 52 |
-| `edge-hitstun-accept` | `-` | hold 0.1 | silent | - | 100 |
-| `edge-light-checkpoint` | `-` | silent | silent | - | 52 |
-| `edge-lockout-end` | `-` | hold 0.22, interval 4.5 | silent | - | 100 |
-| `edge-parry-close` | `-` | hold 0.1 | silent | - | 100 |
-| `edge-recovery-accept` | `-` | silent | silent | - | 84 |
-| `reach-aim-gap` | `-` | silent | silent | - | 116 |
-| `reach-aim-wedge` | `-` | silent | silent | - | 68 |
-| `reach-arc` | `-` | silent | silent | - | 76 |
-| `reach-height` | `-` | silent | silent | - | 68 |
-| `reach-light` | `-` | silent | silent | - | 36 |
+| `tier-cells` | silent | silent | f0 tap attack / f0 hold attack 13 / f0 hold attack 51 / +6 more (18 reps) | reps done, or 92 s |  |
+| `tier-charged` | hold 0.85 | silent | - | 8x ABILITY END, or 30 s | yes |
+| `tier-heavy` | hold 0.22 | silent | - | 8x ABILITY END, or 30 s | yes |
+| `tier-light` | hold 0.1, interval 2.2 | silent | - | 8x ABILITY END, or 30 s | yes |
+| `attack-airborne` | silent | silent | f0 tap jump; f18 tap attack (3 reps) | reps done, or 32 s |  |
+| `attack-cancel` | hold 0.1, cancel_attack_into_block True | silent | - | 4x BLOCK cost, or 30 s | yes |
+| `attack-waiver` | hold 0.1, dodge_after_hit True | silent | f0 attacker lock_to State.Attacking (3 reps) | reps done, or 44 s | yes |
+| `attack-whiff-commitment` | silent | silent | f0 tap attack; f24 tap dodge (3 reps) | reps done, or 32 s |  |
+| `string-cadence` | hold 0.1, string_taps 3 | silent | - | 8x STRING chain out, or 60 s | yes |
+| `string-finisher-arc` | facing_mode NEVER, hold 0.1, string_taps 3, suppress_lunge True | silent | - | 4x KNOCKDOWN STAND, or 90 s | yes |
+| `string-guarantee` | hold 0.1, string_taps 3 | silent | f0 lock_to State.Hitstun; f6 tap dodge (3 reps) | reps done, or 44 s | yes |
+| `string-player-blocked` | silent | auto_attack False, auto_defend_mode HOLD_BLOCK, get_up_mode WAIT, periodic_jump False | f0 tap attack; f30 tap attack; f60 tap attack (4 reps) | reps done, or 36 s |  |
+| `string-player-cadence` | silent | silent | f0 tap attack; f30 tap attack; f60 tap attack (4 reps) | reps done, or 36 s |  |
+| `input-accept-blockstun` | hold 0.1 | silent | f0 attacker lock_to State.Attacking; f2 press block; f0 lock_to State.Blockstun; f1 release block; f7 tap attack / f0 attacker lock_to State.Attacking; f2 press block; f0 lock_to State.Blockstun; f1 release block; f11 tap attack (6 reps) | reps done, or 68 s |  |
+| `input-accept-hitstun` | hold 0.1 | silent | f0 lock_to State.Hitstun; f19 tap attack / f0 lock_to State.Hitstun; f23 tap attack (6 reps) | reps done, or 68 s |  |
+| `input-accept-lockout` | silent | auto_attack False, auto_defend_mode PERIODIC_PARRY, get_up_mode WAIT, periodic_jump False | f0 defender lock_to State.Parrying; f0 tap attack; f0 lock_to State.ParryLockout; f31 tap attack / f0 defender lock_to State.Parrying; f0 tap attack; f0 lock_to State.ParryLockout; f35 tap attack (6 reps) | reps done, or 90 s |  |
+| `input-block-never-replays` | hold 0.1 | silent | f0 lock_to State.Hitstun; f25 tap block / f0 lock_to State.Hitstun; f25 hold block 40 (6 reps) | reps done, or 68 s |  |
+| `input-hold-tier` | silent | silent | f0 tap attack; f51 hold attack 15 (8 reps) | 30 s |  |
+| `input-last-wins` | hold 0.1 | silent | f0 lock_to State.Hitstun; f24 tap attack; f27 tap dodge (3 reps) | reps done, or 44 s |  |
+| `input-parry-never-buffers` | hold 0.1 | silent | f0 lock_to State.Hitstun; f25 tap parry (3 reps) | reps done, or 44 s |  |
+| `block-charged` | hold 0.85, interval 3.0 | silent | f0 attacker lock_to State.Attacking; f2 press block; f60 release block / f0 attacker lock_to State.Attacking (4 reps) | reps done, or 52 s | yes |
+| `block-commitment` | silent | silent | f0 press block; f6 release block / f0 press block; f24 release block (6 reps) | reps done, or 44 s |  |
+| `block-facing` | hold 0.1 | silent | f0 face 90.0; f0 attacker lock_to State.Attacking; f2 press block; f30 release block / f0 face 270.0; f0 attacker lock_to State.Attacking; f2 press block; f30 release block (4 reps) | reps done, or 52 s |  |
+| `block-heavy` | hold 0.22, interval 3.0 | silent | f0 attacker lock_to State.Attacking; f2 press block; f30 release block / f0 attacker lock_to State.Attacking; f2 set_stamina 58.0; f2 press block; f30 release block / f0 attacker lock_to State.Attacking (6 reps) | reps done, or 68 s | yes |
+| `block-light` | hold 0.1, interval 2.2 | silent | f0 attacker lock_to State.Attacking; f2 press block; f30 release block / f0 attacker lock_to State.Attacking; f2 set_stamina 13.0; f2 press block; f30 release block / f0 attacker lock_to State.Attacking (6 reps) | reps done, or 68 s | yes |
+| `block-stun-offense-only` | hold 0.1 | silent | f0 attacker lock_to State.Attacking; f2 press block; f0 lock_to State.Blockstun; f1 release block; f6 tap dodge / f0 attacker lock_to State.Attacking; f2 press block; f0 lock_to State.Blockstun; f1 release block; f6 tap parry / f0 attacker lock_to State.Attacking; f2 press block; f0 lock_to State.Blockstun; f1 release block; f6 tap attack (6 reps) | reps done, or 68 s |  |
+| `dodge-airborne` | silent | silent | f0 tap jump; f18 tap dodge (3 reps) | reps done, or 32 s |  |
+| `dodge-cycle` | silent | silent | f0 tap dodge; f30 tap dodge (2 reps) | reps done, or 28 s | yes |
+| `dodge-directions` | silent | silent | f0 move 0.0 1.0 40; f12 tap dodge / f0 move 1.0 1.0 40; f12 tap dodge / f0 move 1.0 0.0 40; f12 tap dodge / +5 more (16 reps) | reps done, or 84 s |  |
+| `dodge-iframes` | hold 0.1 | silent | f0 attacker lock_to State.Attacking; f9 tap dodge / f0 attacker lock_to State.Attacking (6 reps) | reps done, or 68 s |  |
+| `parry-catch` | hold 0.1, string_taps 3 | silent | f0 attacker lock_to State.Attacking; f6 tap parry / f0 attacker lock_to State.Attacking; f2 press block; f22 release block; f36 tap parry (6 reps) | reps done, or 90 s | yes |
+| `parry-facing` | hold 0.1 | silent | f0 face 90.0; f0 attacker lock_to State.Attacking; f6 tap parry (2 reps) | reps done, or 36 s |  |
+| `parry-grace-catch` | hold 0.1 | hold 0.1, interval 3.1 | f0 attacker lock_to State.Attacking; f6 tap parry (6 reps) | reps done, or 68 s |  |
+| `parry-lockout-charged` | hold 0.85 | silent | f0 attacker lock_to State.Attacking; f44 tap parry (3 reps) | reps done, or 44 s |  |
+| `parry-lockout-heavy` | hold 0.22 | silent | f0 attacker lock_to State.Attacking; f20 tap parry (3 reps) | reps done, or 44 s |  |
+| `parry-lockout-light` | hold 0.1, string_taps 3 | silent | f0 attacker lock_to State.Attacking; f6 tap parry / f0 attacker lock_to State.Attacking; f2 press block; f22 release block; f36 tap parry / f0 attacker lock_to State.Attacking; f2 press block; f52 release block; f67 tap parry (6 reps) | reps done, or 68 s |  |
+| `parry-refused` | silent | silent | f0 press block; f6 tap parry; f30 release block / f0 tap dodge; f6 tap parry / f0 set_stamina 0.0; f3 tap parry / +1 more (8 reps) | reps done, or 52 s |  |
+| `parry-reward` | hold 0.1 | silent | f0 attacker lock_to State.Attacking; f0 set_stamina 50.0; f6 tap parry (4 reps) | reps done, or 52 s |  |
+| `parry-whiff` | silent | silent | f0 tap parry; f9 tap attack; f27 tap attack; f36 tap dodge; f51 tap block; f57 tap block (6 reps) | reps done, or 44 s | yes |
+| `knockdown-airborne` | hold 0.22 | silent | f0 attacker lock_to State.Attacking; f0 tap jump / f0 attacker lock_to State.Attacking (8 reps) | reps done, or 120 s | yes |
+| `knockdown-floor-per-body` | hold 0.22, interval 4.5 | hold 0.22, interval 4.8 | f0 attacker lock_to State.Attacking (5 reps) | reps done, or 60 s |  |
+| `knockdown-getup-attack` | hold 0.22 | auto_attack False, auto_defend_mode OFF, get_up_mode ATTACK_GET_UP, periodic_jump False | - | 4x KNOCKDOWN RISE, or 60 s | yes |
+| `knockdown-getup-exhausted-held` | hold 0.22 | silent | f0 attacker lock_to State.Attacking; f0 set_stamina 0.0; f0 lock_to State.KnockedDown; f30 hold block 90; f30 hold dodge 90; f30 hold attack 90 / f0 attacker lock_to State.Attacking; f0 set_stamina 0.0; f0 lock_to State.KnockedDown; f30 hold block 90 (6 reps) | reps done, or 68 s |  |
+| `knockdown-getup-held` | hold 0.22 | silent | f0 lock_to State.KnockedDown; f30 hold block 90 / f0 lock_to State.KnockedDown; f30 hold dodge 90 / f0 lock_to State.KnockedDown; f30 hold attack 90 / +4 more (14 reps) | reps done, or 132 s |  |
+| `knockdown-getup-held-normal` | hold 0.1, string_taps 3 | silent | f0 lock_to State.KnockedDown; f30 hold jump 60 / f0 lock_to State.KnockedDown; f30 hold block 60; f30 hold dodge 60; f30 hold attack 60; f30 hold jump 60 / f0 lock_to State.KnockedDown; f30 hold dodge 60 (6 reps) | reps done, or 68 s |  |
+| `knockdown-getup-tap-priority` | hold 0.22, interval 4.5 | silent | f0 lock_to State.KnockedDown; f30 hold block 90; f88 tap attack (3 reps) | reps done, or 44 s |  |
+| `knockdown-hard` | hold 0.22 | silent | - | 4x KNOCKDOWN STAND, or 60 s | yes |
+| `knockdown-normal` | hold 0.1, string_taps 3 | silent | - | 4x KNOCKDOWN STAND, or 60 s | yes |
+| `knockdown-regen-exception` | hold 0.1, string_taps 3 | silent | f0 attacker lock_to State.Attacking; f0 set_stamina 50.0; f0 tap dodge / f0 attacker lock_to State.Attacking; f2 set_stamina 13.0; f2 press block; f40 release block (4 reps) | reps done, or 52 s | yes |
+| `death-midair` | hold 0.1 | silent | f0 attacker lock_to State.Attacking; f0 set_health 15.0; f0 tap jump; f240 move 0.0 1.0 40 (2 reps) | reps done, or 36 s |  |
+| `death-over-knockdown` | hold 0.22 | silent | f0 attacker lock_to State.Attacking; f0 set_health 25.0 / f0 attacker lock_to State.Attacking (4 reps) | reps done, or 52 s | yes |
+| `death-revive` | hold 0.1, string_taps 3 | silent | f0 attacker lock_to State.Attacking; f0 set_health 15.0 (3 reps) | reps done, or 44 s | yes |
+| `lock-attack-recovery` | silent | silent | f0 move 0.0 1.0 110; f12 tap attack / f12 tap attack (4 reps) | reps done, or 36 s |  |
+| `lock-block-speed` | silent | silent | f0 press block; f0 move 0.0 1.0 90 (3 reps) | reps done, or 32 s |  |
+| `lock-blockstun-free` | hold 0.1 | silent | f0 attacker lock_to State.Attacking; f2 press block; f0 lock_to State.Blockstun; f0 move 0.0 1.0 40 / f0 attacker lock_to State.Attacking; f2 press block; f0 lock_to State.Blockstun (4 reps) | reps done, or 52 s |  |
+| `lock-exhausted-speed` | silent | silent | f0 set_stamina 0.0; f0 move 0.0 1.0 90 (3 reps) | reps done, or 32 s |  |
+| `lock-guard-break` | hold 0.22 | silent | f0 set_stamina 40.0; f0 attacker lock_to State.Attacking; f2 press block; f0 lock_to State.GuardBroken; f1 release block; f1 move 0.0 1.0 90; f10 tap jump / f0 set_stamina 40.0; f0 attacker lock_to State.Attacking; f2 press block; f0 lock_to State.GuardBroken; f1 release block (4 reps) | reps done, or 52 s |  |
+| `lock-hitstun` | hold 0.1 | silent | f0 lock_to State.Hitstun; f0 move 0.0 1.0 120 / f0 lock_to State.Hitstun (4 reps) | reps done, or 52 s |  |
+| `lock-knockdown` | hold 0.22, interval 4.5 | silent | f0 lock_to State.KnockedDown; f0 move 0.0 1.0 160 / f0 lock_to State.KnockedDown (4 reps) | reps done, or 52 s |  |
+| `lock-parry` | silent | silent | f0 tap parry; f0 move 0.0 1.0 90 (3 reps) | reps done, or 32 s |  |
+| `edge-actionable` | silent | silent | f0 tap attack; f57 tap attack / f0 tap attack; f58 tap attack / f0 tap attack; f54 tap attack / +2 more (10 reps) | reps done, or 60 s |  |
+| `edge-chain-close` | silent | silent | f0 tap attack; f41 tap attack / f0 tap attack; f42 tap attack / f0 tap attack; f39 tap attack / +2 more (10 reps) | reps done, or 60 s |  |
+| `edge-chain-open` | silent | silent | f0 tap attack; f16 tap attack / f0 tap attack; f17 tap attack / f0 tap attack; f18 tap attack / +2 more (10 reps) | reps done, or 60 s |  |
+| `edge-fresh-open` | silent | silent | f0 tap attack; f45 tap attack / f0 tap attack; f46 tap attack / f0 tap attack; f44 tap attack / +2 more (10 reps) | reps done, or 60 s |  |
+| `edge-guard-floor` | silent | silent | f0 press block; f14 release block / f0 press block; f16 release block / f0 press block; f15 release block (6 reps) | reps done, or 44 s |  |
+| `edge-heavy-checkpoint` | silent | silent | f0 hold attack 20 / f0 hold attack 23 / f0 hold attack 21 / +1 more (8 reps) | reps done, or 52 s |  |
+| `edge-hitstun-accept` | hold 0.1 | silent | f0 lock_to State.Hitstun; f18 tap attack / f0 lock_to State.Hitstun; f24 tap attack / f0 lock_to State.Hitstun; f20 tap attack / +2 more (10 reps) | reps done, or 100 s |  |
+| `edge-light-checkpoint` | silent | silent | f0 hold attack 8 / f0 hold attack 11 / f0 hold attack 9 / +1 more (8 reps) | reps done, or 52 s |  |
+| `edge-lockout-end` | hold 0.22, interval 4.5 | silent | f0 lock_to State.KnockedDown; f87 tap attack / f0 lock_to State.KnockedDown; f93 tap attack / f0 lock_to State.KnockedDown; f89 tap attack / +2 more (10 reps) | reps done, or 100 s |  |
+| `edge-parry-close` | hold 0.1 | silent | f0 attacker lock_to State.Attacking; f10 tap parry / f0 attacker lock_to State.Attacking; f16 tap parry / f0 attacker lock_to State.Attacking; f12 tap parry / +2 more (10 reps) | reps done, or 100 s |  |
+| `edge-recovery-accept` | silent | silent | f0 hold attack 13; f48 tap attack / f0 hold attack 13; f58 tap attack / f0 hold attack 13; f30 tap attack / +6 more (18 reps) | reps done, or 92 s |  |
+| `reach-aim-gap` | silent | silent | f0 face 270.0; f0 defender teleport 90.0; f6 tap attack / f0 face 270.0; f0 defender teleport 90.0; f6 tap attack / f0 face 270.0; f0 defender teleport 90.0; f6 tap attack / +9 more (24 reps) | reps done, or 116 s |  |
+| `reach-aim-wedge` | silent | silent | f0 face 270.0; f0 defender teleport 105.0; f6 tap attack / f0 face 270.0; f0 defender teleport 135.0; f6 tap attack / f0 face 270.0; f0 defender teleport 115.0; f6 tap attack / +3 more (12 reps) | reps done, or 68 s |  |
+| `reach-arc` | silent | silent | f0 face 270.0; f0 defender teleport 118.0; f6 tap attack / f0 face 270.0; f0 defender teleport 150.0; f6 tap attack / f0 face 270.0; f0 defender teleport 122.0; f6 tap attack / +4 more (14 reps) | reps done, or 76 s |  |
+| `reach-height` | silent | silent | f0 face 270.0; f0 defender fly True; f0 defender teleport 90.0; f6 tap attack / f0 face 270.0; f0 defender fly True; f0 defender teleport 90.0; f6 tap attack / f0 face 270.0; f0 defender fly True; f0 defender teleport 90.0; f6 tap attack / +3 more (12 reps) | reps done, or 68 s |  |
+| `reach-light` | silent | silent | f0 defender teleport 90.0; f6 tap attack / f0 defender teleport 90.0; f6 tap attack (4 reps) | reps done, or 36 s |  |
 
 *Generated from `Tools/RegressionCheck/scenarios.py` by `Tools/RegressionCheck/gen-matrix.py`. Edit the fixtures there, never this table.*
 <!-- matrix:end -->
+
+### Coverage map
+
+Which rows assert each mechanic, from the `covers` each row declares; a mechanic with no row is a
+gap the roster has to name or close. Starred rows are the canary.
+
+<!-- coverage:begin -->
+
+| Mechanic | Rows asserting it (canary rows starred) |
+|---|---|
+| 360 finisher | `string-finisher-arc`* |
+| acceptance window | `edge-actionable`, `edge-fresh-open`, `edge-hitstun-accept`, `edge-lockout-end`, `edge-recovery-accept`, `input-accept-blockstun`, `input-accept-hitstun`, `input-accept-lockout`, `input-hold-tier` |
+| aim wedge | `reach-aim-gap`, `reach-aim-wedge` |
+| airborne knockdown | `knockdown-airborne`* |
+| airborne refusal | `attack-airborne`, `dodge-airborne` |
+| arc | `reach-arc` |
+| attack total | `tier-cells`, `tier-charged`*, `tier-heavy`*, `tier-light`* |
+| blockstun | `block-charged`*, `block-heavy`*, `block-light`*, `block-stun-offense-only`, `string-player-blocked` |
+| buffer expiry | `attack-airborne`, `dodge-airborne`, `edge-fresh-open`, `edge-hitstun-accept`, `edge-recovery-accept`, `input-accept-blockstun`, `input-accept-hitstun`, `input-accept-lockout` |
+| buffer priority | `input-last-wins` |
+| cancel into guard | `attack-cancel`* |
+| chain cadence | `string-cadence`*, `string-player-blocked`, `string-player-cadence` |
+| chain window | `edge-chain-close`, `edge-chain-open`, `tier-cells` |
+| checkpoint | `edge-heavy-checkpoint`, `edge-light-checkpoint` |
+| commitment | `attack-whiff-commitment` |
+| death | `death-midair`, `death-revive`* |
+| death impulse | `death-revive`* |
+| death over knockdown | `death-over-knockdown`* |
+| dodge cost | `dodge-cycle`*, `knockdown-getup-held-normal` |
+| dodge direction | `dodge-directions` |
+| dodge fit | `dodge-cycle`*, `dodge-directions` |
+| dodge travel | `dodge-cycle`*, `dodge-directions`, `knockdown-getup-held-normal` |
+| escalation | `tier-cells`, `tier-charged`*, `tier-heavy`*, `tier-light`* |
+| exhaustion | `dodge-cycle`*, `knockdown-getup-exhausted-held` |
+| exhausted regen | `block-charged`*, `block-heavy`*, `block-light`*, `dodge-cycle`*, `knockdown-regen-exception`* |
+| floor invincibility | `knockdown-floor-per-body`, `knockdown-hard`*, `knockdown-normal`* |
+| get-up attack | `knockdown-getup-attack`* |
+| get-up options | `knockdown-getup-exhausted-held`, `knockdown-getup-held`, `knockdown-getup-held-normal` |
+| get-up priority | `knockdown-getup-held`, `knockdown-getup-held-normal`, `knockdown-getup-tap-priority` |
+| guard break | `block-charged`*, `block-heavy`*, `block-light`* |
+| guard cost | `block-charged`*, `block-heavy`*, `block-light`* |
+| guard facing | `block-facing` |
+| guard floor | `block-commitment`, `edge-guard-floor` |
+| guard-break stun | `block-charged`*, `block-heavy`*, `block-light`* |
+| health damage | `block-charged`*, `block-heavy`*, `block-light`*, `string-cadence`*, `string-player-cadence` |
+| health ledger | `block-charged`*, `block-heavy`*, `block-light`*, `string-cadence`* |
+| height band | `reach-height` |
+| held input | `knockdown-getup-held`, `knockdown-getup-held-normal`, `knockdown-getup-tap-priority` |
+| hit guarantee | `string-guarantee`* |
+| hitstun | `string-cadence`*, `string-guarantee`*, `string-player-cadence` |
+| hold tier | `input-hold-tier`, `tier-cells` |
+| i-frames | `dodge-iframes`, `knockdown-getup-held-normal` |
+| knockback spacing | `string-cadence`*, `string-player-blocked`, `string-player-cadence` |
+| knockdown spans | `edge-lockout-end`, `knockdown-getup-held`, `knockdown-getup-held-normal`, `knockdown-hard`*, `knockdown-normal`*, `knockdown-regen-exception`* |
+| knockdown type | `knockdown-hard`*, `knockdown-normal`*, `string-finisher-arc`*, `string-player-cadence` |
+| montage swap | `tier-cells` |
+| movement lock | `lock-attack-recovery`, `lock-blockstun-free`, `lock-guard-break`, `lock-hitstun`, `lock-knockdown`, `lock-parry` |
+| parry catch | `parry-catch`* |
+| parry facing | `parry-facing` |
+| parry grace | `parry-catch`*, `parry-grace-catch` |
+| parry lockout | `parry-catch`*, `parry-lockout-charged`, `parry-lockout-heavy`, `parry-lockout-light` |
+| parry recoil | `parry-catch`* |
+| parry refusal | `parry-refused` |
+| parry reward | `parry-catch`*, `parry-reward` |
+| parry whiff | `parry-whiff`* |
+| parry window | `edge-parry-close`, `parry-catch`* |
+| reach | `reach-aim-gap`, `reach-light` |
+| release timing | `tier-cells`, `tier-charged`*, `tier-heavy`*, `tier-light`* |
+| revive | `death-midair`, `death-revive`* |
+| stamina damage | `block-charged`*, `block-heavy`*, `block-light`*, `string-player-blocked` |
+| string reset | `parry-catch`* |
+| tap tier | `edge-actionable`, `edge-fresh-open`, `tier-cells` |
+| two attackers | `knockdown-floor-per-body`, `parry-grace-catch` |
+| waiver | `attack-waiver`* |
+| walk speed | `lock-block-speed`, `lock-exhausted-speed` |
+| what buffers | `input-block-never-replays`, `input-parry-never-buffers` |
+
+*Generated from each row's `covers` in `Tools/RegressionCheck/scenarios.py` by `Tools/RegressionCheck/gen-matrix.py`.*
+<!-- coverage:end -->
 
 **The table above is generated** from `Tools/RegressionCheck/scenarios.py` by
 `Tools/RegressionCheck/gen-matrix.py`, which `docs-check` re-runs to catch a fixture edit
@@ -942,25 +1022,14 @@ frame) count as travel samples at all.
 learned by watching one go missing)*. That line dedups per reason for half a second, so any defend
 mode pressing the same ability the get-up mode presses swallows the get-up press's own refusal:
 `HoldBlock` with `BlockGetUp` refused a press at 8.274 whose line did not print until 8.733, already
-attributed to the guard spam. **The absent rise is the same fact and cannot be deduped**, so every
-`s6-exhausted*` scenario asserts behaviour rather than logging.
+attributed to the guard spam. **The absent rise is the same fact and cannot be deduped**, so the
+exhausted get-up row (`knockdown-getup-exhausted-held`) asserts behaviour rather than logging.
 
-**The exhausted fixtures cannot hold the tag up, so the assertion is scoped to the presses where it
-was** *(fixture behaviour, measured 2026-08-24 — a property of the scenarios, not of any scripting
-surface)*. A get-up that succeeds refills the bar, and the loop then settles with the defender never
-re-exhausting -- `HoldBlock` with `BlockGetUp` exhausted once in sixty seconds and not again, while
-`PeriodicDodge` never exhausted it at all. Each scenario therefore counts only presses made while
-`State.Exhausted` was up and **fails on n=0** rather than passing on a run where the defender was
-never exhausted. Measured on the pre-block drain: **2 of 6** presses for `-block`, **5 of 8** for
-`-attack`. The `-block` sample is small and known to be; the n=0 gate is what stops it degrading
-silently.
-
-**`s6-airborne` is rare and that is the fixture being honest.** The jump and the attack cycle are
-deliberately non-aliasing, so hits sweep the jump arc rather than meeting the same phase every time
-— which is what produces a range of entry heights, and also why most hits land on a grounded body.
-Measured **1 airborne in 20** knockdowns, the airborne one entering at `z=181.0` against a floor of
-`z=98.2` and standing back at `98.2`: an 82.8 cm fall, with `IgnoreZAccumulate` letting gravity keep
-the vertical.
+**The exhausted get-up and the airborne knockdown are scripted** *(2026-09-03)*: the bar is written
+to zero the frame the heavy begins, so `State.Exhausted` is up at every press, where the timer
+fixtures this replaced could not hold it up and scoped their assertions to the presses made while it
+was; and the player jumps on the attacker's lock, so every other knockdown enters airborne at height,
+where the periodic-jump fixture measured **1 airborne in 20**.
 
 **The height test runs before the hang test, and that ordering is the design.** A body floored 2 cm
 off the deck is airborne by the flag and has nothing to fall, so it can neither hang nor be seen not

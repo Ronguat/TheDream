@@ -3068,6 +3068,11 @@ void ATDCombatCharacter::WarnOnStaleInstanceOverrides() const
 
 void ATDCombatCharacter::DebugAutoParryCycle()
 {
+	if (DebugAutoDefendMode != ETDDebugDefendMode::PeriodicParry)
+	{
+		return;
+	}
+
 	// No pre-block requested: the cycle *is* the tap, exactly as it was before this existed. Every
 	// scenario that does not set DebugParryPreBlockSeconds is bit-for-bit unaffected.
 	if (DebugParryPreBlockSeconds <= 0.0f || !DebugDefendBlockInputTag.IsValid())
@@ -3403,6 +3408,11 @@ void ATDCombatCharacter::TryReturnToDebugAutoAttackHome()
 
 void ATDCombatCharacter::DebugAutoAttackPress()
 {
+	if (!bDebugAutoAttack && DebugStringTapsRemaining <= 0)
+	{
+		return;
+	}
+
 	// A burst's first press does the housekeeping; the taps inside one deliberately do not. A
 	// home-teleport mid-string would sever the spacing chain s4 measures, and the focus survives
 	// the whole burst on its own. Taps=1 makes every press a first press, which is the
@@ -3484,6 +3494,11 @@ void ATDCombatCharacter::DebugAutoAttackRelease()
 
 void ATDCombatCharacter::DebugAutoDodgePress()
 {
+	if (DebugAutoDefendMode != ETDDebugDefendMode::PeriodicDodge)
+	{
+		return;
+	}
+
 	// Every dodge starts from the same transform, which is what makes DODGE END's distance a
 	// measurement rather than an accumulation. With no movement input the direction is always
 	// backward, so without this the dodger reverses out of the attacker's reach within two
@@ -3519,6 +3534,11 @@ void ATDCombatCharacter::DebugAutoDodgeRelease()
 
 void ATDCombatCharacter::DebugAutoJumpPress()
 {
+	if (!bDebugPeriodicJump)
+	{
+		return;
+	}
+
 	// No ReturnToDebugAutoAttackHome() here, unlike the dodge's press. This fixture's pawn is
 	// usually the *defender*, standing where the attacker needs it, and re-homing it every cycle
 	// would move the body mid-exchange -- the contamination Docs/Working-In-Unreal.md warns about.

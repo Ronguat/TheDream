@@ -14,14 +14,27 @@ tailing the log for the REGRESSION markers each scenario emits:
     REGRESSION LOCK <id> rep=<k> <actor> <tag> frame=<f> game=<t>
     REGRESSION REP <id> n=<k> game=<t> <pawn> tags=<...> states=<...> health=<h> stamina=<s>
     REGRESSION TEARDOWN <pawn> tags=<...> states=<...> health=<h> stamina=<s>
-    REGRESSION END <id> status=<ok|error|timeout> game=<s> frames=<n>
+    REGRESSION END <id> status=<ok|error|timeout> game=<s> frames=<n> lock=<s> plan=<s> tail=<s>
+                   gate=<s> settle=<s> pie=<s>
     REGRESSION DONE run=<run>
 
-Two rep models. A row with expect.period_frames repeats its plan on a fixed period from plan start,
-the s8 family's shape. A row with expect.gate runs one plan per rep -- plans[k % len(plans)] for rep
-k -- and between reps waits for every pawn to settle, emits a REP readout, resets the pawns and
-restores every placement, so each rep starts from the same state. Plan frames count from the rep's
-start, or from the most recent lock_to, which rebases them to the frame its tag appeared on.
+The END marker carries the row's time ledger: game seconds waiting for locks, running plans, in
+tails, in the gate and in the final settle, and wall seconds starting and stopping play. The row's
+id is printed on the viewport while it runs.
+
+Two rep models. A row with expect.period_frames repeats its plan on a fixed period from plan start.
+A row with expect.gate runs one plan per rep -- plans[k % len(plans)] for rep k -- and between reps
+waits for every pawn to settle, emits a REP readout, resets the pawns and restores every placement,
+so each rep starts from the same state. Plan frames count from the rep's start, or from the most
+recent lock_to, which rebases them to the frame its tag appeared on.
+
+A frame is a sixtieth of game time on either clock: a step is due when the game time since its base
+reaches frame/60, so the same plan means the same thing under the fixed step and on the wall clock.
+
+A row stops on its duration, or on an until condition -- (tag, n) or (tag, token, n) -- met when the
+trace since BEGIN carries n lines of that tag, read off the log between ticks; timeout bounds it.
+At settle every dummy loop is switched off and states the row's teardown_allow names are ignored,
+so the world quiets in the time its last exchange takes rather than the settle's budget.
 
 Anything thrown releases every hold, restores the clock and screen percentage, ends play, and the
 run continues with the next scenario.
@@ -29,6 +42,7 @@ run continues with the next scenario.
 import importlib
 import json
 import os
+import re
 import time
 import sys
 import traceback
@@ -74,6 +88,20 @@ WORLD_TIMEOUT_S = 30.0
 LOCK_TIMEOUT_S = 15.0
 STOP_FILE = os.path.join(REG_DIR, "stop")
 DEFAULT_TAIL_FRAMES = 60
+UNTIL_TIMEOUT_S = 120.0
+TRACE_RE = re.compile(r"LogTDCombatTiming: \[(\d+\.\d+)\] (.*)$")
+# Knobs that drive a dummy's loops, and the value that stops each.
+LOOP_OFF = {"debug_auto_attack": False, "debug_auto_defend_mode": "OFF", "debug_periodic_jump": False}
+
+
+def tag_of(text):
+    out = []
+    for tok in text.split():
+        if tok.isalpha() and tok.isupper():
+            out.append(tok)
+        else:
+            break
+    return " ".join(out)
 
 les = unreal.get_editor_subsystem(unreal.LevelEditorSubsystem)
 eas = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
@@ -119,10 +147,13 @@ def states_on(pawn):
     return out
 
 
-def at_rest(pawn):
+def at_rest(pawn, allow=()):
     """The game's own settle. Every ability that matters applies a state tag while it runs --
-    Attacking, Dodging, Parrying, Blocking -- so the tag set stands for "nothing active"."""
-    return not tags_on(pawn) and not states_on(pawn)
+    Attacking, Dodging, Parrying, Blocking -- so the tag set stands for "nothing active". Names in
+    allow, the states a fixture holds on purpose, do not count."""
+    def kept(name):
+        return not any(a.lower() in name.lower() for a in allow)
+    return not [t for t in tags_on(pawn) if kept(t)] and not [s for s in states_on(pawn) if kept(s)]
 
 
 def still(pawn):
@@ -220,6 +251,25 @@ class Run(object):
         self.lock_seen = False
         self.lock_wait = 0
         self.last_due = 0
+        # Frames are game time since these, in sixtieths.
+        self.run_t0 = None
+        self.rep_t0 = None
+        self.period_rep = -1
+        self.last_sampled = -1
+        # The until condition, counted off the log from BEGIN.
+        self.until_need = 0
+        self.until_tag = None
+        self.until_token = None
+        self.until_count = 0
+        self.log_offset = 0
+        self.log_partial = ""
+        self.last_until_frame = -1
+        # The time ledger, per row.
+        self.phase_time = {}
+        self.lock_t0 = None
+        self.lock_total = 0.0
+        self.tail_total = 0.0
+        self.last_due_time = None
 
     # -- lifecycle ----------------------------------------------------------
     def mark(self, text):
@@ -288,6 +338,7 @@ class Run(object):
             self.phase, self.wait = "aborting", 0
 
     def goto(self, phase):
+        self.phase_time[self.phase] = self.phase_time.get(self.phase, 0.0) + self.settled_for()
         self.phase, self.wait = phase, 0
         # Phase budgets count in seconds of the clock they wait on: wall time before a game world
         # exists, game time once it does, since a tick is a sixtieth only under the fixed step.
@@ -319,6 +370,7 @@ class Run(object):
             self.finish(stopped=True)
             return
         self.sid = self.ids[self.idx]
+        self.phase_time, self.lock_total, self.tail_total, self.last_due_time = {}, 0.0, 0.0, None
         self.goto("stopping")
 
     def phase_stopping(self):
@@ -416,10 +468,35 @@ class Run(object):
         if self.tapes:
             self.tape = open(os.path.join(self.out_dir, "%s.tape.tsv" % self.sid), "w")
             self.tape.write("frame\tt\tpawn\tx\ty\tz\tyaw\thealth\tstamina\ttags\n")
+        self.show_row(gw)
         self.frame, self.step, self.pending = 0, 0, []
         self.rep, self.rep_frame, self.base = 0, 0, 0
         self.lock_seen, self.lock_wait, self.last_due = False, 0, 0
+        self.run_t0, self.rep_t0, self.period_rep, self.last_sampled = None, None, -1, -1
+        stop = s.get("stop", {})
+        self.until_need, self.until_tag, self.until_token, self.until_count = 0, None, None, 0
+        if "until" in stop:
+            u = stop["until"]
+            self.until_tag, self.until_token, self.until_need = u[0], (u[1] if len(u) > 2 else None), int(u[-1])
+        unreal.log_flush()
+        self.log_offset, self.log_partial, self.last_until_frame = os.path.getsize(LOG_PATH), "", -1
         self.goto("run")
+
+    def show_row(self, gw):
+        """The row's id on the viewport for as long as it runs, so what is seen can be named."""
+        text = "regression %s  %d of %d" % (self.sid, self.idx + 1, len(self.ids))
+        colour = unreal.LinearColor(0.3, 1.0, 0.6, 1.0)
+        try:
+            unreal.SystemLibrary.print_string(gw, text, print_to_screen=True, print_to_log=False,
+                                              text_color=colour, duration=600.0, key="regression")
+        except TypeError:
+            try:
+                unreal.SystemLibrary.print_string(gw, text, print_to_screen=True, print_to_log=False,
+                                                  text_color=colour, duration=600.0)
+            except Exception:
+                pass
+        except Exception:
+            pass
 
     def find_pie_roles(self):
         """The PIE-world counterparts of the role actors, resolved once per scenario."""
@@ -442,12 +519,21 @@ class Run(object):
     def gated(self):
         return bool(SC.SCENARIOS[self.sid].get("expect", {}).get("gate"))
 
+    @staticmethod
+    def frames_since(now, t0):
+        return int(round((now - t0) * 60.0))
+
     def phase_run(self):
         s = SC.SCENARIOS[self.sid]
         gw = ues.get_game_world()
         now = unreal.GameplayStatics.get_time_seconds(gw)
         elapsed = now - self.begin_game_time
-        f = self.frame
+        if self.run_t0 is None:
+            self.run_t0 = now
+        if self.rep_t0 is None:
+            self.rep_t0 = now
+        f = self.frame = self.frames_since(now, self.run_t0)
+        self.rep_frame = self.frames_since(now, self.rep_t0)
 
         if self.gated():
             done = self.run_gated_plan(now)
@@ -461,25 +547,63 @@ class Run(object):
                 if rep >= s.get("expect", {}).get("reps", 1):
                     self.goto("settle")
                     return
-                if within == 0:
-                    self.step = 0
+                if rep != self.period_rep:
+                    self.period_rep, self.step = rep, 0
             else:
                 within = f
             while self.step < len(plan) and plan[self.step][0] <= within:
                 self.do_op(plan[self.step])
                 self.step += 1
         self.expire_holds(f)
-
-        every = int(s.get("tape_every", 2))
-        if self.tapes and self.tape and f % every == 0:
-            self.sample(f, now)
+        self.sample_if_due(f, now)
 
         stop = s.get("stop", {})
         if "duration" in stop and elapsed >= stop["duration"]:
             self.goto("settle")
             return
-        self.frame += 1
-        self.rep_frame += 1
+        if self.until_tag:
+            if f % 6 == 0 and f != self.last_until_frame:
+                self.last_until_frame = f
+                self.count_trace()
+            if self.until_count >= self.until_need or elapsed >= float(stop.get("timeout", UNTIL_TIMEOUT_S)):
+                self.goto("settle")
+
+    def count_trace(self):
+        """Lines of the until tag written since BEGIN: the log is flushed and read from where the
+        last read stopped, a partial trailing line carried to the next read."""
+        unreal.log_flush()
+        try:
+            size = os.path.getsize(LOG_PATH)
+        except OSError:
+            return
+        if size <= self.log_offset:
+            return
+        with open(LOG_PATH, "rb") as fh:
+            fh.seek(self.log_offset)
+            data = fh.read(size - self.log_offset)
+        self.log_offset = size
+        lines = (self.log_partial + data.decode("utf-8", "replace")).split("\n")
+        self.log_partial = lines.pop()
+        for line in lines:
+            m = TRACE_RE.search(line)
+            if m and tag_of(m.group(2)) == self.until_tag and (
+                    self.until_token is None or self.until_token in m.group(2)):
+                self.until_count += 1
+
+    def sample_if_due(self, f, now):
+        every = int(SC.SCENARIOS[self.sid].get("tape_every", 2))
+        if self.tapes and self.tape and f % every == 0 and f != self.last_sampled:
+            self.last_sampled = f
+            self.sample(f, now)
+
+    def stop_loops(self):
+        """Every dummy loop off, so nothing new starts while the world settles."""
+        for actor in self.pie_roles.values():
+            for name, value in LOOP_OFF.items():
+                try:
+                    actor.set_editor_property(name, self.coerce(name, value))
+                except Exception:
+                    pass
 
     def run_gated_plan(self, now):
         """One rep of the current plan; True when the phase changed."""
@@ -497,11 +621,14 @@ class Run(object):
                     # First look: record what is already up, and lock only on a later edge.
                     self.lock_seen = present
                     self.lock_wait = 1
+                    self.lock_t0 = now
                     return False
                 if present and not self.lock_seen:
                     # Rebase to the frame the tag appeared on, and read the steps after it against it.
                     self.base = self.rep_frame
                     self.last_due = self.rep_frame
+                    self.last_due_time = now
+                    self.lock_total += now - (self.lock_t0 if self.lock_t0 is not None else now)
                     self.mark("LOCK %s rep=%d %s %s frame=%d game=%.3f"
                               % (self.sid, self.rep, stepv[1], stepv[3], self.frame, now))
                     self.step += 1
@@ -517,12 +644,15 @@ class Run(object):
             if stepv[0] <= rel:
                 self.do_op(stepv)
                 self.last_due = self.rep_frame
+                self.last_due_time = now
                 self.step += 1
                 continue
             break
         if self.step >= len(plan):
             tail = int(expect.get("tail_frames", DEFAULT_TAIL_FRAMES))
             if self.rep_frame - self.last_due >= tail and not self.pending:
+                if self.last_due_time is not None:
+                    self.tail_total += now - self.last_due_time
                 self.goto("gate")
                 return True
         return False
@@ -639,12 +769,12 @@ class Run(object):
     def tick_tape(self):
         """Sampling through the gate and the settle, so the tape has no gap where the readout and
         the reset happen."""
-        s = SC.SCENARIOS[self.sid]
-        every = int(s.get("tape_every", 2))
-        if self.tapes and self.tape and self.frame % every == 0:
-            gw = ues.get_game_world()
-            self.sample(self.frame, unreal.GameplayStatics.get_time_seconds(gw))
-        self.frame += 1
+        gw = ues.get_game_world()
+        now = unreal.GameplayStatics.get_time_seconds(gw)
+        if self.run_t0 is None:
+            self.run_t0 = now
+        self.frame = self.frames_since(now, self.run_t0)
+        self.sample_if_due(self.frame, now)
 
     def phase_gate(self):
         """Between reps: the game settles, the readout records what it left, then the reset and
@@ -654,9 +784,13 @@ class Run(object):
         self.release_all()
         s = SC.SCENARIOS[self.sid]
         expect = s.get("expect", {})
+        allow = s.get("teardown_allow", [])
         attackers = set(self.periodic_attackers())
         quiet = [self.pawn] + [a for r, a in self.pie_roles.items() if r not in attackers]
-        if self.settled_for() < SETTLE_TIMEOUT_S and not all(at_rest(p) and still(p) for p in quiet):
+        # The player must be fully at rest: its states are the plan's own doing, and the tail is
+        # what gives them room. A dummy's fixture-held state is read against the allow list.
+        if self.settled_for() < SETTLE_TIMEOUT_S and not all(
+                at_rest(p, () if p is self.pawn else allow) and still(p) for p in quiet):
             return
         gw = ues.get_game_world()
         now = unreal.GameplayStatics.get_time_seconds(gw)
@@ -681,14 +815,19 @@ class Run(object):
             return
         self.step, self.rep_frame, self.base = 0, 0, 0
         self.lock_seen, self.lock_wait, self.last_due = False, 0, 0
+        self.rep_t0 = None
         self.goto("run")
 
     def phase_settle(self):
         self.tick_tape()
         self.wait += 1
         self.release_all()
+        if self.wait == 1:
+            self.stop_loops()
+        allow = SC.SCENARIOS[self.sid].get("teardown_allow", [])
         pawns = [self.pawn] + list(self.pie_roles.values())
-        if self.settled_for() < SETTLE_TIMEOUT_S and not all(at_rest(p) and still(p) for p in pawns):
+        if self.settled_for() < SETTLE_TIMEOUT_S and not all(
+                at_rest(p, () if p is self.pawn else allow) and still(p) for p in pawns):
             return
         self.readout("TEARDOWN")
         for p in pawns:
@@ -712,7 +851,13 @@ class Run(object):
                 les.editor_request_end_play()
             return
         game_s, frames = getattr(self, "_end", (0.0, 0))
-        self.mark("END %s status=ok game=%.3f frames=%d" % (self.sid, game_s, frames))
+        pt = self.phase_time
+        run_s = pt.get("run", 0.0)
+        pie = sum(pt.get(p, 0.0) for p in ("stopping", "apply", "wait_world", "setup")) + self.settled_for()
+        self.mark("END %s status=ok game=%.3f frames=%d lock=%.1f plan=%.1f tail=%.1f gate=%.1f settle=%.1f pie=%.1f"
+                  % (self.sid, game_s, frames, self.lock_total,
+                     max(0.0, run_s - self.lock_total - self.tail_total), self.tail_total,
+                     pt.get("gate", 0.0), pt.get("settle", 0.0), pie))
         self.goto("next")
 
 

@@ -1450,9 +1450,10 @@ concludes the log is wrong rather than merely old. Add a row whenever a name cha
 
 | Entries say | Code now |
 |---|---|
-| **`s1-light` … `s8-*`**, the numbered scenario ids | **`family-rule[-variant]` ids since 2026-09-03** — `tier-light`, `knockdown-getup-held-exhausted`. Each legacy row's `legacy_id` in `scenarios.py` is the bridge, and `regression-check.sh` still answers to the old id. |
+| **`s1-light` … `s8-*`**, the numbered scenario ids | **`family-rule[-variant]` ids since 2026-09-03** — `tier-light`, `knockdown-getup-held-exhausted`. The bridge was each row's `legacy_id` in `scenarios.py` until the bash checker retired on 2026-09-03; the mapping is now the disposition table in that day's audit entry. |
+| **`string-blocked`, `chain-early`/`-late`/`-closed`, `input-stale`/`-discard`, `knockdown-stand`, `knockdown-getup-dodge`/`-kipup`/`-block`, `knockdown-hard-no-stand`, `knockdown-exhausted-dodge`/`-kipup`/`-block`/`-attack`**, and `regression-check.sh` with its `BAND_*` constants and `--bands-check` | **Retired 2026-09-03 by the legacy-row audit.** Each row's assertions moved to a named receiving row; the disposition table in that day's audit entry is the map. The bash checker's bands became `regression_rows.py` reading `Docs/Combat-Values.tsv`, its relationships, parity and format lint `regression_preflight.py`. |
 | **"coil"**, as a term for the mechanism | **Retired 2026-09-01**, moved here from `CLAUDE.md`'s vocabulary at the 2026-09-02 closedown, which kept the rule and shed the story. It named **one animation serving two or more tiers**, the slomo being how it stretched to cover them; bespoke tier clips ended the reuse. **`Coil*` symbols stay and are live** — `CoilEndSeconds`, `CoilTurnRateDegrees`, `EnterCoil` and the `COIL START` trace. Entries before that date use "coil" for the shared-clip mechanism, and the vocabulary list still carries the one-line retirement. |
-| **`s[#]` scenario ids** — `s1-light`, `s4-360`, `s6-exhausted`, and the other 35 | **Renamed 2026-09-03** to `family-rule[-variant]`, the family a mechanic: `tier-light`, `string-finisher-arc`, `knockdown-exhausted-dodge`. The mapping is `legacy_id` on every entry in `Tools/RegressionCheck/scenarios.py`, which is the authority; the old ids are still the bash checker's case arms, so both names appear in the tooling on purpose. Entries before that date use the `s[#]` form throughout. `ue_s8_driver.py` retired with them, its plans moving into the `chain-*` and `input-*` entries. |
+| **`s[#]` scenario ids** — `s1-light`, `s4-360`, `s6-exhausted`, and the other 35 | **Renamed 2026-09-03** to `family-rule[-variant]`, the family a mechanic: `tier-light`, `string-finisher-arc`, `knockdown-exhausted-dodge`. The mapping was `legacy_id` on every entry in `Tools/RegressionCheck/scenarios.py` while the bash checker answered to the old ids; both retired on 2026-09-03 and the mapping is the disposition table in that day's audit entry. Entries before that date use the `s[#]` form throughout. `ue_s8_driver.py` retired with them, its plans moving into the `chain-*` and `input-*` entries. |
 | **`StringLinkWindowSeconds`**, the **link window**, and `OpenStringLinkWindow` / `HasStringLinkWindowOpen` / `StringWindowEndsAt` | **Gone as of 2026-09-02.** The window did two jobs and only the first survives: advancing the string, now `bStringAdvancePending` marked by `MarkStringAdvancePending` on the chain-out path alone and consumed by the next activation; and keeping that advance available for 400 ms after the ability ended, which is the part that was retired. The trace line `STRING link window open ... until` is now `STRING advance marked ...` with no deadline. Entries before that date describe a fourth phase that no longer exists. |
 | **the chain-out span as "the whole of recovery"** | **A two-sided span**: it opens at `ChainOpenAfterRecoverySeconds` and closes `ChainOpenDurationSeconds` later, both inside recovery. Entries up to 2026-09-02 describe it as running to the ability's end, which was true — `IsChainOutOpen` had an opening and no closing. |
 | **Not scriptable at all** (`Working-In-Unreal.md` section) | **What is and is not scriptable** — retitled because most of the section refutes limits rather than asserting them, then **moved wholesale to `Docs/Unreal-Findings.md` on 2026-08-27** when the lookup half was split from the pre-read. |
@@ -1880,6 +1881,7 @@ long.
 | `reach-aim-gap` | 09-03 |
 | `regression-run.sh` | 09-03 |
 | `regression_eval.py` | 09-03 |
+| `regression_preflight.py` | 09-03 |
 | `regression_rows.py` | 09-03 |
 | `regression_run.py` | 09-03 |
 | `scenarios.py` | 09-03 |
@@ -1887,6 +1889,172 @@ long.
 | `ue_fit_tier_montages.py` | 09-02 |
 | `ue_regression_runner.py` | 09-03 |
 | `ue_seed_cells.py` | 09-02 |
+
+## 2026-09-03 — Every legacy row is audited, the bash checker retires, and the matrix drops to 76 rows in 15 minutes
+
+The audit's second half. The 37 rows carried over from the bash checker were never audited for
+efficiency; they were 2603 s of the 3732 s matrix, and the designer's complaint was specific: rows
+running long past their samples, dummy timers desynchronised against each other, and a wall-clock
+canary whose membership was a fixture accident. The ruling was ruthless optimisation with no loss
+— **"in a world where these tests all turn out to already be 100% optimized, nothing should
+change"** — under five gates, each mechanical, each blocking.
+
+### What the legacy rows were doing, measured on the last full matrix
+
+| Row | Authored | Its samples had landed by | What the rest of the run was |
+|---|---|---|---|
+| `tier-*` | 30 s | the eighth `ABILITY END` at 22–25 s | two more swings, then up to 7.5 s of settle waiting on an attacker loop that never stopped |
+| `block-light` | 150 s | **3 blocks in 9 s** | `HoldBlock` drains 10 stamina a second, so the dummy was exhausted by 9 s, took one hit, and the knockback carried it out of reach for the remaining 140 s |
+| `block-heavy`, `block-charged` | 150 s | the guard breaks every 2–3 blocks | the dummy killed and revived every 21–39 s; 405 refusals in one slice |
+| `attack-waiver` | 30 s | 2 dodges by 6 s | the second knockback carried the defender out of reach; 24 s of whiffs |
+| `string-guarantee` | 60 s | — | a dodge timer at 1.9 s against an attack timer at 3.0 s; which presses landed inside hitstun was the phase relation of two clocks |
+| `knockdown-exhausted-*` | 120 s each | 2–5 presses while exhausted | 480 s across four rows for a mechanism `knockdown-getup-exhausted-held` already held the tag up for |
+| `string-cadence` | 60 s | eight chain-outs by 13 s | 47 s more of the same |
+| `string-finisher-arc` | 90 s | four stands by 13 s | 80 s more |
+| `knockdown-normal`, `-hard` | 60 s | four stands by 21–31 s | the rest |
+| `death-revive` | 90 s | two revives by 36 s | the rest |
+
+Six rows, `chain-*` and `input-stale`/`-discard`, were skipped on the wall clock for being
+frame-authored while every timer fixture ran there whatever it measured: the canary was whatever
+had no plan, not whatever holds on the wall clock.
+
+### The dispositions, every row
+
+| Was | Now | Disposition |
+|---|---|---|
+| `s1-light`, `-heavy`, `-charged` | `tier-*` | **kept**; stops on the eighth `ABILITY END`, interval 2.2 s |
+| `s5-cancel` | `attack-cancel` | **kept**; stops on the fourth `BLOCK cost` |
+| `s5-waiver` | `attack-waiver` | **converted**: the player is the victim, three reps; the dummy dodges out of each hit on the lock rather than twice in thirty seconds |
+| `s4-string` | `string-cadence` | **kept**; stops on the eighth chain-out |
+| `s4-guarantee` | `string-guarantee` | **converted**: a dodge tapped 6 f into the light's hitstun, three reps; asserts the guarantee itself, that all three swings land, which the timer fixture never did |
+| `s4-block` | — | **retired**: every assertion is in `string-player-blocked` |
+| `s4-360` | `string-finisher-arc` | **kept**; stops on the fourth stand |
+| `s8-chain-early`, `-late`, `-closed`, `s8-discard` | — | **retired**: `edge-chain-open` (17 f chains), `edge-chain-close` (41 f chains, 42 f none), `edge-fresh-open` (45 f none, 46 f fresh); the tier assertion they alone carried, that a buffered tap commits a light, is added to every tap-only edge row |
+| `s8-stale` | — | **retired**: `edge-recovery-accept` gains its probe, a tap at 30 f during the heavy's release, asserted expired |
+| `s8-hold-tier` | `input-hold-tier` | **kept as it was**, 24 s |
+| `s2-light`, `-heavy`, `-charged` | `block-*` | **converted**: three plans a tier — the guard from a full bar, the guard from a bar the block empties, no guard — two reps each; adds the exhaustion's arithmetic beside the break |
+| `s3` | `dodge-cycle` | **converted**: two dodges from a full bar half a second apart, two reps, through the exhaustion to its end; travel, fit and direction also in `dodge-directions` |
+| `s5-parry` | `parry-catch` | **kept**, scripted since Phase 2 |
+| `s5-parry-reward` | — | retired in Phase 2 for `parry-reward` |
+| `s5-parry-whiff` | `parry-whiff` | **kept** |
+| `s6-knockdown`, `s6-hard` | `knockdown-normal`, `-hard` | **kept**; stop on the fourth stand |
+| `s6-stand` | — | **retired**: `knockdown-getup-held-normal` holds jump and asserts the stand at the lockout; `edge-lockout-end` asserts `REFUSED` names the lockout on every press inside it |
+| `s6-getup` | `knockdown-getup-attack` | **kept**; stops on the fourth rise. Stays a dummy fixture: the home-at-stand is what puts the riser back in reach, and "the riser's attack lands" needs that |
+| `s6-dodge`, `s6-kipup` | — | **retired**: `knockdown-getup-held-normal` gains a dodge-only variant, and both held rows assert the roll or kip-up's cost, span, travel and i-frames |
+| `s6-block` | — | **retired**: the held rows assert the guard is up within 0.1 s of the rise |
+| `s6-hard-stand` | — | **retired**: `knockdown-getup-held` asserts hard refuses the stand by name |
+| `s6-exhausted`, `-kipup`, `-block`, `-attack` | — | **retired**: `knockdown-getup-exhausted-held` holds every option exhausted on a hard knockdown; the refusal is the ability's blocked tag, read the same on either knockdown type |
+| `s6-airborne` | `knockdown-airborne` | **kept** |
+| `s6-exhaust-regen` | `knockdown-regen-exception` | **converted**: exhausted by a spend and by a break, knocked down inside each, four reps |
+| `s7-death` | `death-revive` | **converted**: health set to one light's damage as the string begins, three reps; swings two and three land on the corpse |
+| `s7-death-grade` | `death-over-knockdown` | **converted**: health 25 against full under the heavy, four reps |
+
+Fifteen rows retired, ten converted, twelve kept with a stop condition or as they were; 76 rows
+from 91.
+
+### The gates, and what each returned
+
+1. **Durations were cut offline first.** Every `until` condition was applied to the last full
+   matrix's slice of its row, the slice cut at the line the condition fires on, and the new
+   evaluator run on the cut: nine conditions, nine green, every assertion passing on the cut as on
+   the whole. The conditions fire at 9–28 s into slices authored at 30–90 s.
+2. **No band was deleted until both evaluators agreed on every slice.** The bash checker's rows were
+   recorded over every slice in `Saved/Regression` — 270 evaluations across 37 rows, including the
+   day's earlier slices that fail the current bands — and the Python evaluator rendered its rows in
+   the bash format: **178 of 178 evaluations identical**, line for line, on the 22 rows that keep an
+   evaluator. Tolerances were copied, not re-decided.
+3. **Assertions moved, none vanished.** The table above names the receiving row for each; every
+   moved assertion is a labelled row in that evaluator.
+4. **Mutations.** 76 of 76 mutations turn their row red offline against the last matrix's slices;
+   76 proven in the run.
+5. **The assertion count.** 435 assertions passed the last matrix; **377** pass
+   this one. Lower, and the gate as phrased said equal or higher: the difference is the fifteen
+   retired rows, whose assertions duplicated ones elsewhere, less the 25 added. The coverage map,
+   generated from each row's `covers`, shows every named mechanic asserted by at least one row.
+
+### The loop, changed
+
+- **A row stops on its samples.** `stop=dict(until=(tag, n), timeout=s)`; the runner flushes and
+  reads the log between ticks and stops on the n-th line of the tag. Nine rows use it.
+- **The settle stops waiting on the fixture.** Every dummy loop is switched off at settle — the
+  timer callbacks now return early once their knob is cleared, the one C++ change — and the states a
+  row's `teardown_allow` names are ignored for the dummies, so a held guard no longer costs the
+  eight-second budget.
+- **Frames are game time.** A plan step is due when the game time since its base reaches
+  frame/60, on either clock; under the fixed step nothing changes, and on the wall clock a plan
+  means what it says. `--realtime` runs the 21 rows flagged `canary`: the timer fixtures and the
+  locked plans whose offsets are many frames wide.
+- **One evaluator.** `regression-check.sh` is deleted; `regression_rows.py` carries every row, the
+  values from the mirror, the tolerances as constants; `regression_preflight.py` carries the
+  relationships, the parity and the format lint the checker's `--bands-check` used to.
+- **`covers`.** Every row names the mechanics it asserts from a fixed vocabulary; `gen-matrix.py`
+  renders the inverse as the coverage map in the instruments doc, checked by docs-check.
+
+### What the first run found
+
+- **A flooring tier at a 2.2 s interval hits the body as it rises**, and the game floors it again
+  (`KNOCKDOWN … retyped  type=hard`) as the spec's knockdown section says it may: the rise is
+  hittable the whole way up. Two faults on the instrument's side, neither the game's. The universal
+  set's pairing model wanted a `STAND` for every `RISE` and read the legal re-floor as a rise that
+  never stood; a retyped knockdown now closes the rise it interrupted. And a row measuring knockdown
+  spans wants each knockdown fresh, so the heavy and charged fixtures keep the baseline 3.0 s
+  interval while the light keeps 2.2 s.
+- **The charged's guard was released before its hit.** The block plans released at 30 f, past the
+  light's 12 f and the heavy's 24 f but short of the charged's 48 f; the charged row holds to 60 f.
+- **The exhausted regen's pause runs from the end of the action that spent the bar**, not from the
+  exhaustion: a dodge that empties the bar ends its exhaustion 4.9 s later, the dodge's 0.4 s plus
+  the 0.5 s pause plus the 4.0 s regen, exactly as `TickStaminaRegen`'s comment says. The bash
+  fixture never exhausted by a dodge, so its prediction had only the break's stun; the assertions
+  anchor on the guard's stun end or the dodge's end.
+- **The evaluator's field regex refused a leading plus.** The player's dodge prints `right=+0.0`
+  where the dummy's fixtures never did, so the clean-travel filter found no samples until the regex
+  took a sign.
+- **A row run again under the same run id was sliced from its first `BEGIN`.** `save_slice` took the
+  first marker in the log, so a `--run <existing>` re-run evaluated the earlier sitting's slice and
+  reported it green or red unchanged; it takes the last marker now. `--resume` never hit it, running
+  only rows with no slice.
+- **The held get-up rows' new assertion misread its own bookkeeping**: one name for the rise's
+  `stands=` and for the count of jump variants, and the jump variant detected off a `held` label it
+  does not carry. Both fixed before the numbers below were taken.
+- **The canary's two reds are the wall clock meeting frame-built bands**, the class the earlier
+  real-time entry named. `string-cadence`'s chain latency read 177 and 179 ms on two of eight chained
+  swings against a band of 125–175 ms whose ceiling is the buffer tick counted in sixtieths, and the
+  band is left as it is: it is the fixed clock's number, and the canary's job is to show where the
+  wall clock disagrees. `knockdown-regen-exception` carried one `RELEASE END pos=-1.0000` 42 ms after the
+  settle's reset cancelled the attacker's swing; the universal set allows that sentinel within 40 ms
+  of a cancelled swing, a window counted in sixtieths, and on the wall clock it landed 2 ms past it.
+  Both are the same question, left for a ruling: whether the canary tolerates one wall-clock tick on
+  a frame-built band, or the bands are re-derived for both clocks. Neither is changed here.
+- **Every row now reports where its time went.** The `END` marker carries the ledger and the report
+  totals it: on a three-row check, `block-facing` spent 5.9 s waiting for the attacker's lock and
+  6.0 s in its tail against 2.1 s of plan, which is the shape of the residual waste across the
+  locked rows — the next thing to shorten, as a number.
+
+### Measured
+
+| | Before | After |
+|---|---|---|
+| Rows | 91 | 76 |
+| Full matrix, fixed clock | 1960 s wall, 3732 s of game | **897 s wall, 1581 s of game** |
+| Legacy rows' share of game time | 2603 s | 487 s for the same mechanics |
+| Real-time canary | 34 rows by accident, 19 green of 34 on its first run | 21 rows by design, **471 s wall**, 19 green |
+| Assertions passing | 435 | 377 |
+| Evaluators | two | one |
+
+### Not goals
+
+No game behaviour changed; the one C++ edit guards debug timer callbacks. No tolerance was
+re-derived. No new mechanic was covered beyond moving assertions the retired rows carried. The
+parry lockout of chained heavy and charged cells stays with Netcode. The goldens of every changed
+row were re-accepted in this commit, the change being the row.
+
+### Verified, and what is deliberately not
+
+Verified: the five gates as above; the full matrix at 76 of 76 green; the canary at 19 of 21,
+its two reds the wall clock's tick against frame-built tolerances, above; the unchanged rows'
+skeletons reading SAME through the runner's clock change, which is the check that game-time frames
+equal tick frames under the fixed step; the time ledger on a three-row run. Not verified: the canary
+on a machine other than this one, and the stop condition's log read under a log rotated mid-run.
 
 ## 2026-09-03 — Four rulings land: the held input, the chained light's release, the chain window on the spec, and the wedge that spent its lunge twice
 

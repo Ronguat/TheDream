@@ -1,34 +1,16 @@
-f=2715 INPUT BP_TrainingDummy_C_2 
-f=2723 AIM ASSIST BP_TrainingDummy_C_2 
-f=2723 AIM WEDGE BP_TrainingDummy_C_2 
-f=2723 COMMIT BP_TrainingDummy_C_2 branch=1
-f=2723 TARGET BP_TrainingDummy_C_2 
-f=2726 RELEASE BEGIN BP_TrainingDummy_C_2 
-f=2726 RELEASE BP_TrainingDummy_C_2 
-f=2726 TARGET BP_TrainingDummy_C_2 
-f=2727 DAMAGED BP_PlayerCharacter_C_0 by=BP_TrainingDummy_C_2 damage=25
-f=2727 KNOCKDOWN BP_PlayerCharacter_C_0 type=hard
-f=2727 KNOCKDOWN MONTAGE BP_PlayerCharacter_C_0 
-f=2727 LUNGE STOP BP_TrainingDummy_C_2 
-f=2727 WAIVER BP_TrainingDummy_C_2 
-f=2728 FACING FORCED BP_PlayerCharacter_C_0 
-f=2735 RELEASE END BP_TrainingDummy_C_2 
-f=2735 RELEASE OFF BP_TrainingDummy_C_2 
-f=2749 MOVE UNLOCK BP_TrainingDummy_C_2 
-f=2764 ABILITY END BP_TrainingDummy_C_2 
-f=2764 AIM WEDGE BP_TrainingDummy_C_2 
-f=2785 HOME RESET BP_TrainingDummy_C_2 
-f=2847 KNOCKDOWN MONTAGE BP_PlayerCharacter_C_0 
-f=2847 KNOCKDOWN RISE BP_PlayerCharacter_C_0 by=auto
-f=2877 DEBUG RESET BP_PlayerCharacter_C_0 
-f=2877 DEBUG RESET BP_TrainingDummy_C_1 
-f=2877 DEBUG RESET BP_TrainingDummy_C_2 
-f=2877 HOME RESET BP_TrainingDummy_C_1 
-f=2877 HOME RESET BP_TrainingDummy_C_2 
-f=2877 KNOCKDOWN STAND BP_PlayerCharacter_C_0 
-f=2877 REVIVE BP_PlayerCharacter_C_0 
-f=2877 REVIVE BP_TrainingDummy_C_1 
-f=2877 REVIVE BP_TrainingDummy_C_2 
+f=2713 ABILITY END BP_TrainingDummy_C_2 
+f=2713 ABILITY END BP_TrainingDummy_C_2 
+f=2713 AIM WEDGE BP_TrainingDummy_C_2 
+f=2713 AIM WEDGE BP_TrainingDummy_C_2 
+f=2713 DEBUG RESET BP_PlayerCharacter_C_0 
+f=2713 DEBUG RESET BP_TrainingDummy_C_1 
+f=2713 DEBUG RESET BP_TrainingDummy_C_2 
+f=2713 HOME RESET BP_TrainingDummy_C_1 
+f=2713 HOME RESET BP_TrainingDummy_C_2 
+f=2713 MONTAGE BP_TrainingDummy_C_2 
+f=2713 REVIVE BP_PlayerCharacter_C_0 
+f=2713 REVIVE BP_TrainingDummy_C_1 
+f=2713 REVIVE BP_TrainingDummy_C_2 
 r=0 f=-26 ACTIVATE BP_TrainingDummy_C_2 swing=0
 r=0 f=-26 AIM WEDGE BP_TrainingDummy_C_2 
 r=0 f=-26 HOME RESET BP_TrainingDummy_C_2 

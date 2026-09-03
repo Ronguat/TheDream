@@ -33,7 +33,9 @@ MARKER = re.compile(r"REGRESSION (\w+) (.*)$")
 PAIRS = [
     (("ACTIVATE", None), [("ABILITY END", None)]),
     (("KNOCKDOWN", "type="), [("KNOCKDOWN RISE", None)]),
-    (("KNOCKDOWN RISE", None), [("KNOCKDOWN STAND", None)]),
+    # A hit on the rising body floors it again, which the spec allows; the retyped knockdown closes
+    # the rise it interrupted.
+    (("KNOCKDOWN RISE", None), [("KNOCKDOWN STAND", None), ("KNOCKDOWN", "retyped")]),
     (("BLOCK", "up"), [("BLOCK", "down")]),
     (("PARRY WINDOW", "open"), [("PARRY SUCCESS", None), ("PARRY WHIFF", None)]),
     (("HITSTUN", None), [("HITSTUN END", None)]),

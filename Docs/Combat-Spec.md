@@ -60,8 +60,8 @@ these at runtime.
 | Heavy | 350 ms | 400 ms | 150 ms | 500 ms | 1050 ms |
 | Charged Heavy | held past 350 ms | 800 ms | 150 ms | 600 ms | 1550 ms |
 
-Total is the sum of the three phases rather than an authored value, and `regression-check.sh`'s
-`s1-*` scenarios assert it against a real log every run.
+Total is the sum of the three phases rather than an authored value, and the loop's `tier-*` rows
+assert it against a real log every run.
 
 **Every string position and tier authors its own attack, as of 2026-09-02**: nine cells on
 `GA_Attack`, each carrying its montage and entry, release length, recovery, damage, stamina

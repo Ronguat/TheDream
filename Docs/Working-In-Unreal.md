@@ -598,9 +598,9 @@ Blueprint map, and nothing announces it.
 
 Name the checks up front, run them in one session, report as a pass/fail table. Most of it is
 automated: **`Tools/RegressionCheck/regression-run.sh` drives the whole loop** — preflight, PIE,
-evaluation — and `regression-check.sh` remains the log evaluator underneath it, which is what you
-run against a slice by hand. **Run its `--self-test` before trusting a green result.** The checklist,
-the scenario matrix and the fixtures are in `Docs/Debug-Instruments.md`.
+evaluation — and `regression_rows.py` is the evaluator underneath it, which is what you run against
+a slice by hand; **its `--self-test` runs in every preflight**. The checklist, the scenario matrix
+and the fixtures are in `Docs/Debug-Instruments.md`.
 
 ---
 

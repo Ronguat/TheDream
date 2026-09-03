@@ -7,7 +7,8 @@ Run through regression-run.sh, which is the documented entry point.
 
 It never drives PIE itself. ue_regression_runner.py does that from inside the editor; this waits
 on the REGRESSION markers it emits, saves each scenario's slice, and evaluates it. A scenario whose
-END has not arrived by 3x its duration + 60 s is abandoned and marked TIMEOUT.
+END has not arrived by 3x its duration or timeout + 60 s is abandoned and marked TIMEOUT.
+--realtime runs the canary rows on the wall clock.
 """
 import argparse
 import json
@@ -24,7 +25,7 @@ import scenarios as SC  # noqa: E402
 PY = r"C:/Program Files (x86)/UE_5.8/Engine/Binaries/ThirdParty/Python3/Win64/python.exe"
 RUN_IN_EDITOR = os.path.join(ROOT, "Tools", "AnimPipeline", "run-in-editor.py")
 RUNNER = os.path.join(HERE, "ue_regression_runner.py")
-CHECKER = os.path.join(HERE, "regression-check.sh")
+PREFLIGHT = os.path.join(HERE, "regression_preflight.py")
 LOG = os.path.join(ROOT, "Saved", "Logs", "TheDream.log")
 REG = os.path.join(ROOT, "Saved", "Regression")
 STOP_FILE = os.path.join(REG, "stop")
@@ -39,6 +40,9 @@ def binary_stamp():
         return 0
 
 LOCK = os.path.join(REG, ".lock")
+# The runner's time ledger, per row: game seconds waiting for a lock, running the plan, in the tail,
+# in the gate and in the final settle; wall seconds starting and stopping play.
+LEDGER = ("lock", "plan", "tail", "gate", "settle", "pie")
 
 
 def sh(cmd, **kw):
@@ -91,8 +95,8 @@ def preflight(args):
         if "EDITED" in line and line.strip() != "[Info] EDITED []":
             print("    WARNING, asset editors are open: %s" % line.split("EDITED", 1)[1].strip())
 
-    for flag, label in ((["--self-test"], "self-test"), (["--bands-check"], "bands-check")):
-        r = sh(["bash", CHECKER] + flag)
+    for cmd, label in (([PY, ROWS, "--self-test"], "self-test"), ([PY, PREFLIGHT], "preflight checks")):
+        r = sh(cmd)
         if r.returncode != 0:
             problems.append("%s failed; run it directly to see why" % label)
         else:
@@ -153,14 +157,17 @@ def save_slice(run_id, sid):
     os.makedirs(out_dir, exist_ok=True)
     begin = "REGRESSION BEGIN %s run=%s " % (sid, run_id)
     end = "REGRESSION END %s " % sid
-    keep, started = [], False
+    # The last BEGIN wins: a row run again under the same run id has two, and the earlier one is
+    # the sitting this run replaced.
+    keep, started, done = [], False, []
     for line in open(LOG, errors="ignore"):
-        if not started and begin in line:
-            started = True
+        if begin in line:
+            keep, started = [], True
         if started:
             keep.append(line)
             if end in line:
-                break
+                done, started = keep, False
+    keep = done or keep
     path = os.path.join(out_dir, "%s.slice.log" % sid)
     with open(path, "w", errors="replace") as fh:
         fh.writelines(keep)
@@ -187,16 +194,10 @@ def evaluate(run_id, sid, slice_path, args):
     s = SC.SCENARIOS[sid]
     out = dict(rc=0, detail="", universal="", golden="", mutations="")
 
-    if s.get("legacy"):
-        r = sh(["bash", CHECKER, s["legacy_id"], slice_path, "--slice", "%s:%s" % (run_id, sid)])
-        tail = [ln for ln in r.stdout.splitlines() if "passed," in ln]
-        out["rc"] = r.returncode
-        out["detail"] = tail[-1].strip() if tail else (r.stdout or r.stderr).strip()[-120:]
-    else:
-        r = row_eval(sid, slice_path)
-        tail = [ln for ln in r.stdout.splitlines() if "passed," in ln]
-        out["rc"] = r.returncode
-        out["detail"] = tail[-1].strip() if tail else (r.stdout or r.stderr).strip()[-120:]
+    r = row_eval(sid, slice_path)
+    tail = [ln for ln in r.stdout.splitlines() if "passed," in ln]
+    out["rc"] = r.returncode
+    out["detail"] = tail[-1].strip() if tail else (r.stdout or r.stderr).strip()[-120:]
 
     allow = ",".join(s.get("teardown_allow", []))
     u = sh([PY, EVAL, slice_path, "--universal", "--allow", allow])
@@ -232,12 +233,7 @@ def prove_mutations(run_id, sid, slice_path, s):
         if m.returncode != 0:
             unproven.append("%s (could not apply)" % spec)
             continue
-        red = False
-        if s.get("legacy"):
-            r = sh(["bash", CHECKER, s["legacy_id"], dst, "--slice", "%s:%s" % (run_id, sid)])
-            red = r.returncode != 0
-        else:
-            red = row_eval(sid, dst).returncode != 0
+        red = row_eval(sid, dst).returncode != 0
         if not red:
             red = sh([PY, EVAL, dst, "--universal",
                       "--allow", ",".join(s.get("teardown_allow", []))]).returncode != 0
@@ -286,6 +282,8 @@ def main():
     ap.add_argument("--strict-golden", action="store_true")
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--run", default=None)
+    ap.add_argument("--screen-percentage", type=int, default=50,
+                    help="render scale for the run; nothing the loop reads is rendered")
     ap.add_argument("--stop", action="store_true",
                     help="ask the run in progress to finish its current row and end")
     ap.add_argument("--resume", default=None, metavar="RUN",
@@ -334,10 +332,10 @@ def main():
         print("unknown scenario(s): %s" % ", ".join(unknown))
         return 2
     if a.realtime:
-        framed = [i for i in ids if SC.SCENARIOS[i].get("plans") or SC.SCENARIOS[i].get("plan")]
-        if framed:
-            print("  real-time skips %d frame-authored row(s): %s" % (len(framed), ", ".join(framed)))
-            ids = [i for i in ids if i not in framed]
+        skipped = [i for i in ids if not SC.SCENARIOS[i].get("canary")]
+        if skipped:
+            print("  real-time runs the canary rows only; %d row(s) skipped" % len(skipped))
+            ids = [i for i in ids if i not in skipped]
         if not ids:
             print("nothing left to run on the wall clock")
             return 2
@@ -377,7 +375,7 @@ def drive(run_id, ids, a):
     if os.path.exists(STOP_FILE):
         os.remove(STOP_FILE)
     cfg = dict(run=run_id, scenarios=ids, fixed_step=not a.realtime, dt=1.0 / 60.0,
-               tapes=True, screen_percentage=50, binary=binary_stamp())
+               tapes=True, screen_percentage=a.screen_percentage, binary=binary_stamp())
     with open(os.path.join(REG, "run.json"), "w") as fh:
         json.dump(cfg, fh)
     # The run's own copy keeps every row the run was asked for, so a resume knows what is left.
@@ -426,17 +424,23 @@ def drive(run_id, ids, a):
             pending.remove(sid)
             status = "ok" if "status=ok" in line else "error"
             game = frames = "-"
+            ledger = {}
             for tok in line.split():
                 if tok.startswith("game="):
                     game = tok[5:]
-                if tok.startswith("frames="):
+                elif tok.startswith("frames="):
                     frames = tok[7:]
+                elif "=" in tok and tok.split("=")[0] in LEDGER:
+                    try:
+                        ledger[tok.split("=")[0]] = float(tok.split("=", 1)[1])
+                    except ValueError:
+                        pass
             path = save_slice(run_id, sid)
             ev = (dict(rc=1, detail="runner reported an error", universal="-",
                        golden="-", mutations="-") if status != "ok"
                   else evaluate(run_id, sid, path, a))
             results.append(dict(run=run_id, stamp=time.strftime("%Y-%m-%d %H:%M:%S"),
-                                id=sid, status=status, game=game, frames=frames, **ev))
+                                id=sid, status=status, game=game, frames=frames, ledger=ledger, **ev))
             print("    %-22s %-6s %-22s univ=%-8s %s | %s"
                   % (sid, status, ev["detail"][:22], ev["universal"][:8],
                      ev["golden"][:26], ev["mutations"][:18]))
@@ -484,6 +488,17 @@ def report(run_id, results, wall):
     ok = sum(1 for r in results if r["status"] == "ok" and r["rc"] in (0, None))
     print()
     print("  %d of %d green, %.0fs wall" % (ok, len(results), wall))
+    ledgers = [(r["id"], r["ledger"]) for r in results if r.get("ledger")]
+    if ledgers:
+        totals = dict((k, sum(l.get(k, 0.0) for _, l in ledgers)) for k in LEDGER)
+        print("  where the time went: " + "  ".join("%s %.0f" % (k, totals[k]) for k in LEDGER)
+              + "  (game seconds; pie is wall)")
+        idle = sorted(ledgers, key=lambda x: -(x[1].get("lock", 0) + x[1].get("tail", 0)
+                                              + x[1].get("gate", 0) + x[1].get("settle", 0)))[:5]
+        print("  most idle: " + "; ".join(
+            "%s %.0f (lock %.0f tail %.0f gate %.0f settle %.0f)" % (
+                sid, l.get("lock", 0) + l.get("tail", 0) + l.get("gate", 0) + l.get("settle", 0),
+                l.get("lock", 0), l.get("tail", 0), l.get("gate", 0), l.get("settle", 0)) for sid, l in idle))
     print("  %s" % os.path.join("Saved", "Regression", run_id, "summary.json"))
     print()
 

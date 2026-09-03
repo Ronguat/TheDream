@@ -41,8 +41,9 @@ audit in miniature; the rest is making sure nothing is left on the floor.
    rows the session's changes could reach, **selected by mechanism**: a change scoped to one
    ability's data runs its family plus the rows that share the mechanic; a change to anything
    shared, the buffer, the clock, the hitbox test, an ability base class, runs `--all`. The full
-   matrix takes about 32 minutes at the fixed clock for 89 rows *(1935 s, 2026-09-03)* and the
-   real-time canary a few minutes more, and **neither is assumed at a closedown or before a push**:
+   matrix takes about 15 minutes at the fixed clock for 76 rows *(897 s, 2026-09-03)* and the
+   real-time canary about 8 more *(471 s, 21 rows)*, and **neither is assumed at a closedown or
+   before a push**:
    the designer schedules them, **at least weekly, with time to correct what they find** *(the
    designer, 2026-09-03; the machine is shared, and a run holds the editor)*. Background whatever
    runs and do step 4 meanwhile. **A run can be stopped and picked up later**: `regression-run.sh
@@ -62,12 +63,11 @@ audit in miniature; the rest is making sure nothing is left on the floor.
    **The canary's own CHANGED rows mean nothing** *(measured 2026-09-03)*: skeletons carry frame
    numbers, and frame numbers are a property of the clock, so every real-time row differs from a
    fixed-step baseline by construction. **Read the canary's assertions, never its skeleton** — its
-   job is that the bands hold on both clocks, and all three `tier` rows passed 5 of 5 on each.
-   `--realtime` skips every frame-authored row, the scripted rows and the `chain-*` and `input-*`
-   legacy rows that drive the dummy by frames; and its hygiene readout can still catch a defender
-   mid-stun at teardown under an attacker that never stops swinging, which is the clock moving the
-   teardown, not a leak. The runner's phase budgets count seconds of the clock they wait on, so a
-   high frame rate no longer shortens the settle.
+   job is that the bands hold on both clocks. `--realtime` runs the rows flagged `canary` in
+   `scenarios.py`, the timer fixtures and the locked plans whose offsets are many frames wide; the
+   frame-exact probes stay on the fixed clock. The runner's phase budgets count seconds of the
+   clock they wait on, and every dummy loop is switched off at settle, so a high frame rate neither
+   shortens the settle nor lets a swing land on the teardown.
 
 3. **Leave nothing verified uncommitted, and *propose* the push.** Commit anything finished; the
    push itself waits on the completion gate in Working Rules, so this step ends by naming what is

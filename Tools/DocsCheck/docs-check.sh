@@ -72,7 +72,7 @@ Docs/Combat-Decisions.md:::## Slice briefs:::CLAUDE.md sends every slice pickup 
 Docs/Combat-Decisions.md:::- **Polish**:::CLAUDE.md Current Focus points at this brief -- MOVE THIS ROW when a slice ships
 Docs/Combat-Decisions.md:::- **Netcode**:::CLAUDE.md network section defers status to this brief
 Docs/Debug-Instruments.md:::### Scenario matrix:::Working-In-Unreal sends verification here
-Tools/RegressionCheck/regression-check.sh:::--self-test:::CLAUDE.md and W-I-U both name the script and its self-test
+Tools/RegressionCheck/regression_rows.py:::--self-test:::W-I-U and Debug-Instruments name the evaluator and its self-test
 Tools/CommentCheck/comment-check.sh:::--self-test:::CLAUDE.md names the script; Closing-Down step 3 runs it
 Tools/CommentCheck/comment-check.sh:::--baseline:::CLAUDE.md and Closing-Down both name the flag as the sanctioned reset
 Tools/CommentCheck/baseline.txt:::comment lines:::CLAUDE.md sends a C7 failure here to raise one line
