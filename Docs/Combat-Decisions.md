@@ -10207,7 +10207,8 @@ sitting in the always-read file.
   it could not see** is the other half — `s8` asserted swing indices and never tiers, and six green
   rows hid a 58 ms tap committing charged. **Inherits the untested-half trap** filed the same day, and
   the three `s8` rows it names as stale. **Not a rewrite**: the bands and the invariants are sound;
-  what is in question is the fixture model underneath them.
+  what is in question is the fixture model underneath them. **Planned 2026-09-03: `Docs/Plan-Regression-Audit.md` is
+  the executing contract**, greenlit in the session that runs it and deleted on delivery.
 - **Settings menu.** Raised 2026-08-12. Mouse sensitivity is the immediate want, and it should own
   **`TurnRateDegrees`** too — that number stopped being cosmetic the moment attacks began pointing
   wherever it had turned to, so exposing it is a balance decision rather than a comfort one, and a
