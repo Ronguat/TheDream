@@ -554,3 +554,54 @@ Order: A, then B, then D, then G, then C, then E, then F. Exemplars, built first
 Phase 1 three to five hours of work plus about 1.5 hours of unattended matrices. Phase 2 exemplars
 two to three hours, then 15 to 40 minutes per row. Phase 3 one to two hours. The whole of Phase 2 is
 larger than one session, and whatever it does not reach is named in the closing trap.
+
+## 9. Handoff to the executing session
+
+Written 2026-09-03 for a session that did not plan this. The designer's greenlight is given in that
+session, per `CLAUDE.md`; nothing here is executed until it is.
+
+**Read first, in this order**: `CLAUDE.md` (loaded); this file, §0 to §4 in full; `Docs/Working-In-Unreal.md`
+whole, by its own rule; `Docs/Debug-Instruments.md` from "The regression checker" to the end of the
+matrix; `Tools/RegressionCheck/regression-check.sh` (2,211 lines: the bands block, `slice_log`, and
+every extractor §4.1 names); `Tools/RegressionCheck/ue_s8_driver.py` and `Tools/ClipScan/ue_chart_ab.py`
+for the slate-tick driver pattern the runner generalises; `Source/TheDreamEditor/*/TDInputTools.*`;
+the debug knobs in `Source/TheDream/Combat/TDCombatCharacter.h` (around lines 1060 to 1345) and the
+fixture functions in its `.cpp` (`BeginPlay` around 2825 to 2925, the `Debug*` functions around 2992
+to 3466 and 4011 to 4051). The full trace format list is one command:
+`grep -rn -A3 'TD_TIMING_LOG(TEXT("\[%\.3f\]' Source/TheDream | grep -o 'TEXT("[^"]*")'`.
+
+**Facts learned this session that no doc carries yet.**
+
+- Python property names drop the `b` prefix: `debug_auto_attack`, not `b_debug_auto_attack`.
+- `EditorLevelLibrary.get_all_level_actors` is deprecated and still works; `EditorActorSubsystem`
+  is the replacement.
+- `EditorAssetLibrary.is_editor_property_overridden` answers `NOT_FOUND` for the placed dummies'
+  debug knobs (no archetype value); do not lean on it for them.
+- `unreal.EditorPerformanceSettings` is not exposed to Python. The throttling question is closed by
+  the designer (§2); do not chase it.
+- The engine's interpreter is `C:/Program Files (x86)/UE_5.8/Engine/Binaries/ThirdParty/Python3/Win64/python.exe`;
+  in-editor scripts run through `Tools/AnimPipeline/run-in-editor.py`, 0.65 s a round trip. There is
+  no other Python on this machine.
+- The raw log's prefix is `[wall clock][frame % 1000]`; a PIE session is bounded by `Bringing World`
+  and `BeginTearingDown for /Game/TheDream/Maps/UEDPIE_0_L_CombatTest`; `unreal.log` lines land in
+  `Saved/Logs/TheDream.log` under `LogPython` with the same prefix.
+- `Tools/McpBridge/ue-mcp.sh call EditorToolset.EditorAppToolset IsPIERunning` reaches the editor
+  whether or not the MCP tools registered in the session.
+- The editor was up at handoff (started 2026-09-02 20:10) with a clean tree; the placed attacker
+  `BP_TrainingDummy_C_2` carries unsaved fixture state (auto-attack on, hold 0.22), which the runner's
+  full knob write makes irrelevant. `PlayerStart_0` is at (0, 0, 100) and `PlayerStart_1` at (−400, 0, 100).
+- The last editor-target build took 27 s; both DLLs are current with the source.
+
+**Rules that bite in this work**: announce before closing the editor and verify every build with
+`find -newer`; write files with the Write tool or in chunks under 5 KB, since a Bash command near
+14 KB can arrive mangled; `grep -o -i -F` together crashes; comments carry no dates, attributions or
+reasoning and a file's comment volume is ratcheted in `Tools/CommentCheck/baseline.txt`; run
+`Tools/DocsCheck/docs-check.sh` after any doc edit; a red that could be a defect stops the line and is
+reported, never fixed in passing; a change of scope or direction mid-execution is a new plan.
+
+**Usage pauses**: commit each unit as it verifies, background every matrix, and on resume read §0
+and `git log --oneline -10` before anything else.
+
+**What returns to a heavyweight session**: the first red that looks like a defect rather than a
+fixture fault, the boundary report and its rulings, and the closedown pass over the golden diffs, the
+traps and the decision entry.
