@@ -124,6 +124,20 @@ closedown step says to read the canary's assertions and ignore its skeleton. `ti
 reported a teardown leftover at real time that it does not show at fixed step, which is the settle
 racing a slower tick; it is not investigated and its assertions are green.
 
+### Where the matrix stands at handoff, 2026-09-03
+
+Run `final` plus the two fixes verified after it: **29 of 38 green**, 1574 s of wall for 3000 s of
+game. Every row carries a mutation the harness has seen turn it red. The nine that are not green:
+
+| Row | Why |
+|---|---|
+| `dodge-cycle` | **Red.** 3 `DODGE RECOVERY` lines against a retired gap. Undiagnosed. |
+| `knockdown-getup-attack` | **Red.** Total 1.300 on 2 of 8 against [1.250, 1.285]. Undiagnosed. |
+| `knockdown-regen-exception` | **Red.** 1 of 8 spans 0.250 s off prediction. Undiagnosed. Also the sentinel below. |
+| `knockdown-exhausted-attack`, `-block`, `-dodge`, `parry-catch`, `parry-reward`, `parry-whiff` | Assertions **all green**; blocked only by `RELEASE END … pos=-1.0000`, diagnosed as a parried swing whose montage is already gone. **One ruling clears all six.** |
+
+The three reds block a push as correctness items. Nothing was pushed: the session was unattended.
+
 ## 1. Decisions taken, so nothing below is re-litigated
 
 The designer, 2026-09-02 and 2026-09-03.
