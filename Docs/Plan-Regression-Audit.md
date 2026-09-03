@@ -15,11 +15,11 @@ entry and a few assertion lines rather than a C++ knob and bespoke awk.
 Ticked as units land, with the commit hash. *Verified* means the unit ran and its check passed;
 *written* means it exists and has not.
 
-- [ ] C1 — C++: `UTDTimeTools`, key-level and 2D injection, pawn names on eleven trace lines; extractor and doc updates
-- [ ] C2 — `scenarios.py` schema, baseline knobs, key resolution, the runner; three rows driven end to end
+- [ ] C1 — C++: `UTDTimeTools`, key-level and 2D injection, the character's reset and setters, pawn names on eleven trace lines; extractor and doc updates
+- [ ] C2 — `scenarios.py` schema, baseline knobs, placements, key resolution, the runner; three rows driven end to end
 - [ ] C3 — orchestrator, marker slicing, `--bands-check` with the format lint
-- [ ] C4 — universal invariants, mutations, frames, the frame ledger, `summary.json`, `history.tsv`
-- [ ] C5 — all 38 rows ported under the new names; fixed-step matrix, repeatability pair, real-time matrix; `ue_s8_driver.py` retired
+- [ ] C4 — universal invariants, mutations, frames, the frame ledger, golden skeletons, `summary.json`, `history.tsv`
+- [ ] C5 — all 38 rows ported under the new names; fixed-step matrix, repeatability pair, real-time matrix, golden baselines accepted; `ue_s8_driver.py` retired
 - [ ] C6 — Phase 1 docs
 - [ ] Phase 2 exemplars: `input-accept-hitstun`, `knockdown-getup-held`, `edge-light-checkpoint`, `lock-guard-break`, `reach-light`
 - [ ] Phase 2 rows, in §5 order, one commit per row or family
@@ -40,6 +40,10 @@ The designer, 2026-09-02 and 2026-09-03.
 | D7 | No delegation. One session executes, commits in verified units, and backgrounds long runs so a usage pause does not lose them. |
 | D8 | The editor belongs to the session for the whole slice. It closes once, for the rebuild. |
 | D9 | Scenario ids are `family-rule[-variant]`, the family a mechanic. The `s[#]` scheme retires at the port with a bridge row in "Retired names". |
+| D10 | Golden-trace change detection: every run diffs each scenario's event skeleton against the last accepted one and reports what moved, asserted or not. |
+| D11 | The attacker model: player-driven variants of the string rows, so the shipping input path is asserted on the attack side as well as the dummy's. |
+| D12 | No new level. Placements are scenario data applied to the editor-world actors before PIE; a row that needs open ground is placed away from the ramp. |
+| D13 | A fixture reset and two attribute setters on the character, used only at rep boundaries and only after the hygiene check has read the pawn the game left behind. The debug knobs stay frozen; their retirement is Structure Audit's. |
 
 Frame vocabulary is adopted: spans print in frames beside seconds, and each scenario reports a
 frame ledger (§4.5), as a readout rather than an assertion.
@@ -80,6 +84,10 @@ What the loop was built against and no longer holds:
 - **Eleven trace tags carry no pawn name**: `ABILITY END`, `AIM ASSIST`, `BUFFER`, `COIL START`,
   `COMMIT`, `DODGE`, `DODGE END`, `ESCALATE`, `MONTAGE`, `RELEASE` and its `OFF`, `BEGIN` and `END`
   variants, `STRING chain out`.
+- **The character already owns every state's exit** *(source, 2026-09-03)*: `ExitExhaustion`,
+  `ClearDeathState`, `EndGuardBreak`, `EndBlockstun`, `EndParryLockout`, `EndKnockdown`, `EndHitstun`,
+  `EndParryRecovery`, `ClearDodgeRecoveryState`, `ClearParryWindowState`, `EndParryGrace`, and
+  `ReviveFromDebug` already writes both attributes to max on the authority. A reset composes them.
 - **Background throttling is not in play**: PIE was exempted in the project settings weeks ago and
   it has held *(the designer, 2026-09-03)*. Not re-tested here.
 
@@ -92,20 +100,24 @@ What the loop was built against and no longer holds:
   order: `tier`, `attack`, `string`, `chain`, `input`, `block`, `dodge`, `parry`, `knockdown`,
   `death`, `lock`, `edge`, `reach`. The family is what `--family` filters and what the generated
   matrix groups by.
-- A scenario is one entry: id, family, roles, knobs, player spawn, plan, stop condition, expected
-  counts, mutations. Knobs are the full set from a baseline, never a delta. Plans name actions, never
-  keys; the runner resolves keys from the mapping contexts at load.
+- A scenario is one entry: id, family, roles with placements, knobs, player spawn, plan, stop
+  condition, expected counts, mutations. Knobs are the full set from a baseline, never a delta.
+  Plans name actions, never keys; the runner resolves keys from the mapping contexts at load.
 - The player's input enters at the key level by default. Action-level injection stays as the
   fallback and as the route for a plan that needs a value no key produces.
-- A rep begins only when the player reads stamina at max, no ability active and its placement
-  restored, so every rep of a deterministic plan is identical.
+- Legacy rows keep their placed positions. Scripted rows place the pair on open ground, the default
+  being the attacker at (−1500, −1500, 96) facing +Y and the defender 150 cm along that facing,
+  chosen away from the ramp and inside the floor.
+- Every rep of a scripted row opens with the gate of §4.3: the game settles by itself, the hygiene
+  check reads what it left, then the reset re-establishes the starting state. The reset never runs
+  while a state is live, and never stands in for a transition the game owns.
 - New rows assert in Python (`regression_eval.py`); the 38 legacy rows keep their bash assertions.
   A legacy row migrates only when it is being changed for another reason.
 - Bands mirror the CDO and name the `Combat-Values.tsv` row they mirror.
 - n=0 fails; scope by the pawn named on the roles line; select samples by position, never by the
   value under test; every row carries at least one mutation that must turn it red.
-- The only gameplay-module change is the trace names. A red that looks like a defect stops the
-  line and is reported; nothing is fixed on the way past.
+- The gameplay module changes are the trace names and the three debug functions of §4.1, nothing
+  else. A red that looks like a defect stops the line and is reported; nothing is fixed on the way past.
 - Commits are the units in §4.8 and one per row or family in §5, each verified before it lands, each
   with the `Co-Authored-By` trailer. The push waits for the designer.
 
@@ -133,6 +145,20 @@ What the loop was built against and no longer holds:
 
 The three existing functions are untouched.
 
+`ATDCombatCharacter` gains three `BlueprintCallable` functions in `Combat|Debug`, authority-only
+like `ReviveFromDebug`, each logging one trace line (`DEBUG RESET <Actor>`, `DEBUG STAMINA <Actor>
+<value>`, `DEBUG HEALTH <Actor> <value>`) so a slice shows where the fixture intervened:
+
+- `DebugResetForFixture()` — cancels every active ability, clears the buffered press, calls each
+  state's own exit in the order the code would reach them (`EndHitstun`, `EndBlockstun`,
+  `EndGuardBreak`, `EndKnockdown`, `ClearParryWindowState`, `EndParryGrace`, `EndParryRecovery`,
+  `EndParryLockout`, `ClearDodgeRecoveryState`, `ExitExhaustion`, `ClearDeathState`), releases the
+  movement and facing locks, sets the movement mode to walking, zeroes velocity, and writes health and
+  stamina to max the way `ReviveFromDebug` does. It moves nothing; placement is the runner's.
+- `DebugSetStamina(float Value)` and `DebugSetHealth(float Value)` — clamp to [0, max] and write the
+  attribute base, so the existing change delegates run: a write of 0 enters exhaustion by the game's
+  own path, and a low health makes the next hit lethal.
+
 Game module, `.cpp` only, the actor name after the tag: `ABILITY END` (both variants), `AIM ASSIST`
 (both), `BUFFER` (five), `COIL START` (two), `COMMIT`, `DODGE` (two), `DODGE END`, `ESCALATE`,
 `MONTAGE` (seven), `RELEASE` and `RELEASE OFF` in the charged and get-up abilities, the notify's
@@ -154,7 +180,8 @@ Build procedure, from `Docs/Working-In-Unreal.md`: announce; `quit_editor()` thr
 `run-in-editor.py`; confirm `PackageRestoreData.json` reads `Packages: []`; the UBT command from that
 file; `find Source -newer Binaries/Win64/UnrealEditor-TheDream.dll` empty and no `patch_*` files;
 relaunch with `nohup`; poll `run-in-editor.py -c` until it answers; read `TD.DebugCombatTiming` back
-as 1. Smoke: one key-level tap of attack on the player pawn, and the new names read off the log.
+as 1. Smoke: one key-level tap of attack on the player pawn, one `DebugSetStamina(0)` producing an
+`EXHAUSTED` line, and the new names read off the log.
 
 ### 4.2 `scenarios.py`
 
@@ -163,7 +190,8 @@ One dict per scenario:
 ```
 "tier-light": dict(
     family="tier", legacy=True, legacy_id="s1-light",
-    roles=dict(attacker="BP_TrainingDummy_C_2", defender="BP_TrainingDummy_C_1"),
+    roles=dict(attacker=("BP_TrainingDummy_C_2", (200, 0, 96), 180),
+               defender=("BP_TrainingDummy_C_1", (200, -150, 96), 90)),   # placed before PIE
     knobs={"attacker": {"debug_auto_attack": True, "debug_auto_attack_hold_seconds": 0.1, ...},
            "defender": {...}},                  # merged over BASELINE, written in full
     player=dict(spawn=(-3000, -3000, 100), yaw=0, props={}),
@@ -171,34 +199,36 @@ One dict per scenario:
     stop=dict(duration=30.0),                   # or dict(until=("KNOCKDOWN  ", 6), timeout=90)
     expect=dict(reps=8),
     mutations=[("shift", "RELEASE BEGIN", +0.100)],
+    golden=dict(exclude=["drift="]),            # fields left out of the skeleton
 )
 ```
 
 - `BASELINE` holds every `Debug*` knob at its CDO value read from `Combat-Values.tsv`, so a
-  scenario's knobs are a full reset. The runner writes all of them on both dummies before each start.
+  scenario's knobs are a full reset. The runner writes all of them on both dummies before each start,
+  and places both dummies from `roles` the same way, since a home transform is captured at BeginPlay.
 - `legacy_id` is what the bash checker's case arm is renamed to match; it is also the bridge table's
   source (§4.6, §6).
 - Plan ops: `tap(action)`, `press(action)`, `release(action)`, `hold(action, frames)`,
   `move(x, y, frames)`, `face(actor, yaw)` (the player's control rotation plus actor yaw, since
   facing and aim are camera-relative; a dummy's actor rotation), `look(dx, dy)` (mouse axes),
   `teleport(actor, loc, yaw)`, `set(actor, prop, value)` for a runtime instance property such as the
-  player's `debug_suppress_lunge`, `ready(player)` (the rep gate of §3), `wait_for(pattern, count)`,
-  `lock_to(pattern)` which rebases plan time to the frame the pattern first appears after the current
-  point, `mark(text)`.
+  player's `debug_suppress_lunge`, `set_stamina(actor, v)`, `set_health(actor, v)`, `ready(actor)`
+  (the rep gate of §4.3), `wait_for(pattern, count)`, `lock_to(pattern)` which rebases plan time to
+  the frame the pattern first appears after the current point, `mark(text)`.
 - Actions: attack, block, dodge, parry, jump, move. At load the runner reads `IMC_Combat` and
   `IMC_Default` and resolves each to its key; `move` resolves to `W A S D` and holds the keys whose
   swizzled sum is the requested direction, or falls back to 2D action injection for a diagonal the
   keys cannot express.
 - Load-time validation: every knob name exists on the class, every role actor exists in the editor
-  level, every fixture hold sits strictly between two checkpoints (0.15, 0.35, 0.75), every action
-  resolves to a key.
+  level, every placement is inside ±4500 on the floor, every fixture hold sits strictly between two
+  checkpoints (0.15, 0.35, 0.75), every action resolves to a key.
 
 ### 4.3 The runner, `ue_regression_runner.py`
 
 Runs inside the editor from one `run-in-editor.py` call, reading `Saved/Regression/run.json`
 (`run`, `scenarios`, `fixed_step`, `dt`, `tapes`, `screen_percentage`). A slate post-tick state machine:
 
-1. `APPLY_KNOBS` on the editor-world actors, asserting no `UEDPIE` in their paths.
+1. `APPLY_KNOBS` and placements on the editor-world actors, asserting no `UEDPIE` in their paths.
 2. Fixed step on (if requested), `r.ScreenPercentage` lowered to the requested value, then
    `editor_request_begin_play()`.
 3. `WAIT_WORLD` until the game world, the player pawn and its BeginPlay exist; 30 s wall timeout.
@@ -209,14 +239,20 @@ Runs inside the editor from one `run-in-editor.py` call, reading `Saved/Regressi
    patterns, stop on duration, `until`, or timeout. Every injection is logged as
    `REGRESSION INJECT <id> frame=<f> <action> <press|release>` so the trace's `INPUT` line can be
    paired with it.
-6. `SETTLE`: release every hold and move; wait until every combat pawn reads stamina at max and no
-   ability active, or 8 s; emit `REGRESSION TEARDOWN <pawn> tags=<a,b> states=<hitstun,…> health=<h> stamina=<s>`
-   per pawn, tags from `AbilitySystemBlueprintLibrary.get_ability_system_component(pawn).get_owned_gameplay_tags()`,
-   states from the exposed `Is*` getters (`IsMovementLocked` is not exposed; the union of the state
-   getters stands in for it).
+6. `SETTLE`: release every hold and move; wait until every combat pawn reports no state getter true
+   and no ability active, or 8 s; emit `REGRESSION TEARDOWN <pawn> tags=<a,b> states=<hitstun,…>
+   health=<h> stamina=<s>` per pawn, tags from
+   `AbilitySystemBlueprintLibrary.get_ability_system_component(pawn).get_owned_gameplay_tags()`, states
+   from the exposed `Is*` getters (`IsMovementLocked` is not exposed; the union of the state getters
+   stands in for it). Only then `DebugResetForFixture` on each combat pawn.
 7. `editor_request_end_play()`; wait for `is_in_play_in_editor()` false; `log_flush`; emit
    `REGRESSION END <id> status=ok game=<s> frames=<n>`; next scenario. After the last, fixed step off,
    screen percentage restored, `REGRESSION DONE run=<run>`.
+
+The rep gate, `ready(actor)`, is step 6 in miniature: wait for the game's own settle (no state
+getter true, no ability active, up to 8 s), emit a `REGRESSION REP <id> n=<k>` line carrying the
+same readouts as `TEARDOWN`, then `DebugResetForFixture`, then the row's placement. The hygiene check
+therefore always reads the pawn the game left, and the reset only ever re-establishes a baseline.
 
 Frame convention: an injection made in the post-tick callback of frame N is consumed by the
 player's input processing in frame N+1, so "press at frame N" names the frame whose `INPUT` line
@@ -233,7 +269,7 @@ then every fifth. The per-tick cost of the callback is measured on the first run
 `Tools/RegressionCheck/regression_run.py`, run by the engine's Python, behind a thin
 `regression-run.sh` so the documented entry point is a shell script like the other tools.
 
-`regression-run.sh [--all | <id>… | --family knockdown] [--realtime] [--no-mutate] [--repeat] [--trend] [--dry-run]`
+`regression-run.sh [--all | <id>… | --family knockdown] [--realtime] [--no-mutate] [--repeat] [--accept-golden] [--strict-golden] [--trend] [--dry-run]`
 
 Preflight: the editor answers; not in PIE; no montage open in an asset editor
 (`AssetEditorSubsystem.get_all_edited_assets`, warn and list); `PlayNumberOfClients=1`;
@@ -244,14 +280,24 @@ reclaimed.
 
 Run: write `run.json`; launch the runner; every 2 s read new `REGRESSION END` lines; for each, save
 the raw slice to `Saved/Regression/<run>/<id>.slice.log`, evaluate (legacy: `regression-check.sh
-<legacy_id> --slice <run>:<id>`; new: `regression_eval.py <id> <slice>`; both: the universal set and
-the frame ledger), then apply each mutation and require at least one FAIL. A scenario whose END has
-not arrived by `3 × duration + 60 s` is ended through `run-in-editor.py` and marked TIMEOUT.
-`--repeat` runs the list twice and diffs key event frames per scenario.
+<legacy_id> --slice <run>:<id>`; new: `regression_eval.py <id> <slice>`; both: the universal set,
+the frame ledger and the golden diff), then apply each mutation and require at least one FAIL. A
+scenario whose END has not arrived by `3 × duration + 60 s` is ended through `run-in-editor.py` and
+marked TIMEOUT. `--repeat` runs the list twice and diffs key event frames per scenario.
 
-Output: the table `scenario | passed | failed | mutations proven | game s | wall s | frames` with
-totals and the frame ledger per scenario; `Saved/Regression/<run>/summary.json` with the same plus
-every assertion's samples (n, min, max, mean); one row per assertion appended to
+Golden traces: `regression_eval.py --skeleton` reduces a slice to one line per trace event,
+`f=<frame> TAG <pawn> <kept fields>`, frames relative to the scenario's BEGIN, keeping the fields
+that carry meaning (`swing=`, `branch`, `by=`, `type=`, `damage=`, `staminaDamage=`, `dir=`,
+`section=`, `gained=`) and dropping timestamps inside fields, `until=`, `pos=`, `rate=` and every
+field a scenario's `golden.exclude` names. The accepted skeleton lives at
+`Tools/RegressionCheck/golden/<id>.skeleton`, committed, so a code change and the behaviour change it
+caused land in the same diff. Every run diffs against it; a difference marks the row CHANGED in the
+summary and lists the lines. CHANGED does not fail the run unless `--strict-golden`; `--accept-golden`
+rewrites the skeletons from the run just made, and is only used after the change has been explained.
+
+Output: the table `scenario | passed | failed | changed | mutations proven | game s | wall s | frames`
+with totals and the frame ledger per scenario; `Saved/Regression/<run>/summary.json` with the same
+plus every assertion's samples (n, min, max, mean); one row per assertion appended to
 `Saved/Regression/history.tsv`, which `--trend` reads to show a band's samples drifting toward an
 edge across runs. Exit 1 on any FAIL, TIMEOUT or unproven mutation. Cleanup on exit and on
 interrupt: clock and screen percentage restored, dilation 1.0, play ended if running, lock released.
@@ -292,8 +338,8 @@ interrupt: clock and screen percentage restored, dilation 1.0, play ended if run
   monotonic timestamps; a constant frame latency from every `REGRESSION INJECT` to its `INPUT` line;
   zero `Warning` or `Error` lines on `LogTDCombatTiming`, `LogAbilitySystem`, `LogAnimation`,
   `LogScript`, `LogBlueprint` outside `Tools/RegressionCheck/log-allowlist.txt`, seeded from the
-  first run with a reason per line; every `TEARDOWN` line empty of tags outside the scenario's
-  allowlist, health and stamina at max.
+  first run with a reason per line; every `TEARDOWN` and `REP` line empty of tags outside the
+  scenario's allowlist, no state getter true, and every `DEBUG RESET` line preceded by one of them.
 - Mutations: `(regex, replacement)` on the slice text, or a builtin `shift(tag, ms)`, `drop(tag, n)`,
   `dup(tag, n)`, `set(tag, field, value)`. Legacy rows get one or two each in `scenarios.py`.
 - Vocabulary for new rows: `span(a, b, key, band)`, `count(tag, per, expect)`, `field(tag, name,
@@ -302,10 +348,11 @@ interrupt: clock and screen percentage restored, dilation 1.0, play ended if run
 
 ### 4.6 Porting the 38 rows
 
-Knobs from the matrix in `Docs/Debug-Instruments.md`, unchanged in meaning: the attacker's
-`debug_auto_attack` on, facing `WHILE_ATTACKING` except `string-finisher-arc` (`NEVER`); the player
-parked at (−3000, −3000, 100) except `string-finisher-arc` at (200, 150, 100); both dummies silent for
-the `chain-*` and `input-*` rows. The bridge, which becomes the "Retired names" row at delivery:
+Knobs and placements from the matrix in `Docs/Debug-Instruments.md`, unchanged in meaning: the
+attacker's `debug_auto_attack` on, facing `WHILE_ATTACKING` except `string-finisher-arc` (`NEVER`);
+the player parked at (−3000, −3000, 100) except `string-finisher-arc` at (200, 150, 100); both
+dummies silent for the `chain-*` and `input-*` rows. The bridge, which becomes the "Retired names"
+row at delivery:
 
 | Family | Old id → new id |
 |---|---|
@@ -343,23 +390,25 @@ move into `scenarios.py` as written in `ue_s8_driver.py`; once the runner reprod
    replaced by a per-cell row in Phase 2; mutations proven for every row; the universal set green
    with the allowlist seeded and explained.
 3. `--repeat`: two fixed-step matrices, key event frames identical except physics rows (`DEATH
-   SETTLE` inside its band).
+   SETTLE` inside its band). The second run's skeletons are accepted as the first golden baselines.
 4. A real-time matrix, same expectations; per-row wall time and jitter reported against fixed step.
 5. The measured speedup and the runner's per-tick cost, recorded in the decision entry.
 
 ### 4.8 Commits
 
-C1 C++ and extractor updates (build verified, names read off a smoke log). C2 schema, baseline,
-key resolution, runner (three rows end to end). C3 orchestrator, slicing, bands and lint. C4
-universal set, mutations, frames, ledger, summary and history. C5 the port under the new names, the
-three matrices, the driver retired. C6 Phase 1 docs (§6).
+C1 C++ and extractor updates (build verified, names, a reset and a stamina write read off a smoke
+log). C2 schema, baseline, placements, key resolution, runner (three rows end to end). C3
+orchestrator, slicing, bands and lint. C4 universal set, mutations, frames, ledger, skeletons,
+summary and history. C5 the port under the new names, the three matrices, the golden baselines, the
+driver retired. C6 Phase 1 docs (§6).
 
 ## 5. Phase 2 — rows
 
 Each row: id, spec basis, fixture, plan, assertions, mutation, reps. "Lock" means `lock_to` the
-attacker dummy's `ACTIVATE`; its hit lands 12 frames later. The defender position is the placed
-defender's, (200, −150, 100) facing the attacker at (200, 0); an unused dummy is parked at
-(−3000, −3000) with everything off. Every rep opens with `ready(player)`. Frames are 1/60.
+attacker dummy's `ACTIVATE`; its hit lands 12 frames later. Scripted rows use the open-ground
+placement of §3 unless stated; an unused dummy is parked at (−3000, −3000) with everything off. Every
+rep opens with `ready(player)`. Frames are 1/60. Exhausted setups use `set_stamina(player, 0)`;
+lethal setups use `set_health`.
 
 **A. Inherited from the 2026-09-02 trap.**
 
@@ -369,18 +418,20 @@ defender's, (200, −150, 100) facing the attacker at (200, 0); an unused dummy 
 | `input-accept-blockstun` | same rule, blockstun | player holds block; release at hit + 1f; press attack at `BLOCKSTUN END` − 12f ∓ 2f | as above against `BLOCKSTUN END`; `BLOCKED` each rep | same | 3 + 3 |
 | `input-accept-lockout` | same rule, parry lockout | defender dummy `PeriodicParry` 1.7; player attacks at window open − 9f so the hitbox lands inside; press attack at `PARRY LOCKOUT END` − 12f ∓ 2f | `PARRY SUCCESS` per rep; early discarded, late fires within 1f of `PARRY LOCKOUT END` | same | 3 + 3 |
 | `knockdown-getup-held` | held inputs reach the window; priority guard, dodge, attack, stand (spec, Knockdown) | hard: attacker heavies; lock; from `KNOCKDOWN` + 30f hold one of block / dodge / attack / jump, then pairs block+dodge, dodge+attack, attack+jump; normal: attacker taps 3, hold jump; hold all four | rise `by=` block / kipup / attack / auto (jump refused: `no stand from a hard knockdown`) at lockout end ± 1f; pairs rise by the priority winner; `rose on held <tag>` names it; normal: `by=stand` at 60f; all four → block | change the `by=` token | 1 each, ×2 |
-| `knockdown-getup-exhausted-held` | exhaustion refuses block, dodge, kip-up; leaves the attack (spec) | player holds block 9.5 s before the heavy so stamina hits 0 about 1 s before the hit; then hold block+dodge+attack; second variant hold block only | first: `by=attack`; second: `by=auto` and no `by=block`; `EXHAUSTED` before `KNOCKDOWN` each rep | drop the `EXHAUSTED` line | 3 + 3 |
+| `knockdown-getup-exhausted-held` | exhaustion refuses block, dodge, kip-up; leaves the attack (spec) | `set_stamina(player, 0)` one second before the heavy; hold block+dodge+attack; second variant hold block only | first: `by=attack`; second: `by=auto` and no `by=block`; `EXHAUSTED` before `KNOCKDOWN` each rep | drop the `EXHAUSTED` line | 3 + 3 |
 | `chain-late`, `input-stale`, `input-discard` | the three stale rows | Phase 1's port re-runs them | unchanged | existing | 8 |
 
-**B. Conversions that buy time. The legacy assertions stay; the fixture becomes a plan.**
+**B. Conversions that buy time, and the player-driven string. Legacy assertions stay where the
+fixture changes.**
 
-| Id | Change | Plan | Asserts added | Reps and duration |
+| Id | Change | Plan | Asserts | Reps and duration |
 |---|---|---|---|---|
-| `parry-catch` | player parries, phase-locked | lock; tap parry at +6f (window +6..+24f covers the hitbox at +12..+21f) | `PARRY SUCCESS == reps` | 6, 25 s (was 180) |
-| `parry-reward` | player pre-blocks | hold block 3.9 s from cycle start, release, parry 3f later phase-locked | `gained=25` on every success, successes == reps | 4, 30 s |
-| `parry-whiff` | player whiffs and probes | tap parry with nothing arriving; attack at +9f and +27f, dodge at +36f, block at +51f and +57f | refusals `parrying`, `parry recovery` at the exact presses; the block at +57f raises | 6, 15 s (was 60) |
-| `knockdown-airborne` | player jumps into the hit | dummy schedule known: jump at 3.0k + 0.05 s so the hit lands near apex | `airborne=1` count == reps; height ≥ 20 cm every rep | 5, 20 s (was 240) |
+| `parry-catch` | player parries, phase-locked | lock; tap parry at +6f (window +6..+24f covers the hitbox at +12..+21f) | legacy plus `PARRY SUCCESS == reps` | 6, 25 s (was 180) |
+| `parry-reward` | player pre-blocks | hold block 3.9 s from cycle start, release, parry 3f later phase-locked | legacy plus `gained=25` on every success, successes == reps | 4, 30 s |
+| `parry-whiff` | player whiffs and probes | tap parry with nothing arriving; attack at +9f and +27f, dodge at +36f, block at +51f and +57f | legacy plus refusals `parrying`, `parry recovery` at the exact presses; the block at +57f raises | 6, 15 s (was 60) |
+| `knockdown-airborne` | player jumps into the hit | dummy schedule known: jump at 3.0k + 0.05 s so the hit lands near apex | legacy plus `airborne=1` count == reps; height ≥ 20 cm every rep | 5, 20 s (was 240) |
 | `tier-cells` (new) | all nine cells | player whiffs in open space; plans from `ue_chart_ab.py`: L1 tap; H1 hold 13f; C1 hold 51f; L2 tap, tap +31f; H2 tap, hold 31–44f; C2 tap, hold 31–82f; L3 tap, tap, tap; H3 tap, tap, hold 62–76f; C3 tap, tap, hold 62–113f | per cell: `ACTIVATE`→`RELEASE BEGIN` = `Branches[b].ReleaseAt` ± 30 ms; elapsed = the cell's release-at + release + recovery, +0 to +35 ms; `ESCALATE` 0/1/2; `COMMIT` branch b; `TIER SWAP` names the cell's montage; no inertialization warning | 3 per cell, 70 s |
+| `string-player-cadence`, `string-player-blocked` (new, D11) | the player throws the string | player taps attack at 0f, 30f, 60f at a silent dummy 150 cm ahead; blocked variant: the dummy `HoldBlock` | the `string-cadence` and `string-blocked` assertions expressed in the vocabulary: chain gap 0.500 ± 0.045, latency 125–175 ms, `HITSTUN` 0.550 ± 0.020, `KNOCKBACK` never inward, blockstun 0.350 ± 0.020, one blocked `KNOCKBACK` per `BLOCKED`; three swing indices with equal counts | 4 strings each, 40 s |
 | `dodge-directions`, `dodge-iframes` (new) | eight sections and i-frames | hold move in each of 8 directions 12f before a dodge tap and through it; i-frame rep: tap dodge at lock + 9f into an arriving light; control rep without the dodge | `DODGE <player> dir=<D> section=<D>`, `fitLen` 0.667, `dist` 405 ± 15 with `fwd`/`right` split matching the direction; i-frame rep zero `DAMAGED`/`BLOCKED` on the player and no `LUNGE STOP`; control `DAMAGED` | 16 + 3 + 1 |
 
 **C. Composition rows.**
@@ -389,7 +440,7 @@ defender's, (200, −150, 100) facing the attacker at (200, 0); an unused dummy 
 |---|---|---|---|---|
 | `block-facing` | block is 180° forward in the defender's frame | player holds block facing away (`face` yaw); control facing the attacker | away: `DAMAGED`, no `BLOCKED`; control: `BLOCKED` | 2 + 2 |
 | `parry-facing` | parry has no facing test | parry from behind, phase-locked | `PARRY SUCCESS` every rep | 2 |
-| `parry-refused` | refused while blocking, dodging, exhausted, airborne | hold block then tap parry; tap dodge then parry at +6f; exhausted (drain plan) then parry; jump then parry | a `REFUSED GA_Parry` per press, no `PARRY WINDOW` | 2 each |
+| `parry-refused` | refused while blocking, dodging, exhausted, airborne | hold block then tap parry; tap dodge then parry at +6f; `set_stamina(player, 0)` then parry; jump then parry | a `REFUSED GA_Parry` per press, no `PARRY WINDOW` | 2 each |
 | `attack-owns-movement` | movement input suppressed for the whole ability | hold move during a whiffed light; control without | trajectories equal ± 1 cm through `ABILITY END`, then the held move displaces within 3f | 2 + 1 |
 | `attack-airborne` | airborne attack refused, not buffered | jump, tap attack at +18f | `REFUSED … airborne`, no `ACTIVATE` after landing, no `BUFFER … stored` | 3 |
 | `lock-guard-break` | the break locks movement and jump; the control (trap) | player holds block; attacker heavies; two blocks break; hold move from the break; control without; tap jump inside the stun | displacement equal to control ± 2 cm through `GUARD END`, then moves within 3f; `REFUSED GA_Jump … guard broken` | 2 + control |
@@ -398,7 +449,7 @@ defender's, (200, −150, 100) facing the attacker at (200, 0); an unused dummy 
 | `input-last-wins` | single slot, last press wins | in hitstun press attack at end − 9f, dodge at end − 6f | `BUFFER InputTag.Attack: dropped, superseded by InputTag.Dodge`; `DODGE` at `HITSTUN END`, no player `ACTIVATE` | 3 |
 | `input-parry-never-buffers` | a replayed parry is a mistimed one | tap parry in hitstun inside acceptance | `REFUSED`, no `PARRY WINDOW` after `HITSTUN END`, no `BUFFER InputTag.Parry` | 3 |
 | `input-block-never-replays` | buffer actions, not states | one-frame block tap in hitstun; control holds through | no `BLOCK up` after `HITSTUN END`; control `BLOCK up` at `HITSTUN END` | 3 + 3 |
-| `death-midair` | die in mid-air leaves nothing stranded (checklist) | six lights taken, jump before the seventh | `DEATH` while airborne, `REVIVE`, then a move hold displaces and `movement_mode` reads walking | 2 |
+| `death-midair` | die in mid-air leaves nothing stranded (checklist) | `set_health(player, 15)`, jump before the light | `DEATH` while airborne, `REVIVE`, then a move hold displaces and `movement_mode` reads walking | 2 |
 | `attack-whiff-commitment` | a whiff hands nothing back | whiff a light; tap dodge at +24f | `REFUSED … Committed`, no `DODGE` | 3 |
 
 **D. Boundary family, `edge-*`.** Two reps per side; assert the two sides differ and each side is
@@ -438,7 +489,7 @@ control without: `lock-attack-recovery` on a whiff, `lock-hitstun`, `lock-knockd
 `lock-dodge`. Assert the trajectories equal ± 2 cm through the state's end line, then the held rep
 displaces within 3f. `lock-blockstun-free` asserts the opposite: displacement within 3f of
 `BLOCKSTUN`. Speed caps: `lock-block-speed`, block held plus move for 30f travels 62 ± 6 cm;
-`lock-exhausted-speed`, exhausted plus move travels 200 ± 20 cm.
+`lock-exhausted-speed`, `set_stamina(player, 0)` then move travels 200 ± 20 cm.
 
 Order: A, then B, then D, then G, then C, then E, then F. Exemplars, built first and by hand:
 `input-accept-hitstun`, `knockdown-getup-held`, `edge-light-checkpoint`, `lock-guard-break`,
@@ -447,11 +498,12 @@ Order: A, then B, then D, then G, then C, then E, then F. Exemplars, built first
 ## 6. Phase 3 — docs, traps, closedown
 
 - `Docs/Debug-Instruments.md`: the checker section describes the orchestrator, marker slicing, the
-  clock, tapes, teardown hygiene, mutations, the universal set, frames, the key-level input path;
-  the matrix becomes a region between `<!-- matrix:begin -->` and `<!-- matrix:end -->` written by
-  `Tools/RegressionCheck/gen-matrix.py` from `scenarios.py` and the checker's labels, with a
-  docs-check freshness check that regenerates and diffs; "adding a scenario is three edits" is
-  replaced by the new process; the trace-format paragraphs carry the names.
+  clock, tapes, the rep gate and the reset, teardown hygiene, mutations, the universal set, golden
+  skeletons, frames, the key-level input path; the matrix becomes a region between
+  `<!-- matrix:begin -->` and `<!-- matrix:end -->` written by `Tools/RegressionCheck/gen-matrix.py`
+  from `scenarios.py` and the checker's labels, with a docs-check freshness check that regenerates
+  and diffs; "adding a scenario is three edits" is replaced by the new process; the trace-format
+  paragraphs carry the names and the three `DEBUG` lines.
 - `Docs/Working-In-Unreal.md`: the fixed step, PIE from Python, `log_flush` and the live tail,
   key-level injection, each with surface and date; "Verifying combat changes" names
   `regression-run.sh`.
@@ -461,16 +513,18 @@ Order: A, then B, then D, then G, then C, then E, then F. Exemplars, built first
   traps, each saying what discharged it: the 2026-09-02 untested half, the four never-asserted
   cells, the directional dodge, the guard-break walk, the `s5-parry` lockout band, airborne at n=1,
   the get-up press inside the lockout; one new dated trap naming what the session did not reach;
-  a "Retired names" row carrying §4.6's bridge; symbol index rows for `UTDTimeTools`, `scenarios.py`,
+  a "Retired names" row carrying §4.6's bridge; symbol index rows for `UTDTimeTools`,
+  `DebugResetForFixture`, `DebugSetStamina`, `DebugSetHealth`, `scenarios.py`,
   `ue_regression_runner.py`, `regression_run.py`, `regression-run.sh`, `regression_eval.py`,
-  `gen-matrix.py`.
+  `gen-matrix.py`, the `golden/` directory.
 - `Docs/Closing-Down.md`: a step between 1 and 2: run `regression-run.sh --all` and the real-time
-  canary; a red row is a correctness item and blocks the push.
+  canary; a red row is a correctness item and blocks the push; a CHANGED row is explained in the
+  handoff and its skeleton accepted in the same commit as the change that caused it.
 - `CLAUDE.md`: the roster strikes Regression Audit; the pickup paragraph goes; Polish resumes at the
   windup pass. The coupling rule keeps naming `regression-check.sh`, which the docs-check manifest
   expects, and adds the orchestrator.
-- `Tools/CommentCheck/baseline.txt`: `regression-check.sh` raised with the reason; new files
-  baselined with `--baseline` once the file set is settled.
+- `Tools/CommentCheck/baseline.txt`: `regression-check.sh` and `TDCombatCharacter.cpp` raised with
+  the reason; new files baselined with `--baseline` once the file set is settled.
 - Memory: `combat-prototype-state` points at the new state. `Combat-Values.tsv` regenerated only if
   a value moved; none is expected to. This file deleted.
 
@@ -481,6 +535,11 @@ Order: A, then B, then D, then G, then C, then E, then F. Exemplars, built first
   through `run-in-editor.py` and `ue-mcp.sh`, about 3 s more per scenario, same scenarios file.
 - Key-level injection does not reach Enhanced Input from a script-called `InputKey`: action-level
   injection is the fallback, already proven, and the plan's rows are unchanged.
+- The reset masks a leak: it runs only after the hygiene readout, and the universal set fails any
+  `DEBUG RESET` line not preceded by a `REP` or `TEARDOWN` line. A state the reset itself leaves
+  behind shows on the next rep's readout.
+- Golden diffs are noisy: the skeleton keeps only meaning-carrying fields and each row can exclude
+  more; if a row still churns, its skeleton is dropped rather than widened, and the drop is recorded.
 - Log tailing lags: `log_flush` per tick, then every fifth if it costs; every stop condition also has
   a duration ceiling.
 - The 2D injection's axes are swapped: the first move plan prints the tape and the `DODGE dir`; the
@@ -495,26 +554,3 @@ Order: A, then B, then D, then G, then C, then E, then F. Exemplars, built first
 Phase 1 three to five hours of work plus about 1.5 hours of unattended matrices. Phase 2 exemplars
 two to three hours, then 15 to 40 minutes per row. Phase 3 one to two hours. The whole of Phase 2 is
 larger than one session, and whatever it does not reach is named in the closing trap.
-
-## 9. Candidates awaiting the designer's ruling
-
-Surfaced on 2026-09-03 while looking for assumptions the plan inherits. Each moves into the plan or
-is struck on the designer's word.
-
-1. **Golden-trace change detection.** Under the fixed step a scenario's event sequence is
-   identical run to run unless code changed. Keeping the last green run's event skeleton per
-   scenario (tags, frames, key fields, physics fields excluded) and diffing every run against it
-   reports any change, asserted or not. It turns the loop from "checks what we thought of" into
-   "notices anything that moved". Cost: a `--baseline-accept` step after a deliberate change, and
-   diffs to read. Recommended, as a Phase 1 mode beside `--repeat`.
-2. **The attacker model.** Most rows keep the dummy as attacker, and the dummy's attack path is not
-   the player's: it drives the ability by tag, aims by AI focus, has no camera frame. Attack-side
-   rules measured on it may not hold for the shipping path. Recommended: player-driven variants
-   for the string (`string-player-cadence`, `string-player-blocked`), so both paths are asserted;
-   defence-side rows keep the dummy.
-3. **The level.** `L_CombatTest` carries the ramp, a documented contaminant, and fixed placements the
-   fixture leans on. A flat regression map with the same two dummies is one `LevelFactory` call and
-   removes a trap class; it is content, so the designer's call. Recommended, low priority.
-4. **The fixture knobs.** Twenty-plus `Debug*` properties on the shipping character class stay
-   frozen but present. Once every row is scripted, all but the periodic attacker's could retire.
-   Deferred to Structure Audit; recorded here so it is not forgotten.
