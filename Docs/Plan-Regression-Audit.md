@@ -117,7 +117,9 @@ What the loop was built against and no longer holds:
 - n=0 fails; scope by the pawn named on the roles line; select samples by position, never by the
   value under test; every row carries at least one mutation that must turn it red.
 - The gameplay module changes are the trace names and the three debug functions of §4.1, nothing
-  else. A red that looks like a defect stops the line and is reported; nothing is fixed on the way past.
+  else. A red that looks like a defect stops *that row*: it is marked BLOCKED in the summary and in
+  §0 with what was seen, nothing is fixed on the way past, and execution continues with the rows that
+  do not depend on it. The designer rules on it when next present.
 - Commits are the units in §4.8 and one per row or family in §5, each verified before it lands, each
   with the `Co-Authored-By` trailer. The push waits for the designer.
 
@@ -289,7 +291,8 @@ Golden traces: `regression_eval.py --skeleton` reduces a slice to one line per t
 `f=<frame> TAG <pawn> <kept fields>`, frames relative to the scenario's BEGIN, keeping the fields
 that carry meaning (`swing=`, `branch`, `by=`, `type=`, `damage=`, `staminaDamage=`, `dir=`,
 `section=`, `gained=`) and dropping timestamps inside fields, `until=`, `pos=`, `rate=` and every
-field a scenario's `golden.exclude` names. The accepted skeleton lives at
+field a scenario's `golden.exclude` names. Lines sharing a frame are sorted before the compare,
+since tick order between independent actors is not guaranteed stable. The accepted skeleton lives at
 `Tools/RegressionCheck/golden/<id>.skeleton`, committed, so a code change and the behaviour change it
 caused land in the same diff. Every run diffs against it; a difference marks the row CHANGED in the
 summary and lists the lines. CHANGED does not fail the run unless `--strict-golden`; `--accept-golden`
@@ -334,7 +337,8 @@ interrupt: clock and screen percentage restored, dilation 1.0, play ended if run
   `BLOCK up`→`down`, `PARRY WINDOW open`→`SUCCESS|WHIFF`, `HITSTUN`→`END`, `BLOCKSTUN`→`END`,
   `GUARD BREAK`→`GUARD END`, `EXHAUSTED`→`END`, `DEATH`→`REVIVE`), one trailing unpaired tolerated at
   the slice end; at most one `DAMAGED` per target inside one attacker's release window; the health
-  ledger per target; no `pos=-1.0000`, no `played=` unequal to `len=`, no `opened at 0.0000`;
+  ledger per target, reset by `REVIVE`, `DEBUG HEALTH` and `DEBUG RESET` alike; no `pos=-1.0000`, no
+  `played=` unequal to `len=`, no `opened at 0.0000`;
   monotonic timestamps; a constant frame latency from every `REGRESSION INJECT` to its `INPUT` line;
   zero `Warning` or `Error` lines on `LogTDCombatTiming`, `LogAbilitySystem`, `LogAnimation`,
   `LogScript`, `LogBlueprint` outside `Tools/RegressionCheck/log-allowlist.txt`, seeded from the
@@ -547,7 +551,8 @@ Order: A, then B, then D, then G, then C, then E, then F. Exemplars, built first
 - A rename breaks an extractor silently: the fixed-step matrix and the mutation harness catch it;
   the self-test fixture is updated first.
 - A usage pause: commits per unit, long runs backgrounded, §0 resumed.
-- A real defect: the line stops and the report names it.
+- A real defect: that row stops and is marked BLOCKED, the report names what was seen, and the rest
+  of the matrix continues. Unattended, this is the only way one red does not cost the night.
 
 ## 8. Budget
 
