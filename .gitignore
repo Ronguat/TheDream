@@ -110,3 +110,6 @@ Saved/Cooked/
 
 # Git Bash crash artefacts (see Working-In-Unreal.md, grep -o -i -F)
 *.stackdump
+
+# Bytecode from the Tools/ scripts the engine's interpreter runs.
+__pycache__/

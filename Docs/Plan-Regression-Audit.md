@@ -15,7 +15,9 @@ entry and a few assertion lines rather than a C++ knob and bespoke awk.
 Ticked as units land, with the commit hash. *Verified* means the unit ran and its check passed;
 *written* means it exists and has not.
 
-- [ ] C1 — C++: `UTDTimeTools`, key-level and 2D injection, the character's reset and setters, pawn names on eleven trace lines; extractor and doc updates
+- [x] C1 — `abd0021`, verified. `UTDTimeTools`, key-level and 2D injection, the character's reset
+  and setters, pawn names on **twelve** trace lines; extractor and doc updates. Key-level input
+  reaches the shipping path, proven on the player pawn — §7's third risk is closed.
 - [ ] C2 — `scenarios.py` schema, baseline knobs, placements, key resolution, the runner; three rows driven end to end
 - [ ] C3 — orchestrator, marker slicing, `--bands-check` with the format lint
 - [ ] C4 — universal invariants, mutations, frames, the frame ledger, golden skeletons, `summary.json`, `history.tsv`
@@ -24,6 +26,33 @@ Ticked as units land, with the commit hash. *Verified* means the unit ran and it
 - [ ] Phase 2 exemplars: `input-accept-hitstun`, `knockdown-getup-held`, `edge-light-checkpoint`, `lock-guard-break`, `reach-light`
 - [ ] Phase 2 rows, in §5 order, one commit per row or family
 - [ ] Phase 3 — traps, entry, generated matrix, closedown procedure, roster, baseline, memory, this file deleted
+
+## 0b. Findings accumulated during execution
+
+For the report and the decision entry. A suspected defect is recorded here and **not fixed on the
+way past**, per §3.
+
+- **The fixed clock is exact, and the loop runs 2x real time.** `tier-light` measured 30.0 s of game
+  in 15.5 s of wall (1800 ticks x 1/60), against a baseline of 150-210 s per scenario. Every one of
+  its ten `ABILITY END elapsed` samples read **0.983 with zero spread**, where the same fixture free
+  running spanned +0 to +35 ms.
+- **`BAND_ELAPSED_MIN` 0.000 predicts +0 at 60 fps and the measurement is +2 frames.** The band's
+  comment argues the overhead is nil "whenever the authored span divides evenly into the frame
+  time", and 0.950 is exactly 57 frames at 1/60, yet a connecting light lands deterministically at
+  0.983. In band, 2 ms under the 0.985 ceiling, so it passes -- and any change moves it out.
+- **SUSPECTED DEFECT, not chased: a whiffing light's total is 1.000 s against a connecting light's
+  0.983.** Measured the same run, same clock, same tier: `tier-light`'s dummy connects and reads
+  0.983 ten times; `input-hold-tier`'s player whiffs in open space and reads 1.000. The authored
+  total is 0.950 (`ReleaseAt` 0.200 + `Release` 0.150 + `Recovery` 0.600) and `BAND_ELAPSED_MAX` is
+  +0.035, so **the whiffing case is outside the band the connecting case passes**. No row asserts
+  elapsed on a whiff -- every `s8` row whiffs by design and asserts swing indices -- which is why
+  six green rows never saw it. It will block `tier-cells` in Phase 2, whose whole fixture is a
+  player whiffing in open space. Not investigated further, per §3.
+- **`input-hold-tier`'s press time was stale by the same 50 ms.** Its plan pressed 200 ms before the
+  *authored* end, which is 250 ms before the *actual* end and so outside `InputBufferSeconds` 0.200:
+  the buffer stored at 0.867 and expired at 1.083, one tick after the ability ended at 1.067. The
+  fixture is re-derived against the measured total, since the row asserts the tier the hold buys and
+  not the total; the total's anomaly is the bullet above.
 
 ## 1. Decisions taken, so nothing below is re-litigated
 

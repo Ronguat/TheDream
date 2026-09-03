@@ -7,7 +7,7 @@
 # See Docs/Debug-Instruments.md for the scenario matrix and the fixture each
 # scenario expects.
 #
-#   ./regression-check.sh <scenario> [logfile]
+#   ./regression-check.sh <scenario> [logfile] [--slice <run>:<id>]
 #   ./regression-check.sh --self-test        # prove the instrument can fail
 #
 # Scenarios: s1-light s1-heavy s1-charged s2-light s2-heavy s2-charged s3
@@ -236,18 +236,43 @@ usage() {
 	exit 2
 }
 
-# --- slice the log from the last PIE start ---------------------------------
-slice_log() {
-	local log="$1" start
+# --- bound the slice -------------------------------------------------------
+# One function, two callers: slice_log and raw_session_count must agree on where a session
+# starts, or an assertion counted off the raw log reads a different run from the one asserted.
+#
+# SLICE_MARKER, set by --slice <run>:<id>, bounds one scenario between the REGRESSION BEGIN and
+# END lines the runner emits for it. Without it the last "Bringing World" wins, as it always has.
+SLICE_MARKER=""
+
+slice_bounds() { # prints "<first line> <last line>" for the log named in $1
+	local log="$1" start end run id
+	if [ -n "$SLICE_MARKER" ]; then
+		run="${SLICE_MARKER%%:*}"; id="${SLICE_MARKER#*:}"
+		start=$(grep -n "REGRESSION BEGIN $id run=$run " "$log" 2>/dev/null | tail -1 | cut -d: -f1)
+		if [ -z "$start" ]; then
+			echo "regression-check: no REGRESSION BEGIN for $id in run $run" >&2
+			exit 2
+		fi
+		end=$(awk -v s="$start" -v id="$id" 'NR>s && index($0, "REGRESSION END " id " ") { print NR; exit }' "$log")
+		[ -n "$end" ] || end=$(wc -l <"$log")
+		echo "$start $end"
+		return
+	fi
 	start=$(grep -n "LogWorld: Bringing World .* up for play" "$log" 2>/dev/null | tail -1 | cut -d: -f1)
 	if [ -z "$start" ]; then
 		echo "regression-check: no PIE start marker in $log" >&2
 		exit 2
 	fi
+	echo "$start $(wc -l <"$log")"
+}
+
+slice_log() {
+	local log="$1" b
+	b=$(slice_bounds "$log") || exit 2
 	# Strip the timestamp/frame prefix and the category, leaving "[t] TAG ...".
-	awk -v s="$start" 'NR>=s' "$log" \
-		| grep "LogTDCombatTiming: \[" \
-		| sed 's/^.*LogTDCombatTiming: //'
+	awk -v s="${b%% *}" -v e="${b##* }" 'NR>=s && NR<=e' "$log" |
+		grep "LogTDCombatTiming: \[" |
+		sed 's/^.*LogTDCombatTiming: //'
 }
 
 # --- shared extractors ------------------------------------------------------
@@ -272,10 +297,9 @@ elapsed_values() { grep "elapsed=" "$SLICE" | grep -v "(cancelled)" | grep -o "e
 # trace only, so an assertion about an engine-side line counts it off the raw log from the
 # session's start marker.
 raw_session_count() { # raw_session_count <fixed-string>
-	local start
-	start=$(grep -n "LogWorld: Bringing World .* up for play" "$LOGFILE" 2>/dev/null | tail -1 | cut -d: -f1)
-	[ -n "$start" ] || { echo 0; return; }
-	awk -v s="$start" 'NR>=s' "$LOGFILE" | grep -cF -- "$1" || true
+	local b
+	b=$(slice_bounds "$LOGFILE") || { echo 0; return; }
+	awk -v s="${b%% *}" -v e="${b##* }" 'NR>=s && NR<=e' "$LOGFILE" | grep -cF -- "$1" || true
 }
 
 count_per_attack() { # count_per_attack <TAG-regex>; count of TAG per COMPLETED attack
@@ -2144,14 +2168,20 @@ run_s7_death_grade() {
 		"$floored of $deaths deaths still produced a KNOCKDOWN"
 }
 
-SCENARIO="$1"
-LOGFILE="${2:-Saved/Logs/TheDream.log}"
+SCENARIO="$1"; shift
+LOGFILE="Saved/Logs/TheDream.log"
+while [ $# -gt 0 ]; do
+	case "$1" in
+		--slice) SLICE_MARKER="$2"; shift 2 ;;
+		*)       LOGFILE="$1"; shift ;;
+	esac
+done
 [ -f "$LOGFILE" ] || { echo "regression-check: no such log: $LOGFILE" >&2; exit 2; }
 
 SLICE=$(mktemp)
 trap 'rm -f "$SLICE"' EXIT
 slice_log "$LOGFILE" >"$SLICE"
-[ -s "$SLICE" ] || { echo "regression-check: no combat trace in the last PIE session" >&2; exit 2; }
+[ -s "$SLICE" ] || { echo "regression-check: no combat trace in the selected slice" >&2; exit 2; }
 
 case "$SCENARIO" in
 	s1-light)   run_s1 $BAND_RELEASE_LIGHT   $BAND_ELAPSED_LIGHT   $BAND_ESCALATE_LIGHT   $BAND_COIL_LIGHT ;;
