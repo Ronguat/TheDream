@@ -653,6 +653,9 @@ settings rather than assertions — as do measurements, which record what a run 
 | `chain-closed` | `s8-chain-closed` | silent | silent | f0 tap attack; f51 tap attack | 30 |
 | `chain-early` | `s8-chain-early` | silent | silent | f0 tap attack; f21 tap attack | 30 |
 | `chain-late` | `s8-chain-late` | silent | silent | f0 tap attack; f36 tap attack | 30 |
+| `input-accept-blockstun` | `-` | hold 0.1 | silent | - | 68 |
+| `input-accept-hitstun` | `-` | hold 0.1 | silent | - | 68 |
+| `input-accept-lockout` | `-` | silent | auto_attack False, auto_defend_mode PERIODIC_PARRY, get_up_mode WAIT, periodic_jump False | - | 90 |
 | `input-discard` | `s8-discard` | silent | silent | f0 tap attack; f45 tap attack | 30 |
 | `input-hold-tier` | `s8-hold-tier` | silent | silent | f0 tap attack; f51 hold attack 15 | 30 |
 | `input-stale` | `s8-stale` | silent | silent | f0 hold attack 24; f30 tap attack | 30 |
@@ -671,6 +674,9 @@ settings rather than assertions — as do measurements, which record what a run 
 | `knockdown-getup-attack` | `s6-getup` | hold 0.22 | auto_attack False, auto_defend_mode OFF, get_up_mode ATTACK_GET_UP, periodic_jump False | - | 60 |
 | `knockdown-getup-block` | `s6-block` | hold 0.1, interval 6.0, string_taps 3 | auto_attack False, auto_defend_mode OFF, get_up_mode BLOCK_GET_UP, periodic_jump False | - | 60 |
 | `knockdown-getup-dodge` | `s6-dodge` | hold 0.1, interval 6.0, string_taps 3 | auto_attack False, auto_defend_mode OFF, get_up_mode DODGE_GET_UP, periodic_jump False | - | 60 |
+| `knockdown-getup-exhausted-held` | `-` | hold 0.22 | silent | - | 68 |
+| `knockdown-getup-held` | `-` | hold 0.22 | silent | - | 132 |
+| `knockdown-getup-held-normal` | `-` | hold 0.1, string_taps 3 | silent | - | 52 |
 | `knockdown-getup-kipup` | `s6-kipup` | hold 0.22, interval 6.0 | auto_attack False, auto_defend_mode OFF, get_up_mode DODGE_GET_UP, periodic_jump False | - | 60 |
 | `knockdown-hard` | `s6-hard` | hold 0.22 | silent | - | 60 |
 | `knockdown-hard-no-stand` | `s6-hard-stand` | hold 0.22 | auto_attack False, auto_defend_mode OFF, get_up_mode STAND_GET_UP, periodic_jump False | - | 60 |
@@ -679,6 +685,9 @@ settings rather than assertions — as do measurements, which record what a run 
 | `knockdown-stand` | `s6-stand` | hold 0.1, string_taps 3 | auto_attack False, auto_defend_mode OFF, get_up_mode WAIT, jump_interval 1.3, periodic_jump True | - | 90 |
 | `death-over-knockdown` | `s7-death-grade` | hold 0.22 | silent | - | 60 |
 | `death-revive` | `s7-death` | hold 0.1, string_taps 3 | silent, auto_revive 3.0 | - | 90 |
+| `lock-guard-break` | `-` | hold 0.22 | silent | - | 52 |
+| `edge-light-checkpoint` | `-` | silent | silent | - | 52 |
+| `reach-light` | `-` | silent | silent | - | 36 |
 
 *Generated from `Tools/RegressionCheck/scenarios.py` by `Tools/RegressionCheck/gen-matrix.py`. Edit the fixtures there, never this table.*
 <!-- matrix:end -->

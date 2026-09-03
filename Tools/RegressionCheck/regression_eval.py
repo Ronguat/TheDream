@@ -217,7 +217,15 @@ def universal(trace, markers, raw, r, allow=()):
                     if v and not any(a.lower() in v.lower() for a in allow)]
         return out
 
-    dirty = [(rest.split()[0], leftover(rest)) for k, rest in markers if k == "TEARDOWN"]
+    def readout_pawn(kind, rest):
+        toks = rest.split()
+        if kind == "TEARDOWN":
+            return toks[0]
+        # REP <id> n=<k> game=<t> <pawn> ...
+        return next((t for t in toks[1:] if "=" not in t), toks[-1])
+
+    dirty = [(readout_pawn(k, rest), leftover(rest)) for k, rest in markers
+             if k in ("TEARDOWN", "REP")]
     dirty = [(who, left) for who, left in dirty if left]
     r.add(not dirty, "pawns settle before the reset",
           "; ".join("%s left %s" % (w, ",".join(sorted(set(l)))) for w, l in dirty)
@@ -311,19 +319,61 @@ def ledger(trace, markers):
 
 KEEP = ("swing", "branch", "by", "type", "damage", "staminaDamage", "dir", "section", "gained")
 
+# A skeleton line that reappears with identical content within SHIFT_TOL frames counts as shifted,
+# not changed, and the shifted count is reported. Across an editor restart, the frame two bodies
+# meet on lands a frame either way -- measured 2026-09-03 on 7 of 38 rows, +1 with one +2 -- and
+# everything downstream of the contact moves with it, so no tag class separates the two cleanly.
+# Frame-exact claims live in the bands and the edge family, where they are asserted on purpose.
+SHIFT_TOL = 2
+
+
+def rep_bases(markers):
+    """(rep end game time, base game time) per rep. A rep's frames count from its first LOCK when it
+    has one, else from the rep's start, so a plan that rebased on a tag reads the same skeleton
+    whichever frame the tag arrived on."""
+    begin = None
+    reps, locks = [], {}
+    for kind, rest in markers:
+        f = fields(rest)
+        if kind == "BEGIN" and "game" in f:
+            begin = f["game"]
+        elif kind == "LOCK" and "game" in f and "rep" in f:
+            locks.setdefault(int(f["rep"]), f["game"])
+        elif kind == "REP" and "game" in f and "n" in f:
+            n = int(f["n"])
+            if not reps or reps[-1][0] != n:
+                reps.append((n, f["game"]))
+    if not reps:
+        return begin, []
+    out, start = [], begin
+    for n, end in reps:
+        out.append((end, locks.get(n, start if start is not None else end)))
+        start = end
+    return begin, out
+
 
 def skeleton(trace, markers, exclude=()):
-    """One line per event: frame from BEGIN, tag, pawn, and the fields that carry meaning."""
+    """One line per event: frame, tag, pawn, and the fields that carry meaning. Frames count from
+    world time zero, or per rep from the rep's own base when the run was gated."""
     roles = roles_from(markers)
     if not trace:
         return []
-    t0 = trace[0][0]
+    begin, bases = rep_bases(markers)
+    # Ungated rows count frames from world time zero, which every PIE session starts at; a fixture
+    # timer's first swing is a fixed frame from there, where BEGIN's frame depends on how many
+    # ticks the pawn took to spawn.
+    t0 = 0.0
     # exclude names fields, not lines. The skeleton is already a whitelist, so pos= and rate= are
     # gone whether or not a scenario names them; a row uses this to drop a KEEP field that churns.
     keep = [k for k in KEEP if k not in [e.rstrip("=") for e in exclude]]
     rows = {}
     for t, text in trace:
-        f = int(round((t - t0) / FRAME))
+        rep, base = -1, t0
+        for i, (end, b) in enumerate(bases):
+            if t <= end + 1e-6:
+                rep, base = i, b
+                break
+        f = int(round((t - base) / FRAME))
         tag = tag_of(text)
         who = pawn_of(text, roles) or "-"
         kept = []
@@ -333,11 +383,47 @@ def skeleton(trace, markers, exclude=()):
                  or re.search(r"\b%s ([-\w.]+)" % re.escape(k), text))
             if m:
                 kept.append("%s=%s" % (k, m.group(1)))
-        rows.setdefault(f, []).append("f=%d %s %s %s" % (f, tag, who, " ".join(kept)))
+        # REFUSED is deduped by reason over half a second, so its frame is the dedup window's phase
+        # rather than the game's; it keeps its content and loses its frame.
+        if tag == "REFUSED":
+            f = -1
+        prefix = "r=%d f=%d" % (rep, f) if rep >= 0 else "f=%d" % f
+        rows.setdefault((rep, f), []).append("%s %s %s %s" % (prefix, tag, who, " ".join(kept)))
     out = []
-    for f in sorted(rows):
-        out.extend(sorted(rows[f]))       # tick order between actors is not stable
+    for key in sorted(rows):
+        out.extend(sorted(rows[key]))       # tick order between actors is not stable
     return out
+
+
+def split_line(line):
+    """(rep, frame, content) of a skeleton line."""
+    m = re.match(r"(?:r=(-?\d+) )?f=(-?\d+) (.*)$", line)
+    if not m:
+        return None, None, line
+    return (int(m.group(1)) if m.group(1) is not None else -1), int(m.group(2)), m.group(3)
+
+
+def compare(ref, now):
+    """Lines in one set and not the other, after content-identical lines within SHIFT_TOL frames of
+    each other are paired off. Returns (gone, new, shifted)."""
+    gone = [l for l in ref if l not in now]
+    new = [l for l in now if l not in ref]
+    shifted = 0
+    still_gone, pool = [], list(new)
+    for g in gone:
+        rep, f, content = split_line(g)
+        match = None
+        for n in pool:
+            rn, fn, cn = split_line(n)
+            if cn == content and rn == rep and abs(fn - f) <= SHIFT_TOL:
+                match = n
+                break
+        if match is None:
+            still_gone.append(g)
+        else:
+            pool.remove(match)
+            shifted += 1
+    return still_gone, pool, shifted
 
 
 def golden(path, sid, trace, markers, accept, exclude):
@@ -351,13 +437,16 @@ def golden(path, sid, trace, markers, accept, exclude):
     ref = [l.rstrip("\n") for l in open(ref_path) if l.strip()]
     if ref == now:
         return "SAME", "%d lines match" % len(now)
-    only_ref = [l for l in ref if l not in now][:4]
-    only_now = [l for l in now if l not in ref][:4]
+    gone, new, shifted = compare(ref, now)
+    if not gone and not new:
+        return "SAME", "%d lines, %d shifted within %d f" % (len(now), shifted, SHIFT_TOL)
     detail = "%d -> %d lines" % (len(ref), len(now))
-    if only_ref:
-        detail += " | gone: " + "; ".join(only_ref)
-    if only_now:
-        detail += " | new: " + "; ".join(only_now)
+    if shifted:
+        detail += ", %d shifted within %d f" % (shifted, SHIFT_TOL)
+    if gone:
+        detail += " | gone: " + "; ".join(gone[:4])
+    if new:
+        detail += " | new: " + "; ".join(new[:4])
     return "CHANGED", detail
 
 

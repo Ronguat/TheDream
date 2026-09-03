@@ -157,6 +157,13 @@ def save_slice(run_id, sid):
 
 
 EVAL = os.path.join(HERE, "regression_eval.py")
+ROWS = os.path.join(HERE, "regression_rows.py")
+
+
+def row_eval(sid, slice_path):
+    """A scripted row's own assertions, from regression_rows.py, with its tape beside it."""
+    tape = slice_path.replace(".slice.log", ".tape.tsv")
+    return sh([PY, ROWS, sid, slice_path, "--tape", tape])
 
 
 def evaluate(run_id, sid, slice_path, args):
@@ -175,7 +182,10 @@ def evaluate(run_id, sid, slice_path, args):
         out["rc"] = r.returncode
         out["detail"] = tail[-1].strip() if tail else (r.stdout or r.stderr).strip()[-120:]
     else:
-        out["detail"] = "no per-row evaluator yet (C4 covers the universal set only)"
+        r = row_eval(sid, slice_path)
+        tail = [ln for ln in r.stdout.splitlines() if "passed," in ln]
+        out["rc"] = r.returncode
+        out["detail"] = tail[-1].strip() if tail else (r.stdout or r.stderr).strip()[-120:]
 
     allow = ",".join(s.get("teardown_allow", []))
     u = sh([PY, EVAL, slice_path, "--universal", "--allow", allow])
@@ -215,6 +225,8 @@ def prove_mutations(run_id, sid, slice_path, s):
         if s.get("legacy"):
             r = sh(["bash", CHECKER, s["legacy_id"], dst, "--slice", "%s:%s" % (run_id, sid)])
             red = r.returncode != 0
+        else:
+            red = row_eval(sid, dst).returncode != 0
         if not red:
             red = sh([PY, EVAL, dst, "--universal",
                       "--allow", ",".join(s.get("teardown_allow", []))]).returncode != 0

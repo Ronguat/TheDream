@@ -93,6 +93,12 @@ FLOOR_LIMIT = 4500.0
 # Actions a plan may name. The runner resolves each to its key from the mapping contexts at load.
 ACTIONS = ("attack", "block", "dodge", "parry", "jump", "move")
 
+# Plan ops the runner implements. tap/press/hold/release/move/stop_move drive the player's keys;
+# face, teleport, set, set_stamina and set_health take any role; lock_to rebases the plan's frames
+# to the frame its tag appears on the named actor.
+OPS = ("tap", "press", "release", "hold", "move", "stop_move", "face", "teleport", "set",
+       "set_stamina", "set_health", "lock_to", "mark")
+
 # Fixture holds must sit strictly between two ladder checkpoints, or the tier they select is a
 # coin toss. Sources: GA_Attack's Branches[*].HoldUntilSeconds.
 CHECKPOINTS = (0.15, 0.35, 0.75)
@@ -305,7 +311,7 @@ SCENARIOS = {
                                       _def("PERIODIC_PARRY", debug_parry_pre_block_seconds=12.0,
                                            debug_parry_interval_seconds=13.0,
                                            debug_get_up_mode="DODGE_GET_UP"),
-                                      mutations=[("dup", "KNOCKDOWN RISE", 1)],
+                                      mutations=[("set", "KNOCKDOWN RISE", "by", "dodge")],
                                       teardown_allow=["Attacking", "StaminaRegenPaused", "Exhausted", "Dead",
                                                        "KnockedDown"]),
     "knockdown-exhausted-kipup": _row("knockdown", "s6-exhausted-kipup", 120, _atk(HEAVY),
@@ -320,7 +326,7 @@ SCENARIOS = {
                                       _def("PERIODIC_PARRY", debug_parry_pre_block_seconds=12.0,
                                            debug_parry_interval_seconds=13.0,
                                            debug_get_up_mode="BLOCK_GET_UP"),
-                                      mutations=[("dup", "KNOCKDOWN RISE", 1)],
+                                      mutations=[("set", "KNOCKDOWN RISE", "by", "block")],
                                       teardown_allow=["Attacking", "StaminaRegenPaused", "Exhausted", "Dead",
                                                        "KnockedDown"]),
     "knockdown-exhausted-attack": _row("knockdown", "s6-exhausted-attack", 120,
@@ -328,7 +334,7 @@ SCENARIOS = {
                                        _def("PERIODIC_PARRY", debug_parry_pre_block_seconds=12.0,
                                             debug_parry_interval_seconds=13.0,
                                             debug_get_up_mode="ATTACK_GET_UP"),
-                                       mutations=[("drop", "KNOCKDOWN RISE", 1)],
+                                       mutations=[("set", "KNOCKDOWN RISE", "by", "auto")],
                                        teardown_allow=["Attacking", "StaminaRegenPaused", "Exhausted", "Dead",
                                                        "KnockedDown"]),
 
@@ -339,6 +345,173 @@ SCENARIOS = {
     "death-over-knockdown": _row("death", "s7-death-grade", 60, _atk(HEAVY), _def(),
                                  mutations=[("drop", "DEATH ", 99)]),
 }
+
+
+# --- scripted rows -----------------------------------------------------------
+# The player is the precisely timed actor (D2). Each rep runs one plan -- plans[k % len] for rep k
+# -- from the frame a lock_to's tag appears on, and the gate between reps settles, reads the pawn the
+# game left, resets it and restores every placement. Assertions live in regression_rows.py.
+
+def _player_defends(family, attacker, plans, mutations, reps, expect=None, tail=60, duration=None,
+                    tape_every=2, teardown_allow=("Attacking", "StaminaRegenPaused")):
+    """The attacker dummy on open ground with its loop running; the player stands where the
+    defender stood; the second dummy is parked and silent."""
+    ex = dict(reps=reps, gate=True, tail_frames=tail)
+    ex.update(expect or {})
+    return dict(
+        family=family, legacy=False,
+        roles=dict(attacker=(PLACED_ATTACKER[0],) + OPEN_ATTACKER,
+                   defender=(PLACED_DEFENDER[0], PARKED_DUMMY, 0.0)),
+        knobs={"attacker": dict(attacker), "defender": dict(SILENT)},
+        player=dict(spawn=(OPEN_DEFENDER[0][0], OPEN_DEFENDER[0][1], 100.0), yaw=OPEN_DEFENDER[1],
+                    props={}),
+        plans=[list(p) for p in plans], plan=[],
+        stop=dict(duration=float(duration or (reps * 8.0 + 20.0))),
+        expect=ex, mutations=list(mutations), golden=dict(exclude=["drift="]),
+        teardown_allow=list(teardown_allow), tape_every=tape_every,
+    )
+
+
+def _player_alone(family, plans, mutations, reps, expect=None, tail=90, duration=None,
+                  target=None, props=None, tape_every=2):
+    """Both dummies silent; the player throws in open space, or at a parked target when a row
+    places one."""
+    ex = dict(reps=reps, gate=True, tail_frames=tail)
+    ex.update(expect or {})
+    return dict(
+        family=family, legacy=False,
+        roles=dict(attacker=(PLACED_ATTACKER[0], PARKED_DUMMY, 0.0),
+                   defender=(PLACED_DEFENDER[0],) + (target or (PARKED_DUMMY, 0.0))),
+        knobs={"attacker": dict(SILENT), "defender": dict(SILENT)},
+        player=dict(spawn=(-4000.0, -4000.0, 100.0) if target is None
+                    else (OPEN_DEFENDER[0][0], OPEN_DEFENDER[0][1], 100.0),
+                    yaw=0.0 if target is None else OPEN_DEFENDER[1], props=dict(props or {})),
+        plans=[list(p) for p in plans], plan=[],
+        stop=dict(duration=float(duration or (reps * 4.0 + 20.0))),
+        expect=ex, mutations=list(mutations), golden=dict(exclude=["drift="]),
+        teardown_allow=[], tape_every=tape_every,
+    )
+
+
+LOCK_HITSTUN = (0, "player", "lock_to", "State.Hitstun")
+LOCK_DOWN = (0, "player", "lock_to", "State.KnockedDown")
+
+# The light's hitstun is 33 f and its hit lands 12 f after the press, so the acceptance window
+# opens 21 f into the stun; 19 f is outside it and 23 f inside. Sources: Cells[0].HitstunSeconds,
+# Branches[0].ReleaseAtSeconds, InputBufferSeconds.
+SCENARIOS["input-accept-hitstun"] = _player_defends(
+    "input", _atk(LIGHT),
+    plans=[[LOCK_HITSTUN, (19, "player", "tap", "attack")],
+           [LOCK_HITSTUN, (23, "player", "tap", "attack")]],
+    mutations=[("shift", "HITSTUN END", -0.100)], reps=6, tail=90)
+
+# Blockstun is 21 f from the blocked hit and disables offense only, so the acceptance window opens
+# at 9 f; presses at 7 f and 11 f sit either side. The guard is raised two frames into the swing and
+# released the frame after the block lands; its floor keeps it up a few frames longer, and the attack
+# buffers through that regardless. Sources: Cells[0].BlockstunSeconds, MinimumBlockSeconds.
+_BLOCK_THEN_STUN = [(0, "attacker", "lock_to", "State.Attacking"),
+                    (2, "player", "press", "block"),
+                    (0, "player", "lock_to", "State.Blockstun"),
+                    (1, "player", "release", "block")]
+SCENARIOS["input-accept-blockstun"] = _player_defends(
+    "input", _atk(LIGHT),
+    plans=[_BLOCK_THEN_STUN + [(7, "player", "tap", "attack")],
+           _BLOCK_THEN_STUN + [(11, "player", "tap", "attack")]],
+    mutations=[("shift", "BLOCKSTUN END", -0.100)], reps=6, tail=90)
+
+# The player throws a light into the defender dummy's parry window and takes the light's 45 f
+# lockout; a press at 31 f is outside its acceptance window and one at 35 f inside. Sources:
+# Cells[0].ParryLockoutSeconds, InputBufferSeconds.
+_INTO_PARRY = [(0, "defender", "lock_to", "State.Parrying"),
+               (0, "player", "tap", "attack"),
+               (0, "player", "lock_to", "State.ParryLockout")]
+SCENARIOS["input-accept-lockout"] = dict(
+    family="input", legacy=False,
+    roles=dict(attacker=(PLACED_ATTACKER[0], PARKED_DUMMY, 0.0),
+               defender=(PLACED_DEFENDER[0],) + OPEN_DEFENDER),
+    knobs={"attacker": dict(SILENT), "defender": _def("PERIODIC_PARRY")},
+    player=dict(spawn=(OPEN_ATTACKER[0][0], OPEN_ATTACKER[0][1], 100.0), yaw=OPEN_ATTACKER[1],
+                props={}),
+    plans=[_INTO_PARRY + [(31, "player", "tap", "attack")],
+           _INTO_PARRY + [(35, "player", "tap", "attack")]], plan=[],
+    stop=dict(duration=90.0), expect=dict(reps=6, gate=True, tail_frames=90),
+    mutations=[("shift", "PARRY LOCKOUT END", -0.100)], golden=dict(exclude=["drift="]),
+    teardown_allow=["StaminaRegenPaused"], tape_every=2,
+)
+
+# Exhausted from the frame the heavy begins, floored hard, then every option held: only the attack
+# rises, at the lockout's end; a held guard alone leaves the wait's auto-rise.
+_EXHAUST_THEN_DOWN = [(0, "attacker", "lock_to", "State.Attacking"),
+                      (0, "player", "set_stamina", 0.0),
+                      LOCK_DOWN]
+SCENARIOS["knockdown-getup-exhausted-held"] = _player_defends(
+    "knockdown", _atk(HEAVY),
+    plans=[_EXHAUST_THEN_DOWN + [(30, "player", "hold", h, 90) for h in ("block", "dodge", "attack")],
+           _EXHAUST_THEN_DOWN + [(30, "player", "hold", "block", 90)]],
+    mutations=[("set", "KNOCKDOWN RISE", "by", "block")], reps=6, tail=120,
+    expect=dict(by=["attack", "auto"], held=["Attack", None], lockout=1.5, auto_at=2.0))
+
+# Hard knockdown: lockout 90 f, window 30 f, auto-rise at 120 f. Each variant holds from 30 f into
+# the lockout until past the rise. Priority is guard, dodge, attack, stand (KnockdownGetUpPriority).
+_HARD_HOLDS = [["block"], ["dodge"], ["attack"], ["jump"],
+               ["block", "dodge"], ["dodge", "attack"], ["attack", "jump"]]
+SCENARIOS["knockdown-getup-held"] = _player_defends(
+    "knockdown", _atk(HEAVY),
+    plans=[[LOCK_DOWN] + [(30, "player", "hold", h, 90) for h in hs] for hs in _HARD_HOLDS],
+    mutations=[("set", "KNOCKDOWN RISE", "by", "auto")], reps=14, tail=120,
+    expect=dict(by=["block", "kipup", "attack", "auto", "block", "kipup", "attack"],
+                held=["Block", "Dodge", "Attack", None, "Block", "Dodge", "Attack"],
+                lockout=1.5, auto_at=2.0))
+
+# Normal knockdown from the string's ender: lockout 60 f. The stand is legal here, and all four
+# held together must still yield the guard.
+SCENARIOS["knockdown-getup-held-normal"] = _player_defends(
+    "knockdown", _atk(LIGHT, **STRING),
+    plans=[[LOCK_DOWN, (30, "player", "hold", "jump", 60)],
+           [LOCK_DOWN] + [(30, "player", "hold", h, 60) for h in ("block", "dodge", "attack", "jump")]],
+    mutations=[("set", "KNOCKDOWN RISE", "by", "auto")], reps=4, tail=120,
+    expect=dict(by=["stand", "block"], held=["Jump", "Block"], lockout=1.0, auto_at=2.0))
+
+# Holds against the 0.150 s checkpoint. 8 and 11 frames are the sides and must commit different
+# tiers; 9 sits on the checkpoint and 10 on the frame the checkpoint timer can slip to, and both
+# are reported rather than asserted -- which side each falls on is a ruling, and 10 is a race.
+SCENARIOS["edge-light-checkpoint"] = _player_alone(
+    "edge",
+    plans=[[(0, "player", "hold", "attack", 8)],
+           [(0, "player", "hold", "attack", 11)],
+           [(0, "player", "hold", "attack", 9)],
+           [(0, "player", "hold", "attack", 10)]],
+    mutations=[("set", "COMMIT", "branch", "1")], reps=8, tail=100,
+    expect=dict(holds=[8, 11, 9, 10], want=[0, 1, None, None]))
+
+# The guard breaks on one heavy once the bar is set to 40: the raise costs 10 and the heavy's 50
+# empties it. The held move must displace nothing through the break's stun and walk the frame it
+# ends; the control rep holds no move. Sampled every frame, since the comparison is per frame.
+_BREAK = [(0, "player", "set_stamina", 40.0),
+          (0, "attacker", "lock_to", "State.Attacking"),
+          (2, "player", "press", "block"),
+          (0, "player", "lock_to", "State.GuardBroken"),
+          (1, "player", "release", "block")]
+SCENARIOS["lock-guard-break"] = _player_defends(
+    "lock", _atk(HEAVY),
+    plans=[_BREAK + [(1, "player", "move", 0.0, 1.0, 90), (10, "player", "tap", "jump")],
+           _BREAK],
+    mutations=[("drop", "REFUSED", 99)], reps=4, tail=100, tape_every=1)
+
+# Reach is measured to the target's body: a capsule of radius 42 counts while centre distance minus
+# 42 is inside MaxReachCm 150, so the transition sits at 192 cm. The player's lunge is suppressed
+# so the swing resolves from where it was thrown.
+_REACH_IN, _REACH_OUT = 187.0, 197.0
+SCENARIOS["reach-light"] = _player_alone(
+    "reach",
+    plans=[[(0, "defender", "teleport", (OPEN_DEFENDER[0][0], OPEN_DEFENDER[0][1] - _REACH_IN, 96.0), 90.0),
+            (6, "player", "tap", "attack")],
+           [(0, "defender", "teleport", (OPEN_DEFENDER[0][0], OPEN_DEFENDER[0][1] - _REACH_OUT, 96.0), 90.0),
+            (6, "player", "tap", "attack")]],
+    mutations=[("drop", "DAMAGED", 99)], reps=4, tail=90,
+    target=((OPEN_DEFENDER[0][0], OPEN_DEFENDER[0][1] - _REACH_IN, 96.0), 90.0),
+    props={"debug_suppress_lunge": True},
+    expect=dict(hits=[True, False]))
 
 
 # --- validation -------------------------------------------------------------
@@ -380,19 +553,28 @@ def validate(known_knobs=None, known_actors=None, resolve_action=None):
         if max(abs(spawn[0]), abs(spawn[1])) > FLOOR_LIMIT:
             problems.append(where + "player spawn off the floor at %s" % (spawn[:2],))
 
-        for step in s.get("plan", []):
+        all_plans = s.get("plans") or [s.get("plan", [])]
+        if s.get("expect", {}).get("gate") and not s.get("plans"):
+            problems.append(where + "a gated row needs plans")
+        for step in [st for p in all_plans for st in p]:
             frame, actor, op = step[0], step[1], step[2]
             if not isinstance(frame, int) or frame < 0:
                 problems.append(where + "plan frame %r is not a frame" % (frame,))
-            if op in ("tap", "press", "release", "hold", "ready") and actor != "player":
+            if op not in OPS:
+                problems.append(where + "unknown op '%s'" % op)
+            if op in ("tap", "press", "release", "hold", "move", "stop_move") and actor != "player":
                 problems.append(where + "op %s is the player's, not %s's" % (op, actor))
+            if actor != "player" and actor not in s.get("roles", {}):
+                problems.append(where + "op %s names %s, which is not a role" % (op, actor))
             if op in ("tap", "press", "release", "hold"):
                 action = step[3]
                 if action not in ACTIONS:
                     problems.append(where + "unknown action '%s'" % action)
                 elif resolve_action is not None and not resolve_action(action):
                     problems.append(where + "action '%s' resolves to no key" % action)
-            if op == "hold":
+            # An attack hold on a checkpoint commits a tier by float error; the edge family probes
+            # exactly that and is the one place it is meant.
+            if op == "hold" and step[3] == "attack" and s.get("family") != "edge":
                 held = step[4] / 60.0
                 if any(abs(held - c) < 1.0 / 60.0 for c in CHECKPOINTS):
                     problems.append(where + "hold of %.3fs sits on a checkpoint" % held)

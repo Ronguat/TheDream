@@ -11,10 +11,17 @@ tailing the log for the REGRESSION markers each scenario emits:
     REGRESSION BEGIN <id> run=<run> idx=<n> game=<t> frame=<f>
     REGRESSION ROLES <id> player=<name> attacker=<name> defender=<name>
     REGRESSION INJECT <id> frame=<f> <action> <press|release>
-    REGRESSION REP <id> n=<k> ...            (the rep gate's hygiene readout)
+    REGRESSION LOCK <id> rep=<k> <actor> <tag> frame=<f> game=<t>
+    REGRESSION REP <id> n=<k> game=<t> <pawn> tags=<...> states=<...> health=<h> stamina=<s>
     REGRESSION TEARDOWN <pawn> tags=<...> states=<...> health=<h> stamina=<s>
     REGRESSION END <id> status=<ok|error|timeout> game=<s> frames=<n>
     REGRESSION DONE run=<run>
+
+Two rep models. A row with expect.period_frames repeats its plan on a fixed period from plan start,
+the s8 family's shape. A row with expect.gate runs one plan per rep -- plans[k % len(plans)] for rep
+k -- and between reps waits for every pawn to settle, emits a REP readout, resets the pawns and
+restores every placement, so each rep starts from the same state. Plan frames count from the rep's
+start, or from the most recent lock_to, which rebases them to the frame its tag appeared on.
 
 Anything thrown releases every hold, restores the clock and screen percentage, ends play, and the
 run continues with the next scenario.
@@ -63,6 +70,8 @@ STATE_GETTERS = [
 
 SETTLE_TIMEOUT_S = 8.0
 WORLD_TIMEOUT_S = 30.0
+LOCK_TIMEOUT_S = 15.0
+DEFAULT_TAIL_FRAMES = 60
 
 les = unreal.get_editor_subsystem(unreal.LevelEditorSubsystem)
 eas = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
@@ -83,6 +92,11 @@ def key(name):
 
 def asc_of(pawn):
     return unreal.AbilitySystemLibrary.get_ability_system_component(pawn)
+
+
+def has_tag(pawn, name):
+    asc = asc_of(pawn)
+    return bool(asc) and asc.has_matching_gameplay_tag(tag(name))
 
 
 def tags_on(pawn):
@@ -143,6 +157,20 @@ def key_for(action):
     return _ACTION_KEYS.get(action)
 
 
+def move_keys(x, y):
+    """The WASD keys whose swizzled sum is the requested direction: X right, Y forward."""
+    out = []
+    if y > 0:
+        out.append("W")
+    elif y < 0:
+        out.append("S")
+    if x > 0:
+        out.append("D")
+    elif x < 0:
+        out.append("A")
+    return [k for k in out if k in _MOVE_KEYS]
+
+
 # --- the run ----------------------------------------------------------------
 
 class Run(object):
@@ -174,6 +202,13 @@ class Run(object):
         self.handle = None
         self.orig_screen_pct = None
         self.errors = 0
+        # The gated rep model.
+        self.rep = 0
+        self.rep_frame = 0
+        self.base = 0
+        self.lock_seen = False
+        self.lock_wait = 0
+        self.last_due = 0
 
     # -- lifecycle ----------------------------------------------------------
     def mark(self, text):
@@ -216,6 +251,7 @@ class Run(object):
             except Exception:
                 pass
         self.holds = []
+        self.pending = []
 
     # -- the state machine --------------------------------------------------
     def tick(self, delta):
@@ -292,14 +328,16 @@ class Run(object):
         les.editor_request_begin_play()
         self.goto("wait_world")
 
+    def coerce(self, name, value):
+        if name in SC.ENUM_KNOBS:
+            return getattr(getattr(unreal, SC.ENUM_KNOBS[name]), value)
+        if name in SC.TAG_KNOBS:
+            return tag(value) if value else unreal.GameplayTag()
+        return value
+
     def write_knobs(self, actor, knobs):
         for name, value in knobs.items():
-            if name in SC.ENUM_KNOBS:
-                enum = getattr(unreal, SC.ENUM_KNOBS[name])
-                value = getattr(enum, value)
-            elif name in SC.TAG_KNOBS:
-                value = tag(value) if value else unreal.GameplayTag()
-            actor.set_editor_property(name, value)
+            actor.set_editor_property(name, self.coerce(name, value))
 
     def phase_wait_world(self):
         self.wait += 1
@@ -317,14 +355,28 @@ class Run(object):
         self.pc, self.pawn = pc, pawn
         self.goto("setup")
 
+    def place_player(self):
+        p = SC.SCENARIOS[self.sid]["player"]
+        yaw = p.get("yaw", 0.0)
+        self.pawn.set_actor_location_and_rotation(
+            unreal.Vector(*p["spawn"]), unreal.Rotator(0.0, 0.0, yaw), False, True)
+        self.pc.set_control_rotation(unreal.Rotator(0.0, 0.0, yaw))
+        for k, v in (p.get("props") or {}).items():
+            self.pawn.set_editor_property(k, self.coerce(k, v))
+
+    def place_roles(self):
+        s = SC.SCENARIOS[self.sid]
+        attackers = set(self.periodic_attackers())
+        for role, (_name, loc, yaw) in s["roles"].items():
+            actor = self.pie_roles.get(role)
+            if actor is None or (role in attackers and not at_rest(actor)):
+                continue
+            actor.set_actor_location_and_rotation(
+                unreal.Vector(*loc), unreal.Rotator(0.0, 0.0, yaw), False, True)
+
     def phase_setup(self):
         s = SC.SCENARIOS[self.sid]
-        p = s["player"]
-        self.pawn.set_actor_location_and_rotation(
-            unreal.Vector(*p["spawn"]), unreal.Rotator(0.0, 0.0, p.get("yaw", 0.0)), False, True)
-        self.pc.set_control_rotation(unreal.Rotator(0.0, 0.0, p.get("yaw", 0.0)))
-        for k, v in (p.get("props") or {}).items():
-            self.pawn.set_editor_property(k, v)
+        self.place_player()
 
         gw = ues.get_game_world()
         self.begin_game_time = unreal.GameplayStatics.get_time_seconds(gw)
@@ -339,6 +391,8 @@ class Run(object):
             self.tape = open(os.path.join(self.out_dir, "%s.tape.tsv" % self.sid), "w")
             self.tape.write("frame\tt\tpawn\tx\ty\tz\tyaw\thealth\tstamina\ttags\n")
         self.frame, self.step, self.pending = 0, 0, []
+        self.rep, self.rep_frame, self.base = 0, 0, 0
+        self.lock_seen, self.lock_wait, self.last_due = False, 0, 0
         self.goto("run")
 
     def find_pie_roles(self):
@@ -354,30 +408,44 @@ class Run(object):
                     break
         return out
 
+    # -- running a scenario ---------------------------------------------------
+    def plans(self):
+        s = SC.SCENARIOS[self.sid]
+        return s.get("plans") or [s.get("plan") or []]
+
+    def gated(self):
+        return bool(SC.SCENARIOS[self.sid].get("expect", {}).get("gate"))
+
     def phase_run(self):
         s = SC.SCENARIOS[self.sid]
         gw = ues.get_game_world()
         now = unreal.GameplayStatics.get_time_seconds(gw)
         elapsed = now - self.begin_game_time
-
-        plan = s.get("plan") or []
-        period = s.get("expect", {}).get("period_frames")
         f = self.frame
-        if period:
-            rep, within = divmod(f, period)
-            if rep >= s.get("expect", {}).get("reps", 1):
-                self.goto("settle")
+
+        if self.gated():
+            done = self.run_gated_plan(now)
+            if done:
                 return
-            if within == 0:
-                self.step = 0
         else:
-            within = f
-        while self.step < len(plan) and plan[self.step][0] <= within:
-            self.do_op(plan[self.step])
-            self.step += 1
+            plan = self.plans()[0]
+            period = s.get("expect", {}).get("period_frames")
+            if period:
+                rep, within = divmod(f, period)
+                if rep >= s.get("expect", {}).get("reps", 1):
+                    self.goto("settle")
+                    return
+                if within == 0:
+                    self.step = 0
+            else:
+                within = f
+            while self.step < len(plan) and plan[self.step][0] <= within:
+                self.do_op(plan[self.step])
+                self.step += 1
         self.expire_holds(f)
 
-        if self.tapes and self.tape and f % 2 == 0:
+        every = int(s.get("tape_every", 2))
+        if self.tapes and self.tape and f % every == 0:
             self.sample(f, now)
 
         stop = s.get("stop", {})
@@ -385,6 +453,52 @@ class Run(object):
             self.goto("settle")
             return
         self.frame += 1
+        self.rep_frame += 1
+
+    def run_gated_plan(self, now):
+        """One rep of the current plan; True when the phase changed."""
+        s = SC.SCENARIOS[self.sid]
+        expect = s.get("expect", {})
+        plans = self.plans()
+        plan = plans[self.rep % len(plans)]
+        rel = self.rep_frame - self.base
+        while self.step < len(plan):
+            stepv = plan[self.step]
+            if stepv[2] == "lock_to":
+                who = self.role_or_player(stepv[1])
+                present = has_tag(who, stepv[3]) if who is not None else False
+                if self.lock_wait == 0:
+                    # First look: record what is already up, and lock only on a later edge.
+                    self.lock_seen = present
+                    self.lock_wait = 1
+                    return False
+                if present and not self.lock_seen:
+                    # Rebase to the frame the tag appeared on, and read the steps after it against it.
+                    self.base = self.rep_frame
+                    self.mark("LOCK %s rep=%d %s %s frame=%d game=%.3f"
+                              % (self.sid, self.rep, stepv[1], stepv[3], self.frame, now))
+                    self.step += 1
+                    self.lock_seen = False
+                    self.lock_wait = 0
+                    rel = 0
+                    continue
+                self.lock_seen = present
+                self.lock_wait += 1
+                if self.lock_wait * self.dt > LOCK_TIMEOUT_S:
+                    raise RuntimeError("rep %d: %s never showed %s" % (self.rep, stepv[1], stepv[3]))
+                return False
+            if stepv[0] <= rel:
+                self.do_op(stepv)
+                self.last_due = self.rep_frame
+                self.step += 1
+                continue
+            break
+        if self.step >= len(plan):
+            tail = int(expect.get("tail_frames", DEFAULT_TAIL_FRAMES))
+            if self.rep_frame - self.last_due >= tail and not self.pending:
+                self.goto("gate")
+                return True
+        return False
 
     def do_op(self, stepv):
         _frame, actor, op = stepv[0], stepv[1], stepv[2]
@@ -401,12 +515,45 @@ class Run(object):
                     self.pending.append((self.frame + int(stepv[4]), kname, action))
             else:
                 self.up(kname, action)
+        elif op == "move":
+            x, y = float(stepv[3]), float(stepv[4])
+            frames = int(stepv[5]) if len(stepv) > 5 else 0
+            for kname in move_keys(x, y):
+                if kname not in self.holds:
+                    unreal.TDInputTools.input_key(self.pc, key(kname), True)
+                    self.holds.append(kname)
+                    self.mark("INJECT %s frame=%d move-%s press" % (self.sid, self.frame, kname))
+                if frames > 0:
+                    self.pending.append((self.frame + frames, kname, "move-" + kname))
+        elif op == "stop_move":
+            for kname in list(self.holds):
+                if kname in _MOVE_KEYS:
+                    self.up(kname, "move-" + kname)
+        elif op == "face":
+            who = self.role_or_player(actor)
+            yaw = float(stepv[3])
+            who.set_actor_rotation(unreal.Rotator(0.0, 0.0, yaw), False)
+            if actor == "player":
+                self.pc.set_control_rotation(unreal.Rotator(0.0, 0.0, yaw))
+        elif op == "teleport":
+            who = self.role_or_player(actor)
+            loc = stepv[3]
+            yaw = float(stepv[4]) if len(stepv) > 4 else who.get_actor_rotation().yaw
+            who.set_actor_location_and_rotation(
+                unreal.Vector(*loc), unreal.Rotator(0.0, 0.0, yaw), False, True)
+            if actor == "player":
+                self.pc.set_control_rotation(unreal.Rotator(0.0, 0.0, yaw))
+        elif op == "set":
+            who = self.role_or_player(actor)
+            who.set_editor_property(stepv[3], self.coerce(stepv[3], stepv[4]))
         elif op == "set_stamina":
             self.role_or_player(actor).debug_set_stamina(float(stepv[3]))
         elif op == "set_health":
             self.role_or_player(actor).debug_set_health(float(stepv[3]))
         elif op == "mark":
             self.mark("MARK %s %s" % (self.sid, stepv[3]))
+        else:
+            raise RuntimeError("unknown plan op %r" % (op,))
 
     def up(self, kname, action):
         if kname in self.holds:
@@ -440,19 +587,67 @@ class Run(object):
                 f, now, pawn.get_name(), loc.x, loc.y, loc.z,
                 pawn.get_actor_rotation().yaw, health, stamina, ",".join(tags_on(pawn))))
 
+    def periodic_attackers(self):
+        """Roles whose attack loop runs from BeginPlay; a reset would cancel a swing in flight."""
+        out = []
+        for role in self.pie_roles:
+            if SC.knobs_for(self.sid, role).get("debug_auto_attack"):
+                out.append(role)
+        return out
+
+    def readout(self, kind, extra=""):
+        pawns = [self.pawn] + list(self.pie_roles.values())
+        for p in pawns:
+            try:
+                self.mark("%s %s%s tags=%s states=%s health=%.1f stamina=%.1f" % (
+                    kind, extra, p.get_name(), ",".join(tags_on(p)) or "-",
+                    ",".join(states_on(p)) or "-", p.get_health(), p.get_stamina()))
+            except Exception as exc:
+                self.mark("%s %s%s unreadable (%s)" % (kind, extra, p.get_name(), exc))
+
+    def phase_gate(self):
+        """Between reps: the game settles, the readout records what it left, then the reset and
+        the placements re-establish the starting state."""
+        self.wait += 1
+        self.release_all()
+        s = SC.SCENARIOS[self.sid]
+        expect = s.get("expect", {})
+        attackers = set(self.periodic_attackers())
+        quiet = [self.pawn] + [a for r, a in self.pie_roles.items() if r not in attackers]
+        if self.wait * self.dt < SETTLE_TIMEOUT_S and not all(at_rest(p) for p in quiet):
+            return
+        gw = ues.get_game_world()
+        now = unreal.GameplayStatics.get_time_seconds(gw)
+        self.readout("REP", "%s n=%d game=%.3f " % (self.sid, self.rep, now))
+        for p in quiet:
+            try:
+                p.debug_reset_for_fixture()
+            except Exception:
+                pass
+        for r in attackers:
+            a = self.pie_roles[r]
+            try:
+                a.debug_set_health(a.get_max_health())
+                a.debug_set_stamina(a.get_max_stamina())
+            except Exception:
+                pass
+        self.place_player()
+        self.place_roles()
+        self.rep += 1
+        if self.rep >= int(expect.get("reps", 1)):
+            self.goto("settle")
+            return
+        self.step, self.rep_frame, self.base = 0, 0, 0
+        self.lock_seen, self.lock_wait, self.last_due = False, 0, 0
+        self.goto("run")
+
     def phase_settle(self):
         self.wait += 1
         self.release_all()
         pawns = [self.pawn] + list(self.pie_roles.values())
         if self.wait * self.dt < SETTLE_TIMEOUT_S and not all(at_rest(p) for p in pawns):
             return
-        for p in pawns:
-            try:
-                self.mark("TEARDOWN %s tags=%s states=%s health=%.1f stamina=%.1f" % (
-                    p.get_name(), ",".join(tags_on(p)) or "-", ",".join(states_on(p)) or "-",
-                    p.get_health(), p.get_stamina()))
-            except Exception as exc:
-                self.mark("TEARDOWN %s unreadable (%s)" % (p.get_name(), exc))
+        self.readout("TEARDOWN")
         for p in pawns:
             try:
                 p.debug_reset_for_fixture()

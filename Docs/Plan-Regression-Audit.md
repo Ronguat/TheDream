@@ -28,11 +28,17 @@ Ticked as units land, with the commit hash. *Verified* means the unit ran and it
 - [x] C5 — `8250904` and after. All 38 ported and running; fixed-step matrix green on 35 of 38
   with two reds standing (§0b) and one blocked on a ruling; golden baselines accepted;
   `ue_s8_driver.py` retired, its plans and derivation carried into the entries.
-  **Still owed from §4.7: the `--repeat` pair and the real-time matrix.**
+  **Still owed from §4.7: the `--repeat` pair and the real-time matrix.** The reds are resolved
+  (§0b, resume) and the matrix re-ran **38 of 38 green** on the rebuilt editor, run `0903-054823`,
+  1544 s of wall; goldens re-accepted on absolute frames.
 - [x] C6 — `7cb097e`. `Debug-Instruments` (the loop, preflight, slicing, the four per-slice
   checks, the generated matrix region), `Working-In-Unreal` (the silent failures only),
   `Unreal-Findings` (the capability and the measurements).
-- [ ] Phase 2 exemplars: `input-accept-hitstun`, `knockdown-getup-held`, `edge-light-checkpoint`, `lock-guard-break`, `reach-light`
+- [x] Phase 2 exemplars, run `0903-062109`: `input-accept-hitstun` 4/4, `knockdown-getup-held` 4/4,
+  `knockdown-getup-held-normal` 3/3, `reach-light` 2/2, all with mutations proven;
+  `edge-light-checkpoint` and `lock-guard-break` each surfaced a finding (§0b) and were re-shaped.
+  The runner's gated rep model, `lock_to`, `move`, `teleport`, the setters and the row evaluator
+  (`regression_rows.py`) all worked on their first run.
 - [ ] Phase 2 rows, in §5 order, one commit per row or family
 - [ ] Phase 3 — traps, entry, generated matrix, closedown procedure, roster, baseline, memory, this file deleted
 
@@ -161,8 +167,39 @@ All four diagnosed from the saved slices, none needing PIE; three were the instr
   cancelled `ABILITY END`, which is the parried swing; every other sentinel still fails.
 
 Offline re-evaluation against run `final`'s slices: the three reds and the six sentinel-blocked rows
-green, self-test and bands-check green. The C++ line rebuilt in 13 s and is confirmed by the matrix
-run that follows.
+green, self-test and bands-check green. The C++ line rebuilt in 13 s and the matrix then ran **38 of
+38 green** (`0903-054823`, 1544 s of wall); three mutations that had stopped biting were replaced
+by ones that rewrite the rise's `by=`, which is what those rows read.
+
+### Determinism across an editor restart, measured 2026-09-03
+
+Within one editor process consecutive runs are frame-identical. Across a restart, **7 of 38 rows
+moved the frame a contact landed on by +1, once +2**, with everything downstream of the contact
+moving with it and every authored-timing line unchanged. No tag class separates the two cleanly (a
+guard resume or a refusal after a contact shifts too), so the skeleton compare now pairs
+content-identical lines within **2 frames** and reports the shifted count; `REFUSED` keeps its
+content and drops its frame, its timing being the half-second dedup's phase. Frame-exact claims stay
+where they are asserted on purpose: the bands and the `edge-*` family. Ungated rows count frames
+from world time zero, gated rows from each rep's `lock_to`, so neither the pawn's spawn tick nor the
+frame a tag arrived on moves a skeleton.
+
+### From the first scripted rows, 2026-09-03
+
+- **The light checkpoint is a two-frame race, and it is the play audit's finding seen
+  deterministically.** Holds of 8 f commit light and 11 f heavy every time; 9 f committed light
+  twice; **10 f committed light once and heavy once from identical inputs**. The checkpoint timer is
+  an exact multiple of the frame, so it fires on frame 9 or 10 by float error, and a release landing
+  on frame 10 beats it or not. The 54-commit audit's nine holds of 151 to 158 ms committing light
+  were this. `edge-light-checkpoint` now probes 8 and 11 as the sides and reports 9 and 10.
+- **A guard break's refusal reason is shadowed by exhaustion.** A break empties the bar, so
+  `State.Exhausted` is up at every break and the jump's `REFUSED` names it rather than `guard
+  broken`. Behaviour is right and the tape separates the states: exhaustion alone does not lock
+  movement, and `lock-guard-break` measured the held move displacing **0.1 cm** through the stun
+  against its control, then walking within 6 frames of `GUARD END`. The row asserts the refusal by
+  ability rather than by reason.
+- `reach-light` confirmed the hitbox convention: reach is measured to the target's body, so the
+  transition sits at `MaxReachCm` plus the capsule radius, 192 cm; 187 hit and 197 missed, 4 of 4.
+- `input-accept-hitstun`: the late press fired **0 frames** from `HITSTUN END` in every rep.
 
 ## 1. Decisions taken, so nothing below is re-litigated
 
@@ -654,6 +691,10 @@ displaces within 3f. `lock-blockstun-free` asserts the opposite: displacement wi
 Order: A, then B, then D, then G, then C, then E, then F. Exemplars, built first and by hand:
 `input-accept-hitstun`, `knockdown-getup-held`, `edge-light-checkpoint`, `lock-guard-break`,
 `reach-light`.
+
+**Built 2026-09-03**: the five exemplars plus `knockdown-getup-held-normal`; group A's
+`input-accept-blockstun`, `input-accept-lockout` and `knockdown-getup-exhausted-held` are written in
+`scenarios.py` and `regression_rows.py`. Status per row is the matrix's, not this file's.
 
 ## 6. Phase 3 — docs, traps, closedown
 
