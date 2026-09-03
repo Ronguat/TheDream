@@ -10325,15 +10325,12 @@ sitting in the always-read file.
   it could not see** is the other half — `s8` asserted swing indices and never tiers, and six green
   rows hid a 58 ms tap committing charged. **Inherits the untested-half trap** filed the same day, and
   the three `s8` rows it names as stale. **Not a rewrite**: the bands and the invariants are sound;
-  what is in question is the fixture model underneath them. **Phase 1 shipped 2026-09-03; Phase 2 is the whole of what remains.** The plan,
-  `Docs/Plan-Regression-Audit.md`, is still the contract and is **not** deleted: §0 has the tick
-  list, §0b the findings, §5 the unbuilt rows. What exists now is the *mechanism* — a fixed 1/60
-  clock, a scripted player at the key level, per-row mutations, golden skeletons, eight universal
-  invariants, `--bands-check`, and `regression-run.sh` driving 38 rows unattended in 26 minutes.
-  **What does not exist is new coverage**: the same 38 rows, asserting the same things, which is
-  the trap filed the same day. Pick up at §5's exemplars — `input-accept-hitstun`,
-  `knockdown-getup-held`, `edge-light-checkpoint`, `lock-guard-break`, `reach-light` — and read
-  §0b first: two reds are standing, and the `pos=-1.0000` invariant wants a one-line ruling.
+  what is in question is the fixture model underneath them. **Phase 1 shipped 2026-09-03; Phase 2 is the whole of what remains**, and the plan
+  is **not** deleted — §0 state, §0b findings, §5 the unbuilt rows. The *mechanism* is new: a fixed
+  1/60 clock, a scripted player at the key level, mutations, golden skeletons, eight universal
+  invariants, `--bands-check`, 38 rows unattended in 26 minutes. **The coverage is not** — same 38
+  rows, same assertions, which is the trap filed that day. Start at §5's five exemplars, and read
+  §0b first: two reds stand, and the `pos=-1.0000` invariant wants a one-line ruling.
 - **Settings menu.** Raised 2026-08-12. Mouse sensitivity is the immediate want, and it should own
   **`TurnRateDegrees`** too — that number stopped being cosmetic the moment attacks began pointing
   wherever it had turned to, so exposing it is a balance decision rather than a comfort one, and a

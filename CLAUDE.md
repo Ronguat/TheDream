@@ -248,8 +248,7 @@ Execution order, the only line that changes when the order does:
 
 **Pick up at Regression Audit's Phase 2** — the loop was rebuilt 2026-09-03 and **no coverage was
 added**. `Docs/Plan-Regression-Audit.md` is the contract: §0 state, §0b findings and two standing
-reds, §5 the unbuilt rows. Briefs are in `Docs/Combat-Decisions.md`; **the roster is one
-megaslice**.
+reds, §5 the unbuilt rows. Briefs are in `Docs/Combat-Decisions.md`; **the roster is one megaslice**.
 
 **The verification bar every slice now ships against** *(2026-08-24, the dated entry)*: verified
 functionality, with animations legible enough to tell which mechanic is firing. Visual refinement
