@@ -167,8 +167,10 @@ from the canary, run `0903-164116`, `tier-heavy`: the third of eight heavies end
 0.417 s of its 1.050, with its montage reporting `OnBlendOut pos=0.0000 playing=0` on the contact
 tick and its release-end notify reading `pos=-1.0000` after it; the other seven ran their full
 total. Never seen on the fixed clock, where every heavy in every run ends at 1.050, and not seen
-in the canary run before it. The evidence is the slice; the cause is not established, and nothing
-was changed for it. Read a wall-clock heavy that ends short as this until an entry says otherwise.
+in the canary run before it; **0 of 40 in five wall-clock reruns the same hour**, every one ending
+between 1.049 and 1.060, so the odds stand at 1 in 48. The evidence is the slice; the cause is not
+established, and nothing was changed for it. The weekly canary keeps sampling it. Read a wall-clock
+heavy that ends short as this until an entry says otherwise.
 
 **Whenever the matrix is read as covering a mechanic — *what Phase 2 did not reach.*** Filed
 2026-09-03, narrowed the same day by the designer's rulings. The full real-time matrix ran the same
@@ -314,14 +316,13 @@ properties, against three before.
 
 **The stun tells: discharged 2026-08-25** by positioning both playheads from stun progress instead of playing them at a rate — see the dated entry. Only a string's first hit used to be told, because the tell is a state entered on a cached bool and a hit landing inside a running stun re-enters nothing.
 
-**Whenever a tier montage, a cell or a hand-off blend changes — *no loop row throws a heavy or
-charged from light 2 or light 3, and nothing in the loop sees a hand-off's look.*** Filed
-2026-09-02. `s1-heavy` and `s1-charged` escalate from position 1 only; the dummy holds uniformly
-across its taps and cannot tap-then-hold, so H2, H3, C2 and C3 have never been asserted on release
-timing or elapsed at all. The route to close it exists and is not built: `UTDInputTools` drives a
-tap-then-hold on a pawn by script, which `Tools/ClipScan/ue_chart_ab.py` already does for the
-chart. The look has no assertion by the 2026-09-01 ruling; the chart's roughness figure is the
-standing instrument for it, run by hand, and a hand-off that regresses silently passes every row.
+**Whenever a tier montage, a cell or a hand-off blend changes — *nothing in the loop sees a
+hand-off's look.*** Filed 2026-09-02, **narrowed 2026-09-03**: the first half, that no row throws a
+heavy or charged from light 2 or light 3, was discharged by Phase 2's `tier-cells`, which throws all
+nine cells from the player's own presses and asserts each on release timing, total, escalation,
+commit and montage. What stands: the look has no assertion by the 2026-09-01 ruling; the chart's
+roughness figure (`Tools/ClipScan/ue_chart_ab.py`) is the standing instrument for it, run by hand,
+and a hand-off that regresses silently passes every row.
 
 **Whenever a Release Window notify is moved — *the socket's entry and release do not follow, and
 nothing says so.*** Filed 2026-09-01. `EntrySeconds` is derived as `notify - window`, but it is
