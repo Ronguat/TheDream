@@ -18,7 +18,9 @@ Ticked as units land, with the commit hash. *Verified* means the unit ran and it
 - [x] C1 — `abd0021`, verified. `UTDTimeTools`, key-level and 2D injection, the character's reset
   and setters, pawn names on **twelve** trace lines; extractor and doc updates. Key-level input
   reaches the shipping path, proven on the player pawn — §7's third risk is closed.
-- [ ] C2 — `scenarios.py` schema, baseline knobs, placements, key resolution, the runner; three rows driven end to end
+- [x] C2 — `5abbefa`, verified. `scenarios.py`, the runner, and `--slice <run>:<id>` brought
+  forward from C3 because it is what lets one run be checked row by row. `tier-light` 5/5,
+  `chain-early` 6/6, `input-hold-tier` 2/2 in 41 s of wall.
 - [ ] C3 — orchestrator, marker slicing, `--bands-check` with the format lint
 - [ ] C4 — universal invariants, mutations, frames, the frame ledger, golden skeletons, `summary.json`, `history.tsv`
 - [ ] C5 — all 38 rows ported under the new names; fixed-step matrix, repeatability pair, real-time matrix, golden baselines accepted; `ue_s8_driver.py` retired
