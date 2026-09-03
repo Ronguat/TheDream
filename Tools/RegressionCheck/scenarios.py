@@ -108,7 +108,8 @@ CHECKPOINTS = (0.15, 0.35, 0.75)
 
 
 def _row(family, legacy_id, duration, attacker=None, defender=None, player_spawn=PARKED,
-         player_yaw=0.0, plan=(), reps=None, mutations=(), exclude=("drift=",), props=None):
+         player_yaw=0.0, plan=(), reps=None, mutations=(), exclude=("drift=",), props=None,
+         teardown_allow=('Attacking', 'StaminaRegenPaused')):
     return dict(
         family=family, legacy=True, legacy_id=legacy_id,
         roles=dict(attacker=PLACED_ATTACKER, defender=PLACED_DEFENDER),
@@ -117,6 +118,9 @@ def _row(family, legacy_id, duration, attacker=None, defender=None, player_spawn
         plan=list(plan), stop=dict(duration=float(duration)),
         expect=dict(reps=reps) if reps else dict(),
         mutations=list(mutations), golden=dict(exclude=list(exclude)),
+        # States a fixture holds on purpose, so the hygiene check does not read a held guard as a
+        # leak. Everything not named here must be gone before the reset runs.
+        teardown_allow=list(teardown_allow),
     )
 
 
@@ -132,6 +136,9 @@ def _scripted(family, legacy_id, plan, mutations, reps=8, period=180, duration=3
         plan=list(plan), stop=dict(duration=duration),
         expect=dict(reps=reps, period_frames=period),
         mutations=list(mutations), golden=dict(exclude=["drift="]),
+        # Nothing is fixture-held here: both dummies are silent and the player's own holds
+        # are released at settle, so a scripted row keeps the strict hygiene check.
+        teardown_allow=[],
     )
 
 
@@ -174,7 +181,7 @@ SCENARIOS = {
 
     # --- string: three swings at the tapped cadence --------------------------
     "string-cadence":   _row("string", "s4-string", 60, _atk(LIGHT, **STRING), _def(),
-                             mutations=[("shift", "HITSTUN END", 0.100)]),
+                             mutations=[("set", "DAMAGED", "damage", "99")]),
     "string-guarantee": _row("string", "s4-guarantee", 60, _atk(LIGHT, **STRING),
                              _def("PERIODIC_DODGE"),
                              mutations=[("shift", "HITSTUN END", -0.400)]),
@@ -199,13 +206,13 @@ SCENARIOS = {
                               [("drop", "STRING     chain out", 1)]),
     "chain-closed": _scripted("chain", "s8-chain-closed",
                               [(0, "player", "tap", "attack"), (51, "player", "tap", "attack")],
-                              [("dup", "STRING     chain out", 1)]),
+                              [("set", "ACTIVATE", "swing", "1")]),
     "input-stale":  _scripted("input", "s8-stale",
                               [(0, "player", "hold", "attack", 24), (30, "player", "tap", "attack")],
-                              [("drop", "BUFFER", 1)]),
+                              [("dup", "ACTIVATE", 1)]),
     "input-discard": _scripted("input", "s8-discard",
                                [(0, "player", "tap", "attack"), (45, "player", "tap", "attack")],
-                               [("drop", "BUFFER", 1)]),
+                               [("dup", "ACTIVATE", 1)]),
     "input-hold-tier": _scripted("input", "s8-hold-tier",
                                  [(0, "player", "tap", "attack"),
                                   (51, "player", "hold", "attack", 15)],
@@ -213,11 +220,14 @@ SCENARIOS = {
 
     # --- block: the guard's price per tier -----------------------------------
     "block-light":   _row("block", "s2-light", 150, _atk(LIGHT), _def("HOLD_BLOCK"),
-                          mutations=[("set", "BLOCKED", "staminaDamage", "99")]),
+                          mutations=[("set", "BLOCKED", "staminaDamage", "99")],
+                          teardown_allow=["Blocking", "StaminaRegenPaused"]),
     "block-heavy":   _row("block", "s2-heavy", 150, _atk(HEAVY), _def("HOLD_BLOCK"),
-                          mutations=[("set", "BLOCKED", "staminaDamage", "99")]),
+                          mutations=[("set", "BLOCKED", "staminaDamage", "99")],
+                          teardown_allow=["Blocking", "StaminaRegenPaused"]),
     "block-charged": _row("block", "s2-charged", 150, _atk(CHARGED), _def("HOLD_BLOCK"),
-                          mutations=[("set", "BLOCKED", "staminaDamage", "1")]),
+                          mutations=[("set", "BLOCKED", "staminaDamage", "1")],
+                          teardown_allow=["Blocking", "StaminaRegenPaused", "Exhausted"]),
 
     # --- dodge ---------------------------------------------------------------
     "dodge-cycle": _row("dodge", "s3", 120, _atk(LIGHT), _def("PERIODIC_DODGE"),
@@ -241,7 +251,7 @@ SCENARIOS = {
     "knockdown-normal": _row("knockdown", "s6-knockdown", 60, _atk(LIGHT, **STRING), _def(),
                              mutations=[("set", "KNOCKDOWN", "lockout", "9.999")]),
     "knockdown-hard":   _row("knockdown", "s6-hard", 60, _atk(HEAVY), _def(),
-                             mutations=[("set", "KNOCKDOWN", "lockout", "9.999")]),
+                             mutations=[("set", "KNOCKDOWN", "type", "normal")]),
     "knockdown-stand":  _row("knockdown", "s6-stand", 90, _atk(LIGHT, **STRING),
                              _def(debug_periodic_jump=True, debug_jump_interval_seconds=1.3),
                              mutations=[("drop", "KNOCKDOWN RISE", 1)]),
@@ -262,7 +272,7 @@ SCENARIOS = {
                                    mutations=[("drop", "BLOCK", 1)]),
     "knockdown-hard-no-stand": _row("knockdown", "s6-hard-stand", 60, _atk(HEAVY),
                                     _def(debug_get_up_mode="STAND_GET_UP"),
-                                    mutations=[("drop", "REFUSED", 1)]),
+                                    mutations=[("drop", "KNOCKDOWN RISE", 99)]),
     "knockdown-airborne": _row("knockdown", "s6-airborne", 240, _atk(LIGHT, **STRING),
                                _def(debug_periodic_jump=True, debug_jump_interval_seconds=1.3),
                                mutations=[("set", "KNOCKDOWN", "airborne", "0")]),
@@ -300,7 +310,7 @@ SCENARIOS = {
                          _def(debug_auto_revive_seconds=3.0),
                          mutations=[("shift", "REVIVE", 1.000)]),
     "death-over-knockdown": _row("death", "s7-death-grade", 60, _atk(HEAVY), _def(),
-                                 mutations=[("dup", "KNOCKDOWN  ", 1)]),
+                                 mutations=[("drop", "DEATH ", 99)]),
 }
 
 

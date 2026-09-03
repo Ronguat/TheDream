@@ -32,7 +32,7 @@ MARKER = re.compile(r"REGRESSION (\w+) (.*)$")
 # the tag alone decides; BLOCK needs one, since up and down share a tag.
 PAIRS = [
     (("ACTIVATE", None), [("ABILITY END", None)]),
-    (("KNOCKDOWN", None), [("KNOCKDOWN RISE", None)]),
+    (("KNOCKDOWN", "type="), [("KNOCKDOWN RISE", None)]),
     (("KNOCKDOWN RISE", None), [("KNOCKDOWN STAND", None)]),
     (("BLOCK", "up"), [("BLOCK", "down")]),
     (("PARRY WINDOW", "open"), [("PARRY SUCCESS", None), ("PARRY WHIFF", None)]),
@@ -112,7 +112,7 @@ class Result(object):
             print("%s%-6s %-38s %s" % (indent, status, label, detail))
 
 
-def universal(trace, markers, raw, r):
+def universal(trace, markers, raw, r, allow=()):
     roles = roles_from(markers)
 
     # Timestamps never go backwards. A slice that interleaved two worlds would show it here.
@@ -125,7 +125,11 @@ def universal(trace, markers, raw, r):
         tag, token = spec
         if tag_of(text) != tag:
             return False
-        return token is None or token in text.split("  ")[0].split() or (" " + token + " ") in text
+        if token is None:
+            return True
+        if token.endswith("="):
+            return token in text            # a field the opener must carry, e.g. KNOCKDOWN type=
+        return token in text.split("  ")[0].split() or (" " + token + " ") in text
 
     unpaired = []
     for opener, closers in PAIRS:
@@ -188,10 +192,24 @@ def universal(trace, markers, raw, r):
           "%d reset(s), %d readout(s)" % (len(resets), len(readouts)))
 
     # Teardown hygiene: the game settles by itself before the reset runs.
-    dirty = [rest for k, rest in markers
-             if k == "TEARDOWN" and ("tags=-" not in rest or "states=-" not in rest)]
+    def leftover(rest):
+        """What a TEARDOWN reports beyond what this row's fixture holds on purpose."""
+        out = []
+        for part in rest.split():
+            if not (part.startswith("tags=") or part.startswith("states=")):
+                continue
+            body = part.split("=", 1)[1]
+            if body == "-":
+                continue
+            out += [v for v in body.split(",")
+                    if v and not any(a.lower() in v.lower() for a in allow)]
+        return out
+
+    dirty = [(rest.split()[0], leftover(rest)) for k, rest in markers if k == "TEARDOWN"]
+    dirty = [(who, left) for who, left in dirty if left]
     r.add(not dirty, "pawns settle before the reset",
-          "%d pawn(s) left state up" % len(dirty) if dirty else "all clean")
+          "; ".join("%s left %s" % (w, ",".join(sorted(set(l)))) for w, l in dirty)
+          if dirty else "all clean%s" % (" (allowing %s)" % ",".join(allow) if allow else ""))
 
     # Injection latency: every press must reach the game the same number of frames later, or the
     # plan's frame numbers mean different things in different reps.
@@ -397,6 +415,7 @@ def main():
     ap.add_argument("--golden", action="store_true")
     ap.add_argument("--id")
     ap.add_argument("--accept", action="store_true")
+    ap.add_argument("--allow", default="", help="states this row's fixture holds")
     ap.add_argument("--exclude", default="")
     ap.add_argument("--mutate", help="kind:arg:arg, written to --out")
     ap.add_argument("--out")
@@ -422,7 +441,7 @@ def main():
         print("%s %s" % (status, detail))
         return 0
     r = Result()
-    universal(trace, markers, raw, r)
+    universal(trace, markers, raw, r, [a for a in a.allow.split(',') if a])
     r.show()
     return 1 if r.failed else 0
 

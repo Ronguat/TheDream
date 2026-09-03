@@ -99,7 +99,8 @@ void UTDGetUpAttackAbility::ActivateAbility(const FGameplayAbilitySpecHandle Han
 	}
 
 	TD_TIMING_LOG(TEXT("[%.3f] ACTIVATE   %s swing=0 pos=%.4f windupRate wanted=%.3f applied=%.3f"),
-		ActivationWorldTime, *GetName(), GetMontagePosition(), WindupRate, WindupRate);
+		ActivationWorldTime, *GetNameSafe(GetAvatarActorFromActorInfo()),
+		GetMontagePosition(), WindupRate, WindupRate);
 }
 
 void UTDGetUpAttackAbility::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled)

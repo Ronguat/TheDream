@@ -70,6 +70,32 @@ way past**, per §3.
   fixture is re-derived against the measured total, since the row asserts the tier the hold buys and
   not the total; the total's anomaly is the bullet above.
 
+### From the first full matrix, 2026-09-03
+
+38 of 38 rows ran in **1586 s of wall for 3000 s of game**. What it turned up, beyond the two
+findings above:
+
+- **BLOCKED, a red that looks like a defect: `dodge-cycle` produced 3 `DODGE RECOVERY` lines where
+  the row asserts zero.** The gap was retired and `GA_Dodge.DodgeRecoverySeconds` reads 0, so
+  nothing should enter that state. Not investigated, per §3.
+- **BLOCKED: `knockdown-getup-attack`'s total reads 1.300 on 2 of 8 samples**, against a band of
+  [1.250, 1.285] — the authored 1.250 plus the +0.035 ceiling. The same +50 ms shape as the
+  whiffing light above, and it is *not* deterministic under a fixed clock, where the other six
+  samples are in band. `UTDGetUpAttackAbility` derives its release rate from the remaining window at
+  the measured `RELEASE BEGIN`, which is the obvious place to look and was not looked at.
+- **The stale-notify finding is three values, not one**: swing 1 (55.7 ms), swing 2 (40.0 ms) and
+  the get-up attack (35.2 ms). Systemic across the string's cells rather than a single bad edit.
+- **Diagnosed, and the invariant left as the designer set it: `RELEASE END … pos=-1.0000` is a
+  *parried* swing.** The context is always `STRING reset (swing cancelled)` → `PARRY LOCKOUT` →
+  `PARRY RECOIL` → `RELEASE END`, so the notify's end fires after the parry stopped the montage and
+  there is genuinely no position to read. Benign by construction. §4.5 lists "no `pos=-1.0000`" as
+  universal, which did not anticipate it; **narrowing that check to exclude `RELEASE END` is a
+  one-line ruling and is not taken here.** It is why the parry and knockdown rows still report it.
+- **A thirteenth trace line was naming the wrong thing.** `UTDGetUpAttackAbility`'s own `ACTIVATE`
+  logged `GetName()` — the ability instance, `GA_GetUpAttack_C_0` — where every other `ACTIVATE`
+  carries the avatar. Same class as D14's `TARGET`, and D3 governs it, so it was fixed rather than
+  filed. It had been mis-attributing every get-up row's activations since the get-up shipped.
+
 ## 1. Decisions taken, so nothing below is re-litigated
 
 The designer, 2026-09-02 and 2026-09-03.

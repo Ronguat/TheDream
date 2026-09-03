@@ -177,7 +177,8 @@ def evaluate(run_id, sid, slice_path, args):
     else:
         out["detail"] = "no per-row evaluator yet (C4 covers the universal set only)"
 
-    u = sh([PY, EVAL, slice_path, "--universal"])
+    allow = ",".join(s.get("teardown_allow", []))
+    u = sh([PY, EVAL, slice_path, "--universal", "--allow", allow])
     bad = [ln.strip() for ln in u.stdout.splitlines() if ln.strip().startswith("FAIL")]
     out["universal"] = "clean" if u.returncode == 0 else "; ".join(bad)
     if u.returncode != 0:
@@ -215,7 +216,8 @@ def prove_mutations(run_id, sid, slice_path, s):
             r = sh(["bash", CHECKER, s["legacy_id"], dst, "--slice", "%s:%s" % (run_id, sid)])
             red = r.returncode != 0
         if not red:
-            red = sh([PY, EVAL, dst, "--universal"]).returncode != 0
+            red = sh([PY, EVAL, dst, "--universal",
+                      "--allow", ",".join(s.get("teardown_allow", []))]).returncode != 0
         if red:
             proven += 1
         else:
@@ -244,6 +246,12 @@ def append_history(run_id, results):
             fh.write(tab.join(str(r.get(k, "")).replace(tab, " ") for k in cols) + nl)
 
 def main():
+    # A matrix takes tens of minutes, so it is normally backgrounded -- and a block-buffered
+    # stdout shows nothing at all until the end, which is indistinguishable from a hang.
+    try:
+        sys.stdout.reconfigure(line_buffering=True)
+    except AttributeError:
+        pass
     ap = argparse.ArgumentParser()
     ap.add_argument("ids", nargs="*")
     ap.add_argument("--all", action="store_true")
