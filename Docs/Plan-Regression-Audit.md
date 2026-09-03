@@ -113,6 +113,17 @@ So the floor is **±1 frame on a single event group**, not zero. A tolerance wou
 not added here: it would also hide a real one-frame move, which on the tightest window in the game
 — the light's 150 ms release, nine frames — is a seventh of the thing being asserted.
 
+### §4.7's real-time matrix, run 2026-09-03
+
+`--family tier --realtime`: **all three rows passed 5 of 5**, the same assertions they pass at the
+fixed clock, in 102 s of wall. That is what the canary is for — the bands are clock-independent.
+
+**Its skeletons are not**, and that is structural rather than a finding: a skeleton's frames come
+from the clock, so every real-time row reports CHANGED against a fixed-step baseline forever. The
+closedown step says to read the canary's assertions and ignore its skeleton. `tier-charged` also
+reported a teardown leftover at real time that it does not show at fixed step, which is the settle
+racing a slower tick; it is not investigated and its assertions are green.
+
 ## 1. Decisions taken, so nothing below is re-litigated
 
 The designer, 2026-09-02 and 2026-09-03.

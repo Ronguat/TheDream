@@ -51,6 +51,11 @@ audit in miniature; the rest is making sure nothing is left on the floor.
    **An UNPROVEN mutation is worse than a red**: it says the row could not have failed, so its
    green means nothing. Fix the mutation before trusting anything that row reports.
 
+   **The canary's own CHANGED rows mean nothing** *(measured 2026-09-03)*: skeletons carry frame
+   numbers, and frame numbers are a property of the clock, so every real-time row differs from a
+   fixed-step baseline by construction. **Read the canary's assertions, never its skeleton** — its
+   job is that the bands hold on both clocks, and all three `tier` rows passed 5 of 5 on each.
+
 3. **Leave nothing verified uncommitted, and *propose* the push.** Commit anything finished; the
    push itself waits on the completion gate in Working Rules, so this step ends by naming what is
    ready to go rather than by sending it. For anything deliberately left out, say so and why —

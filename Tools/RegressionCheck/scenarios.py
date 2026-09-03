@@ -312,7 +312,7 @@ SCENARIOS = {
                                       _def("PERIODIC_PARRY", debug_parry_pre_block_seconds=12.0,
                                            debug_parry_interval_seconds=13.0,
                                            debug_get_up_mode="DODGE_GET_UP"),
-                                      mutations=[("dup", "KNOCKDOWN RISE", 1)],
+                                      mutations=[("set", "KNOCKDOWN RISE", "by", "kipup")],
                                       teardown_allow=["Attacking", "StaminaRegenPaused", "Exhausted", "Dead",
                                                        "KnockedDown"]),
     "knockdown-exhausted-block": _row("knockdown", "s6-exhausted-block", 120,
