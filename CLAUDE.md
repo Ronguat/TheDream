@@ -184,7 +184,7 @@ it, and do not try to write the runway down.
   agreed, or that nothing was** — then stop. This is what makes unattended execution safe.
 
 **Any package planning a new combat capability includes one of two things:** the scenarios it will
-add to `Tools/RegressionCheck/regression-check.sh` **in the same package**, or a **dated trap**
+add to `Tools/RegressionCheck/scenarios.py`, run by `regression-run.sh`, **in the same package**, or a **dated trap**
 naming what is now untested. **It binds at plan time.** A loop that lags the combat surface still
 prints green. **A defender that must act at a time is scripted, not demonstrated** —
 `UTDInputTools` injects real input, taps and holds. Measure a human only to learn what a human
@@ -246,9 +246,10 @@ Execution order, the only line that changes when the order does:
 
 > **~~Attack Ladder~~ → ~~Dodge~~ → ~~Sword & Shield~~ → ~~Input Buffer~~ → ~~Death~~ → ~~Dodge Distance~~ → ~~Attack Swap~~ → ~~[hover bug]~~ → ~~[facing pass]~~ → ~~Recovery~~ + ~~Lunge~~ → ~~Target Lock~~ → ~~Block~~ → ~~Light String~~ → ~~Parry~~ → ~~Knockdown~~ → ~~Skeleton Merge~~ → ~~Death-full~~ → **Regression Audit** → Polish → Settings → Art → Netcode → Tuning Rig → Gamemode → Interplay**
 
-**Pick up at Regression Audit**, temporarily outranking everything *(2026-09-02)*: **every scenario
-predates scripted player input.** Briefs are in `Docs/Combat-Decisions.md`, and **the remaining
-roster is one megaslice**, not separable slices.
+**Pick up at Regression Audit's Phase 2** — the loop was rebuilt 2026-09-03 and **no coverage was
+added**. `Docs/Plan-Regression-Audit.md` is the contract: §0 state, §0b findings and two standing
+reds, §5 the unbuilt rows. Briefs are in `Docs/Combat-Decisions.md`; **the roster is one
+megaslice**.
 
 **The verification bar every slice now ships against** *(2026-08-24, the dated entry)*: verified
 functionality, with animations legible enough to tell which mechanic is firing. Visual refinement
