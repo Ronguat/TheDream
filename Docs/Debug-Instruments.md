@@ -1001,7 +1001,7 @@ keeps only `DODGE END` lines with `|right| ≤ 1.0`; 5 of 22 in the reference ru
 `right≈-67`, all of them the attacker colliding with a displaced dodger. **Never widen the distance
 band to admit them** — that is fitting the band to contamination. **A duration gate rides beside
 it** *(2026-08-15)*: the final dodge before `StopPIE` ends mid-travel with *zero* drift — measured
-141 cm at 0.14 s — so only dodges running at least `BAND_DODGE_MIN_DURATION` (DodgeSeconds minus a
+141 cm at 0.14 s — so only dodges running at least `DODGE_MIN_DURATION` (DodgeSeconds minus a
 frame) count as travel samples at all.
 
 **A refusal is asserted as the rise that did not happen, never as the `REFUSED` line** *(2026-08-24,
