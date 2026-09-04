@@ -667,9 +667,11 @@ between ticks and stops on the n-th, bounded by `timeout`; a scripted row stops 
 done. At settle every dummy loop is switched off and the states the row's `teardown_allow` names are
 ignored, so the world quiets in the time its last exchange takes rather than the settle's budget.
 **Every row reports where its time went**: the `END` marker carries game seconds waiting for locks,
-running the plan, in the tail, in the gate and in the final settle, and wall seconds starting and
-stopping play; the run's report totals them and names the five most idle rows, so the next thing
-to shorten is a number rather than an impression. The row's id is printed on the viewport while it
+running the plan, finishing (from the plan's last step until its pawns rest, or its cap), in the
+gate and in the final settle, and wall seconds starting and stopping play; the run's report totals
+them and names the five rows longest outside their plan, so the next thing to shorten is a number
+rather than an impression. Finishing is the mechanic completing, not idle: a knockdown's stand or
+an exhaustion's end a row reads. The row's id is printed on the viewport while it
 runs, so what is seen can be named.
 
 **Four things run on every slice, whatever the row asserts.** The **universal set** (eight

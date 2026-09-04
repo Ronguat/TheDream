@@ -40,9 +40,10 @@ def binary_stamp():
         return 0
 
 LOCK = os.path.join(REG, ".lock")
-# The runner's time ledger, per row: game seconds waiting for a lock, running the plan, in the tail,
-# in the gate and in the final settle; wall seconds starting and stopping play.
-LEDGER = ("lock", "plan", "tail", "gate", "settle", "pie")
+# The runner's time ledger, per row: game seconds waiting for a lock, running the plan, finishing
+# (the last step to the pawns' rest, or the cap), in the gate and in the final settle; wall seconds
+# starting and stopping play.
+LEDGER = ("lock", "plan", "finish", "gate", "settle", "pie")
 
 
 def sh(cmd, **kw):
@@ -493,12 +494,12 @@ def report(run_id, results, wall):
         totals = dict((k, sum(l.get(k, 0.0) for _, l in ledgers)) for k in LEDGER)
         print("  where the time went: " + "  ".join("%s %.0f" % (k, totals[k]) for k in LEDGER)
               + "  (game seconds; pie is wall)")
-        idle = sorted(ledgers, key=lambda x: -(x[1].get("lock", 0) + x[1].get("tail", 0)
+        idle = sorted(ledgers, key=lambda x: -(x[1].get("lock", 0) + x[1].get("finish", 0)
                                               + x[1].get("gate", 0) + x[1].get("settle", 0)))[:5]
-        print("  most idle: " + "; ".join(
-            "%s %.0f (lock %.0f tail %.0f gate %.0f settle %.0f)" % (
-                sid, l.get("lock", 0) + l.get("tail", 0) + l.get("gate", 0) + l.get("settle", 0),
-                l.get("lock", 0), l.get("tail", 0), l.get("gate", 0), l.get("settle", 0)) for sid, l in idle))
+        print("  longest outside the plan: " + "; ".join(
+            "%s %.0f (lock %.0f finish %.0f gate %.0f settle %.0f)" % (
+                sid, l.get("lock", 0) + l.get("finish", 0) + l.get("gate", 0) + l.get("settle", 0),
+                l.get("lock", 0), l.get("finish", 0), l.get("gate", 0), l.get("settle", 0)) for sid, l in idle))
     print("  %s" % os.path.join("Saved", "Regression", run_id, "summary.json"))
     print()
 

@@ -14,12 +14,13 @@ tailing the log for the REGRESSION markers each scenario emits:
     REGRESSION LOCK <id> rep=<k> <actor> <tag> frame=<f> game=<t>
     REGRESSION REP <id> n=<k> game=<t> <pawn> tags=<...> states=<...> health=<h> stamina=<s>
     REGRESSION TEARDOWN <pawn> tags=<...> states=<...> health=<h> stamina=<s>
-    REGRESSION END <id> status=<ok|error|timeout> game=<s> frames=<n> lock=<s> plan=<s> tail=<s>
+    REGRESSION END <id> status=<ok|error|timeout> game=<s> frames=<n> lock=<s> plan=<s> finish=<s>
                    gate=<s> settle=<s> pie=<s>
     REGRESSION DONE run=<run>
 
-The END marker carries the row's time ledger: game seconds waiting for locks, running plans, in
-tails, in the gate and in the final settle, and wall seconds starting and stopping play. The row's
+The END marker carries the row's time ledger: game seconds waiting for locks, running plans,
+finishing (from a plan's last step until its pawns rest, or its cap), in the gate and in the final
+settle, and wall seconds starting and stopping play. The row's
 id is printed on the viewport while it runs.
 
 Two rep models. A row with expect.period_frames repeats its plan on a fixed period from plan start.
@@ -923,7 +924,7 @@ class Run(object):
         pt = self.phase_time
         run_s = pt.get("run", 0.0)
         pie = sum(pt.get(p, 0.0) for p in ("stopping", "apply", "wait_world", "setup")) + self.settled_for()
-        self.mark("END %s status=ok game=%.3f frames=%d lock=%.1f plan=%.1f tail=%.1f gate=%.1f settle=%.1f pie=%.1f"
+        self.mark("END %s status=ok game=%.3f frames=%d lock=%.1f plan=%.1f finish=%.1f gate=%.1f settle=%.1f pie=%.1f"
                   % (self.sid, game_s, frames, self.lock_total,
                      max(0.0, run_s - self.lock_total - self.tail_total), self.tail_total,
                      pt.get("gate", 0.0), pt.get("settle", 0.0), pie))
