@@ -258,10 +258,6 @@ functionality, with animations legible enough to tell which mechanic is firing. 
 defers to Polish, feel refinement to Tuning-Rig. **Polish is where the first half of that debt comes
 due**, so expect it to be large.
 
-**The animation pipeline is `Docs/Anim-Pipeline.md`**: authored in Cascadeur, transferred by the
-scripts in `Tools/AnimPipeline/`. `AS_GetUpAttack` is its first output and the project's first
-authored clip; `Docs/Animation-Library.md` carries what that means for the library correspondence.
-
 **Structure Audit has no roster position and keeps a trigger**; its brief is in the same section.
 
 ### When a slice ships
