@@ -3015,7 +3015,7 @@ void ATDCombatCharacter::WarnOnStaleInstanceOverrides() const
 			TEXT("Stale placed-actor override on %s: DefaultAbilities has %d entr%s, the class default has %d. ")
 			TEXT("This instance was placed before its Blueprint authored the rest and keeps the old list forever. ")
 			TEXT("EditDefaultsOnly cannot be written on an instance -- delete and re-place the actor. ")
-			TEXT("See Docs/Combat-Decisions.md."),
+			TEXT("See Docs/Decisions.md."),
 			*GetName(),
 			DefaultAbilities.Num(),
 			DefaultAbilities.Num() == 1 ? TEXT("y") : TEXT("ies"),

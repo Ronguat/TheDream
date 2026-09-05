@@ -50,7 +50,7 @@ void UTDDodgeAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, c
 
 	// The stamina cost is already paid -- Super applied EffectOnStart. There is deliberately
 	// no commit check here: a dodge is never refused for want of stamina, it empties the bar
-	// and exhausts you. See Docs/Combat-Decisions.md, "Costs are paid, not required".
+	// and exhausts you. See Docs/Decisions.md, "Costs are paid, not required".
 	UWorld* World = GetWorld();
 	if (!World)
 	{
