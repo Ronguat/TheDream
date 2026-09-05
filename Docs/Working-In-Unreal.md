@@ -607,8 +607,17 @@ and the fixtures are in `Docs/Debug-Instruments.md`.
 ## Running git
 
 **Push through the Bash tool, never PowerShell.** Bash reaches Git Credential Manager; the
-PowerShell tool runs with `GIT_TERMINAL_PROMPT=0` and fails with `could not read Username`; `gh` is
-not installed. **A failure in one shell is not a statement about capability.**
+PowerShell tool runs with `GIT_TERMINAL_PROMPT=0` and fails with `could not read Username`. **A
+failure in one shell is not a statement about capability.** The GitHub CLI is installed at
+`C:/Program Files/GitHub CLI/gh.exe` *(machine fact, 2026-09-04)*, logged in as the designer for API
+work, and it registered no git credential helper: a push still authenticates by hand in the
+credential manager's prompt, exactly as before. A terminal opened before that day needs a fresh
+path to find it.
+
+**A push is a fast-forward to main and nothing else** *(2026-09-04)*. `Tools/GitHooks/pre-push`
+rejects deletions and non-fast-forward pushes from this clone; `install-hooks.sh` puts it in
+`.git/hooks`, which git never versions, so run it once per clone. The repository's ruleset blocks
+the same from anywhere.
 
 **A push can hang while the commit has already landed** *(observed 2026-08-10)*. Check
 `git rev-list --left-right --count origin/main...HEAD` before assuming failure. Re-running is safe.

@@ -1521,7 +1521,7 @@ reading the file front to back found it.** An index nobody has to read front to 
 
 Generated from the archive rather than maintained by hand, so it goes stale rather than wrong —
 a missing row means the entry is newer than the index, never that the symbol is absent.
-Current through **2026-09-03** — update the date when regenerating, and `docs-check` turns
+Current through **2026-09-04** — update the date when regenerating, and `docs-check` turns
 staleness into a red row by comparing it against the newest entry. The rule for reading it is the standing one,
 that **a search finding nothing proves only that the filter did not match.**
 
@@ -1902,6 +1902,27 @@ long.
 | `ue_regression_runner.py` | 09-03 |
 | `ue_seed_cells.py` | 09-02 |
 | `wall_tick_for` | 09-03 |
+
+## 2026-09-04 — Fathom's bootstrap leaves four consequences here
+
+A sibling project, Fathom, was bootstrapped from this repository's scars on 2026-09-04; its own
+`Docs/Decisions.md` carries the reasoning. Four things came back:
+
+- **The field log** joins the Netcode brief, as a requirement the designer stated for both
+  projects: a multiplayer session between two humans must produce a log that reaches an agent
+  with nothing else running. The shape lives in Fathom's `Docs/Debug-Instruments.md`.
+- **Push safety as depth.** The designer set a ruleset on `main` blocking deletions and force
+  pushes; `Tools/GitHooks/pre-push` now refuses the same from this clone, installed by
+  `install-hooks.sh`; and the local allow rule for pushes narrowed from any argument to the exact
+  fast-forward form. The credential prompt is unchanged: the GitHub CLI installed that day
+  registered no git helper, and a push still needs the designer's hand, confirmed on Fathom's
+  first push the same day.
+- **`Docs/Working-In-Unreal.md`'s git section** stopped saying the CLI is absent.
+- **The push memory** was re-read against the verified helper facts and dated.
+
+**Alternatives.** Leaving the push barrier as it was, which guarded pushes and not the local
+destruction that costs more; the ruleset plus the hook guard both cheaply. **Reopens** if a
+deliberate history rewrite is ever needed: disable the ruleset for its duration, never bypass it.
 
 ## 2026-09-03 — A half bar refills on the clock after an airborne knockdown
 
@@ -10972,6 +10993,13 @@ sitting in the always-read file.
   log; **a netcheck sibling — bands, assertions and a self-test over both logs, grown from the
   two-log recipe — is a budgeted deliverable of this slice, not an option** (2026-08-15, the
   user's call: the riskiest phase does not run on the weakest verification).
+  **The field log, inherited from Fathom's bootstrap (2026-09-04, the designer's requirement):** a
+  remote human's session must reach an agent with no editor and no coding session in between. One
+  trace shape from PIE server, PIE client and packaged build alike, stamped with server time and a
+  world tag; clients relay theirs to the server in batches so one log carries both worlds; a marker
+  hotkey drops a line at the moment something felt wrong; a session bundle at shutdown carries both
+  traces, the commit and the settings, and an ingest script feeds it to the checker. The shape is
+  Fathom's `Docs/Debug-Instruments.md`, "The trace"; the netcheck sibling above is its reader.
 - **Tuning Rig** — every designer-facing combat value live-tunable at runtime, because Interplay's
   real cost is iteration latency: a tweak today is a PIE restart locally and a full reconnect
   against a remote player. **v1 is local-only and lands inside the megaslice** (2026-08-15, the

@@ -73,3 +73,4 @@ Tools/McpBridge/ue-mcp.sh	12	88
 Source/TheDreamEditor/Private/TDInputTools.cpp	4	29
 Source/TheDreamEditor/Public/TDTimeTools.h	9	65
 Tools/RegressionCheck/regression-run.sh	13	80
+Tools/GitHooks/install-hooks.sh	5	32
