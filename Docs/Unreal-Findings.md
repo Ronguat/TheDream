@@ -332,10 +332,10 @@ asking the user to open the graph is a convenience rather than the only way.
 
 ---
 
-## Older tooling entries still in the combat log
+## Older tooling entries still in the decision log
 
 Findings predating this file stayed where they were rather than being moved, because entries are
-append-only and other rows already point at their dates. Search `Docs/Combat-Decisions.md` for:
+append-only and other rows already point at their dates. Search `Docs/Decisions.md` for:
 
 | Date | Entry |
 |---|---|

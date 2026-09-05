@@ -336,7 +336,7 @@ blend into. The fragment route was examined and set aside with it: playing the f
 blending to the complete ending when the chain window lapses would swap poses roughly 400 ms
 *after* the swing is mechanically over, on a character already free to move, block or dodge.
 **The stage-count claim is untouched** — it is this paragraph's other point and still holds.
-Reasoning in `Docs/Combat-Decisions.md`, 2026-08-18.
+Reasoning in `Docs/Decisions.md`, 2026-08-18.
 
 **Duration matters more than it looks.** `_Complete` clips run 0.900–3.000 s in V3; the standalone
 `AttackN` forms run 2.133–4.867 s. Since the play rate is derived from where the impact frame
@@ -413,9 +413,9 @@ is C2 (`AM_Charged2`, window at 0.900, entered at 0.450). **C3 is V3's `Attack7_
 stepping spinning overhead (`AM_Charged3`, window at 0.967, entered at 0.517) — chosen over a V1
 chop because that cell carries L3's 360° volume and the third position spins at every tier. Its
 later stages never play: the montage blends out 1.7 s in. The 2026-09-02 entry in
-`Docs/Combat-Decisions.md` carries the ranking and the stills round behind all three.
+`Docs/Decisions.md` carries the ranking and the stills round behind all three.
 **The shared-windup mechanic is unchanged**: the first 150 ms still carries no information, which
-is what the argument below is really protecting. Entry: `Docs/Combat-Decisions.md`, 2026-08-18.
+is what the argument below is really protecting. Entry: `Docs/Decisions.md`, 2026-08-18.
 
 The single most useful thing the review surfaced, and it is a *design* constraint rather than an
 art one. This project's ladder **shares one windup across light, heavy and charged** — that is
@@ -562,7 +562,7 @@ checked later and say so.
   come from, so Block has no stance problem at all". That premise died on 2026-08-11** — V3 became
   the base stance, and the dodge moved to V3's `Dash_*` clips on top of it. So reaching for V1's
   held guard *is* a pack mix, and whether that reads acceptably is the open question the Parry
-  brief in `Docs/Combat-Decisions.md` still carries. The mix is very likely still the right call, for the
+  brief in `Docs/Decisions.md` still carries. The mix is very likely still the right call, for the
   reason the V3 swap itself recorded: V1 turns out to be specifically guard-shaped, which is a
   defect as a neutral stance and exactly right as a guard. What is not true is that it costs
   nothing.

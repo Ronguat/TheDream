@@ -85,11 +85,11 @@ wrong.
 - **`Docs/Debug-Instruments.md`** — trace tags, cvars, the fixtures and the configurations that
   silently invalidate them, the scenario matrix, the verification checklist. *Trigger: about to
   measure something in combat.*
-- **`Docs/Combat-Decisions.md`** — dated decision log, plus working sections: **known traps**, the
+- **`Docs/Decisions.md`** — dated decision log, plus working sections: **known traps**, the
   **tuning map** (which knob moves, which obvious one is wrong, which values are derived), **slice
   briefs**, the **symbol index**, and bridge tables for anything superseded or renamed. Append an
-  entry whenever a gameplay choice is made a future reader could second-guess; **never rewrite an
-  entry — supersede it.** *Trigger: making a gameplay choice, or picking up a slice.*
+  entry whenever a choice is made a future reader could second-guess; **never rewrite an
+  entry — supersede it.** *Trigger: making a choice, or picking up a slice.*
 - **`Docs/Animation-Library.md`** — where animations come from, the naming convention, what the
   library does *not* contain, how to migrate without dragging a duplicate skeleton behind it.
   *Trigger: before asking for or importing any animation.*
@@ -175,7 +175,7 @@ a gap and not missing design** — it means we have not reached that thing yet. 
 it, and do not try to write the runway down.
 
 **The loop: objective → read the traps → measure → plan → greenlight → execute → report.**
-- Before measuring, grep `Docs/Combat-Decisions.md`'s known-traps section for the item in play and
+- Before measuring, grep `Docs/Decisions.md`'s known-traps section for the item in play and
   **say what it turned up**.
 - Do not begin work that has not been described and agreed, however obvious — described in enough
   detail that executing it needs no further decisions.
@@ -249,7 +249,7 @@ Execution order, the only line that changes when the order does:
 
 > **~~Attack Ladder~~ → ~~Dodge~~ → ~~Sword & Shield~~ → ~~Input Buffer~~ → ~~Death~~ → ~~Dodge Distance~~ → ~~Attack Swap~~ → ~~[hover bug]~~ → ~~[facing pass]~~ → ~~Recovery~~ + ~~Lunge~~ → ~~Target Lock~~ → ~~Block~~ → ~~Light String~~ → ~~Parry~~ → ~~Knockdown~~ → ~~Skeleton Merge~~ → ~~Death-full~~ → ~~Regression Audit~~ → **Polish** → Settings → Art → Netcode → Tuning Rig → Gamemode → Interplay**
 
-**Pick up at Polish.** Briefs are in `Docs/Combat-Decisions.md`; **the roster is one megaslice**.
+**Pick up at Polish.** Briefs are in `Docs/Decisions.md`; **the roster is one megaslice**.
 **The matrix is expected green**: no row is red for the game since the 2026-09-03 rulings entry, so
 a red is a regression until an entry says otherwise.
 
@@ -268,7 +268,7 @@ roster — struck through is the whole record a shipped item needs here.
 | Consequence | Goes to |
 |---|---|
 | A design rule that still governs play | `Docs/Combat-Spec.md` |
-| A latent defect or unverified assumption | the **traps** section of `Docs/Combat-Decisions.md` |
+| A latent defect or unverified assumption | the **traps** section of `Docs/Decisions.md` |
 | A value that is **derived**, so moving it means re-deriving or re-classifying it | the **tuning map** there, as *"nothing, without re-deriving it"* — a warning naming what breaks, never a lock |
 | Which knob moves for a given complaint | the **tuning map** there |
 | What the next slice inherits | its **brief**, in the slice-briefs section there |

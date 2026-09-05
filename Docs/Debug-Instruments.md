@@ -358,7 +358,7 @@ at all means the montage is unassigned on `GA_Parry`.
 differ whenever the bar is near full. Today every sample reads `gained=0.0`: a parry costs nothing,
 so an unattended parrier never spends and its bar never leaves 100, and the clamp eats the whole
 reward. That is the clamp working. It is also why the reward's magnitude is a filed trap rather
-than an assertion — see `Docs/Combat-Decisions.md`.
+than an assertion — see `Docs/Decisions.md`.
 
 **Knockdown adds seven, and the pairing to read is entry → rise → stand** *(2026-08-24, enumerated
 from the source rather than remembered)*. `KNOCKDOWN` opens the down state and carries the whole

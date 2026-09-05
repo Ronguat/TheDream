@@ -4,7 +4,7 @@
 which is why it lives here rather than in `CLAUDE.md` — that file is loaded in full every session
 and carries rules and current facts, while this fires perhaps once in a session and never
 unprompted. Moved out 2026-08-14, on the same reasoning that keeps the known-traps list in
-`Docs/Combat-Decisions.md`: **content with a single, explicit trigger does not belong in the file
+`Docs/Decisions.md`: **content with a single, explicit trigger does not belong in the file
 that is always read.**
 
 
@@ -85,7 +85,7 @@ audit in miniature; the rest is making sure nothing is left on the floor.
 
    **Two questions of every line, because the two files fail differently:**
    - *Is this a rule, or the story of how the rule was learned?* Stories go to
-     `Docs/Combat-Decisions.md` or stay in git. **Dates survive on capability claims** — a limit is
+     `Docs/Decisions.md` or stay in git. **Dates survive on capability claims** — a limit is
      a measurement with a shelf life — and die on incidents.
    - *Does this need re-reading **every** session, by someone who may not touch this system at
      all?* A true rule that only binds one system is triggered content and belongs behind a
@@ -116,7 +116,7 @@ audit in miniature; the rest is making sure nothing is left on the floor.
    fails, and both are cleared by `--baseline` once the session's file set is settled.
 
    Then **run `Tools/DocsCheck/docs-check.sh`: clear every FAIL, read every WARN.** It mechanizes
-   what used to be manual greps, each invariant commented with the incident that earned it. Two judgments stay yours: `grep -n "supersede" Docs/Combat-Decisions.md`
+   what used to be manual greps, each invariant commented with the incident that earned it. Two judgments stay yours: `grep -n "supersede" Docs/Decisions.md`
    — every hit in a dated entry needs a row in the supersession table, and two were missing on
    2026-08-12 — and the trap-shortlist WARN needs an eye, because an orphaned trap body reads as
    prose belonging to whatever precedes it and no grep can tell those apart. That happened on 2026-08-12 and was

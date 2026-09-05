@@ -6,7 +6,7 @@ something breaks; it is what must already be in your head before you touch the e
 of what it describes **fails silently** — a write that returns true and changes nothing, a build
 that never happened, a log that lies about absence. It is kept short enough for that to be
 reasonable: **anything that can be compressed to its rule has been**; the per-capability answers
-live in `Docs/Unreal-Findings.md`, and the incidents in git and `Docs/Combat-Decisions.md`.
+live in `Docs/Unreal-Findings.md`, and the incidents in git and `Docs/Decisions.md`.
 
 **Confidence marks.** *(confirmed)* was observed directly; *(reported once)* comes from a single
 unreproduced incident; ***(inherited)* means nobody has observed it** — recorded from an error

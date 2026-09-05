@@ -3,7 +3,7 @@
 #
 # The rule lives in CLAUDE.md: comments carry WHAT, and HOW where the mechanism is
 # not plain from reading; they never carry WHY. WHY goes to Docs/Combat-Spec.md when
-# it still governs play and to a dated Combat-Decisions.md entry otherwise, and the
+# it still governs play and to a dated Decisions.md entry otherwise, and the
 # symbol index routes a symbol back to it.
 #
 # This script owns only what a grep can own -- the markers of WHY, not WHY itself.

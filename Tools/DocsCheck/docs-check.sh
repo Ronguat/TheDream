@@ -17,7 +17,7 @@ ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$ROOT" || exit 2
 
 STANDING_DOCS=(CLAUDE.md Docs/Combat-Spec.md Docs/Working-In-Unreal.md
-  Docs/Unreal-Findings.md Docs/Debug-Instruments.md Docs/Combat-Decisions.md
+  Docs/Unreal-Findings.md Docs/Debug-Instruments.md Docs/Decisions.md
   Docs/Animation-Library.md Docs/Anim-Pipeline.md Docs/Closing-Down.md)
 
 FAILS=0; WARNS=0
@@ -64,13 +64,13 @@ CLAUDE.md:::## Working Rules:::Debug-Instruments points the loop-coverage rule h
 Docs/Combat-Spec.md:::### Stamina:::Debug-Instruments names this section as the stamina rule
 Docs/Combat-Spec.md:::## The laws:::the Exchange entry points at the graduated laws
 Docs/Combat-Spec.md:::| Light | 150 ms | 200 ms |:::the ladder table lives here; the vocabulary and the checker both lean on it
-Docs/Combat-Decisions.md:::## Known traps:::CLAUDE.md loop step greps this section
-Docs/Combat-Decisions.md:::## Tuning map:::CLAUDE.md routing table sends knob rows here
-Docs/Combat-Decisions.md:::## What has been superseded:::the supersession check reads this table
-Docs/Combat-Decisions.md:::## Symbol index:::CLAUDE.md names it as a working section
-Docs/Combat-Decisions.md:::## Slice briefs:::CLAUDE.md sends every slice pickup here
-Docs/Combat-Decisions.md:::- **Polish**:::CLAUDE.md Current Focus points at this brief -- MOVE THIS ROW when a slice ships
-Docs/Combat-Decisions.md:::- **Netcode**:::CLAUDE.md network section defers status to this brief
+Docs/Decisions.md:::## Known traps:::CLAUDE.md loop step greps this section
+Docs/Decisions.md:::## Tuning map:::CLAUDE.md routing table sends knob rows here
+Docs/Decisions.md:::## What has been superseded:::the supersession check reads this table
+Docs/Decisions.md:::## Symbol index:::CLAUDE.md names it as a working section
+Docs/Decisions.md:::## Slice briefs:::CLAUDE.md sends every slice pickup here
+Docs/Decisions.md:::- **Polish**:::CLAUDE.md Current Focus points at this brief -- MOVE THIS ROW when a slice ships
+Docs/Decisions.md:::- **Netcode**:::CLAUDE.md network section defers status to this brief
 Docs/Debug-Instruments.md:::### Scenario matrix:::Working-In-Unreal sends verification here
 Tools/RegressionCheck/regression_rows.py:::--self-test:::W-I-U and Debug-Instruments name the evaluator and its self-test
 Tools/CommentCheck/comment-check.sh:::--self-test:::CLAUDE.md names the script; Closing-Down step 3 runs it
@@ -370,7 +370,7 @@ done
 
 out=$(check_manifest "$MANIFEST") && ok "pointer-manifest" "all $(printf '%s\n' "$MANIFEST" | grep -c ':::') pointers resolve" || fail "pointer-manifest" "$out"
 
-out=$(check_index Docs/Combat-Decisions.md) && ok "index-freshness" "index current" || fail "index-freshness" "$out"
+out=$(check_index Docs/Decisions.md) && ok "index-freshness" "index current" || fail "index-freshness" "$out"
 
 # The scenario matrix is generated from the fixtures, so a fixture edit that forgot the doc
 # fails here rather than leaving a reader a table that describes the run before last.
@@ -382,13 +382,13 @@ if [ -f Tools/RegressionCheck/gen-matrix.py ]; then
 	fi
 fi
 
-out=$(check_sup_order Docs/Combat-Decisions.md) && ok "bridge-order" "supersession table sorted, entry rows adjacent" || fail "bridge-order" "$out"
+out=$(check_sup_order Docs/Decisions.md) && ok "bridge-order" "supersession table sorted, entry rows adjacent" || fail "bridge-order" "$out"
 
-out=$(check_index_order Docs/Combat-Decisions.md) && ok "index-order" "symbol index sorted, no duplicate rows" || fail "index-order" "$out"
+out=$(check_index_order Docs/Decisions.md) && ok "index-order" "symbol index sorted, no duplicate rows" || fail "index-order" "$out"
 
 out=$(check_doc_coverage CLAUDE.md "${STANDING_DOCS[@]}") && ok "doc-coverage" "every doc CLAUDE.md lists is checked" || fail "doc-coverage" "$out"
 
-out=$(check_trap_shortlist Docs/Combat-Decisions.md) && ok "trap-shortlist" "no unjudged paragraph openers" || { warn "trap-shortlist" "review these openers:"; printf '%s\n' "$out"; }
+out=$(check_trap_shortlist Docs/Decisions.md) && ok "trap-shortlist" "no unjudged paragraph openers" || { warn "trap-shortlist" "review these openers:"; printf '%s\n' "$out"; }
 
 # Scoped to the docs where tooling-capability claims live. Combat-Spec's "cannot" is gameplay
 # language and the decision log's is code behaviour; neither is a claim about a scripting surface.
@@ -412,8 +412,8 @@ out=$(check_budget CLAUDE.md 280 "read in full every session; audit it against t
 # is "read front to back", so the backstop is what keeps that instruction honest rather than
 # aspirational; findings growth belongs in Unreal-Findings.md, which is deliberately unbudgeted.
 out=$(check_budget Docs/Working-In-Unreal.md 600 "the lookup half belongs in Docs/Unreal-Findings.md, not here") && ok "budget" "Working-In-Unreal.md inside backstop" || warn "budget" "$out"
-out=$(check_section Docs/Combat-Decisions.md '^## Known traps' '^## Tuning map' -l 1100 "traps section") && ok "budget" "traps section inside backstop" || warn "budget" "$out"
-out=$(check_section Docs/Combat-Decisions.md '^## Slice briefs' '^### Structure Audit' -w 2700 "slice briefs") && ok "budget" "slice briefs inside backstop" || warn "budget" "$out"
+out=$(check_section Docs/Decisions.md '^## Known traps' '^## Tuning map' -l 1100 "traps section") && ok "budget" "traps section inside backstop" || warn "budget" "$out"
+out=$(check_section Docs/Decisions.md '^## Slice briefs' '^### Structure Audit' -w 2700 "slice briefs") && ok "budget" "slice briefs inside backstop" || warn "budget" "$out"
 
 echo
 if [ "$FAILS" -gt 0 ]; then echo "RESULT: $FAILS FAIL, $WARNS WARN"; exit 1; fi

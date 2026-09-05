@@ -1,4 +1,4 @@
-# Combat decision log
+# Decision log
 
 What was decided, why, and what is still open. Newest entries at the top.
 
@@ -11027,7 +11027,7 @@ sitting in the always-read file.
   class the docs fence. **The hypothesis-dataset pass lands here** (2026-08-18): every combat value
   **greened** — consciously chosen, not golded — inside the band the tempo measurement establishes,
   with Settings' real binds and Polish's real clips; the pass doubles as the rig's stress test, its
-  first real workload. Rationale and the design questions: `Docs/Combat-Decisions.md`, 2026-08-15
+  first real workload. Rationale and the design questions: `Docs/Decisions.md`, 2026-08-15
   and 2026-08-18.
 - **Interplay** — the deliberate feel pass, one remote human against the designer, **on the wire**,
   because the shipping game is the networked one. **Golds the hypothesis dataset the Tuning Rig
@@ -11047,7 +11047,7 @@ sitting in the always-read file.
   **damage versus type**, priced per tier in the mirror. Whether those price as *choices* rather
   than dominances is what a human decides.
   **Verified-good is called here; Combat AI follows it, never precedes it** — the reasoning,
-  including why Netcode needs no AI, is in `Docs/Combat-Decisions.md`, 2026-08-15.
+  including why Netcode needs no AI, is in `Docs/Decisions.md`, 2026-08-15.
 
 ### Structure Audit — no roster position, keeps a trigger
 
