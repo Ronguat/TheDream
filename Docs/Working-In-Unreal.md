@@ -610,9 +610,15 @@ and the fixtures are in `Docs/Debug-Instruments.md`.
 PowerShell tool runs with `GIT_TERMINAL_PROMPT=0` and fails with `could not read Username`. **A
 failure in one shell is not a statement about capability.** The GitHub CLI is installed at
 `C:/Program Files/GitHub CLI/gh.exe` *(machine fact, 2026-09-04)*, logged in as the designer for API
-work, and it registered no git credential helper: a push still authenticates by hand in the
-credential manager's prompt, exactly as before. A terminal opened before that day needs a fresh
+work, and it registered no git credential helper; a terminal opened before that day needs a fresh
 path to find it.
+
+**The dialog on every push was the credential manager's account picker, not a login** *(machine
+fact, 2026-09-04)*. The store holds two GitHub credentials — the Ronguat login and a generic
+personal access token — and a remote URL naming no user made the helper ask which, every time.
+`credential.https://github.com.username=Ronguat` in the global git config names the account, and
+the next push ran with no dialog. A dialog appearing again means a credential was revoked or a
+new one stored, not that this setting failed.
 
 **A push is a fast-forward to main and nothing else** *(2026-09-04)*. `Tools/GitHooks/pre-push`
 rejects deletions and non-fast-forward pushes from this clone; `install-hooks.sh` puts it in

@@ -143,6 +143,7 @@ and not the order anyone reads in. Keep it sorted when adding.)*
 | 2026-08-25 — The knockdown fall's remaining fault is its time curve | the values it shipped: carry **0.45** with `KnockdownFallClipStartSeconds` at **0.35** | 2026-08-25 — The knockdown fall parks at 0.6 (same day, the designer calling a halt: the offset alone trades the gather for a longer flat tail, so it ships at 0.0 and the carry returns to 0.6. **The entry's findings all stand** — the cushion, the flat-before-landing, the 0.45 s ceiling — only its shipped values moved) |
 | 2026-08-25 — The stun tells are positioned by stun progress | the sequence player is held at **rate zero**, called "load-bearing and not merely tidy" | 2026-08-28 — The recoil ships, and the rate-zero hold had never worked. `SetPlayRate(0)` was refused every frame from the day it shipped; the rate was 1.0 throughout. The mechanism the entry describes is now true for the first time, and the entry is right about why it matters |
 | 2026-09-01 — Escalation blends out of all three lights, and the spin is the easy one | the 1 ms elapsed shortfall under populated sockets is the fixture's, and the elapsed bands would want re-deriving rather than the code fixing | 2026-09-02 — Every position authors its tiers, the hand-off goes inertial, and the blend-out boundary was in play time all along |
+| 2026-09-04 — Fathom's bootstrap leaves four consequences here | 2026-09-04 — The push prompt was an account picker, and one config line removes it | the push-safety bullet's claim that a push still needs the designer's hand: the dialog was the account picker, and it is gone |
 
 ---
 
@@ -1902,6 +1903,18 @@ long.
 | `ue_regression_runner.py` | 09-03 |
 | `ue_seed_cells.py` | 09-02 |
 | `wall_tick_for` | 09-03 |
+
+## 2026-09-04 — The push prompt was an account picker, and one config line removes it
+
+**Supersedes** the push-safety bullet of the entry below where it says a push still needs the
+designer's hand. The dialog on every push was Git Credential Manager asking which of two stored
+GitHub credentials to use — the Ronguat login and a generic personal access token — because the
+remote URL names no user. Nothing was ever re-issued; the same credential served every push.
+`credential.https://github.com.username=Ronguat` in the global git config names the account, and
+the next push ran with no dialog, confirmed by the designer. **Alternatives**: deleting the token
+entry in the Windows credential store, the designer's to do and still open; naming the user in
+each remote URL. **Reopens** if the dialog returns, which would mean a revoked or newly stored
+credential rather than this setting failing.
 
 ## 2026-09-04 — Fathom's bootstrap leaves four consequences here
 
